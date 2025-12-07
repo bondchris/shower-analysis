@@ -70,7 +70,10 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
     console.log(`Total artifacts to process: ${stats.totalArtifacts.toString()} (Pages: ${lastPage.toString()})`);
 
     const CONCURRENCY_LIMIT = 5;
-    const pages = Array.from({ length: Math.min(lastPage, MAX_PAGES_CHECK) - INITIAL_PAGE + 1 }, (_, i) => i + INITIAL_PAGE);
+    const pages = Array.from(
+      { length: Math.min(lastPage, MAX_PAGES_CHECK) - INITIAL_PAGE + 1 },
+      (_, i) => i + INITIAL_PAGE
+    );
 
     let activePromises: Promise<void>[] = [];
     let completed = 0;
@@ -82,7 +85,7 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
         const res = await axios.get<ApiResponse>(url);
         for (const item of res.data.data) {
           stats.processed++;
-          const missingFields = REQUIRED_FIELDS.filter(field => item[field] === undefined || item[field] === null);
+          const missingFields = REQUIRED_FIELDS.filter((field) => item[field] === undefined || item[field] === null);
 
           if (missingFields.length > ZERO) {
             stats.artifactsWithIssues++;
@@ -104,7 +107,7 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
         const pageNum = pages.shift();
         if (pageNum) {
           const p = processPage(pageNum).then(() => {
-            activePromises = activePromises.filter(param => param !== p);
+            activePromises = activePromises.filter((param) => param !== p);
           });
           activePromises.push(p);
         }
@@ -128,25 +131,31 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
 function generateReport(allStats: EnvStats[]) {
   let report = "# Validation Report\n\n";
 
-  for (const stats of allStats) {
-    report += `## ${stats.name}\n`;
-    report += `- **Total Artifacts**: ${stats.totalArtifacts.toString()}\n`;
-    report += `- **Processed**: ${stats.processed.toString()}\n`;
-    report += `- **Artifacts with Issues**: ${stats.artifactsWithIssues.toString()}\n`;
+  report += "| Environment | Total Artifacts | Processed | Issues Found | Missing Properties |\n";
+  report += "| :--- | :--- | :--- | :--- | :--- |\n";
 
+  for (const stats of allStats) {
+    let missingPropsStr = "";
     if (stats.artifactsWithIssues > ZERO) {
-      report += "### Missing Property Counts\n";
       const sortedFields = Object.keys(stats.missingCounts).sort();
-      for (const field of sortedFields) {
-        report += `- **${field}**: ${(stats.missingCounts[field] ?? ZERO).toString()}\n`;
-      }
+      missingPropsStr = sortedFields
+        .map((field) => `${field}: ${(stats.missingCounts[field] ?? ZERO).toString()}`)
+        .join(", ");
     } else {
-      report += "No issues found in processed artifacts.\n";
+      missingPropsStr = "None";
     }
-    report += "\n";
+
+    report += `| ${stats.name} | ${stats.totalArtifacts.toString()} | ${stats.processed.toString()} | ${stats.artifactsWithIssues.toString()} | ${missingPropsStr} |\n`;
+  }
+  report += "\n";
+
+  // Ensure reports directory exists
+  const reportsDir = path.join(process.cwd(), "reports");
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir);
   }
 
-  const reportPath = path.join(process.cwd(), "validation-report.md");
+  const reportPath = path.join(reportsDir, "validation-report.md");
   fs.writeFileSync(reportPath, report);
   console.log(`\nReport generated at: ${reportPath}`);
 }

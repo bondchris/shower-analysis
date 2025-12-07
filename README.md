@@ -28,6 +28,7 @@ npx ts-node src/validate-artifacts.ts
 ```
 
 This will:
+
 1.  Iterate through all environments.
 2.  Fetch all artifacts (concurrently).
 3.  Log progress to the console.
@@ -63,4 +64,4 @@ npm run format
 
 ## Output
 
-- **`validation-report.md`**: A Markdown report summarizing total artifacts, processed count, and missing property statistics per environment.
+- **`reports/validation-report.md`**: A Markdown report summarizing total artifacts, processed count, and missing property statistics per environment.
