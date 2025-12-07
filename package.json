@@ -7,8 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "sync": "ts-node src/sync-artifacts.ts",
-    "lint": "eslint . --ext .ts,.tsx,.js,.cjs",
-    "lint:fix": "eslint . --ext .ts,.tsx,.js,.cjs --fix",
+    "lint": "eslint . --ext .ts,.tsx,.js,.cjs && npm run lint:md",
+    "lint:fix": "eslint . --ext .ts,.tsx,.js,.cjs --fix && markdownlint . --fix",
+    "lint:md": "markdownlint .",
     "format": "prettier --write .",
     "check-format": "prettier --check ."
   },
@@ -36,6 +37,7 @@
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-simple-import-sort": "^12.1.1",
+    "markdownlint-cli": "^0.46.0",
     "prettier": "^3.7.4"
   }
 }

@@ -4,7 +4,8 @@ Tools for analyzing roomplan data to improve shower detection.
 
 ## Overview
 
-This project provides scripts to validate and analyze scan artifacts from various environments (Lowe's Staging/Production, Bond Production/Demo). It checks for the existence of critical data properties like `rawScan`, `arData`, and `video`.
+This project provides scripts to validate and analyze scan artifacts from various environments (Lowe's Staging/Production,
+Bond Production/Demo). It checks for the existence of critical data properties like `rawScan`, `arData`, and `video`.
 
 ## Prerequisites
 
@@ -29,10 +30,10 @@ npx ts-node src/validate-artifacts.ts
 
 This will:
 
-1.  Iterate through all environments.
-2.  Fetch all artifacts (concurrently).
-3.  Log progress to the console.
-4.  Generate a summary report at `validation-report.md`.
+1. Iterate through all environments.
+2. Fetch all artifacts (concurrently).
+3. Log progress to the console.
+4. Generate a summary report at `validation-report.md`.
 
 ### Run Data Sync
 
@@ -44,11 +45,11 @@ npm run sync
 
 This will:
 
-1.  Create a `data/` directory (ignored by git).
-2.  Create subdirectories for each environment and artifact ID.
-3.  Download `video.mp4`, `rawScan.json`, and `arData.json`.
-4.  Save a `meta.json` with the full artifact metadata.
-5.  Skip files that have already been downloaded.
+1. Create a `data/` directory (ignored by git).
+2. Create subdirectories for each environment and artifact ID.
+3. Download `video.mp4`, `rawScan.json`, and `arData.json`.
+4. Save a `meta.json` with the full artifact metadata.
+5. Skip files that have already been downloaded.
 
 ### Build Project
 
@@ -80,5 +81,6 @@ npm run format
 
 ## Output
 
-- **`reports/validation-report.md`**: A Markdown report summarizing total artifacts, processed count, and missing property statistics per environment.
+- **`reports/validation-report.md`**: A Markdown report summarizing total artifacts, processed count, and missing
+  property statistics per environment.
 - **`data/`**: Directory containing downloaded artifacts, organized by `{environment_name}/{artifact_id}/`.
