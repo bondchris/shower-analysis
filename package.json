@@ -6,8 +6,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "clean": "ts-node src/clean-data.ts",
-    "inspect": "ts-node src/inspect-artifacts.ts",
+    "clean": "ts-node src/cleanData.ts",
+    "inspect": "ts-node src/inspectArtifacts.ts",
+    "sync": "ts-node src/syncArtifacts.ts",
+    "validate": "ts-node src/validateArtifacts.ts",
     "lint": "eslint . --ext .ts,.tsx,.js,.cjs && npm run lint:md",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.cjs --fix && markdownlint . --fix",
     "lint:md": "markdownlint .",

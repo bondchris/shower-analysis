@@ -5,7 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 import PDFDocument from "pdfkit";
 
-import { RawScan } from "./raw-scan";
+import { RawScan } from "./rawScan";
 
 const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
 const REPORT_PATH = path.join(process.cwd(), "reports", "data-analysis.pdf");

@@ -30,7 +30,7 @@ const DELETE_COUNT = 1;
 const INITIAL_PAGE = 1;
 const MAX_PAGES_CHECK = Infinity;
 const CONCURRENCY_LIMIT = 5;
-const BAD_SCANS_FILE = path.join(process.cwd(), "config", "bad-scans.json");
+const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
 const PDF_MARGIN = 50;
 const PDF_HEADER_SIZE = 20;
 const PDF_SUBHEADER_SIZE = 16;
@@ -312,7 +312,6 @@ async function generateSyncReport(allStats: SyncStats[]) {
   doc.font("Helvetica-Bold");
   headers.forEach((header, i) => {
     doc.text(header, currentX, tableTop, { align: "left", width: colWidths[i] ?? INITIAL_COUNT });
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     currentX += colWidths[i] ?? INITIAL_COUNT;
   });
   doc.moveDown();
@@ -331,7 +330,6 @@ async function generateSyncReport(allStats: SyncStats[]) {
     ];
     data.forEach((text, i) => {
       doc.text(text, rowX, rowY, { align: "left", width: colWidths[i] ?? INITIAL_COUNT });
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       rowX += colWidths[i] ?? INITIAL_COUNT;
     });
     doc.moveDown();

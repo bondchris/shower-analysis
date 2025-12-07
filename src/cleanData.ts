@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
-const BAD_SCANS_FILE = path.join(process.cwd(), "config", "bad-scans.json");
+const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
 const JSON_INDENT = 2;
 const INITIAL_COUNT = 0;
 const DEFAULT_DURATION = 0;
