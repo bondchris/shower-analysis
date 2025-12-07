@@ -34,6 +34,22 @@ This will:
 3.  Log progress to the console.
 4.  Generate a summary report at `validation-report.md`.
 
+### Run Data Sync
+
+To download artifact data (video, rawScan, arData) to your local machine:
+
+```bash
+npm run sync
+```
+
+This will:
+
+1.  Create a `data/` directory (ignored by git).
+2.  Create subdirectories for each environment and artifact ID.
+3.  Download `video.mp4`, `rawScan.json`, and `arData.json`.
+4.  Save a `meta.json` with the full artifact metadata.
+5.  Skip files that have already been downloaded.
+
 ### Build Project
 
 To compile TypeScript to JavaScript:
@@ -65,3 +81,4 @@ npm run format
 ## Output
 
 - **`reports/validation-report.md`**: A Markdown report summarizing total artifacts, processed count, and missing property statistics per environment.
+- **`data/`**: Directory containing downloaded artifacts, organized by `{environment_name}/{artifact_id}/`.

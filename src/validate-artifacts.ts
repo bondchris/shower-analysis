@@ -1,13 +1,8 @@
-import axios from "axios";
 import * as fs from "fs";
 import * as path from "path";
 
-const ENVIRONMENTS = [
-  { domain: "bondxlowes.com", name: "Lowe's Staging" },
-  { domain: "studioxlowes.com", name: "Lowe's Production" },
-  { domain: "arcstudio.ai", name: "Bond Production" },
-  { domain: "usedemo.io", name: "Bond Demo" }
-];
+import { fetchScanArtifacts } from "./api";
+import { ENVIRONMENTS } from "./config";
 
 const REQUIRED_FIELDS = ["id", "projectId", "scanDate", "rawScan", "arData", "video"];
 
@@ -15,30 +10,6 @@ const INITIAL_PAGE = 1;
 const MAX_PAGES_CHECK = Infinity;
 const ZERO = 0;
 const INCREMENT = 1;
-
-interface Artifact {
-  [key: string]: unknown;
-  id: string;
-  projectId?: string;
-  scanDate?: string;
-  rawScan?: unknown;
-  arData?: unknown;
-  video?: unknown;
-}
-
-interface Pagination {
-  currentPage: number;
-  from: number;
-  lastPage: number;
-  perPage: number;
-  to: number;
-  total: number;
-}
-
-interface ApiResponse {
-  data: Artifact[];
-  pagination: Pagination;
-}
 
 interface EnvStats {
   artifactsWithIssues: number;
@@ -58,32 +29,31 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
     totalArtifacts: 0
   };
 
-  let page = INITIAL_PAGE;
+  const page = INITIAL_PAGE;
 
   try {
-    const initialUrl = `https://api.${env.domain}/spatial/v1/scan-artifacts?page=${page.toString()}`;
-    const initialRes = await axios.get<ApiResponse>(initialUrl);
-    const { pagination } = initialRes.data;
+    const initialRes = await fetchScanArtifacts(env.domain, page);
+    const { pagination } = initialRes;
     stats.totalArtifacts = pagination.total;
     const lastPage = pagination.lastPage;
 
     console.log(`Total artifacts to process: ${stats.totalArtifacts.toString()} (Pages: ${lastPage.toString()})`);
 
     const CONCURRENCY_LIMIT = 5;
+    const OFFSET_ONE = 1;
     const pages = Array.from(
-      { length: Math.min(lastPage, MAX_PAGES_CHECK) - INITIAL_PAGE + 1 },
+      { length: Math.min(lastPage, MAX_PAGES_CHECK) - INITIAL_PAGE + OFFSET_ONE },
       (_, i) => i + INITIAL_PAGE
     );
 
-    let activePromises: Promise<void>[] = [];
+    const activePromises: Promise<void>[] = [];
     let completed = 0;
     const totalToProcess = pages.length;
 
     const processPage = async (pageNum: number) => {
-      const url = `https://api.${env.domain}/spatial/v1/scan-artifacts?page=${pageNum.toString()}`;
       try {
-        const res = await axios.get<ApiResponse>(url);
-        for (const item of res.data.data) {
+        const res = await fetchScanArtifacts(env.domain, pageNum);
+        for (const item of res.data) {
           stats.processed++;
           const missingFields = REQUIRED_FIELDS.filter((field) => item[field] === undefined || item[field] === null);
 
@@ -102,12 +72,20 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
       }
     };
 
-    while (pages.length > 0) {
+    const ZERO = 0;
+    const NOT_FOUND = -1;
+    const DELETE_COUNT = 1;
+
+    while (pages.length > ZERO) {
       if (activePromises.length < CONCURRENCY_LIMIT) {
         const pageNum = pages.shift();
-        if (pageNum) {
+        if (pageNum !== undefined) {
           const p = processPage(pageNum).then(() => {
-            activePromises = activePromises.filter((param) => param !== p);
+            const idx = activePromises.indexOf(p);
+            if (idx !== NOT_FOUND) {
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
+              activePromises.splice(idx, DELETE_COUNT);
+            }
           });
           activePromises.push(p);
         }
