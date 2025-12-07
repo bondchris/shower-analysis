@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "sync": "ts-node src/sync-artifacts.ts",
+    "clean": "ts-node src/clean-data.ts",
+    "inspect": "ts-node src/inspect-artifacts.ts",
     "lint": "eslint . --ext .ts,.tsx,.js,.cjs && npm run lint:md",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.cjs --fix && markdownlint . --fix",
     "lint:md": "markdownlint .",
@@ -26,8 +27,14 @@
   },
   "homepage": "https://github.com/bondchris/shower-analysis#readme",
   "dependencies": {
+    "@types/fluent-ffmpeg": "^2.1.28",
     "@types/node": "^24.10.1",
+    "@types/pdfkit": "^0.17.4",
     "axios": "^1.13.2",
+    "chart.js": "^4.5.1",
+    "chartjs-node-canvas": "^5.0.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "pdfkit": "^0.17.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },

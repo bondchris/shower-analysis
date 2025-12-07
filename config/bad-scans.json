@@ -1,0 +1,146 @@
+[
+  {
+    "id": "930c58c5-28a3-4aea-90d4-24a8e30aa95b",
+    "environment": "bond_demo",
+    "reason": "ffprobe failed (corrupt video)",
+    "date": "2025-12-07T05:35:58.164Z"
+  },
+  {
+    "id": "0668853c-97b0-422d-8bd6-19607fff8d68",
+    "environment": "bond_production",
+    "reason": "ffprobe failed (corrupt video)",
+    "date": "2025-12-07T05:36:03.243Z"
+  },
+  {
+    "id": "0d2dd262-8b90-4431-8c2e-1d15beed25c2",
+    "environment": "bond_production",
+    "reason": "ffprobe failed (corrupt video)",
+    "date": "2025-12-07T05:36:04.915Z"
+  },
+  {
+    "id": "26167707-ba26-482c-9f29-ba44338c64e4",
+    "environment": "bond_production",
+    "reason": "ffprobe failed (corrupt video)",
+    "date": "2025-12-07T05:36:12.885Z"
+  },
+  {
+    "id": "2c4d8bc3-8530-4fd1-a6ec-7925a3030ba0",
+    "environment": "bond_production",
+    "reason": "ffprobe failed (corrupt video)",
+    "date": "2025-12-07T05:36:14.692Z"
+  },
+  {
+    "id": "50415824-e694-47a9-a5e0-df003c4ad345",
+    "environment": "bond_production",
+    "reason": "ffprobe failed (corrupt video)",
+    "date": "2025-12-07T05:36:25.003Z"
+  },
+  {
+    "id": "a8181e45-d9d8-4bea-b7f1-2288cf2f0f6d",
+    "environment": "bond_production",
+    "reason": "ffprobe failed (corrupt video)",
+    "date": "2025-12-07T05:36:49.725Z"
+  },
+  {
+    "id": "a1a67c1d-1d63-4b4c-8c91-57862be59341",
+    "environment": "lowe_s_staging",
+    "reason": "ffprobe failed (corrupt video)",
+    "date": "2025-12-07T05:37:25.451Z"
+  },
+  {
+    "id": "17b40134-e221-4381-b0fc-faeff684d2c2",
+    "environment": "bond_production",
+    "reason": "Video too short (7.47s < 11s)",
+    "date": "2025-12-07T08:36:57.434Z"
+  },
+  {
+    "id": "327bef2a-10dc-4218-9a21-62cd37afd3fe",
+    "environment": "bond_production",
+    "reason": "Video too short (9.73s < 11s)",
+    "date": "2025-12-07T08:37:13.871Z"
+  },
+  {
+    "id": "451fdcea-ee50-41ab-a409-800070e217b6",
+    "environment": "bond_production",
+    "reason": "Video too short (10.34s < 11s)",
+    "date": "2025-12-07T08:37:24.619Z"
+  },
+  {
+    "id": "51497dce-0610-447a-bb68-b6f8cdf14843",
+    "environment": "bond_production",
+    "reason": "Video too short (6.42s < 11s)",
+    "date": "2025-12-07T08:37:31.550Z"
+  },
+  {
+    "id": "74fc9c44-c544-447f-adc2-6dfb73b1164e",
+    "environment": "bond_production",
+    "reason": "Video too short (10.52s < 11s)",
+    "date": "2025-12-07T08:37:54.031Z"
+  },
+  {
+    "id": "750b9d53-e067-4d0f-8554-db9118c3fcf7",
+    "environment": "bond_production",
+    "reason": "Video too short (7.92s < 11s)",
+    "date": "2025-12-07T08:37:54.128Z"
+  },
+  {
+    "id": "91877262-a92b-4ba3-9cd8-fa7bde91c857",
+    "environment": "bond_production",
+    "reason": "Video too short (10.40s < 11s)",
+    "date": "2025-12-07T08:38:09.848Z"
+  },
+  {
+    "id": "92644817-44ea-49d4-9927-b59e6fa4a054",
+    "environment": "bond_production",
+    "reason": "Video too short (9.22s < 11s)",
+    "date": "2025-12-07T08:38:10.870Z"
+  },
+  {
+    "id": "a2275da4-9fb8-4a92-9448-c153a4cd0ce9",
+    "environment": "bond_production",
+    "reason": "Video too short (9.63s < 11s)",
+    "date": "2025-12-07T08:38:18.690Z"
+  },
+  {
+    "id": "bbff0f61-33bf-4c2a-9b72-f67d4f57ff86",
+    "environment": "bond_production",
+    "reason": "Video too short (8.93s < 11s)",
+    "date": "2025-12-07T08:38:29.894Z"
+  },
+  {
+    "id": "c5c6488d-d3ad-4517-a485-39c322cb05f4",
+    "environment": "bond_production",
+    "reason": "Video too short (9.97s < 11s)",
+    "date": "2025-12-07T08:38:34.255Z"
+  },
+  {
+    "id": "dc481610-fdc0-4dbd-80b8-8c75b5551934",
+    "environment": "lowe_s_production",
+    "reason": "Video too short (10.75s < 11s)",
+    "date": "2025-12-07T08:39:16.021Z"
+  },
+  {
+    "id": "681dfa4b-70dd-4122-91a4-9c2417751425",
+    "environment": "bond_demo",
+    "reason": "Video too short (11.52s < 12s)",
+    "date": "2025-12-07T08:49:11.624Z"
+  },
+  {
+    "id": "3a0727bf-5362-4f00-898f-e1fa3c934bc2",
+    "environment": "bond_production",
+    "reason": "Video too short (11.30s < 12s)",
+    "date": "2025-12-07T08:49:56.467Z"
+  },
+  {
+    "id": "8f9541e4-9b14-4442-98bc-49fbc00a785c",
+    "environment": "bond_production",
+    "reason": "Video too short (11.72s < 12s)",
+    "date": "2025-12-07T08:50:47.067Z"
+  },
+  {
+    "id": "47db3a7b-4274-4c80-91c5-66ce802da069",
+    "environment": "lowe_s_staging",
+    "reason": "Video too short (11.70s < 12s)",
+    "date": "2025-12-07T08:52:03.310Z"
+  }
+]

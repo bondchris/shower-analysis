@@ -24,7 +24,7 @@
     "outDir": "./dist",
     "rootDir": "."
   },
-  "include": ["src/**/*", ".eslintrc.cjs"],
+  "include": ["src/**/*", "config/**/*", ".eslintrc.cjs"],
   "ts-node": {
     "transpileOnly": true
   }

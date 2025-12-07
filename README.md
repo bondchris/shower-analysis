@@ -33,7 +33,7 @@ This will:
 1. Iterate through all environments.
 2. Fetch all artifacts (concurrently).
 3. Log progress to the console.
-4. Generate a summary report at `validation-report.md`.
+4. Generate a summary report at `reports/validation-report.pdf`.
 
 ### Run Data Sync
 
@@ -81,6 +81,5 @@ npm run format
 
 ## Output
 
-- **`reports/validation-report.md`**: A Markdown report summarizing total artifacts, processed count, and missing
-  property statistics per environment.
+- **`reports/validation-report.pdf`**: A PDF report summarizing total artifacts, processed count, and missing property statistics per environment.
 - **`data/`**: Directory containing downloaded artifacts, organized by `{environment_name}/{artifact_id}/`.
