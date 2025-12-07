@@ -26,6 +26,6 @@ export interface ApiResponse {
 
 export async function fetchScanArtifacts(domain: string, page: number): Promise<ApiResponse> {
     const url = `https://api.${domain}/spatial/v1/scan-artifacts?page=${page.toString()}`;
-    const res = await axios.get<ApiResponse>(url);
+    const res = await axios.get<ApiResponse>(url, { timeout: 30000 });
     return res.data;
 }

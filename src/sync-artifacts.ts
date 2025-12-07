@@ -11,7 +11,7 @@ import { ENVIRONMENTS } from './config';
 
 const INITIAL_PAGE = 1;
 const MAX_PAGES_CHECK = Infinity;
-const CONCURRENCY_LIMIT = 5;
+const CONCURRENCY_LIMIT = 2;
 
 async function downloadFile(url: string, outputPath: string): Promise<void> {
   if (fs.existsSync(outputPath)) {
@@ -20,14 +20,19 @@ async function downloadFile(url: string, outputPath: string): Promise<void> {
   const writer = fs.createWriteStream(outputPath);
   try {
     const response = await axios.get<stream.Readable>(url, {
-      responseType: "stream"
+      responseType: "stream",
+      timeout: 30000 // 30s timeout
     });
     response.data.pipe(writer);
     await finished(writer);
-  } catch (error) {
+  } catch (error: any) {
     writer.close();
     if (fs.existsSync(outputPath)) {
       fs.unlinkSync(outputPath); // Delete partial file
+    }
+    // Enhance error message for context
+    if (axios.isAxiosError(error) && error.response?.status === 403) {
+      throw new Error(`403 Forbidden: The URL may be expired or access denied.`);
     }
     throw error;
   }
