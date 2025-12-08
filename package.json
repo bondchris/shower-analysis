@@ -9,6 +9,7 @@
     "clean": "ts-node src/scripts/cleanData.ts",
     "inspect": "ts-node src/scripts/inspectArtifacts.ts",
     "filter-videos": "ts-node src/scripts/filterNonBathrooms.ts",
+    "format-ar-data": "ts-node src/scripts/formatArData.ts",
     "sync": "ts-node src/scripts/syncArtifacts.ts",
     "validate": "ts-node src/scripts/validateArtifacts.ts",
     "lint": "eslint . --ext .ts,.tsx,.js,.cjs && npm run lint:md",
