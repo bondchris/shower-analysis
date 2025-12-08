@@ -10,7 +10,7 @@ import { RawScan } from "../models/rawScan";
 
 const MIN_CORNERS = 3;
 const INDEX_X = 0;
-const INDEX_Z = 2;
+const INDEX_Y = 1;
 const DIVISOR = 2.0;
 const INITIAL_COUNT = 0;
 const NEXT_OFFSET = 1;
@@ -35,12 +35,12 @@ function calculatePolygonArea(corners: number[][]): number {
     const p2 = corners[j];
     if (p1 !== undefined && p2 !== undefined && p1.length >= MIN_CORNERS && p2.length >= MIN_CORNERS) {
       const x1 = p1[INDEX_X];
-      const z1 = p1[INDEX_Z];
+      const y1 = p1[INDEX_Y];
       const x2 = p2[INDEX_X];
-      const z2 = p2[INDEX_Z];
-      if (x1 !== undefined && z1 !== undefined && x2 !== undefined && z2 !== undefined) {
-        area += x1 * z2;
-        area -= x2 * z1;
+      const y2 = p2[INDEX_Y];
+      if (x1 !== undefined && y1 !== undefined && x2 !== undefined && y2 !== undefined) {
+        area += x1 * y2;
+        area -= x2 * y1;
       }
     }
   }
@@ -309,7 +309,7 @@ async function main(): Promise<void> {
   const MIN_CORNERS = 3;
   const DIMENSIONS_LENGTH = 3;
   const INDEX_X = 0;
-  const INDEX_Z = 2;
+  const INDEX_Y = 1;
   const SQ_M_TO_SQ_FT = 10.7639;
 
   console.log("Finding video files...");
@@ -346,9 +346,9 @@ async function main(): Promise<void> {
                 floor.dimensions.length === DIMENSIONS_LENGTH
               ) {
                 const dimX = floor.dimensions[INDEX_X];
-                const dimZ = floor.dimensions[INDEX_Z];
-                if (dimX !== undefined && dimZ !== undefined) {
-                  totalAreaSqM += dimX * dimZ;
+                const dimY = floor.dimensions[INDEX_Y];
+                if (dimX !== undefined && dimY !== undefined) {
+                  totalAreaSqM += dimX * dimY;
                 }
               }
             }
