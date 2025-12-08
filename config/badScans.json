@@ -766,5 +766,17 @@
     "environment": "lowe_s_production",
     "id": "28bdf906-b16a-453b-b547-3b97f5018100",
     "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T08:07:43.155Z",
+    "environment": "bond_production",
+    "id": "5b80efe9-d0a4-48ff-afbe-88a43d40cecb",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
+  },
+  {
+    "date": "2025-12-08T08:34:38.912Z",
+    "environment": "bond_production",
+    "id": "b30549ac-9716-4cd2-93f7-6a404e381331",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
   }
 ]
