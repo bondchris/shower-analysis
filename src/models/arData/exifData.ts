@@ -1,0 +1,34 @@
+export interface ExifData {
+  ApertureValue?: string;
+  BrightnessValue?: string;
+  ColorSpace?: string;
+  DateTimeDigitized?: string;
+  DateTimeOriginal?: string;
+  ExifVersion?: string;
+  ExposureBiasValue?: string;
+  ExposureMode?: string;
+  ExposureProgram?: string;
+  ExposureTime?: string;
+  FNumber?: string;
+  Flash?: string;
+  FocalLenIn35mmFilm?: string;
+  FocalLength?: string;
+  ISOSpeedRatings?: string;
+  LensMake?: string;
+  LensModel?: string;
+  LensSpecification?: string;
+  MeteringMode?: string;
+  OffsetTime?: string;
+  OffsetTimeDigitized?: string;
+  OffsetTimeOriginal?: string;
+  PixelXDimension?: string;
+  PixelYDimension?: string;
+  SceneCaptureType?: string;
+  SceneType?: string;
+  SensingMethod?: string;
+  ShutterSpeedValue?: string;
+  SubjectArea?: string;
+  SubsecTimeDigitized?: string;
+  SubsecTimeOriginal?: string;
+  WhiteBalance?: string;
+}
