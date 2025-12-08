@@ -6,8 +6,8 @@ import PDFDocument from "pdfkit";
 import * as stream from "stream";
 import { promisify } from "util";
 
-import { ENVIRONMENTS } from "../config/config";
-import { ArtifactApi } from "./api";
+import { ENVIRONMENTS } from "../../config/config";
+import { ArtifactApi } from "../api";
 
 const finished = promisify(stream.finished);
 

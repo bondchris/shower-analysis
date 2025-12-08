@@ -120,6 +120,8 @@ npm run format
 ## Directory Structure
 
 - `src/`: Source TypeScript files.
+  - `scripts/`: Execution scripts (`validate`, `sync`, `inspect`, `clean`).
+  - `models/`: Data interfaces and classes.
 - `reports/`: Generated PDF reports.
 - `data/`: Local data storage (artifacts and API cache).
 - `config/`: Configuration files (e.g., `badScans.json`).

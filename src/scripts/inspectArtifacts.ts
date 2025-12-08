@@ -5,7 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 import PDFDocument from "pdfkit";
 
-import { RawScan } from "./rawScan";
+import { RawScan } from "../models/rawScan";
 
 interface VideoMetadata {
   path: string;
@@ -217,7 +217,7 @@ async function main() {
   const REPORT_PATH = path.join(process.cwd(), "reports", "data-analysis.pdf");
   const INITIAL_COUNT = 0;
   const PROGRESS_UPDATE_INTERVAL = 10;
-  const LOW_FPS_THRESHOLD = 10;
+
   const DECIMAL_PLACES = 2;
   const DEFAULT_VALUE = 0;
   const INCREMENT_STEP = 1;
@@ -263,18 +263,6 @@ async function main() {
     console.log("No metadata available to report.");
     return;
   }
-
-  // --- Low FPS Analysis (<= 10fps) ---
-  console.log("--- Low FPS Videos ---");
-  const lowFpsVideos = metadataList.filter((m) => m.fps <= LOW_FPS_THRESHOLD);
-  if (lowFpsVideos.length > INITIAL_COUNT) {
-    lowFpsVideos.forEach((v) => {
-      console.log(`- ${v.path} (${v.fps.toFixed(DECIMAL_PLACES)} fps) [${v.environment}]`);
-    });
-  } else {
-    console.log("None found.");
-  }
-  console.log("----------------------\n");
 
   // Validate Raw Scans
   console.log("Validating Raw Scans...");
