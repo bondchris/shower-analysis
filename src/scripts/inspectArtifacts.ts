@@ -141,8 +141,10 @@ function findVideoFiles(dir: string): string[] {
 interface HistogramOptions {
   binSize: number;
   decimalPlaces?: number;
+  height?: number;
   max: number;
   min: number;
+  width?: number;
 }
 
 async function createHistogram(
@@ -151,10 +153,12 @@ async function createHistogram(
   title: string,
   options: HistogramOptions
 ): Promise<Buffer> {
-  const { binSize, decimalPlaces = DEFAULT_DECIMALS, max, min } = options;
+  const { binSize, decimalPlaces = DEFAULT_DECIMALS, height, max, min, width } = options;
   const INCREMENT_STEP = 1;
-  const CHART_WIDTH = 600;
-  const CHART_HEIGHT = 400;
+  const DEFAULT_WIDTH = 600;
+  const DEFAULT_HEIGHT = 400;
+  const CHART_WIDTH = width ?? DEFAULT_WIDTH;
+  const CHART_HEIGHT = height ?? DEFAULT_HEIGHT;
   const EXTRA_BUCKETS = 2; // Underflow and Overflow
   const UNDERFLOW_INDEX = 0;
   const OFFSET = 1;
@@ -230,10 +234,24 @@ async function createHistogram(
   return buffer;
 }
 
-async function createBarChart(labels: string[], data: number[], title: string): Promise<Buffer> {
+interface BarChartOptions {
+  height?: number;
+  horizontal?: boolean;
+  width?: number;
+}
+
+async function createBarChart(
+  labels: string[],
+  data: number[],
+  title: string,
+  options: BarChartOptions = {}
+): Promise<Buffer> {
+  const { height, horizontal = false, width } = options;
   const INCREMENT_STEP = 1;
-  const CHART_WIDTH = 600;
-  const CHART_HEIGHT = 400;
+  const DEFAULT_WIDTH = 600;
+  const DEFAULT_HEIGHT = 400;
+  const CHART_WIDTH = width ?? DEFAULT_WIDTH;
+  const CHART_HEIGHT = height ?? DEFAULT_HEIGHT;
 
   const chartCallback = (ChartJS: typeof import("chart.js").Chart) => {
     ChartJS.defaults.responsive = false;
@@ -255,12 +273,14 @@ async function createBarChart(labels: string[], data: number[], title: string): 
       labels
     },
     options: {
+      indexAxis: horizontal ? "y" : "x",
       plugins: {
         legend: { position: "top" },
         title: { display: true, text: title }
       },
       scales: {
-        y: { beginAtZero: true, ticks: { precision: 0 } }
+        x: { beginAtZero: true, ticks: { precision: 0 } },
+        y: { beginAtZero: true, ticks: { autoSkip: false } }
       }
     },
     type: "bar"
@@ -465,6 +485,8 @@ async function main(): Promise<void> {
   }
 
   // --- Analysis ---
+  const DURATION_CHART_WIDTH = 1020;
+  const DURATION_CHART_HEIGHT = 320;
   const durations = metadataList.map((m) => m.duration);
   const avgDuration =
     durations.length > INITIAL_COUNT
@@ -478,9 +500,14 @@ async function main(): Promise<void> {
       lensMap[m.lensModel] = (lensMap[m.lensModel] ?? INITIAL_COUNT) + INCREMENT_STEP;
     }
   }
-  const lensLabels = Object.keys(lensMap).sort();
+  // Sort by count descending
+  const lensLabels = Object.keys(lensMap).sort((a, b) => (lensMap[b] ?? INITIAL_COUNT) - (lensMap[a] ?? INITIAL_COUNT));
   const lensCounts = lensLabels.map((l) => lensMap[l] ?? INITIAL_COUNT);
-  const lensChart = await createBarChart(lensLabels, lensCounts, "Lens Model Distribution");
+  const lensChart = await createBarChart(lensLabels, lensCounts, "Lens Model Distribution", {
+    height: DURATION_CHART_HEIGHT,
+    horizontal: true,
+    width: DURATION_CHART_WIDTH
+  });
 
   // Lighting & Exposure Data
   const intensityVals = metadataList.map((m) => m.avgAmbientIntensity).filter((v): v is number => v !== undefined);
@@ -493,7 +520,13 @@ async function main(): Promise<void> {
   console.log("Generating charts...");
 
   // Duration: min 0, max 120, bin 10
-  const durationChart = await createHistogram(durations, "Seconds", "Duration", { binSize: 10, max: 120, min: 0 });
+  const durationChart = await createHistogram(durations, "Seconds", "Duration", {
+    binSize: 10,
+    height: DURATION_CHART_HEIGHT,
+    max: 120,
+    min: 0,
+    width: DURATION_CHART_WIDTH
+  });
 
   // Ambient: 950-1050, bin 5
   const ambChart = await createHistogram(intensityVals, "Lumens", "Ambient Intensity", {
@@ -554,28 +587,31 @@ async function main(): Promise<void> {
   doc.moveDown(SPACING_SMALL);
 
   // Layout Constants
-  const Y_START = 150;
-  const H = 200;
+  const Y_START = 130;
+  const H = 160;
   const W = 250;
+  const FULL_W = 510;
   const LEFT_X = 50;
   const RIGHT_X = 310;
-  const GAP_Y = 240;
+  const GAP_Y = 190;
   const TEXT_PADDING = 5;
 
-  // Row 1: Duration (Left) & Lens (Right)
-  doc.image(durationChart, LEFT_X, Y_START, { height: H, width: W });
-  doc.text("Duration", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: W });
+  // Row 1: Duration (Full Width)
+  doc.image(durationChart, LEFT_X, Y_START, { height: H, width: FULL_W });
+  doc.text("Duration", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: FULL_W });
 
-  doc.image(lensChart, RIGHT_X, Y_START, { height: H, width: W });
-  doc.text("Lens Model", RIGHT_X, Y_START + H + TEXT_PADDING, { align: "center", width: W });
-
-  // Row 2: FPS (Left) & Resolution (Right)
+  // Row 2: Lens Model (Full Width, Horizontal)
   const Y_ROW2 = Y_START + GAP_Y;
-  doc.image(fpsChart, LEFT_X, Y_ROW2, { height: H, width: W });
-  doc.text("Framerate", LEFT_X, Y_ROW2 + H + TEXT_PADDING, { align: "center", width: W });
+  doc.image(lensChart, LEFT_X, Y_ROW2, { height: H, width: FULL_W });
+  doc.text("Lens Model", LEFT_X, Y_ROW2 + H + TEXT_PADDING, { align: "center", width: FULL_W });
 
-  doc.image(resChart, RIGHT_X, Y_ROW2, { height: H, width: W });
-  doc.text("Resolution", RIGHT_X, Y_ROW2 + H + TEXT_PADDING, { align: "center", width: W });
+  // Row 3: Framerate (Left) & Resolution (Right)
+  const Y_ROW3 = Y_ROW2 + GAP_Y;
+  doc.image(fpsChart, LEFT_X, Y_ROW3, { height: H, width: W });
+  doc.text("Framerate", LEFT_X, Y_ROW3 + H + TEXT_PADDING, { align: "center", width: W });
+
+  doc.image(resChart, RIGHT_X, Y_ROW3, { height: H, width: W });
+  doc.text("Resolution", RIGHT_X, Y_ROW3 + H + TEXT_PADDING, { align: "center", width: W });
 
   // --- Page 2: Lighting ---
   doc.addPage();
