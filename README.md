@@ -84,6 +84,33 @@ npm run clean
 - Deletes artifacts deemed "bad" or "empty".
 - Updates `config/badScans.json` with IDs of removed scans to prevent future syncing.
 
+### 5. Filter Non-Bathroom Videos (Gemini AI)
+
+Uses Google's Gemini 3 Pro Preview model to identify and remove videos that do not show a bathroom (e.g., office tests).
+
+**Prerequisites**:
+
+- Valid `GEMINI_API_KEY`.
+- Create a `.env` file in the root directory (see `.env.example`).
+
+```bash
+# .env
+GEMINI_API_KEY="your_actual_key"
+```
+
+Then run:
+
+```bash
+npm run filter-videos
+```
+
+**Features**:
+
+- Uploads local videos to Gemini for classification.
+- Automatically deletes artifacts identified as "Not a bathroom".
+- Updates `config/badScans.json` to prevent re-syncing.
+- Respects rate limits.
+
 ## Configuration
 
 - **`config/badScans.json`**: A JSON list of artifact IDs that are known to be bad and should be skipped by the sync process.

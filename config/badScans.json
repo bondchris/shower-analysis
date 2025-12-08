@@ -142,5 +142,629 @@
     "environment": "lowe_s_staging",
     "reason": "Video too short (11.70s < 12s)",
     "date": "2025-12-07T08:52:03.310Z"
+  },
+  {
+    "date": "2025-12-08T02:47:51.547Z",
+    "environment": "bond_demo",
+    "id": "5b61911c-5f86-4105-bc69-6c4000264442",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:48:47.205Z",
+    "environment": "bond_demo",
+    "id": "a185a694-3fe3-42cd-accd-73643fd9b88a",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:49:43.586Z",
+    "environment": "bond_demo",
+    "id": "effd537a-9d04-409e-9e84-598f20f66c1f",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:50:17.493Z",
+    "environment": "bond_production",
+    "id": "022b8bea-ac2c-4def-b191-b1451a3bbb97",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:50:22.026Z",
+    "environment": "bond_production",
+    "id": "03654997-8d3f-4282-bf53-7dd9da804bbb",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:50:52.187Z",
+    "environment": "bond_production",
+    "id": "00101f77-a016-4b01-80ad-72e6585a98d4",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:51:26.905Z",
+    "environment": "bond_production",
+    "id": "097f37d3-c7ff-46f0-ad4c-5b97f9cdb875",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:52:42.685Z",
+    "environment": "bond_production",
+    "id": "100ddee4-8a5b-445b-bfe5-85b87e3cfb2b",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:53:53.567Z",
+    "environment": "bond_production",
+    "id": "15071262-d2c7-41dd-ac00-bfaee4b2e06c",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:54:13.994Z",
+    "environment": "bond_production",
+    "id": "15f546ee-4b7d-48d8-a560-637b2c5a19ed",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:54:23.733Z",
+    "environment": "bond_production",
+    "id": "15df7c4b-1c3a-4c44-aee0-efe7fa68f27e",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:54:33.978Z",
+    "environment": "bond_production",
+    "id": "1785f7ab-7b18-4396-aa3a-42bf0ebec57b",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:55:06.605Z",
+    "environment": "bond_production",
+    "id": "18ae1fd6-fd38-4a92-983e-a4030a294bb3",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:55:48.086Z",
+    "environment": "bond_production",
+    "id": "1a42fc84-56e3-4166-abd5-474adc63b194",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:55:54.737Z",
+    "environment": "bond_production",
+    "id": "1ad9e3c5-f092-4302-8b83-e73f4c85f28c",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:58:40.151Z",
+    "environment": "bond_production",
+    "id": "228291c4-f779-4fb6-b8dc-78a8384c5d47",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:58:59.342Z",
+    "environment": "bond_production",
+    "id": "240b4fe4-4a7c-4097-93f4-cd1a53f59ac7",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:59:28.169Z",
+    "environment": "bond_production",
+    "id": "266c61aa-4dc9-4f30-90b0-4db32feb5542",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T02:59:55.359Z",
+    "environment": "bond_production",
+    "id": "279368b9-c0f7-46d7-82b2-7b814ee1f548",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:01:30.606Z",
+    "environment": "bond_production",
+    "id": "2baff80d-9364-4dbd-b89f-b5c9556bf02c",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:01:51.687Z",
+    "environment": "bond_production",
+    "id": "2d61033f-61cb-4b10-a836-6bee50417246",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:02:38.166Z",
+    "environment": "bond_production",
+    "id": "2f4a8633-48e8-44f6-be69-b6d6a434f1c7",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:03:05.453Z",
+    "environment": "bond_production",
+    "id": "307721a0-2dbb-4225-b650-6c86e9952efd",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:03:09.747Z",
+    "environment": "bond_production",
+    "id": "3104d16e-6d31-4bfa-852c-4b44033bc4f8",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:04:20.348Z",
+    "environment": "bond_production",
+    "id": "34870d04-5fa8-4192-981d-2d14b43d6c71",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:05:24.148Z",
+    "environment": "bond_production",
+    "id": "3a4d3ff5-a1d0-4ce7-bf9f-fb884e864768",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:05:39.424Z",
+    "environment": "bond_production",
+    "id": "3aad2c3f-1fe6-4ff8-bc23-b58d537cf4b9",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:06:45.982Z",
+    "environment": "bond_production",
+    "id": "3d0e31c0-4a6c-4750-9fef-a226f354c82d",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:07:52.430Z",
+    "environment": "bond_production",
+    "id": "4161a2ba-be28-43c1-ba6f-72e1d834acc1",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:08:10.428Z",
+    "environment": "bond_production",
+    "id": "42b57fc5-566d-4823-a314-991863bae98e",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:08:56.174Z",
+    "environment": "bond_production",
+    "id": "45940c9f-62db-4abf-9b6a-fe299cbac2d2",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:09:13.364Z",
+    "environment": "bond_production",
+    "id": "4579f0b7-c046-485e-91a2-52cc8cf12510",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:09:56.455Z",
+    "environment": "bond_production",
+    "id": "4996cd94-3418-4014-aa35-8a2d8e13f6be",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:10:35.728Z",
+    "environment": "bond_production",
+    "id": "4b80d9da-8173-4605-bf03-fc377242bcfc",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:11:09.896Z",
+    "environment": "bond_production",
+    "id": "4d17fea3-d891-410c-9bc2-6ba076d05fb1",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:13:14.113Z",
+    "environment": "bond_production",
+    "id": "53deb48c-a460-4ad7-9df9-83cf5406cbe4",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:14:21.469Z",
+    "environment": "bond_production",
+    "id": "55d001ad-8435-415f-9628-1e584471926d",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:14:28.931Z",
+    "environment": "bond_production",
+    "id": "561c0a63-f457-4034-8849-d913fd9721b6",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:14:31.108Z",
+    "environment": "bond_production",
+    "id": "56d6aeed-961f-4382-a35c-1e4ae3f2fd77",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:15:23.088Z",
+    "environment": "bond_production",
+    "id": "593f2851-97dd-4781-b532-30541b940284",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:15:26.922Z",
+    "environment": "bond_production",
+    "id": "588b896a-3b06-4ace-ab4d-e84fa2abef4b",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:15:47.219Z",
+    "environment": "bond_production",
+    "id": "59c18657-74c5-4ae3-a891-cf22a8018213",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:16:03.816Z",
+    "environment": "bond_production",
+    "id": "59fe3453-f8f4-41ed-b487-c7226712233d",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:16:05.255Z",
+    "environment": "bond_production",
+    "id": "5afaa2e6-66e1-45d0-ab01-c2bf4ce0900d",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:17:07.648Z",
+    "environment": "bond_production",
+    "id": "5d379339-dd61-4b82-8a2f-473e95e74c09",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:18:04.296Z",
+    "environment": "bond_production",
+    "id": "600ad6e5-0023-42ec-8e61-7012d8daf571",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:19:12.699Z",
+    "environment": "bond_production",
+    "id": "62edadf1-31ec-444f-956c-86a5cc6ccd17",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:19:46.184Z",
+    "environment": "bond_production",
+    "id": "63d5fc5f-a63e-4632-9099-f92f835b7e24",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:20:08.431Z",
+    "environment": "bond_production",
+    "id": "66a9c1b4-7718-4dc0-955f-8ff74ac727b5",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:20:44.434Z",
+    "environment": "bond_production",
+    "id": "6a73d9e1-087d-415b-93c5-e04053cf6c97",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:21:00.662Z",
+    "environment": "bond_production",
+    "id": "61f01e3f-dd26-47be-9f20-eb519c336a0b",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:21:28.989Z",
+    "environment": "bond_production",
+    "id": "6c5dc904-9a61-404b-97a8-cdbf1e49e48f",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:21:54.943Z",
+    "environment": "bond_production",
+    "id": "6d42d6dc-5b3f-4d01-97d8-62aae7ba6055",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:22:41.697Z",
+    "environment": "bond_production",
+    "id": "6fa0084d-3987-4927-a2b4-89c3f0dec426",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:23:06.515Z",
+    "environment": "bond_production",
+    "id": "70e0f779-abae-4dae-aa26-387ffbb98d2e",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:23:39.379Z",
+    "environment": "bond_production",
+    "id": "71c3a953-8fc7-434e-a458-d4fabe91c1ea",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:24:46.376Z",
+    "environment": "bond_production",
+    "id": "747cad1d-6c23-47db-8bf5-efd545a544ad",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:25:13.401Z",
+    "environment": "bond_production",
+    "id": "74d9e206-03a2-43c5-9269-126e6191b7b5",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:25:54.396Z",
+    "environment": "bond_production",
+    "id": "7706d20f-c93e-477d-9711-71da7061b8bb",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:26:53.965Z",
+    "environment": "bond_production",
+    "id": "7aa348df-a735-4ff9-9798-e03da47828db",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:27:42.118Z",
+    "environment": "bond_production",
+    "id": "7c9a4577-9822-4e29-a982-570447ef35fd",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:31:15.531Z",
+    "environment": "bond_production",
+    "id": "86eb0cb1-a538-4a52-a792-f2496fe2897f",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:31:37.427Z",
+    "environment": "bond_production",
+    "id": "8a5144e1-f1c6-474c-b1c5-52f9def310d0",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:34:47.421Z",
+    "environment": "bond_production",
+    "id": "921b98ca-9f1b-4aad-b63f-90d77c7f50c2",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:36:11.866Z",
+    "environment": "bond_production",
+    "id": "96fd6100-c5f2-4f1b-bda0-9b695b011c48",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:37:26.886Z",
+    "environment": "bond_production",
+    "id": "9c79ca74-2aa5-45c1-93d2-2ed7a7db6d92",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:37:35.422Z",
+    "environment": "bond_production",
+    "id": "9aebaa50-5b4c-4251-931a-6f49898cf22d",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:38:52.969Z",
+    "environment": "bond_production",
+    "id": "a1adc86d-aef3-4a2e-992a-f21b71fcf7f9",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:39:30.355Z",
+    "environment": "bond_production",
+    "id": "a3c509e5-c21f-4389-9a86-1620374171c7",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:42:59.978Z",
+    "environment": "bond_production",
+    "id": "ad7b9db5-441f-462e-9bce-df8282eb3a93",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:43:52.891Z",
+    "environment": "bond_production",
+    "id": "b1ed4a23-719f-4606-b760-cf491c31bcd3",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:47:01.166Z",
+    "environment": "bond_production",
+    "id": "be8cc4d6-9eb2-4bd6-8f22-d4377d4c67ae",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:47:20.047Z",
+    "environment": "bond_production",
+    "id": "bf5db8f1-cbc0-472d-9f4c-81f1205af8d9",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:47:42.858Z",
+    "environment": "bond_production",
+    "id": "c1751964-4c3a-4f7a-80a6-d8fa506bf403",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:48:33.036Z",
+    "environment": "bond_production",
+    "id": "c3d4a77f-4c35-4992-8328-3075203154bb",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:49:34.817Z",
+    "environment": "bond_production",
+    "id": "c574d029-993b-4947-9ed5-26802b24db2d",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:50:34.951Z",
+    "environment": "bond_production",
+    "id": "cc273daa-bf7a-4947-aa47-9a1c390deb5f",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:51:03.343Z",
+    "environment": "bond_production",
+    "id": "cceb56e6-aaeb-43ae-b5ec-13367141fbae",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:51:15.849Z",
+    "environment": "bond_production",
+    "id": "cfdc9c63-8663-41c3-93c9-433adc935171",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:52:53.924Z",
+    "environment": "bond_production",
+    "id": "d6230f0b-b472-4733-9214-e3b28fd00559",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:53:08.163Z",
+    "environment": "bond_production",
+    "id": "d6397785-164c-48c0-a73f-56e8fb3f7d85",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:53:59.672Z",
+    "environment": "bond_production",
+    "id": "d9787c3f-5b6c-4db4-9c4d-2dca9809eb2a",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:55:06.186Z",
+    "environment": "bond_production",
+    "id": "ddbcc359-fe4d-4ebf-8136-8f1926a9a10b",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:55:49.051Z",
+    "environment": "bond_production",
+    "id": "e0f12002-05eb-4db9-9386-d163a9fcf7da",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:56:05.671Z",
+    "environment": "bond_production",
+    "id": "e1dffa5c-ba32-4bd5-a30b-471a8163b64e",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:56:25.209Z",
+    "environment": "bond_production",
+    "id": "e2019705-04ff-42da-a2ac-20fb866353f2",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:56:33.089Z",
+    "environment": "bond_production",
+    "id": "e12434f9-eaad-4e2c-8d73-d82d0c5a7eb8",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:56:43.454Z",
+    "environment": "bond_production",
+    "id": "e33fe772-9803-47d0-a4f7-f0d1089536f4",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:57:46.851Z",
+    "environment": "bond_production",
+    "id": "e80ad2c2-caf0-43e2-9b67-12a2ad302c4c",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:58:49.469Z",
+    "environment": "bond_production",
+    "id": "eb6ad7e7-085e-4b2d-a52f-3be9a6f8ea8e",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T03:59:16.831Z",
+    "environment": "bond_production",
+    "id": "ed0190de-889a-4316-a4dd-5cfa1f3c3952",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:00:11.973Z",
+    "environment": "bond_production",
+    "id": "ef0c084b-5c6c-4e4a-9e15-22a942f22c1e",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:01:11.423Z",
+    "environment": "bond_production",
+    "id": "f1feffd3-bf4f-4f67-99ae-497d9023ceb8",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:01:12.312Z",
+    "environment": "bond_production",
+    "id": "f17e6fad-67d7-442e-8948-2eaf3342e916",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:01:27.060Z",
+    "environment": "bond_production",
+    "id": "f29657a2-125a-4b93-8448-07c3cca43217",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:02:20.103Z",
+    "environment": "bond_production",
+    "id": "f796e437-a09a-4c11-83a7-24423289bfc3",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:02:39.900Z",
+    "environment": "bond_production",
+    "id": "f93a995d-1dc0-4a2b-ace9-7b3e8e268037",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:02:59.154Z",
+    "environment": "bond_production",
+    "id": "f98b753c-8858-44f3-b6b7-b7197a279fe6",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:03:20.936Z",
+    "environment": "bond_production",
+    "id": "fa21de54-2c29-41d2-92de-5607c9c9610c",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:04:19.197Z",
+    "environment": "bond_production",
+    "id": "fe3bea66-0bed-4d3a-85fd-736db701ab40",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:04:44.909Z",
+    "environment": "bond_production",
+    "id": "ff10687b-02de-4def-b6d4-dc328c8d1c47",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:05:17.669Z",
+    "environment": "lowe_s_production",
+    "id": "143b74a3-c894-4b2b-8692-7461e539694b",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:05:21.665Z",
+    "environment": "lowe_s_production",
+    "id": "1f95652b-1a50-4563-9df4-a26476b6fa9a",
+    "reason": "Not a bathroom (Gemini)"
+  },
+  {
+    "date": "2025-12-08T04:05:26.001Z",
+    "environment": "lowe_s_production",
+    "id": "28bdf906-b16a-453b-b547-3b97f5018100",
+    "reason": "Not a bathroom (Gemini)"
   }
 ]

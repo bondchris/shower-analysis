@@ -1,0 +1,184 @@
+import { GenerativeModel, GoogleGenerativeAI } from "@google/generative-ai";
+import * as dotenv from "dotenv";
+import * as fs from "fs";
+import * as path from "path";
+
+import { getBadScans, saveBadScans } from "../utils/badScans";
+import { getCheckedScans, saveCheckedScans } from "../utils/checkedScans";
+
+dotenv.config();
+
+function findArtifactDirectories(dir: string): string[] {
+  const results: string[] = [];
+  if (!fs.existsSync(dir)) {
+    return [];
+  }
+  const list = fs.readdirSync(dir);
+  for (const file of list) {
+    const fullPath = path.join(dir, file);
+    const stat = fs.statSync(fullPath);
+    if (stat.isDirectory()) {
+      if (fs.existsSync(path.join(fullPath, "meta.json"))) {
+        results.push(fullPath);
+      } else {
+        results.push(...findArtifactDirectories(fullPath));
+      }
+    }
+  }
+  return results;
+}
+
+async function processArtifact(
+  dir: string,
+  model: GenerativeModel,
+  badScanIds: Set<string>,
+  badScans: ReturnType<typeof getBadScans>,
+  checkedScanIds: Set<string>,
+  checkedScans: ReturnType<typeof getCheckedScans>,
+  modelName: string
+): Promise<{ processed: number; removed: number; skipped: number }> {
+  let processed = 0;
+  let removed = 0;
+  const skipped = 0;
+  const artifactId = path.basename(dir);
+
+  // Skip if we already know it's bad
+  if (badScanIds.has(artifactId)) {
+    return { processed, removed, skipped };
+  }
+
+  // Skip if we already checked it and it was good
+  if (checkedScanIds.has(artifactId)) {
+    return { processed, removed, skipped: 1 };
+  }
+
+  const videoPath = path.join(dir, "video.mp4");
+  if (!fs.existsSync(videoPath)) {
+    return { processed, removed, skipped };
+  }
+
+  const parentDir = path.dirname(dir);
+  const environment = path.basename(parentDir);
+
+  console.log(`Checking ${artifactId} [${environment}]...`);
+
+  try {
+    const videoBuffer = fs.readFileSync(videoPath);
+    const prompt = "Is this video showing a bathroom? Reply YES or NO.";
+
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: videoBuffer.toString("base64"),
+          mimeType: "video/mp4"
+        }
+      }
+    ]);
+
+    const response = result.response;
+    const text = response.text().trim().toUpperCase();
+    console.log(`  -> ${artifactId}: Gemini says: ${text}`);
+
+    if (text.includes("NO")) {
+      console.log(`  -> ${artifactId}: NOT A BATHROOM. Removing...`);
+
+      badScans.push({
+        date: new Date().toISOString(),
+        environment,
+        id: artifactId,
+        reason: `Not a bathroom (Gemini ${modelName})`
+      });
+      badScanIds.add(artifactId);
+
+      try {
+        fs.rmSync(dir, { force: true, recursive: true });
+        removed++;
+      } catch (e) {
+        console.error(`  -> ${artifactId}: Failed to delete: ${String(e)}`);
+      }
+    } else {
+      console.log(`  -> ${artifactId}: Kept.`);
+      // Add to checked scans
+      checkedScans.push({
+        date: new Date().toISOString(),
+        id: artifactId,
+        model: modelName
+      });
+      checkedScanIds.add(artifactId);
+    }
+
+    processed++;
+  } catch (err) {
+    console.error(`  -> ${artifactId}: Error processing video: ${String(err)}`);
+  }
+
+  return { processed, removed, skipped };
+}
+
+async function main() {
+  const EXIT_FAILURE = 1;
+  const CONCURRENCY = 16;
+  const apiKey = process.env["GEMINI_API_KEY"];
+  const MODEL_NAME = "gemini-3-pro-preview";
+
+  if (apiKey === undefined || apiKey === "") {
+    console.error("Error: GEMINI_API_KEY not found in environment variables.");
+    process.exit(EXIT_FAILURE);
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+
+  const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
+
+  const artifactDirs = findArtifactDirectories(DATA_DIR);
+  console.log(`Found ${artifactDirs.length.toString()} artifacts.`);
+
+  const badScans = getBadScans();
+  const badScanIds = new Set(badScans.map((b) => b.id));
+
+  const checkedScans = getCheckedScans();
+  const checkedScanIds = new Set(checkedScans.map((c) => c.id));
+
+  console.log(`Loaded ${checkedScans.length.toString()} checked scans.`);
+
+  let totalProcessed = 0;
+  let totalRemoved = 0;
+  let totalSkipped = 0;
+
+  // Process in chunks/queue
+  const queue = [...artifactDirs];
+  const QUEUE_EMPTY = 0;
+  const workers = Array(CONCURRENCY)
+    .fill(null)
+    .map(async () => {
+      while (queue.length > QUEUE_EMPTY) {
+        const dir = queue.shift();
+        if (dir !== undefined) {
+          const { processed, removed, skipped } = await processArtifact(
+            dir,
+            model,
+            badScanIds,
+            badScans,
+            checkedScanIds,
+            checkedScans,
+            MODEL_NAME
+          );
+          totalProcessed += processed;
+          totalRemoved += removed;
+          totalSkipped += skipped;
+        }
+      }
+    });
+
+  await Promise.all(workers);
+
+  saveBadScans(badScans);
+  saveCheckedScans(checkedScans);
+  console.log(
+    `\nScan complete. Processed ${totalProcessed.toString()}. Removed ${totalRemoved.toString()}. Skipped ${totalSkipped.toString()} (Cached).`
+  );
+}
+
+main().catch(console.error);
