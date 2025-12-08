@@ -2,14 +2,6 @@ import ffmpeg from "fluent-ffmpeg";
 import * as fs from "fs";
 import * as path from "path";
 
-const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
-const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
-const JSON_INDENT = 2;
-const INITIAL_COUNT = 0;
-const DEFAULT_DURATION = 0;
-const MIN_DURATION = 12;
-const DECIMAL_PLACES = 2;
-
 interface BadScanRecord {
   id: string;
   environment: string;
@@ -17,12 +9,8 @@ interface BadScanRecord {
   date: string;
 }
 
-// Ensure bad-scans.json exists
-if (!fs.existsSync(BAD_SCANS_FILE)) {
-  fs.writeFileSync(BAD_SCANS_FILE, JSON.stringify([], null, JSON_INDENT));
-}
-
 function getBadScans(): BadScanRecord[] {
+  const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
   try {
     const content = fs.readFileSync(BAD_SCANS_FILE, "utf-8");
     return JSON.parse(content) as BadScanRecord[];
@@ -32,6 +20,8 @@ function getBadScans(): BadScanRecord[] {
 }
 
 function saveBadScans(records: BadScanRecord[]) {
+  const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
+  const JSON_INDENT = 2;
   fs.writeFileSync(BAD_SCANS_FILE, JSON.stringify(records, null, JSON_INDENT));
 }
 
@@ -74,6 +64,7 @@ function findArtifactDirectories(dir: string): string[] {
 }
 
 async function getVideoDuration(filePath: string): Promise<number> {
+  const DEFAULT_DURATION = 0;
   const duration = await new Promise<number>((resolve) => {
     ffmpeg.ffprobe(filePath, (err, metadata) => {
       if (err !== null && err !== undefined) {
@@ -87,6 +78,18 @@ async function getVideoDuration(filePath: string): Promise<number> {
 }
 
 async function main() {
+  const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
+  const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
+  const JSON_INDENT = 2;
+  const INITIAL_COUNT = 0;
+  const MIN_DURATION = 12;
+  const DECIMAL_PLACES = 2;
+
+  // Ensure bad-scans.json exists
+  if (!fs.existsSync(BAD_SCANS_FILE)) {
+    fs.writeFileSync(BAD_SCANS_FILE, JSON.stringify([], null, JSON_INDENT));
+  }
+
   console.log("Starting data cleaning...");
   const artifactDirs = findArtifactDirectories(DATA_DIR);
   console.log(`Found ${artifactDirs.length.toString()} directories to check.`);

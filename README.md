@@ -4,13 +4,20 @@ Tools for analyzing roomplan data to improve shower detection.
 
 ## Overview
 
-This project provides scripts to validate and analyze scan artifacts from various environments (Lowe's Staging/Production,
-Bond Production/Demo). It checks for the existence of critical data properties like `rawScan`, `arData`, and `video`.
+This project provides a suite of scripts to validate, sync, inspect, and clean scan artifacts from various environments:
+
+- Lowe's Staging
+- Lowe's Production
+- Bond Production
+- Bond Demo
+
+It identifies data integrity issues, generates visual reports, and maintains a clean local dataset.
 
 ## Prerequisites
 
 - Node.js (v18+ recommended)
-- VPN connection (if required for accessing staging environments)
+- VPN connection (if required for accessing staging API endpoints)
+- `ffmpeg` installed on your system (required for video analysis)
 
 ## Installation
 
@@ -20,66 +27,99 @@ npm install
 
 ## Usage
 
-### Run Data Validation
+### 1. Validate Artifacts
 
-To validate artifacts across all environments and generate a report:
+Check for the existence of critical properties (`rawScan`, `arData`, `video`) across all environments and generate an error trend report.
 
 ```bash
-npx ts-node src/validate-artifacts.ts
+npm run validate
 ```
 
-This will:
+**Output**:
 
-1. Iterate through all environments.
-2. Fetch all artifacts (concurrently).
-3. Log progress to the console.
-4. Generate a summary report at `reports/validation-report.pdf`.
+- `reports/validation-report.pdf`: A PDF report summarizing artifact counts, missing properties, and an error trend graph over time.
 
-### Run Data Sync
+### 2. Sync Artifacts
 
-To download artifact data (video, rawScan, arData) to your local machine:
+Download raw artifact data (`video.mp4`, `rawScan.json`, `arData.json`) to your local machine for deep analysis.
 
 ```bash
 npm run sync
 ```
 
-This will:
+**Features**:
 
-1. Create a `data/` directory (ignored by git).
-2. Create subdirectories for each environment and artifact ID.
-3. Download `video.mp4`, `rawScan.json`, and `arData.json`.
-4. Save a `meta.json` with the full artifact metadata.
-5. Skip files that have already been downloaded.
+- Creates `data/artifacts/{environment}/{id}/` directories.
+- Skips files that already exist.
+- Skips "bad scans" listed in `config/badScans.json`.
+- Caches API responses to `data/api_cache/` to minimize network requests.
 
-### Build Project
+### 3. Inspect Data
 
-To compile TypeScript to JavaScript:
+Analyze the downloaded local artifacts to extract metadata and generate distribution charts.
+
+```bash
+npm run inspect
+```
+
+**Output**:
+
+- `reports/data-analysis.pdf`: A PDF report containing:
+  - Video Duration Distribution (0-180s buckets).
+  - Framerate Distribution.
+  - Resolution Distribution.
+  - Lists of low FPS videos.
+
+### 4. Clean Data
+
+Automated cleanup of invalid or corrupt artifacts.
+
+```bash
+npm run clean
+```
+
+**Features**:
+
+- Scans local `data/artifacts` for validity (e.g., checks if `video.mp4` is valid).
+- Deletes artifacts deemed "bad" or "empty".
+- Updates `config/badScans.json` with IDs of removed scans to prevent future syncing.
+
+## Configuration
+
+- **`config/badScans.json`**: A JSON list of artifact IDs that are known to be bad and should be skipped by the sync process.
+  - This is automatically updated by `npm run clean`.
+
+## Development
+
+### Build
+
+Compile TypeScript to JavaScript:
 
 ```bash
 npm run build
 ```
-
-## Development
 
 ### Linting & Formatting
 
 Ensure code quality before committing:
 
 ```bash
-# Run linting
+# Run linting (ESLint + MarkdownLint)
 npm run lint
 
 # Fix linting issues automatically
 npm run lint:fix
 
-# Check formatting
+# Check formatting (Prettier)
 npm run check-format
 
 # Fix formatting
 npm run format
 ```
 
-## Output
+## Directory Structure
 
-- **`reports/validation-report.pdf`**: A PDF report summarizing total artifacts, processed count, and missing property statistics per environment.
-- **`data/`**: Directory containing downloaded artifacts, organized by `{environment_name}/{artifact_id}/`.
+- `src/`: Source TypeScript files.
+- `reports/`: Generated PDF reports.
+- `data/`: Local data storage (artifacts and API cache).
+- `config/`: Configuration files (e.g., `badScans.json`).

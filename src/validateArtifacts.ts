@@ -7,44 +7,11 @@ import * as stream from "stream";
 import { promisify } from "util";
 
 import { ENVIRONMENTS } from "../config/config";
-import {
-  ApiResponse,
-  fetchScanArtifacts,
-  getCacheMeta,
-  loadPageFromCache,
-  saveCacheMeta,
-  savePageToCache
-} from "./api";
+import { ArtifactApi } from "./api";
 
 const finished = promisify(stream.finished);
 
 const REQUIRED_FIELDS = ["id", "projectId", "scanDate", "rawScan", "arData", "video"];
-
-// Constants
-const INITIAL_PAGE = 1;
-const MAX_PAGES_CHECK = Infinity;
-const ZERO = 0;
-const INCREMENT = 1;
-const PDF_SPACING = 2;
-const INITIAL_COUNT = 0;
-const PDF_MARGIN = 50;
-const PDF_HEADER_SIZE = 20;
-const PDF_BODY_SIZE = 12;
-const COL_WIDTH_LG = 140;
-const COL_WIDTH_SM = 70;
-const PDF_MAX_WIDTH = 500;
-
-const CHART_WIDTH = 600;
-const CHART_HEIGHT = 400;
-const CHART_BG_COLOR = "white";
-const DATE_PART_INDEX = 0;
-const CENTER_DIVISOR = 2;
-
-const chartJSNodeCanvas = new ChartJSNodeCanvas({
-  backgroundColour: CHART_BG_COLOR,
-  height: CHART_HEIGHT,
-  width: CHART_WIDTH
-});
 
 interface EnvStats {
   artifactsWithIssues: number;
@@ -66,34 +33,25 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
     totalArtifacts: 0
   };
 
-  const page = INITIAL_PAGE;
+  const NO_MISSING_FIELDS = 0;
+  const ERROR_INCREMENT = 1;
+  const INITIAL_ERROR_COUNT = 0;
+  const DATE_PART_INDEX = 0;
+  const NO_PAGES_LEFT = 0;
+
+  const api = new ArtifactApi(env.domain, env.name);
+  const page = 1;
 
   try {
-    const initialRes = await fetchScanArtifacts(env.domain, page);
+    const initialRes = await api.fetchScanArtifacts(page);
     const { pagination } = initialRes;
     stats.totalArtifacts = pagination.total;
     const lastPage = pagination.lastPage;
 
     console.log(`Total artifacts to process: ${stats.totalArtifacts.toString()} (Pages: ${lastPage.toString()})`);
 
-    // Cache Validation
-    const cacheMeta = getCacheMeta(env.name);
-    const useCache = cacheMeta !== null && cacheMeta.total === stats.totalArtifacts;
-    if (useCache) {
-      console.log("Cache is valid. Using cached pages.");
-    } else {
-      console.log("Cache is invalid or missing. Fetching fresh data.");
-      saveCacheMeta(env.name, stats.totalArtifacts);
-    }
-    // Always save page 1 as we already fetched it
-    savePageToCache(env.name, INITIAL_PAGE, initialRes);
-
     const CONCURRENCY_LIMIT = 5;
-    const OFFSET_ONE = 1;
-    const pages = Array.from(
-      { length: Math.min(lastPage, MAX_PAGES_CHECK) - INITIAL_PAGE + OFFSET_ONE },
-      (_, i) => i + INITIAL_PAGE
-    );
+    const pages = Array.from({ length: lastPage }, (_, i) => i + page);
 
     const activePromises: Promise<void>[] = [];
     let completed = 0;
@@ -101,32 +59,24 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
 
     const processPage = async (pageNum: number) => {
       try {
-        let res: ApiResponse | null = null;
-        if (useCache) {
-          res = loadPageFromCache(env.name, pageNum);
-        }
-
-        if (res === null) {
-          res = await fetchScanArtifacts(env.domain, pageNum);
-          savePageToCache(env.name, pageNum, res);
-        }
+        const res = await api.fetchScanArtifacts(pageNum);
 
         for (const item of res.data) {
           stats.processed++;
           const missingFields = REQUIRED_FIELDS.filter((field) => item[field] === undefined || item[field] === null);
 
-          if (missingFields.length > ZERO) {
+          if (missingFields.length > NO_MISSING_FIELDS) {
             stats.artifactsWithIssues++;
             for (const field of missingFields) {
-              stats.missingCounts[field] = (stats.missingCounts[field] ?? ZERO) + INCREMENT;
+              stats.missingCounts[field] = (stats.missingCounts[field] ?? INITIAL_ERROR_COUNT) + ERROR_INCREMENT;
             }
 
             // Track error by date
             if (typeof item.scanDate === "string") {
               const date = item.scanDate.split("T")[DATE_PART_INDEX]; // YYYY-MM-DD
               if (date !== undefined) {
-                const currentCount = stats.errorsByDate[date] ?? ZERO;
-                stats.errorsByDate[date] = currentCount + INCREMENT;
+                const currentCount = stats.errorsByDate[date] ?? INITIAL_ERROR_COUNT;
+                stats.errorsByDate[date] = currentCount + ERROR_INCREMENT;
               }
             }
           }
@@ -140,20 +90,21 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
     };
 
     const NOT_FOUND = -1;
-    const DELETE_COUNT = 1;
+    const PROMISE_REMOVE_COUNT = 1;
 
-    while (pages.length > ZERO) {
+    while (pages.length > NO_PAGES_LEFT) {
       if (activePromises.length < CONCURRENCY_LIMIT) {
         const pageNum = pages.shift();
         if (pageNum !== undefined) {
           const p = processPage(pageNum).then(() => {
             const idx = activePromises.indexOf(p);
             if (idx !== NOT_FOUND) {
-              activePromises.splice(idx, DELETE_COUNT).forEach(() => {
+              activePromises.splice(idx, PROMISE_REMOVE_COUNT).forEach(() => {
                 /** no-op */
               });
             }
           });
+
           activePromises.push(p);
         }
       } else {
@@ -177,6 +128,15 @@ async function createLineChart(
   labels: string[],
   datasets: { label: string; data: number[]; borderColor: string }[]
 ): Promise<Buffer> {
+  const CHART_WIDTH = 600;
+  const CHART_HEIGHT = 400;
+  const CHART_BG_COLOR = "white";
+
+  const chartJSNodeCanvas = new ChartJSNodeCanvas({
+    backgroundColour: CHART_BG_COLOR,
+    height: CHART_HEIGHT,
+    width: CHART_WIDTH
+  });
   const configuration: ChartConfiguration = {
     data: {
       datasets: datasets.map((ds) => ({
@@ -215,6 +175,20 @@ async function generateReport(allStats: EnvStats[]) {
   const writeStream = fs.createWriteStream(reportPath);
   doc.pipe(writeStream);
 
+  const PDF_SPACING = 2;
+  const DEFAULT_WIDTH = 0;
+  const PDF_MARGIN = 50;
+  const PDF_HEADER_SIZE = 20;
+  const PDF_BODY_SIZE = 12;
+  const COL_WIDTH_LG = 140;
+  const COL_WIDTH_SM = 70;
+  const PDF_MAX_WIDTH = 500;
+  const INITIAL_ERROR_COUNT = 0;
+  const NO_MISSING_FIELDS = 0;
+  const PAGE_ALIGN_LEFT = 0;
+  const CHART_WIDTH = 600;
+  const CENTER_DIVISOR = 2;
+
   // Title
   doc.fontSize(PDF_HEADER_SIZE).text("Validation Report", { align: "center" });
   doc.fontSize(PDF_BODY_SIZE).text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
@@ -228,8 +202,8 @@ async function generateReport(allStats: EnvStats[]) {
 
   doc.font("Helvetica-Bold");
   headers.forEach((header, i) => {
-    doc.text(header, currentX, tableTop, { align: "left", width: colWidths[i] ?? INITIAL_COUNT });
-    currentX += colWidths[i] ?? INITIAL_COUNT;
+    doc.text(header, currentX, tableTop, { align: "left", width: colWidths[i] ?? DEFAULT_WIDTH });
+    currentX += colWidths[i] ?? DEFAULT_WIDTH;
   });
   doc.moveDown();
   doc.font("Helvetica");
@@ -237,10 +211,10 @@ async function generateReport(allStats: EnvStats[]) {
   // Data Rows
   allStats.forEach((stats) => {
     let missingPropsStr = "";
-    if (stats.artifactsWithIssues > ZERO) {
+    if (stats.artifactsWithIssues > NO_MISSING_FIELDS) {
       const sortedFields = Object.keys(stats.missingCounts).sort();
       missingPropsStr = sortedFields
-        .map((field) => `${field}: ${(stats.missingCounts[field] ?? ZERO).toString()}`)
+        .map((field) => `${field}: ${(stats.missingCounts[field] ?? INITIAL_ERROR_COUNT).toString()}`)
         .join(", ");
     } else {
       missingPropsStr = "None";
@@ -274,14 +248,15 @@ async function generateReport(allStats: EnvStats[]) {
     });
   });
 
-  if (allDates.size > ZERO) {
+  const MIN_DATA_POINTS = 0;
+  if (allDates.size > MIN_DATA_POINTS) {
     const sortedDates = Array.from(allDates).sort();
     const datasets = allStats.map((s, i) => {
       // Pick a color based on index
       const colors = ["red", "blue", "green", "orange", "purple"];
       const color = colors[i % colors.length] ?? "black";
 
-      const data = sortedDates.map((d) => s.errorsByDate[d] ?? ZERO);
+      const data = sortedDates.map((d) => s.errorsByDate[d] ?? INITIAL_ERROR_COUNT);
       return {
         borderColor: color,
         data,
@@ -292,8 +267,9 @@ async function generateReport(allStats: EnvStats[]) {
     try {
       const chartBuffer = await createLineChart(sortedDates, datasets);
       // Keep everything on one page if possible
-      // doc.addPage();
-      doc.fontSize(PDF_HEADER_SIZE).text("Error Trends", { align: "center" });
+      doc
+        .fontSize(PDF_HEADER_SIZE)
+        .text("Error Trends", PAGE_ALIGN_LEFT, doc.y, { align: "center", width: doc.page.width });
       doc.moveDown();
       doc.image(chartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH }); // Center image
     } catch (e) {

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { HttpStatusCode } from "axios";
 import * as fs from "fs";
 import * as path from "path";
 import PDFDocument from "pdfkit";
@@ -6,37 +6,11 @@ import * as stream from "stream";
 import { promisify } from "util";
 
 import { ENVIRONMENTS } from "../config/config";
-import {
-  ApiResponse,
-  fetchScanArtifacts,
-  getCacheMeta,
-  loadPageFromCache,
-  saveCacheMeta,
-  savePageToCache
-} from "./api";
+import { ArtifactApi } from "./api";
 
 const finished = promisify(stream.finished);
 
 // Constants
-const TIMEOUT_MS = 30000;
-const FORBIDDEN_STATUS = 403;
-const JSON_INDENT = 2;
-const INITIAL_COUNT = 0;
-const PAGE_INCREMENT = 1;
-const PDF_SPACING = 2;
-const PDF_SPACING_SMALL = 0.5;
-const NOT_FOUND = -1;
-const DELETE_COUNT = 1;
-const INITIAL_PAGE = 1;
-const MAX_PAGES_CHECK = Infinity;
-const CONCURRENCY_LIMIT = 5;
-const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
-const PDF_MARGIN = 50;
-const PDF_HEADER_SIZE = 20;
-const PDF_SUBHEADER_SIZE = 16;
-const PDF_BODY_SIZE = 12;
-const COL_WIDTH_LG = 150;
-const COL_WIDTH_SM = 80;
 
 interface SyncError {
   id: string;
@@ -54,6 +28,7 @@ interface SyncStats {
 
 function getBadScanIds(): Set<string> {
   try {
+    const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
     if (fs.existsSync(BAD_SCANS_FILE)) {
       const content = fs.readFileSync(BAD_SCANS_FILE, "utf-8");
       const records = JSON.parse(content) as { id: string }[];
@@ -66,6 +41,7 @@ function getBadScanIds(): Set<string> {
 }
 
 async function downloadFile(url: string, outputPath: string): Promise<boolean> {
+  const TIMEOUT_MS = 30000;
   if (fs.existsSync(outputPath)) {
     return true; // Skip if exists
   }
@@ -84,11 +60,9 @@ async function downloadFile(url: string, outputPath: string): Promise<boolean> {
       fs.unlinkSync(outputPath); // Delete partial file
     }
     // Enhance error message for context
-    if (axios.isAxiosError(error) && error.response?.status === FORBIDDEN_STATUS) {
-      // throw new Error(`403 Forbidden: The URL may be expired or access denied.`);
+    if (axios.isAxiosError(error) && error.response?.status === HttpStatusCode.Forbidden) {
       return false;
     }
-    // throw error;
     return false;
   }
 }
@@ -114,6 +88,13 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
     skipped: 0
   };
 
+  const MIN_ARTIFACTS = 0;
+  const NOT_FOUND = -1;
+  const PROMISE_REMOVE_COUNT = 1;
+  const CONCURRENCY_LIMIT = 5;
+  const TIMEOUT_MS = 30000;
+  const JSON_INDENT = 2;
+
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
@@ -121,9 +102,12 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
   const badScanIds = getBadScanIds();
   console.log(`Loaded ${badScanIds.size.toString()} known bad scans to skip.`);
 
+  const api = new ArtifactApi(env.domain, env.name);
+
   // Get initial page to determine total pages
+  const page = 1;
   try {
-    const initialRes = await fetchScanArtifacts(env.domain, INITIAL_PAGE);
+    const initialRes = await api.fetchScanArtifacts(page);
     const totalArtifacts = initialRes.pagination.total;
     const lastPage = initialRes.pagination.lastPage;
 
@@ -131,36 +115,13 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
 
     console.log(`Found ${totalArtifacts.toString()} total artifacts. (Pages: ${lastPage.toString()})`);
 
-    // Cache Validation
-    const cacheMeta = getCacheMeta(env.name);
-    const useCache = cacheMeta !== null && cacheMeta.total === totalArtifacts;
-    if (useCache) {
-      console.log("Cache is valid. Using cached pages.");
-    } else {
-      console.log("Cache is invalid or missing. Fetching fresh data.");
-      saveCacheMeta(env.name, totalArtifacts);
-    }
-    // Always save page 1
-    savePageToCache(env.name, INITIAL_PAGE, initialRes);
-
-    const pages = Array.from(
-      { length: Math.min(lastPage, MAX_PAGES_CHECK) - INITIAL_PAGE + PAGE_INCREMENT },
-      (_, i) => i + INITIAL_PAGE
-    );
+    const pages = Array.from({ length: lastPage }, (_, i) => i + page);
 
     const activePromises: Promise<void>[] = [];
 
     const processPage = async (pageNum: number) => {
       try {
-        let res: ApiResponse | null = null;
-        if (useCache) {
-          res = loadPageFromCache(env.name, pageNum);
-        }
-
-        if (res === null) {
-          res = await fetchScanArtifacts(env.domain, pageNum);
-          savePageToCache(env.name, pageNum, res);
-        }
+        const res = await api.fetchScanArtifacts(pageNum);
 
         const artifacts: PageArtifact[] = res.data.map((item) => ({
           arData: item.arData,
@@ -171,7 +132,6 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
 
         for (const artifact of artifacts) {
           if (badScanIds.has(artifact.id)) {
-            // console.log(`Skipping bad scan: ${artifact.id}`);
             stats.skipped++;
             continue;
           }
@@ -237,7 +197,6 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
 
               try {
                 fs.rmSync(artifactDir, { force: true, recursive: true });
-                // console.log(`Deleted incomplete artifact: ${artifact.id}`);
               } catch (e) {
                 console.error(`Failed to delete incomplete artifact ${artifact.id}:`, e);
               }
@@ -254,19 +213,16 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
       }
     };
 
-    while (pages.length > INITIAL_COUNT) {
+    while (pages.length > MIN_ARTIFACTS) {
       if (activePromises.length < CONCURRENCY_LIMIT) {
         const pageNum = pages.shift();
         if (pageNum !== undefined) {
-          const p = processPage(pageNum).then(async () => {
+          const p = processPage(pageNum).then(() => {
             const idx = activePromises.indexOf(p);
             if (idx !== NOT_FOUND) {
-              const _removed = activePromises.splice(idx, DELETE_COUNT);
-              await Promise.all(
-                _removed.map(async (rp) => {
-                  await rp.catch(console.error);
-                })
-              );
+              activePromises.splice(idx, PROMISE_REMOVE_COUNT).forEach(() => {
+                /** no-op */
+              });
             }
           });
           activePromises.push(p);
@@ -297,6 +253,17 @@ async function generateSyncReport(allStats: SyncStats[]) {
   const writeStream = fs.createWriteStream(reportPath);
   doc.pipe(writeStream);
 
+  const PDF_SPACING = 2;
+  const PDF_SPACING_SMALL = 0.5;
+  const PDF_MARGIN = 50;
+  const PDF_HEADER_SIZE = 20;
+  const PDF_SUBHEADER_SIZE = 16;
+  const PDF_BODY_SIZE = 12;
+  const COL_WIDTH_LG = 150;
+  const COL_WIDTH_SM = 80;
+  const DEFAULT_WIDTH = 0;
+  const ZERO_FAILURES = 0;
+
   // Title
   doc.fontSize(PDF_HEADER_SIZE).text("Sync Report", { align: "center" });
   doc.fontSize(PDF_BODY_SIZE).text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
@@ -311,8 +278,8 @@ async function generateSyncReport(allStats: SyncStats[]) {
   // Header Row
   doc.font("Helvetica-Bold");
   headers.forEach((header, i) => {
-    doc.text(header, currentX, tableTop, { align: "left", width: colWidths[i] ?? INITIAL_COUNT });
-    currentX += colWidths[i] ?? INITIAL_COUNT;
+    doc.text(header, currentX, tableTop, { align: "left", width: colWidths[i] ?? DEFAULT_WIDTH });
+    currentX += colWidths[i] ?? DEFAULT_WIDTH;
   });
   doc.moveDown();
   doc.font("Helvetica");
@@ -329,8 +296,8 @@ async function generateSyncReport(allStats: SyncStats[]) {
       stats.failed.toString()
     ];
     data.forEach((text, i) => {
-      doc.text(text, rowX, rowY, { align: "left", width: colWidths[i] ?? INITIAL_COUNT });
-      rowX += colWidths[i] ?? INITIAL_COUNT;
+      doc.text(text, rowX, rowY, { align: "left", width: colWidths[i] ?? DEFAULT_WIDTH });
+      rowX += colWidths[i] ?? DEFAULT_WIDTH;
     });
     doc.moveDown();
   });
@@ -338,15 +305,15 @@ async function generateSyncReport(allStats: SyncStats[]) {
   doc.moveDown(PDF_SPACING);
 
   // Failures Section
-  const failedStats = allStats.filter((s) => s.failed > INITIAL_COUNT);
-  if (failedStats.length > INITIAL_COUNT) {
+  const failedStats = allStats.filter((s) => s.failed > ZERO_FAILURES);
+  if (failedStats.length > ZERO_FAILURES) {
     doc.x = PDF_MARGIN; // Reset X to margin
     doc.font("Helvetica-Bold").fontSize(PDF_SUBHEADER_SIZE).text("Sync Failures");
     doc.moveDown();
     doc.font("Helvetica").fontSize(PDF_BODY_SIZE);
 
     failedStats.forEach((stats) => {
-      if (stats.errors.length > INITIAL_COUNT) {
+      if (stats.errors.length > ZERO_FAILURES) {
         doc.font("Helvetica-Bold").text(`Environment: ${stats.env}`);
         doc.font("Helvetica");
         stats.errors.forEach((err) => {

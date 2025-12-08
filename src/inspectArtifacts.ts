@@ -7,42 +7,6 @@ import PDFDocument from "pdfkit";
 
 import { RawScan } from "./rawScan";
 
-const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
-const REPORT_PATH = path.join(process.cwd(), "reports", "data-analysis.pdf");
-
-// Constants
-const SPLIT_LENGTH = 2;
-const MARGIN = 50;
-const SPACING_SMALL = 0.5;
-const CHART_IMAGE_WIDTH_DURATION = 360;
-const CHART_WIDTH_BAR = 200;
-const CHART_HEIGHT_BAR = 140;
-const TEXT_OFFSET = 5;
-const TABLE_OFFSET = 20;
-const LINE_HEIGHT = 10;
-const INDENT = 40;
-const INDENT_SMALL = 20;
-const LEFT_COL_X = 70;
-const RIGHT_COL_X = 340;
-const CHART_WIDTH = 600;
-const CHART_HEIGHT = 400;
-const PDF_TITLE_SIZE = 25;
-const PDF_SUBTITLE_SIZE = 16;
-const PDF_BODY_SIZE = 12;
-const INITIAL_COUNT = 0;
-const DEFAULT_VALUE = 0;
-const MIN_BUCKET_INDEX = 0;
-const INCREMENT_STEP = 1;
-const DECIMAL_PLACES = 2;
-const PATH_OFFSET_ENVIRONMENT = 3;
-const FONT_SIZE_SMALL = 8;
-const TOP_N_ITEMS = 10;
-const PROGRESS_UPDATE_INTERVAL = 10;
-const BINS_COUNT = 10;
-const LOW_FPS_THRESHOLD = 10;
-const NUMERATOR_IDX = 0;
-const DENOMINATOR_IDX = 1;
-
 interface VideoMetadata {
   path: string;
   filename: string;
@@ -55,6 +19,12 @@ interface VideoMetadata {
 
 // 1. Video Metadata Extraction
 async function getVideoMetadata(filePath: string): Promise<VideoMetadata | null> {
+  const SPLIT_LENGTH = 2;
+  const NUMERATOR_IDX = 0;
+  const DENOMINATOR_IDX = 1;
+  const PATH_OFFSET_ENVIRONMENT = 3;
+  const DEFAULT_VALUE = 0;
+
   const minMetadata = await new Promise<VideoMetadata | null>((resolve) => {
     ffmpeg.ffprobe(filePath, (err, metadata) => {
       if (err !== null && err !== undefined) {
@@ -120,44 +90,56 @@ function findVideoFiles(dir: string): string[] {
 }
 
 // Chart Service
-const chartCallback = (ChartJS: typeof import("chart.js").Chart) => {
-  ChartJS.defaults.responsive = false;
-  ChartJS.defaults.maintainAspectRatio = false;
-};
-const chartJSNodeCanvas = new ChartJSNodeCanvas({ chartCallback, height: CHART_HEIGHT, width: CHART_WIDTH });
+// Chart Service
 
 async function createHistogram(data: number[], label: string, title: string): Promise<Buffer> {
+  const INITIAL_COUNT = 0;
+  const INCREMENT_STEP = 1;
+  const CHART_WIDTH = 600;
+  const CHART_HEIGHT = 400;
+  const MAX_THRESHOLD = 180;
+  const BIN_SIZE = 10;
+  const DECIMAL_PLACES_LABEL = 0;
+
   if (data.length === INITIAL_COUNT) {
     return Promise.resolve(Buffer.from([]));
   }
-  const min = Math.floor(Math.min(...data));
-  const max = Math.ceil(Math.max(...data));
-  const bins = BINS_COUNT;
-  const step = (max - min) / bins || INCREMENT_STEP;
 
-  // Explicitly type buckets as number[]
-  const buckets: number[] = new Array(bins).fill(INITIAL_COUNT) as number[];
+  const numMainBins = Math.ceil(MAX_THRESHOLD / BIN_SIZE);
+  // Last bin is for > MAX_THRESHOLD
+  const buckets: number[] = new Array(numMainBins + INCREMENT_STEP).fill(INITIAL_COUNT) as number[];
   const labels: string[] = [];
 
-  for (let i = INITIAL_COUNT; i < bins; i++) {
-    const currentStep = i * step;
-    const nextStep = (i + INCREMENT_STEP) * step;
-    const start = min + currentStep;
-    const end = min + nextStep;
-    labels.push(`${start.toFixed(DECIMAL_PLACES)}-${end.toFixed(DECIMAL_PLACES)}`);
+  for (let i = INITIAL_COUNT; i < numMainBins; i++) {
+    const start = i * BIN_SIZE;
+    const end = (i + INCREMENT_STEP) * BIN_SIZE;
+    labels.push(`${start.toFixed(DECIMAL_PLACES_LABEL)}-${end.toFixed(DECIMAL_PLACES_LABEL)}`);
   }
+  labels.push(`> ${MAX_THRESHOLD.toString()}`);
+
+  const chartCallback = (ChartJS: typeof import("chart.js").Chart) => {
+    ChartJS.defaults.responsive = false;
+    ChartJS.defaults.maintainAspectRatio = false;
+  };
+  const chartJSNodeCanvas = new ChartJSNodeCanvas({ chartCallback, height: CHART_HEIGHT, width: CHART_WIDTH });
 
   for (const val of data) {
-    let bucketIndex = Math.floor((val - min) / step);
-    if (bucketIndex >= bins) {
-      bucketIndex = bins - INCREMENT_STEP;
-    }
-    if (bucketIndex < MIN_BUCKET_INDEX) {
-      bucketIndex = MIN_BUCKET_INDEX;
-    }
-    const currentVal = buckets[bucketIndex];
-    if (currentVal !== undefined) {
-      buckets[bucketIndex] = currentVal + INCREMENT_STEP;
+    if (val > MAX_THRESHOLD) {
+      buckets[numMainBins] = (buckets[numMainBins] ?? INITIAL_COUNT) + INCREMENT_STEP;
+    } else {
+      let bucketIndex = Math.floor(val / BIN_SIZE);
+      // Clamp negative values to 0 just in case
+      if (bucketIndex < INITIAL_COUNT) {
+        bucketIndex = INITIAL_COUNT;
+      }
+      // Should not happen for <= MAX_THRESHOLD but safe guard
+      if (bucketIndex >= numMainBins) {
+        bucketIndex = numMainBins - INCREMENT_STEP;
+      }
+      const currentVal = buckets[bucketIndex];
+      if (currentVal !== undefined) {
+        buckets[bucketIndex] = currentVal + INCREMENT_STEP;
+      }
     }
   }
 
@@ -191,6 +173,16 @@ async function createHistogram(data: number[], label: string, title: string): Pr
 }
 
 async function createBarChart(labels: string[], data: number[], title: string): Promise<Buffer> {
+  const INCREMENT_STEP = 1;
+  const CHART_WIDTH = 600;
+  const CHART_HEIGHT = 400;
+
+  const chartCallback = (ChartJS: typeof import("chart.js").Chart) => {
+    ChartJS.defaults.responsive = false;
+    ChartJS.defaults.maintainAspectRatio = false;
+  };
+  const chartJSNodeCanvas = new ChartJSNodeCanvas({ chartCallback, height: CHART_HEIGHT, width: CHART_WIDTH });
+
   const configuration: ChartConfiguration = {
     data: {
       datasets: [
@@ -221,6 +213,33 @@ async function createBarChart(labels: string[], data: number[], title: string): 
 
 // Main Execution
 async function main() {
+  const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
+  const REPORT_PATH = path.join(process.cwd(), "reports", "data-analysis.pdf");
+  const INITIAL_COUNT = 0;
+  const PROGRESS_UPDATE_INTERVAL = 10;
+  const LOW_FPS_THRESHOLD = 10;
+  const DECIMAL_PLACES = 2;
+  const DEFAULT_VALUE = 0;
+  const INCREMENT_STEP = 1;
+  const MARGIN = 50;
+  const PDF_TITLE_SIZE = 25;
+  const PDF_BODY_SIZE = 12;
+  const SPACING_SMALL = 0.5;
+  const PDF_SUBTITLE_SIZE = 16;
+  const CHART_IMAGE_WIDTH_DURATION = 360;
+  const CHART_HEIGHT = 400;
+  const CHART_WIDTH = 600;
+  const LEFT_COL_X = 70;
+  const CHART_WIDTH_BAR = 200;
+  const TEXT_OFFSET = 5;
+  const CHART_HEIGHT_BAR = 140;
+  const TABLE_OFFSET = 20;
+  const FONT_SIZE_SMALL = 8;
+  const INDENT = 40;
+  const RIGHT_COL_X = 340;
+  const INDENT_SMALL = 20;
+  const LINE_HEIGHT = 10;
+
   console.log("Finding video files...");
   const videoFiles = findVideoFiles(DATA_DIR);
   console.log(`Found ${videoFiles.length.toString()} video files.`);
@@ -285,14 +304,6 @@ async function main() {
     console.log("All raw scans are valid.\n");
   }
 
-  // Identifyshortest videos
-  console.log("\n--- 10 Shortest Videos ---");
-  const sortedByDuration = [...metadataList].sort((a, b) => a.duration - b.duration);
-  sortedByDuration.slice(INITIAL_COUNT, TOP_N_ITEMS).forEach((m) => {
-    console.log(`- ${m.path} (${m.duration.toFixed(DECIMAL_PLACES)}s) [${m.environment}]`);
-  });
-  console.log("--------------------------\n");
-
   // --- Analysis ---
   const durations = metadataList.map((m) => m.duration);
   const avgDuration =
@@ -356,7 +367,8 @@ async function main() {
 
   doc.image(durationChart, xCentered, doc.y, { width: CHART_IMAGE_WIDTH_DURATION });
   doc.y += durHeight;
-  doc.fontSize(TOP_N_ITEMS).text("Duration Distribution", { align: "center" }); // 10px?
+  const FONT_SIZE_LEGEND = 10;
+  doc.fontSize(FONT_SIZE_LEGEND).text("Duration Distribution", { align: "center" });
   doc.moveDown(SPACING_SMALL);
 
   // Side-by-side Bar Charts

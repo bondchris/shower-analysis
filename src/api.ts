@@ -1,4 +1,6 @@
 import axios from "axios";
+import * as fs from "fs";
+import * as path from "path";
 
 export interface Artifact {
   [key: string]: unknown;
@@ -24,63 +26,114 @@ export interface ApiResponse {
   pagination: Pagination;
 }
 
-export async function fetchScanArtifacts(domain: string, page: number): Promise<ApiResponse> {
-  const url = `https://api.${domain}/spatial/v1/scan-artifacts?page=${page.toString()}`;
-  const res = await axios.get<ApiResponse>(url, { timeout: 60000 });
-  return res.data;
-}
+export class ArtifactApi {
+  private readonly domain: string;
+  private readonly envName: string;
+  private cacheValid = false;
+  private hasValidatedCache = false;
 
-import * as fs from "fs";
-import * as path from "path";
+  constructor(domain: string, envName: string) {
+    this.domain = domain;
+    this.envName = envName;
+  }
 
-const CACHE_DIR = path.join(process.cwd(), "data", "api_cache");
-const INDENT = 2;
-
-function getCacheDir(envName: string): string {
-  return path.join(CACHE_DIR, envName.replace(/[^a-z0-9]/gi, "_").toLowerCase());
-}
-
-export function getCacheMeta(envName: string): { total: number } | null {
-  try {
-    const dir = getCacheDir(envName);
-    const metaPath = path.join(dir, "meta.json");
-    if (fs.existsSync(metaPath)) {
-      return JSON.parse(fs.readFileSync(metaPath, "utf-8")) as { total: number };
+  public async fetchScanArtifacts(page: number): Promise<ApiResponse> {
+    const FIRST_PAGE = 1;
+    // If we haven't validated the cache yet, or it's page 1, force a network fetch to check freshness
+    if (!this.hasValidatedCache || page === FIRST_PAGE) {
+      return this.fetchAndValidate(page);
     }
-  } catch {
-    // ignore
-  }
-  return null;
-}
 
-export function saveCacheMeta(envName: string, total: number): void {
-  const dir = getCacheDir(envName);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  fs.writeFileSync(
-    path.join(dir, "meta.json"),
-    JSON.stringify({ date: new Date().toISOString(), total }, null, INDENT)
-  );
-}
-
-export function loadPageFromCache(envName: string, page: number): ApiResponse | null {
-  try {
-    const dir = getCacheDir(envName);
-    const pagePath = path.join(dir, `page_${page.toString()}.json`);
-    if (fs.existsSync(pagePath)) {
-      return JSON.parse(fs.readFileSync(pagePath, "utf-8")) as ApiResponse;
+    // Use cache if confirmed valid
+    if (this.cacheValid) {
+      const cached = this.loadPageFromCache(page);
+      if (cached !== null) {
+        return cached;
+      }
     }
-  } catch {
-    // ignore
-  }
-  return null;
-}
 
-export function savePageToCache(envName: string, page: number, data: ApiResponse): void {
-  const dir = getCacheDir(envName);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    // Fallback to network fetch
+    const res = await this.networkFetch(page);
+    this.savePageToCache(page, res);
+    return res;
   }
-  fs.writeFileSync(path.join(dir, `page_${page.toString()}.json`), JSON.stringify(data, null, INDENT));
+
+  private async fetchAndValidate(page: number): Promise<ApiResponse> {
+    const res = await this.networkFetch(page);
+    const serverTotal = res.pagination.total;
+
+    const meta = this.getCacheMeta();
+    this.cacheValid = meta !== null && meta.total === serverTotal;
+    this.hasValidatedCache = true;
+
+    if (this.cacheValid) {
+      console.log("Cache is valid. Using cached pages.");
+    } else {
+      console.log("Cache is invalid or missing. Fetching fresh data.");
+      this.saveCacheMeta(serverTotal);
+    }
+
+    // Always update the current page in cache
+    this.savePageToCache(page, res);
+    return res;
+  }
+
+  private async networkFetch(page: number): Promise<ApiResponse> {
+    const TIMEOUT_MS = 60000;
+    const url = `https://api.${this.domain}/spatial/v1/scan-artifacts?page=${page.toString()}`;
+    const res = await axios.get<ApiResponse>(url, { timeout: TIMEOUT_MS });
+    return res.data;
+  }
+
+  private getCacheDir(): string {
+    const CACHE_DIR = path.join(process.cwd(), "data", "api_cache");
+    return path.join(CACHE_DIR, this.envName.replace(/[^a-z0-9]/gi, "_").toLowerCase());
+  }
+
+  private getCacheMeta(): { total: number } | null {
+    try {
+      const dir = this.getCacheDir();
+      const metaPath = path.join(dir, "meta.json");
+      if (fs.existsSync(metaPath)) {
+        return JSON.parse(fs.readFileSync(metaPath, "utf-8")) as { total: number };
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
+  private saveCacheMeta(total: number): void {
+    const dir = this.getCacheDir();
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const INDENT = 2;
+    fs.writeFileSync(
+      path.join(dir, "meta.json"),
+      JSON.stringify({ date: new Date().toISOString(), total }, null, INDENT)
+    );
+  }
+
+  private loadPageFromCache(page: number): ApiResponse | null {
+    try {
+      const dir = this.getCacheDir();
+      const pagePath = path.join(dir, `page_${page.toString()}.json`);
+      if (fs.existsSync(pagePath)) {
+        return JSON.parse(fs.readFileSync(pagePath, "utf-8")) as ApiResponse;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
+  private savePageToCache(page: number, data: ApiResponse): void {
+    const dir = this.getCacheDir();
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const INDENT = 2;
+    fs.writeFileSync(path.join(dir, `page_${page.toString()}.json`), JSON.stringify(data, null, INDENT));
+  }
 }
