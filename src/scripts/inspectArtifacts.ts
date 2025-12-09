@@ -32,6 +32,7 @@ interface VideoMetadata {
   hasCurvedWall?: boolean;
   hasExternalOpening?: boolean;
   hasSoffit?: boolean;
+  hasToiletGapErrors?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -113,8 +114,52 @@ async function main(): Promise<void> {
   const PROGRESS_UPDATE_INTERVAL = 10;
   const DECIMAL_PLACES = 2;
   const INCREMENT_STEP = 1;
+  const TRANSFORM_SIZE = 16;
+  const X_IDX = 12;
+  const Y_IDX = 13;
+  const DEFAULT_VALUE = 0;
+  // Toilet Gap Constants
+  const GAP_THRESHOLD_METERS = 0.0254; // 1 inch
+  const MAX_WALL_DIST_METERS = 2.0; // Reasonable max dist to check for a backing wall
 
-  // PDF Constants
+  // Math Helpers (Local)
+  const getPosition = (transform: number[]): { x: number; y: number } => {
+    return { x: transform[X_IDX] ?? DEFAULT_VALUE, y: transform[Y_IDX] ?? DEFAULT_VALUE };
+  };
+
+  const distToSegment = (
+    p: { x: number; y: number },
+    v: { x: number; y: number },
+    w: { x: number; y: number }
+  ): number => {
+    // l2 = length squared of segment vw
+    const EXPONENT_SQUARED = 2;
+    const l2 = Math.pow(v.x - w.x, EXPONENT_SQUARED) + Math.pow(v.y - w.y, EXPONENT_SQUARED);
+    const ZERO_LENGTH = 0;
+    if (l2 === ZERO_LENGTH) {
+      return Math.sqrt(Math.pow(p.x - v.x, EXPONENT_SQUARED) + Math.pow(p.y - v.y, EXPONENT_SQUARED));
+    }
+    // t = projection of p onto line vw, clamped between 0 and 1
+    // t = dot(p - v, w - v) / l2
+    const pXDiff = p.x - v.x;
+    const vXDiff = w.x - v.x;
+    const pYDiff = p.y - v.y;
+    const vYDiff = w.y - v.y;
+    const term1 = pXDiff * vXDiff;
+    const term2 = pYDiff * vYDiff;
+    const dotP = term1 + term2;
+    let t = dotP / l2;
+    const MIN_CLAMP = 0;
+    const MAX_CLAMP = 1;
+    t = Math.max(MIN_CLAMP, Math.min(MAX_CLAMP, t));
+    // Projection Point = v + t * (w - v)
+    const tX = t * (w.x - v.x);
+    const projX = v.x + tX;
+    const tY = t * (w.y - v.y);
+    const projY = v.y + tY;
+    return Math.sqrt(Math.pow(p.x - projX, EXPONENT_SQUARED) + Math.pow(p.y - projY, EXPONENT_SQUARED));
+  };
+
   const MARGIN = 50;
   const PDF_TITLE_SIZE = 25;
   const PDF_BODY_SIZE = 12;
@@ -314,12 +359,158 @@ async function main(): Promise<void> {
           if (rawScan.walls !== undefined && Array.isArray(rawScan.walls)) {
             metadata.hasSoffit = rawScan.walls.some((wData) => new Wall(wData).hasSoffit);
           }
+
+          // Refined Logic (Step 4): Check for Toilet Gaps
+          // Rules:
+          // - Find Toilet
+          // - Find closest wall to toilet position
+          // - If distance > 1 inch, flag it.
+          // NOTE: RoomPlan object origin is center of bounding box. We need "back" of toilet.
+          // But we don't have dimensions easily accessible in this raw scan partial type without casting.
+          // Let's look at `rawScan.objects` again.
+          if (rawScan.objects !== undefined && Array.isArray(rawScan.objects)) {
+            const toilets = rawScan.objects.filter((o) => o.category.toilet !== undefined);
+            const walls = rawScan.walls ?? [];
+
+            let gapErrorFound = false;
+
+            for (const toilet of toilets) {
+              if (toilet.transform.length !== TRANSFORM_SIZE) {
+                continue;
+              }
+
+              const MIN_DIMENSIONS = 3;
+              if (toilet.dimensions.length < MIN_DIMENSIONS) {
+                continue;
+              }
+
+              // Object Space: Origin is center.
+              // Z-axis is depth. We assume toilet faces +Z or -Z?
+              // Usually objects face -Z in RoomPlan (or +Z?).
+              // Actually, "back" of the toilet is at `Center - (Depth/2) * ForwardVector`.
+              // Or `Center + (Depth/2) * ForwardVector` depending on convention.
+              // However, we can just check distance from Center to Wall.
+              // If Distance > (Depth/2 + 1 inch), then there is a gap.
+              // This is rotation invariant for the "closest point" logic if we assume
+              // the wall is the one behind it.
+
+              const Z_DIM_IDX = 2;
+              const HALF_DIVISOR = 2;
+
+              const tPos = getPosition(toilet.transform);
+              const tDepth = toilet.dimensions[Z_DIM_IDX] ?? DEFAULT_VALUE; // x, y, z dimensions. Z is usually depth.
+              const halfDepth = tDepth / HALF_DIVISOR;
+              const distThreshold = halfDepth + GAP_THRESHOLD_METERS;
+
+              // Find distance to closest wall
+              let minWallDist = Number.MAX_VALUE;
+
+              for (const w of walls) {
+                // Need corners (Global/Floor space? No, walls are defined in their own local space usually?)
+                // WAIT. In `rawScan.json`, walls have `polygonCorners` which are usually local 2D points relative to the Wall's transform?
+                // OR are they Global points?
+                // The `Wall` class logic (lines 20-80) uses corners directly. And the "Perimeter" logic (lines 240+) uses `wall.transform` to translate simple corners?
+                // Actually, looking at `inspectArtifacts.ts`:
+                // The perimeter logic (line 209) uses `floor.polygonCorners`.
+                // The wall logic uses `wall.transform` (tx, ty) AND `corners` which seem to be missing usage in the perimeter logic...
+                // Wait, line 239 `wx/wy` is Wall translation.
+                // The loop `corners` is `floor.polygonCorners`.
+                // So `floor` corners are global?
+                // Let's assume we use `floor.polygonCorners` as the walls...
+                // But detailed walls are in `rawScan.walls`.
+                // Each wall has a transform. If we assume walls are essentially valid segments near that transform...
+                // Let's try to just use the Wall's position (center?) or assume walls define the boundary.
+                // A better approach for RoomPlan raw data:
+                // Walls are entities with `transform` (center/position) and `dimensions` and `polygonCorners`.
+                // `polygonCorners` are 2D points in the Wall's local X-Y plane.
+                // So we need to transform them to World Space to compare with Toilet.
+
+                if (w.transform?.length !== TRANSFORM_SIZE) {
+                  continue;
+                }
+
+                // Transform Wall Segments to World
+                // Simple 2D transform (ignoring rotation for a moment if we assume axis align? No, can't assume that).
+                // Full transform:
+                // p_world = M_wall * p_local
+                const m = w.transform;
+                // 2D Rotation/Translation:
+                // x' = m0*x + m4*y + m12
+                // y' = m1*x + m5*y + m13
+                // (Assuming standard 4x4 matrix layout)
+
+                const NEXT_IDX = 1;
+                for (let i = 0; i < w.polygonCorners.length; i++) {
+                  const p1Local = w.polygonCorners[i];
+                  const p2Local = w.polygonCorners[(i + NEXT_IDX) % w.polygonCorners.length];
+                  if (!p1Local || !p2Local) {
+                    continue;
+                  }
+
+                  const X_IDX_MAT = 0;
+                  const Y_IDX_MAT = 1;
+                  const TX_IDX_MAT = 12;
+                  const TY_IDX_MAT = 13;
+                  const M0 = 0;
+                  const M1 = 1;
+                  const M4 = 4;
+                  const M5 = 5;
+
+                  const p1x = p1Local[X_IDX_MAT] ?? DEFAULT_VALUE;
+                  const p1y = p1Local[Y_IDX_MAT] ?? DEFAULT_VALUE;
+                  const p2x = p2Local[X_IDX_MAT] ?? DEFAULT_VALUE;
+                  const p2y = p2Local[Y_IDX_MAT] ?? DEFAULT_VALUE;
+
+                  // Transform: x' = x*m0 + y*m4 + tx
+                  // Transform: y' = x*m1 + y*m5 + ty
+                  const m0 = m[M0] ?? DEFAULT_VALUE;
+                  const m4 = m[M4] ?? DEFAULT_VALUE;
+                  const mTx = m[TX_IDX_MAT] ?? DEFAULT_VALUE;
+                  const m1 = m[M1] ?? DEFAULT_VALUE;
+                  const m5 = m[M5] ?? DEFAULT_VALUE;
+                  const mTy = m[TY_IDX_MAT] ?? DEFAULT_VALUE;
+
+                  const x1Term1 = p1x * m0;
+                  const x1Term2 = p1y * m4;
+                  const x1 = x1Term1 + x1Term2 + mTx;
+
+                  const y1Term1 = p1x * m1;
+                  const y1Term2 = p1y * m5;
+                  const y1 = y1Term1 + y1Term2 + mTy;
+
+                  const x2Term1 = p2x * m0;
+                  const x2Term2 = p2y * m4;
+                  const x2 = x2Term1 + x2Term2 + mTx;
+
+                  const y2Term1 = p2x * m1;
+                  const y2Term2 = p2y * m5;
+                  const y2 = y2Term1 + y2Term2 + mTy;
+
+                  const dist = distToSegment(tPos, { x: x1, y: y1 }, { x: x2, y: y2 });
+                  if (dist < minWallDist) {
+                    minWallDist = dist;
+                  }
+                }
+              }
+
+              if (minWallDist < MAX_WALL_DIST_METERS) {
+                if (minWallDist > distThreshold) {
+                  // Found a gap!
+                  gapErrorFound = true;
+                  // console.log(`DEBUG: Toilet Gap: ${(minWallDist - tDepth / 2) * 39.37} inches`);
+                }
+              }
+            }
+
+            if (gapErrorFound) {
+              metadata.hasToiletGapErrors = true;
+            }
+          }
         } catch {
           // Ignore
         }
       }
 
-      // 2. ArData Analysis (Lighting & Lens)
       const arDataPath = path.join(path.dirname(file), "arData.json");
       if (fs.existsSync(arDataPath)) {
         try {
@@ -567,6 +758,7 @@ async function main(): Promise<void> {
   let countNoVanity = INITIAL_COUNT;
   let countExternalOpening = INITIAL_COUNT;
   let countSoffit = INITIAL_COUNT;
+  let countToiletGapErrors = INITIAL_COUNT;
 
   for (const m of metadataList) {
     if (m.hasNonRectWall === true) {
@@ -595,6 +787,9 @@ async function main(): Promise<void> {
     if (m.hasSoffit === true) {
       countSoffit++;
     }
+    if (m.hasToiletGapErrors === true) {
+      countToiletGapErrors++;
+    }
   }
 
   const featureLabels = [
@@ -619,6 +814,15 @@ async function main(): Promise<void> {
   ];
   const featureChart = await ChartUtils.createBarChart(featureLabels, featureCounts, "Feature Prevalence", {
     height: DURATION_CHART_HEIGHT,
+    horizontal: true,
+    totalForPercentages: metadataList.length,
+    width: DURATION_CHART_WIDTH
+  });
+
+  const errorLabels = ['Toilet Gap > 1"'];
+  const errorCounts = [countToiletGapErrors];
+  const errorChart = await ChartUtils.createBarChart(errorLabels, errorCounts, "Capture Warnings", {
+    height: 150, // Smaller height for fewer items
     horizontal: true,
     totalForPercentages: metadataList.length,
     width: DURATION_CHART_WIDTH
@@ -679,6 +883,15 @@ async function main(): Promise<void> {
 
   doc.image(featureChart, LEFT_X, Y_START + GAP_Y, { height: H, width: FULL_W });
   doc.text("Feature Prevalence", LEFT_X, Y_START + GAP_Y + H + TEXT_PADDING, { align: "center", width: FULL_W });
+
+  const HEIGHT_ADJUSTMENT_FACTOR = 2;
+  const gapScaled = GAP_Y * HEIGHT_ADJUSTMENT_FACTOR;
+  const errorChartY = Y_START + gapScaled;
+  doc.image(errorChart, LEFT_X, errorChartY, { height: H, width: FULL_W });
+  doc.text("Capture Warnings", LEFT_X, errorChartY + H + TEXT_PADDING, {
+    align: "center",
+    width: FULL_W
+  });
 
   doc.end();
   console.log(`Report generated at: ${REPORT_PATH}`);
