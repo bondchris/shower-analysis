@@ -30,6 +30,7 @@ interface VideoMetadata {
   wallCount?: number;
   hasCurvedWall?: boolean;
   hasExternalOpening?: boolean;
+  hasSoffit?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -111,8 +112,6 @@ async function main(): Promise<void> {
   const PROGRESS_UPDATE_INTERVAL = 10;
   const DECIMAL_PLACES = 2;
   const INCREMENT_STEP = 1;
-
-
 
   // PDF Constants
   const MARGIN = 50;
@@ -210,65 +209,93 @@ async function main(): Promise<void> {
 
                 // Local definition to avoid missing constant
                 const MIN_POLY_CORNERS = 3;
+                const DEFAULT_COORD = 0;
+                const ZERO_LENGTH_SQ = 0;
+                const SEGMENT_START = 0;
+                const SEGMENT_END = 1;
+                const PERIMETER_THRESHOLD = 0.5;
+                const MAT_SIZE = 16;
+                const TX_IDX = 12;
+                const TY_IDX = 13;
+                const X_IDX = 0;
+                const Y_IDX = 1;
+                const NEXT_IDX = 1;
 
-                if (corners && corners.length >= MIN_POLY_CORNERS) {
+                if (corners.length >= MIN_POLY_CORNERS) {
                   // Filter "candidate" external openings by checking if their parent wall is on the perimeter
                   const validExternalOpenings = rawScan.openings.filter((o) => {
-                    if (!o.parentIdentifier) return false;
+                    if (o.parentIdentifier === undefined || o.parentIdentifier === null) {
+                      return false;
+                    }
 
                     // Find the wall
                     const wall = rawScan.walls?.find((w) => w.identifier === o.parentIdentifier);
-                    if (!wall || !wall.transform || wall.transform.length !== 16) return false;
+                    // Use optional chaining and strict check
+                    if (wall?.transform?.length !== MAT_SIZE) {
+                      return false;
+                    }
 
                     // Extract Wall Position (Translation from column-major transform matrix)
                     // Indices 12, 13, 14 are X, Y, Z translation
-                    const wx = wall.transform[12] ?? 0;
-                    const wy = wall.transform[13] ?? 0;
-                    // const wz = wall.transform[14]; // Z is usually height/floor level
+                    const wx = wall.transform[TX_IDX] ?? DEFAULT_COORD;
+                    const wy = wall.transform[TY_IDX] ?? DEFAULT_COORD;
 
                     // Check distance to any floor edge
                     let isOnPerimeter = false;
-                    const THRESHOLD = 0.5; // Meters? Units in ARKit are meters. Wall might be slightly offset.
 
                     for (let i = 0; i < corners.length; i++) {
                       const p1 = corners[i];
-                      const p2 = corners[(i + 1) % corners.length];
-                      if (!p1 || !p2) continue;
+                      const p2 = corners[(i + NEXT_IDX) % corners.length];
+                      if (!p1 || !p2) {
+                        continue;
+                      }
 
                       // Point-to-Segment Distance (2D X-Y projection)
-                      const x1 = p1[0] ?? 0;
-                      const y1 = p1[1] ?? 0;
-                      const x2 = p2[0] ?? 0;
-                      const y2 = p2[1] ?? 0;
+                      const x1 = p1[X_IDX] ?? DEFAULT_COORD;
+                      const y1 = p1[Y_IDX] ?? DEFAULT_COORD;
+                      const x2 = p2[X_IDX] ?? DEFAULT_COORD;
+                      const y2 = p2[Y_IDX] ?? DEFAULT_COORD;
 
                       const A = wx - x1;
                       const B = wy - y1;
                       const C = x2 - x1;
                       const D = y2 - y1;
 
-                      const dot = A * C + B * D;
-                      const lenSq = C * C + D * D;
+                      const AC = A * C;
+                      const BD = B * D;
+                      const dot = AC + BD;
+
+                      const CC = C * C;
+                      const DD = D * D;
+                      const lenSq = CC + DD;
                       let param = -1;
-                      if (lenSq !== 0) param = dot / lenSq;
+                      if (lenSq !== ZERO_LENGTH_SQ) {
+                        param = dot / lenSq;
+                      }
 
-                      let xx, yy;
+                      let xx = 0;
+                      let yy = 0;
 
-                      if (param < 0) {
+                      if (param < SEGMENT_START) {
                         xx = x1;
                         yy = y1;
-                      } else if (param > 1) {
+                      } else if (param > SEGMENT_END) {
                         xx = x2;
                         yy = y2;
                       } else {
-                        xx = x1 + param * C;
-                        yy = y1 + param * D;
+                        const paramC = param * C;
+                        const paramD = param * D;
+                        xx = x1 + paramC;
+                        yy = y1 + paramD;
                       }
 
                       const dx = wx - xx;
                       const dy = wy - yy;
-                      const dist = Math.sqrt(dx * dx + dy * dy);
+                      const dxSq = dx * dx;
+                      const dySq = dy * dy;
+                      const dist = Math.sqrt(dxSq + dySq);
 
-                      if (dist < THRESHOLD) {
+                      if (dist < PERIMETER_THRESHOLD) {
                         isOnPerimeter = true;
                         break;
                       }
@@ -276,10 +303,83 @@ async function main(): Promise<void> {
                     return isOnPerimeter;
                   });
 
-                  metadata.hasExternalOpening = validExternalOpenings.length > 0;
+                  metadata.hasExternalOpening = validExternalOpenings.length > INITIAL_COUNT;
                 }
               }
             }
+          }
+
+          // Refined Logic (Step 3): Check for Soffits (270-degree notches in wall polygons)
+          if (rawScan.walls !== undefined && Array.isArray(rawScan.walls)) {
+            metadata.hasSoffit = rawScan.walls.some((w) => {
+              const wall = w as { polygonCorners?: number[][] };
+              const corners = wall.polygonCorners;
+              const MIN_POLY_CORNERS = 3;
+              const DEFAULT_COORD = 0;
+              const ANGLE_NORMALIZER_ZERO = 0;
+              const HALF_CIRCLE_DEG = 180;
+              const FULL_CIRCLE_DEG = 360;
+              const SOFFIT_MIN_ANGLE = 260;
+              const SOFFIT_MAX_ANGLE = 280;
+              const X_IDX = 0;
+              const Y_IDX = 1;
+              const OFFSET_PREV = 1;
+              const OFFSET_NEXT = 1;
+
+              if (!corners || corners.length < MIN_POLY_CORNERS) {
+                return false;
+              }
+
+              // Project to 2D (assume Wall local space is X-Y plane, Z is constant/thickness)
+              // Calculate signed angles
+              for (let i = 0; i < corners.length; i++) {
+                const pPrev = corners[(i - OFFSET_PREV + corners.length) % corners.length];
+                const pCurr = corners[i];
+                const pNext = corners[(i + OFFSET_NEXT) % corners.length];
+
+                if (!pPrev || !pCurr || !pNext) {
+                  continue;
+                }
+
+                // Vector BA (Curr -> Prev)
+                const v1x = (pPrev[X_IDX] ?? DEFAULT_COORD) - (pCurr[X_IDX] ?? DEFAULT_COORD);
+                const v1y = (pPrev[Y_IDX] ?? DEFAULT_COORD) - (pCurr[Y_IDX] ?? DEFAULT_COORD);
+
+                // Vector BC (Curr -> Next)
+                const v2x = (pNext[X_IDX] ?? DEFAULT_COORD) - (pCurr[X_IDX] ?? DEFAULT_COORD);
+                const v2y = (pNext[Y_IDX] ?? DEFAULT_COORD) - (pCurr[Y_IDX] ?? DEFAULT_COORD);
+
+                // Calculate interior angle using atan2
+                // atan2(cross, dot) gives angle from v1 to v2
+                // Cross product 2D: v1x*v2y - v1y*v2x
+                // Dot product: v1x*v2x + v1y*v2y
+
+                const v1xv2y = v1x * v2y;
+                const v1yv2x = v1y * v2x;
+                const cross = v1xv2y - v1yv2x;
+
+                const v1xv2x = v1x * v2x;
+                const v1yv2y = v1y * v2y;
+                const dot = v1xv2x + v1yv2y;
+
+                let angle = Math.atan2(cross, dot) * (HALF_CIRCLE_DEG / Math.PI);
+
+                // Normalize to [0, 360]
+                if (angle < ANGLE_NORMALIZER_ZERO) {
+                  angle += FULL_CIRCLE_DEG;
+                }
+
+                // Check for reflex angle (approx 270)
+                // ARKit wall polygons are usually CCW? Or CW?
+                // If standard 90 deg corner, angle is 90.
+                // If "notch" (soffit), angle is 270.
+                // Allow tolerance +/- 10 degrees?
+                if (angle > SOFFIT_MIN_ANGLE && angle < SOFFIT_MAX_ANGLE) {
+                  return true;
+                }
+              }
+              return false;
+            });
           }
         } catch {
           // Ignore
@@ -298,69 +398,70 @@ async function main(): Promise<void> {
           if (frames.length > INITIAL_COUNT) {
             // Lens Model
             const firstFrame = frames[INITIAL_COUNT];
-            if (firstFrame) {
-              const lens = firstFrame.exifData.LensModel;
-              if (lens !== undefined && lens.length > INITIAL_COUNT) {
-                metadata.lensModel = lens;
+            // Use optional chaining for safe access to frames array item, but exifData is required
+            if (firstFrame?.exifData.LensModel !== undefined) {
+              metadata.lensModel = firstFrame.exifData.LensModel;
+            }
+          }
+
+          // Calculate Averages
+          let totalIntensity = 0;
+          let totalTemperature = 0;
+          let totalISO = 0;
+          let totalBrightness = 0; // Exif BrightnessValue
+          let count = 0;
+          let isoCount = 0;
+          let briCount = 0;
+          const MIN_VALID_FRAMES = 0;
+
+          for (const frame of frames) {
+            // Check for existence explicitly if needed, but safe navigation usage suggests they are optional
+            // Using strict checks to satisfy linter
+            // exifData is required per interface, so no check needed
+            if (frame.lightEstimate !== undefined) {
+              // ambientIntensity and ambientColorTemperature are required in LightEstimate interface
+              totalIntensity += frame.lightEstimate.ambientIntensity;
+              totalTemperature += frame.lightEstimate.ambientColorTemperature;
+            }
+
+            // ISOSpeedRatings check (exifData is required)
+            if (frame.exifData.ISOSpeedRatings !== undefined) {
+              // Strip non-numeric chars (sometimes comes as "( 125 )" or similar)
+              const isoStr = frame.exifData.ISOSpeedRatings.replace(/[^0-9.]/g, "");
+              const isoVal = parseFloat(isoStr);
+              if (!isNaN(isoVal)) {
+                totalISO += isoVal;
+                isoCount++;
               }
             }
 
-            // Lighting Stats
-            let cBri = INITIAL_COUNT;
-            let cInt = INITIAL_COUNT;
-            let cIso = INITIAL_COUNT;
-            let cTemp = INITIAL_COUNT;
-            let totalBri = INITIAL_COUNT;
-            let totalInt = INITIAL_COUNT;
-            let totalIso = INITIAL_COUNT;
-            let totalTemp = INITIAL_COUNT;
-
-            for (const f of frames) {
-              // Intensity
-              if (f.lightEstimate?.ambientIntensity !== undefined) {
-                totalInt += f.lightEstimate.ambientIntensity;
-                cInt++;
-              }
-              // Temp
-              if (f.lightEstimate?.ambientColorTemperature !== undefined) {
-                totalTemp += f.lightEstimate.ambientColorTemperature;
-                cTemp++;
-              }
-              // ISO & Brightness from Exif
-              const exif = f.exifData;
-              if (exif.ISOSpeedRatings !== undefined) {
-                const MATCH_INDEX = 0;
-                const match = /(\d+(\.\d+)?)/.exec(exif.ISOSpeedRatings);
-                if (match) {
-                  const iso = parseFloat(match[MATCH_INDEX]);
-                  if (!isNaN(iso)) {
-                    totalIso += iso;
-                    cIso++;
-                  }
-                }
-              }
-              if (exif.BrightnessValue !== undefined) {
-                const bri = parseFloat(exif.BrightnessValue);
-                if (!isNaN(bri)) {
-                  totalBri += bri;
-                  cBri++;
-                }
+            // BrightnessValue check
+            if (frame.exifData.BrightnessValue !== undefined) {
+              // BrightnessValue is typically a number string, but sanity check
+              const briVal = parseFloat(frame.exifData.BrightnessValue);
+              if (!isNaN(briVal)) {
+                totalBrightness += briVal;
+                briCount++;
               }
             }
 
-            if (cInt > INITIAL_COUNT) {
-              metadata.avgAmbientIntensity = totalInt / cInt;
+            // Increment count if we have valid light estimate?
+            // Original logic was "if (frame.lightEstimate && frame.exifData)".
+            // Since exifData is always there, effective check was just lightEstimate.
+            if (frame.lightEstimate !== undefined) {
+              count++;
             }
-            if (cTemp > INITIAL_COUNT) {
-              metadata.avgColorTemperature = totalTemp / cTemp;
-            }
-            // Removed avgColorTemperature logic as it is not in interface
-            if (cIso > INITIAL_COUNT) {
-              metadata.avgIso = totalIso / cIso;
-            }
-            if (cBri > INITIAL_COUNT) {
-              metadata.avgBrightness = totalBri / cBri;
-            }
+          }
+
+          if (count > MIN_VALID_FRAMES) {
+            metadata.avgAmbientIntensity = totalIntensity / count;
+            metadata.avgColorTemperature = totalTemperature / count;
+          }
+          if (isoCount > MIN_VALID_FRAMES) {
+            metadata.avgIso = totalISO / isoCount;
+          }
+          if (briCount > MIN_VALID_FRAMES) {
+            metadata.avgBrightness = totalBrightness / briCount;
           }
         } catch {
           // Ignore
@@ -368,13 +469,13 @@ async function main(): Promise<void> {
       }
 
       metadataList.push(metadata);
+      if (processed % PROGRESS_UPDATE_INTERVAL === INITIAL_COUNT) {
+        process.stdout.write(".");
+      }
+      processed++;
     }
-
-    if (processed % PROGRESS_UPDATE_INTERVAL === INITIAL_COUNT) {
-      process.stdout.write(".");
-    }
-    processed++;
   }
+
   console.log("\nMetadata extraction complete.\n");
 
   if (metadataList.length === INITIAL_COUNT) {
@@ -467,15 +568,15 @@ async function main(): Promise<void> {
     min: 4000
   });
 
-  // ISO: 100-600, bin 50
-  const isoChart = await ChartUtils.createHistogram(isoVals, "ISO", "ISO Speed", { binSize: 50, max: 600, min: 100 });
+  // ISO: 0-3200, bin 200
+  const isoChart = await ChartUtils.createHistogram(isoVals, "ISO", "ISO Speed", { binSize: 200, max: 3200, min: 0 });
 
-  // Brightness: 0-5, bin 0.5, dec 1
-  const briChart = await ChartUtils.createHistogram(briVals, "Value", "Brightness", {
-    binSize: 0.5,
+  // Brightness: -3 to 10, bin 1
+  const briChart = await ChartUtils.createHistogram(briVals, "Value (EV)", "Brightness Value", {
+    binSize: 1,
     decimalPlaces: 1,
-    max: 5,
-    min: 0
+    max: 10,
+    min: -3
   });
 
   // Room Area: 0-150, bin 10
@@ -524,6 +625,7 @@ async function main(): Promise<void> {
   let countCurvedWalls = INITIAL_COUNT;
   let countNoVanity = INITIAL_COUNT;
   let countExternalOpening = INITIAL_COUNT;
+  let countSoffit = INITIAL_COUNT;
 
   for (const m of metadataList) {
     if (m.hasNonRectWall === true) {
@@ -549,6 +651,9 @@ async function main(): Promise<void> {
     if (m.hasExternalOpening === true) {
       countExternalOpening++;
     }
+    if (m.hasSoffit === true) {
+      countSoffit++;
+    }
   }
 
   const featureLabels = [
@@ -558,7 +663,8 @@ async function main(): Promise<void> {
     "2+ Tubs",
     "< 4 Walls",
     "No Vanity",
-    "External Opening"
+    "External Opening",
+    "Soffit"
   ];
   const featureCounts = [
     countNonRect,
@@ -567,7 +673,8 @@ async function main(): Promise<void> {
     countTwoTubs,
     countFewWalls,
     countNoVanity,
-    countExternalOpening
+    countExternalOpening,
+    countSoffit
   ];
   const featureChart = await ChartUtils.createBarChart(featureLabels, featureCounts, "Feature Prevalence", {
     height: DURATION_CHART_HEIGHT,
