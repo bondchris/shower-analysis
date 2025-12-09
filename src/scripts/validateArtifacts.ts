@@ -1,5 +1,3 @@
-import { ChartConfiguration } from "chart.js";
-import { ChartJSNodeCanvas } from "chartjs-node-canvas";
 import * as fs from "fs";
 import * as path from "path";
 import PDFDocument from "pdfkit";
@@ -8,6 +6,7 @@ import { promisify } from "util";
 
 import { ENVIRONMENTS } from "../../config/config";
 import { Artifact, SpatialService } from "../services/spatialService";
+import * as ChartUtils from "../utils/chartUtils";
 
 const finished = promisify(stream.finished);
 
@@ -124,46 +123,6 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
   return stats;
 }
 
-async function createLineChart(
-  labels: string[],
-  datasets: { label: string; data: number[]; borderColor: string }[]
-): Promise<Buffer> {
-  const CHART_WIDTH = 600;
-  const CHART_HEIGHT = 400;
-  const CHART_BG_COLOR = "white";
-
-  const chartJSNodeCanvas = new ChartJSNodeCanvas({
-    backgroundColour: CHART_BG_COLOR,
-    height: CHART_HEIGHT,
-    width: CHART_WIDTH
-  });
-  const configuration: ChartConfiguration = {
-    data: {
-      datasets: datasets.map((ds) => ({
-        backgroundColor: ds.borderColor,
-        borderColor: ds.borderColor,
-        data: ds.data,
-        fill: false,
-        label: ds.label,
-        tension: 0.1
-      })),
-      labels
-    },
-    options: {
-      plugins: {
-        legend: { position: "top" },
-        title: { display: true, text: "Data Errors Over Time" }
-      },
-      scales: {
-        y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: "Error Count" } }
-      }
-    },
-    type: "line"
-  };
-  const buffer = await chartJSNodeCanvas.renderToBuffer(configuration);
-  return buffer;
-}
-
 async function generateReport(allStats: EnvStats[]) {
   const doc = new PDFDocument();
   const reportsDir = path.join(process.cwd(), "reports");
@@ -265,7 +224,7 @@ async function generateReport(allStats: EnvStats[]) {
     });
 
     try {
-      const chartBuffer = await createLineChart(sortedDates, datasets);
+      const chartBuffer = await ChartUtils.createLineChart(sortedDates, datasets);
       // Keep everything on one page if possible
       doc
         .fontSize(PDF_HEADER_SIZE)

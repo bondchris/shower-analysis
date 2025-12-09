@@ -1,5 +1,3 @@
-import { ChartConfiguration } from "chart.js";
-import { ChartJSNodeCanvas } from "chartjs-node-canvas";
 import ffmpeg from "fluent-ffmpeg";
 import * as fs from "fs";
 import * as path from "path";
@@ -8,6 +6,7 @@ import PDFDocument from "pdfkit";
 import { ArData } from "../models/arData/arData";
 import { Floor } from "../models/rawScan/floor";
 import { RawScan, RawScanData } from "../models/rawScan/rawScan";
+import * as ChartUtils from "../utils/chartUtils";
 
 interface VideoMetadata {
   path: string;
@@ -101,213 +100,6 @@ function findVideoFiles(dir: string): string[] {
     }
   }
   return results;
-}
-
-// Chart Service
-
-interface HistogramOptions {
-  binSize: number;
-  decimalPlaces?: number;
-  height?: number;
-  max: number;
-  min: number;
-  width?: number;
-}
-
-async function createHistogram(
-  data: number[],
-  label: string,
-  title: string,
-  options: HistogramOptions
-): Promise<Buffer> {
-  const DEFAULT_DECIMALS = 0;
-  const { binSize, decimalPlaces = DEFAULT_DECIMALS, height, max, min, width } = options;
-  const INITIAL_COUNT = 0;
-  const INCREMENT_STEP = 1;
-  const DEFAULT_WIDTH = 600;
-  const DEFAULT_HEIGHT = 400;
-  const CHART_WIDTH = width ?? DEFAULT_WIDTH;
-  const CHART_HEIGHT = height ?? DEFAULT_HEIGHT;
-  const EXTRA_BUCKETS = 2; // Underflow and Overflow
-  const UNDERFLOW_INDEX = 0;
-  const OFFSET = 1;
-  const MAX_TICKS = 20;
-
-  const numMainBins = Math.ceil((max - min) / binSize);
-  const buckets: number[] = new Array(numMainBins + EXTRA_BUCKETS).fill(INITIAL_COUNT) as number[];
-  const labels: string[] = [];
-
-  labels.push(`< ${min.toString()}`);
-  for (let i = 0; i < numMainBins; i++) {
-    const startOffset = i * binSize;
-    const start = min + startOffset;
-    const endOffset = (i + INCREMENT_STEP) * binSize;
-    const end = min + endOffset;
-    labels.push(`${start.toFixed(decimalPlaces)}-${end.toFixed(decimalPlaces)}`);
-  }
-  labels.push(`> ${max.toString()}`);
-
-  const chartCallback = (ChartJS: typeof import("chart.js").Chart) => {
-    ChartJS.defaults.responsive = false;
-    ChartJS.defaults.maintainAspectRatio = false;
-  };
-  const chartJSNodeCanvas = new ChartJSNodeCanvas({ chartCallback, height: CHART_HEIGHT, width: CHART_WIDTH });
-
-  for (const val of data) {
-    if (val < min) {
-      const valUnder = buckets[UNDERFLOW_INDEX];
-      if (valUnder !== undefined) {
-        buckets[UNDERFLOW_INDEX] = valUnder + INCREMENT_STEP;
-      }
-    } else if (val >= max) {
-      const idxOver = buckets.length - INCREMENT_STEP;
-      const valOver = buckets[idxOver];
-      if (valOver !== undefined) {
-        buckets[idxOver] = valOver + INCREMENT_STEP;
-      }
-    } else {
-      const binIdx = Math.floor((val - min) / binSize) + OFFSET;
-      const count = buckets[binIdx];
-      if (count !== undefined) {
-        buckets[binIdx] = count + INCREMENT_STEP;
-      }
-    }
-  }
-
-  const configuration: ChartConfiguration = {
-    data: {
-      datasets: [
-        {
-          backgroundColor: "rgba(54, 162, 235, 0.5)",
-          borderColor: "rgba(54, 162, 235, 1)",
-          borderWidth: INCREMENT_STEP,
-          data: buckets,
-          label
-        }
-      ],
-      labels
-    },
-    options: {
-      plugins: {
-        legend: { position: "top" },
-        title: { display: true, text: title }
-      },
-      scales: {
-        x: { ticks: { autoSkip: true, maxTicksLimit: MAX_TICKS }, title: { display: true, text: label } },
-        y: { beginAtZero: true, title: { display: true, text: "Count" } }
-      }
-    },
-    type: "bar"
-  };
-  const buffer = await chartJSNodeCanvas.renderToBuffer(configuration);
-  return buffer;
-}
-
-interface BarChartOptions {
-  height?: number;
-  horizontal?: boolean;
-  width?: number;
-  totalForPercentages?: number;
-}
-
-async function createBarChart(
-  labels: string[],
-  data: number[],
-  title: string,
-  options: BarChartOptions = {}
-): Promise<Buffer> {
-  const { height, horizontal = false, totalForPercentages, width } = options;
-  const INCREMENT_STEP = 1;
-  const DEFAULT_WIDTH = 600;
-  const DEFAULT_HEIGHT = 400;
-  const CHART_WIDTH = width ?? DEFAULT_WIDTH;
-  const CHART_HEIGHT = height ?? DEFAULT_HEIGHT;
-  const RIGHT_PADDING = 60; // Space for labels
-  const PCT_MULTIPLIER = 100;
-  const PCT_DECIMALS = 2;
-  const NO_PADDING = 0;
-
-  // Custom plugin to draw percentages manually
-  const customLabelsPlugin = {
-    afterDatasetsDraw(chart: import("chart.js").Chart) {
-      const DATASET_INDEX = 0;
-      const LABEL_OFFSET = 4;
-      const FONT_SIZE_PX = 12;
-
-      if (totalForPercentages === undefined) {
-        return;
-      }
-      const { ctx } = chart;
-      const meta = chart.getDatasetMeta(DATASET_INDEX);
-
-      ctx.save();
-      ctx.font = `bold ${FONT_SIZE_PX.toString()}px sans-serif`;
-      ctx.fillStyle = "black";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-
-      meta.data.forEach((element, index) => {
-        const value = data[index];
-        if (value !== undefined) {
-          const pctVal = (value / totalForPercentages) * PCT_MULTIPLIER;
-          const pctStr = parseFloat(pctVal.toFixed(PCT_DECIMALS)).toString();
-          const text = `${pctStr}%`;
-          // element.x is the end of the bar for horizontal charts
-          // element.y is the vertical center of the bar
-          const props = element.getProps(["x", "y"], true) as { x: number; y: number };
-          const { x, y } = props;
-          ctx.fillText(text, x + LABEL_OFFSET, y);
-        }
-      });
-      ctx.restore();
-    },
-    id: "customLabels"
-  };
-
-  const chartCallback = (ChartJS: typeof import("chart.js").Chart) => {
-    ChartJS.defaults.responsive = false;
-    ChartJS.defaults.maintainAspectRatio = false;
-  };
-  const chartJSNodeCanvas = new ChartJSNodeCanvas({
-    chartCallback,
-    height: CHART_HEIGHT,
-    width: CHART_WIDTH
-  });
-
-  const configuration: ChartConfiguration = {
-    data: {
-      datasets: [
-        {
-          backgroundColor: "rgba(75, 192, 192, 0.5)",
-          borderColor: "rgba(75, 192, 192, 1)",
-          borderWidth: INCREMENT_STEP,
-          data,
-          label: "Count"
-        }
-      ],
-      labels
-    },
-    options: {
-      indexAxis: horizontal ? "y" : "x",
-      layout: {
-        padding: {
-          right: totalForPercentages !== undefined ? RIGHT_PADDING : NO_PADDING
-        }
-      },
-      plugins: {
-        legend: { position: "top" },
-        title: { display: true, text: title }
-      },
-      scales: {
-        x: { beginAtZero: true, ticks: { precision: 0 } },
-        y: { beginAtZero: true, ticks: { autoSkip: false } }
-      }
-    },
-    plugins: [customLabelsPlugin],
-    type: "bar"
-  };
-  const buffer = await chartJSNodeCanvas.renderToBuffer(configuration);
-  return buffer;
 }
 
 // Main Execution
@@ -517,7 +309,6 @@ async function main(): Promise<void> {
   } else {
     console.log("All raw scans are valid.\n");
   }
-
   // --- Analysis ---
   const DURATION_CHART_WIDTH = 1020;
   const DURATION_CHART_HEIGHT = 320;
@@ -537,7 +328,7 @@ async function main(): Promise<void> {
   // Sort by count descending
   const lensLabels = Object.keys(lensMap).sort((a, b) => (lensMap[b] ?? INITIAL_COUNT) - (lensMap[a] ?? INITIAL_COUNT));
   const lensCounts = lensLabels.map((l) => lensMap[l] ?? INITIAL_COUNT);
-  const lensChart = await createBarChart(lensLabels, lensCounts, "Lens Model Distribution", {
+  const lensChart = await ChartUtils.createBarChart(lensLabels, lensCounts, "Lens Model Distribution", {
     height: DURATION_CHART_HEIGHT,
     horizontal: true,
     width: DURATION_CHART_WIDTH
@@ -554,7 +345,7 @@ async function main(): Promise<void> {
   console.log("Generating charts...");
 
   // Duration: min 0, max 120, bin 10
-  const durationChart = await createHistogram(durations, "Seconds", "Duration", {
+  const durationChart = await ChartUtils.createHistogram(durations, "Seconds", "Duration", {
     binSize: 10,
     height: DURATION_CHART_HEIGHT,
     max: 120,
@@ -563,24 +354,24 @@ async function main(): Promise<void> {
   });
 
   // Ambient: 950-1050, bin 5
-  const ambChart = await createHistogram(intensityVals, "Lumens", "Ambient Intensity", {
+  const ambChart = await ChartUtils.createHistogram(intensityVals, "Lumens", "Ambient Intensity", {
     binSize: 5,
     max: 1050,
     min: 950
   });
 
   // Temp: 4000-5500, bin 250
-  const tempChart = await createHistogram(tempVals, "Kelvin", "Color Temperature", {
+  const tempChart = await ChartUtils.createHistogram(tempVals, "Kelvin", "Color Temperature", {
     binSize: 250,
     max: 5500,
     min: 4000
   });
 
   // ISO: 100-600, bin 50
-  const isoChart = await createHistogram(isoVals, "ISO", "ISO Speed", { binSize: 50, max: 600, min: 100 });
+  const isoChart = await ChartUtils.createHistogram(isoVals, "ISO", "ISO Speed", { binSize: 50, max: 600, min: 100 });
 
   // Brightness: 0-5, bin 0.5, dec 1
-  const briChart = await createHistogram(briVals, "Value", "Brightness", {
+  const briChart = await ChartUtils.createHistogram(briVals, "Value", "Brightness", {
     binSize: 0.5,
     decimalPlaces: 1,
     max: 5,
@@ -588,7 +379,7 @@ async function main(): Promise<void> {
   });
 
   // Room Area: 0-150, bin 10
-  const areaChart = await createHistogram(areaVals, "Sq Ft", "Room Area", {
+  const areaChart = await ChartUtils.createHistogram(areaVals, "Sq Ft", "Room Area", {
     binSize: 10,
     height: DURATION_CHART_HEIGHT,
     max: 150,
@@ -604,7 +395,7 @@ async function main(): Promise<void> {
   });
   const fpsLabels = Object.keys(fpsDistribution).sort((a, b) => parseFloat(a) - parseFloat(b));
   const fpsCounts = fpsLabels.map((l) => fpsDistribution[l] ?? INITIAL_COUNT);
-  const fpsChart = await createBarChart(fpsLabels, fpsCounts, "Framerate");
+  const fpsChart = await ChartUtils.createBarChart(fpsLabels, fpsCounts, "Framerate");
 
   const resolutions = metadataList.map((m) => `${m.width.toString()}x${m.height.toString()}`);
   const resDistribution: Record<string, number> = {};
@@ -613,7 +404,7 @@ async function main(): Promise<void> {
   });
   const resLabels = Object.keys(resDistribution).sort();
   const resCounts = resLabels.map((l) => resDistribution[l] ?? INITIAL_COUNT);
-  const resChart = await createBarChart(resLabels, resCounts, "Resolution");
+  const resChart = await ChartUtils.createBarChart(resLabels, resCounts, "Resolution");
 
   // Layout Constants (Needed for feature chart)
   const Y_START = 130;
@@ -658,7 +449,7 @@ async function main(): Promise<void> {
 
   const featureLabels = ["Non-Rectangular Walls", "Curved Walls", "2+ Toilets", "2+ Tubs", "< 4 Walls", "No Vanity"];
   const featureCounts = [countNonRect, countCurvedWalls, countTwoToilets, countTwoTubs, countFewWalls, countNoVanity];
-  const featureChart = await createBarChart(featureLabels, featureCounts, "Feature Prevalence", {
+  const featureChart = await ChartUtils.createBarChart(featureLabels, featureCounts, "Feature Prevalence", {
     height: DURATION_CHART_HEIGHT,
     horizontal: true,
     totalForPercentages: metadataList.length,
