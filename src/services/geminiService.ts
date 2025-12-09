@@ -1,11 +1,16 @@
 import { GenerativeModel, GoogleGenerativeAI } from "@google/generative-ai";
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 export class GeminiService {
+    private static readonly DEFAULT_MODEL = "gemini-3-pro-preview";
     private readonly genAI: GoogleGenerativeAI;
     private readonly model: GenerativeModel;
 
-    constructor(apiKey: string, modelName: string) {
-        if (!apiKey) {
+    constructor(modelName: string = GeminiService.DEFAULT_MODEL) {
+        const apiKey = process.env["GEMINI_API_KEY"];
+        if (apiKey === undefined || apiKey === "") {
             throw new Error("Gemini API key is required");
         }
         this.genAI = new GoogleGenerativeAI(apiKey);

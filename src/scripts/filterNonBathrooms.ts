@@ -34,8 +34,7 @@ async function processArtifact(
   badScanIds: Set<string>,
   badScans: ReturnType<typeof getBadScans>,
   checkedScanIds: Set<string>,
-  checkedScans: ReturnType<typeof getCheckedScans>,
-  modelName: string
+  checkedScans: ReturnType<typeof getCheckedScans>
 ): Promise<{ processed: number; removed: number; skipped: number }> {
   let processed = 0;
   let removed = 0;
@@ -88,7 +87,7 @@ async function processArtifact(
         date: new Date().toISOString(),
         environment,
         id: artifactId,
-        reason: `Not a bathroom (Gemini ${modelName})`
+        reason: `Not a bathroom (Gemini gemini-3-pro-preview)`
       });
       badScanIds.add(artifactId);
 
@@ -100,11 +99,10 @@ async function processArtifact(
       }
     } else {
       console.log(`  -> ${artifactId}: Kept.`);
-      // Add to checked scans
       checkedScans.push({
         date: new Date().toISOString(),
         id: artifactId,
-        model: modelName
+        model: "gemini-3-pro-preview"
       });
       checkedScanIds.add(artifactId);
     }
@@ -118,17 +116,8 @@ async function processArtifact(
 }
 
 async function main() {
-  const EXIT_FAILURE = 1;
   const CONCURRENCY = 16;
-  const apiKey = process.env["GEMINI_API_KEY"];
-  const MODEL_NAME = "gemini-1.5-pro-preview";
-
-  if (apiKey === undefined || apiKey === "") {
-    console.error("Error: GEMINI_API_KEY not found in environment variables.");
-    process.exit(EXIT_FAILURE);
-  }
-
-  const service = new GeminiService(apiKey, MODEL_NAME);
+  const service = new GeminiService();
 
   const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
 
@@ -162,8 +151,7 @@ async function main() {
             badScanIds,
             badScans,
             checkedScanIds,
-            checkedScans,
-            MODEL_NAME
+            checkedScans
           );
           totalProcessed += processed;
           totalRemoved += removed;
