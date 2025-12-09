@@ -15,6 +15,7 @@ export interface HistogramOptions {
   height?: number;
   decimalPlaces?: number;
   hideUnderflow?: boolean;
+  colorByValue?: (value: number) => string;
 }
 
 export interface BarChartOptions {
@@ -131,19 +132,72 @@ export async function createHistogram(
   // Filter out underflow bucket if requested
   let finalBuckets = buckets;
   let finalLabels = labels;
+
   if (hideUnderflow === true) {
     // Remove the first element (index 0)
     const START_INDEX = 1;
     finalBuckets = buckets.slice(START_INDEX);
     finalLabels = labels.slice(START_INDEX);
+  } else {
+    // Underflow bucket represents (< min)
+    // For coloring, we might treat it as (min - binSize)?
+    // But index 0 is underflow.
+  }
+
+  // Generate colors if requested
+  let backgroundColors: string | string[] = "rgba(54, 162, 235, 0.5)";
+  const borderColor = "rgba(54, 162, 235, 1)";
+
+  if (options.colorByValue) {
+    backgroundColors = finalLabels.map((_, i) => {
+      // Calculate representative value for this bin
+      // Original logic:
+      // index 0 (if underflow shown) is < min. center approx min - binSize/2
+      // index last is > max. center approx max + binSize/2
+      // main bins: min + i*binSize + binSize/2
+
+      // Adjustment for hideUnderflow:
+      // If hideUnderflow is true, i=0 corresponds to original index 1 (min to min+binSize)
+      // So effective original index = i + (hideUnderflow ? 1 : 0)
+
+      const UNDERFLOW_SHIFT = 1;
+      const NO_SHIFT = 0;
+      const effectiveIndex = i + (hideUnderflow === true ? UNDERFLOW_SHIFT : NO_SHIFT);
+      let centerValue = 0;
+      const OFFSET_ADJUST = 1;
+      const HALF = 2;
+
+      if (effectiveIndex === UNDERFLOW_INDEX) {
+        // Underflow
+        const halfBin = binSize / HALF;
+        centerValue = min - halfBin;
+      } else if (effectiveIndex === buckets.length - OFFSET_ADJUST) {
+        // Overflow
+        const halfBin = binSize / HALF;
+        centerValue = max + halfBin;
+      } else {
+        // Main bin
+        // effectiveIndex 1 => range [min, min+binSize] => center min + binSize/2
+        // effectiveIndex k => range [min+(k-1)bin, min+k*bin]
+        const binOffset = effectiveIndex - OFFSET_ADJUST;
+        const offsetVal = binOffset * binSize;
+        const halfBin = binSize / HALF;
+        centerValue = min + offsetVal + halfBin;
+      }
+
+      if (options.colorByValue) {
+        return options.colorByValue(centerValue);
+      }
+      return "rgba(54, 162, 235, 0.5)"; // Fallback
+    });
   }
 
   const configuration: ChartConfiguration = {
     data: {
       datasets: [
         {
-          backgroundColor: "rgba(54, 162, 235, 0.5)",
-          borderColor: "rgba(54, 162, 235, 1)",
+          backgroundColor: backgroundColors,
+          borderColor,
           borderWidth: INCREMENT_STEP,
           data: finalBuckets,
           label
@@ -269,3 +323,39 @@ export async function createBarChart(
   const buffer = await chartJSNodeCanvas.renderToBuffer(configuration);
   return buffer;
 }
+
+/* eslint-disable no-magic-numbers */
+export function kelvinToRgb(k: number): string {
+  const temp = k / 100;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+
+  if (temp <= 66) {
+    r = 255;
+    g = temp;
+    const gLog = 99.4708025861 * Math.log(g);
+    g = gLog - 161.1195681661;
+    if (temp <= 19) {
+      b = 0;
+    } else {
+      b = temp - 10;
+      const bLog = 138.5177312231 * Math.log(b);
+      b = bLog - 305.0447927307;
+    }
+  } else {
+    r = temp - 60;
+    r = 329.698727446 * Math.pow(r, -0.1332047592);
+    g = temp - 60;
+    g = 288.1221695283 * Math.pow(g, -0.0755148492);
+    b = 255;
+  }
+
+  // Clamp 0-255
+  r = Math.min(255, Math.max(0, r));
+  g = Math.min(255, Math.max(0, g));
+  b = Math.min(255, Math.max(0, b));
+
+  return `rgba(${Math.round(r).toString()}, ${Math.round(g).toString()}, ${Math.round(b).toString()}, 0.8)`;
+}
+/* eslint-enable no-magic-numbers */

@@ -498,6 +498,7 @@ async function main(): Promise<void> {
   // Temp: 4000-6000, bin 250
   const tempChart = await ChartUtils.createHistogram(tempVals, "Kelvin", "Color Temperature", {
     binSize: 250,
+    colorByValue: ChartUtils.kelvinToRgb,
     max: 6000,
     min: 4000
   });
