@@ -35,6 +35,7 @@ interface VideoMetadata {
   hasToiletGapErrors?: boolean;
   hasTubGapErrors?: boolean;
   hasWallGapErrors?: boolean;
+  hasColinearWallErrors?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -732,6 +733,125 @@ async function main(): Promise<void> {
             if (wallGapErrorFound) {
               metadata.hasWallGapErrors = true;
             }
+
+            // 4. Colinear Wall Detection (Touching and Parallel)
+            // Touching: < 3 inches (0.0762m)
+            // Parallel: Dot product > 0.996 (approx 5 degrees)
+            const TOUCH_THRESHOLD = 0.0762;
+            const PARALLEL_THRESHOLD = 0.996;
+            const NEXT_IDX_ONE = 1;
+            const EXPONENT_SQUARED = 2;
+            let colinearErrorFound = false;
+
+            for (let i = 0; i < roomWalls.length; i++) {
+              const wA = roomWalls[i];
+              if (!wA) {
+                continue;
+              }
+
+              // Get Direction Vector for A (using first edge)
+              // Assuming corners form a closed loop or line. Wall usually a rectangle.
+              // Longest edge is the wall direction? Or just first segment?
+              // Fallback created points [ -halfLen, 0 ] and [ halfLen, 0 ] (Local X-axis).
+              // So p[1] - p[0] is the main axis.
+              // If polygonCorners exist, we need to find the "length" edge.
+              // Heuristic: Use first two points? Or longest edge?
+              // Let's use longest edge for direction.
+              let maxLenA = 0;
+              let vAx = 0;
+              let vAy = 0;
+              const MIN_PTS = 2;
+              if (wA.corners.length < MIN_PTS) {
+                continue;
+              }
+
+              for (let k = 0; k < wA.corners.length; k++) {
+                const p1 = wA.corners[k];
+                const p2 = wA.corners[(k + NEXT_IDX_ONE) % wA.corners.length];
+                if (!p1 || !p2) {
+                  continue;
+                }
+
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const termX = dx * dx;
+                const termY = dy * dy;
+                const len = Math.sqrt(termX + termY);
+                if (len > maxLenA) {
+                  maxLenA = len;
+                  vAx = dx / len;
+                  vAy = dy / len;
+                }
+              }
+
+              for (let j = i + NEXT_IDX_ONE; j < roomWalls.length; j++) {
+                const wB = roomWalls[j];
+                if (!wB) {
+                  continue;
+                }
+
+                // Check Touching Distance
+                let isTouching = false;
+                for (const pA of wA.corners) {
+                  for (const pB of wB.corners) {
+                    const dist = Math.sqrt(
+                      Math.pow(pA.x - pB.x, EXPONENT_SQUARED) + Math.pow(pA.y - pB.y, EXPONENT_SQUARED)
+                    );
+                    if (dist < TOUCH_THRESHOLD) {
+                      isTouching = true;
+                      break;
+                    }
+                  }
+                  if (isTouching) {
+                    break;
+                  }
+                }
+
+                if (!isTouching) {
+                  continue;
+                }
+
+                // Check Parallel
+                let maxLenB = 0;
+                let vBx = 0;
+                let vBy = 0;
+                if (wB.corners.length < MIN_PTS) {
+                  continue;
+                }
+
+                for (let k = 0; k < wB.corners.length; k++) {
+                  const p1 = wB.corners[k];
+                  const p2 = wB.corners[(k + NEXT_IDX_ONE) % wB.corners.length];
+                  if (!p1 || !p2) {
+                    continue;
+                  }
+
+                  const dx = p2.x - p1.x;
+                  const dy = p2.y - p1.y;
+                  const termX = dx * dx;
+                  const termY = dy * dy;
+                  const len = Math.sqrt(termX + termY);
+                  if (len > maxLenB) {
+                    maxLenB = len;
+                    vBx = dx / len;
+                    vBy = dy / len;
+                  }
+                }
+
+                const dot = Math.abs((vAx * vBx) + (vAy * vBy));
+                if (dot > PARALLEL_THRESHOLD) {
+                  colinearErrorFound = true;
+                  break;
+                }
+              }
+              if (colinearErrorFound) {
+                break;
+              }
+            }
+
+            if (colinearErrorFound) {
+              metadata.hasColinearWallErrors = true;
+            }
           }
         } catch {
           // Ignore
@@ -988,6 +1108,7 @@ async function main(): Promise<void> {
   let countToiletGapErrors = INITIAL_COUNT;
   let countTubGapErrors = INITIAL_COUNT;
   let countWallGapErrors = INITIAL_COUNT;
+  let countColinearWallErrors = INITIAL_COUNT;
 
   for (const m of metadataList) {
     if (m.hasNonRectWall === true) {
@@ -1025,6 +1146,9 @@ async function main(): Promise<void> {
     if (m.hasWallGapErrors === true) {
       countWallGapErrors++;
     }
+    if (m.hasColinearWallErrors === true) {
+      countColinearWallErrors++;
+    }
   }
 
   const featureLabels = [
@@ -1055,9 +1179,9 @@ async function main(): Promise<void> {
   });
 
   // Error Chart
-  const errorCounts = [countToiletGapErrors, countTubGapErrors, countWallGapErrors];
+  const errorCounts = [countToiletGapErrors, countTubGapErrors, countWallGapErrors, countColinearWallErrors];
   const errorChart = await ChartUtils.createBarChart(
-    ['Toilet Gap > 1"', 'Tub Gap 1"-6"', 'Wall Gaps 1"-12"'],
+    ['Toilet Gap > 1"', 'Tub Gap 1"-6"', 'Wall Gaps 1"-12"', "Colinear Walls"],
     errorCounts,
     "Capture Warnings",
     {
