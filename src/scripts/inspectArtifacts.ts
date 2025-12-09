@@ -29,6 +29,7 @@ interface VideoMetadata {
   storageCount?: number;
   wallCount?: number;
   hasCurvedWall?: boolean;
+  hasExternalOpening?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -180,6 +181,24 @@ async function main(): Promise<void> {
             metadata.tubCount = rawScan.objects.filter((o) => o.category.bathtub !== undefined).length;
             metadata.sinkCount = rawScan.objects.filter((o) => o.category.sink !== undefined).length;
             metadata.storageCount = rawScan.objects.filter((o) => o.category.storage !== undefined).length;
+          }
+
+          if (
+            rawScan.openings !== undefined &&
+            Array.isArray(rawScan.openings) &&
+            rawScan.walls !== undefined &&
+            Array.isArray(rawScan.walls)
+          ) {
+            const wallIds = new Set<string>();
+            rawScan.walls.forEach((w) => {
+              if (w.identifier !== undefined) {
+                wallIds.add(w.identifier);
+              }
+            });
+
+            metadata.hasExternalOpening = rawScan.openings.some((o) => {
+              return o.parentIdentifier !== null && o.parentIdentifier !== undefined && wallIds.has(o.parentIdentifier);
+            });
           }
         } catch {
           // Ignore
@@ -423,6 +442,7 @@ async function main(): Promise<void> {
   let countFewWalls = INITIAL_COUNT;
   let countCurvedWalls = INITIAL_COUNT;
   let countNoVanity = INITIAL_COUNT;
+  let countExternalOpening = INITIAL_COUNT;
 
   for (const m of metadataList) {
     if (m.hasNonRectWall === true) {
@@ -445,10 +465,29 @@ async function main(): Promise<void> {
     if (sinks === INITIAL_COUNT && storage === INITIAL_COUNT) {
       countNoVanity++;
     }
+    if (m.hasExternalOpening === true) {
+      countExternalOpening++;
+    }
   }
 
-  const featureLabels = ["Non-Rectangular Walls", "Curved Walls", "2+ Toilets", "2+ Tubs", "< 4 Walls", "No Vanity"];
-  const featureCounts = [countNonRect, countCurvedWalls, countTwoToilets, countTwoTubs, countFewWalls, countNoVanity];
+  const featureLabels = [
+    "Non-Rectangular Walls",
+    "Curved Walls",
+    "2+ Toilets",
+    "2+ Tubs",
+    "< 4 Walls",
+    "No Vanity",
+    "External Opening"
+  ];
+  const featureCounts = [
+    countNonRect,
+    countCurvedWalls,
+    countTwoToilets,
+    countTwoTubs,
+    countFewWalls,
+    countNoVanity,
+    countExternalOpening
+  ];
   const featureChart = await ChartUtils.createBarChart(featureLabels, featureCounts, "Feature Prevalence", {
     height: DURATION_CHART_HEIGHT,
     horizontal: true,

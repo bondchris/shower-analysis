@@ -4,14 +4,14 @@ Tools for analyzing roomplan data to improve shower detection.
 
 ## Overview
 
-This project provides a suite of scripts to validate, sync, inspect, and clean scan artifacts from various environments:
+This project provides a suite of scripts to validate, sync, inspect, clean, and filter scan artifacts from various environments:
 
 - Lowe's Staging
 - Lowe's Production
 - Bond Production
 - Bond Demo
 
-It identifies data integrity issues, generates visual reports, and maintains a clean local dataset.
+It identifies data integrity issues, generates visual reports, classifies video content using AI, and maintains a clean local dataset.
 
 ## Prerequisites
 
@@ -25,23 +25,13 @@ It identifies data integrity issues, generates visual reports, and maintains a c
 npm install
 ```
 
-## Usage
+## Workflow & Usage
 
-### 1. Validate Artifacts
+Follow these steps to manage your dataset and generate insights.
 
-Check for the existence of critical properties (`rawScan`, `arData`, `video`) across all environments and generate an error trend report.
+### 1. Sync Artifacts
 
-```bash
-npm run validate
-```
-
-**Output**:
-
-- `reports/validation-report.pdf`: A PDF report summarizing artifact counts, missing properties, and an error trend graph over time.
-
-### 2. Sync Artifacts
-
-Download raw artifact data (`video.mp4`, `rawScan.json`, `arData.json`) to your local machine for deep analysis.
+Download raw artifact data (`video.mp4`, `rawScan.json`, `arData.json`) to your local machine.
 
 ```bash
 npm run sync
@@ -50,29 +40,24 @@ npm run sync
 **Features**:
 
 - Creates `data/artifacts/{environment}/{id}/` directories.
-- Skips files that already exist.
-- Skips "bad scans" listed in `config/badScans.json`.
 - Caches API responses to `data/api_cache/` to minimize network requests.
+- Skips existing files and "bad scans" listed in `config/badScans.json`.
 
-### 3. Inspect Data
+### 2. Validate Artifacts
 
-Analyze the downloaded local artifacts to extract metadata and generate distribution charts.
+Check for the existence of critical properties (`rawScan`, `arData`, `video`) and generate an error trend report.
 
 ```bash
-npm run inspect
+npm run validate
 ```
 
 **Output**:
 
-- `reports/data-analysis.pdf`: A PDF report containing:
-  - Video Duration Distribution (0-180s buckets).
-  - Framerate Distribution.
-  - Resolution Distribution.
-  - Lists of low FPS videos.
+- `reports/validation-report.pdf`: Summarizes artifact counts, missing properties, and error trends.
 
-### 4. Clean Data
+### 3. Clean Data
 
-Automated cleanup of invalid or corrupt artifacts.
+Automated cleanup of invalid, empty, or corrupt media files.
 
 ```bash
 npm run clean
@@ -80,25 +65,16 @@ npm run clean
 
 **Features**:
 
-- Scans local `data/artifacts` for validity (e.g., checks if `video.mp4` is valid).
-- Deletes artifacts deemed "bad" or "empty".
-- Updates `config/badScans.json` with IDs of removed scans to prevent future syncing.
+- Deletes artifacts with invalid or zero-byte files.
+- Updates `config/badScans.json` to prevent re-syncing.
 
-### 5. Filter Non-Bathroom Videos (Gemini AI)
+### 4. Filter Non-Bathroom Videos (Gemini AI)
 
 Uses Google's Gemini 3 Pro Preview model to identify and remove videos that do not show a bathroom (e.g., office tests).
 
 **Prerequisites**:
 
-- Valid `GEMINI_API_KEY`.
-- Create a `.env` file in the root directory (see `.env.example`).
-
-```bash
-# .env
-GEMINI_API_KEY="your_actual_key"
-```
-
-Then run:
+- Valid `GEMINI_API_KEY` in `.env`.
 
 ```bash
 npm run filter-videos
@@ -106,15 +82,43 @@ npm run filter-videos
 
 **Features**:
 
-- Uploads local videos to Gemini for classification.
-- Automatically deletes artifacts identified as "Not a bathroom".
-- Updates `config/badScans.json` to prevent re-syncing.
-- Respects rate limits.
+- Uploads videos to Gemini for classification.
+- Deletes "Not a bathroom" artifacts.
+- Caches results in `config/checkedScans.json` to save costs and time.
+
+### 5. Format Data
+
+Standardizes JSON files for better diffing and readability.
+
+```bash
+npm run format-ar-data
+```
+
+**Features**:
+
+- Sorts `arData.json` keys chronologically.
+- Saves standardized output to `arDataFormatted.json`.
+
+### 6. Inspect Data
+
+Deep analysis of metadata, lighting, room features, and camera settings.
+
+```bash
+npm run inspect
+```
+
+**Output**:
+
+- `reports/data-analysis.pdf`: A comprehensive 3-page report including:
+  - **Summary**: Duration, Lens Models, Framerate, Resolution.
+  - **Lighting & Exposure**: Ambient Intensity, Color Temp, ISO, Brightness histograms.
+  - **Room Analysis**: Room Area distribution and Feature Prevalence (e.g., non-rectangular walls, multiple fixtures).
 
 ## Configuration
 
-- **`config/badScans.json`**: A JSON list of artifact IDs that are known to be bad and should be skipped by the sync process.
-  - This is automatically updated by `npm run clean`.
+- **`.env`**: API keys (e.g., `GEMINI_API_KEY`).
+- **`config/badScans.json`**: Artifact IDs known to be bad/invalid. Automatically updated by `clean` and `filter-videos`.
+- **`config/checkedScans.json`**: Cache of Gemini classification results to prevent re-processing.
 
 ## Development
 
@@ -128,27 +132,25 @@ npm run build
 
 ### Linting & Formatting
 
-Ensure code quality before committing:
+Ensure code quality:
 
 ```bash
-# Run linting (ESLint + MarkdownLint)
+# Linting
 npm run lint
-
-# Fix linting issues automatically
 npm run lint:fix
 
-# Check formatting (Prettier)
+# Formatting
 npm run check-format
-
-# Fix formatting
 npm run format
 ```
 
 ## Directory Structure
 
 - `src/`: Source TypeScript files.
-  - `scripts/`: Execution scripts (`validate`, `sync`, `inspect`, `clean`).
-  - `models/`: Data interfaces and classes.
+  - `scripts/`: Execution scripts (`validate`, `sync`, `inspect`, `clean`, `filter`, `format`).
+  - `models/`: Data interfaces and core domain logic (`rawScan`, `arData`).
+  - `services/`: External integrations (`SpatialService`, `GeminiService`).
+  - `utils/`: Shared utilities (`chartUtils`, `badScans`).
 - `reports/`: Generated PDF reports.
 - `data/`: Local data storage (artifacts and API cache).
-- `config/`: Configuration files (e.g., `badScans.json`).
+- `config/`: Configuration files.
