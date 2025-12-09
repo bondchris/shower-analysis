@@ -1,18 +1,18 @@
-import { Confidence } from "./confidence";
+import { Surface, SurfaceData } from "./surface";
 
 export interface FloorCategory {
   floor?: Record<string, never>;
 }
 
-export interface Floor {
-  polygonCorners: number[][];
-  confidence: Confidence;
-  parentIdentifier: string | null;
+export interface FloorData extends SurfaceData {
   category: FloorCategory;
-  dimensions: number[];
-  transform?: number[];
-  story?: number;
-  identifier?: string;
-  completedEdges?: never[];
-  curve?: null;
+}
+
+export class Floor extends Surface {
+  public category: FloorCategory;
+
+  constructor(data: FloorData) {
+    super(data);
+    this.category = data.category;
+  }
 }

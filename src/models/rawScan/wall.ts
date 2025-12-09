@@ -1,18 +1,18 @@
-import { Confidence } from "./confidence";
+import { Surface, SurfaceData } from "./surface";
 
 export interface WallCategory {
   wall?: Record<string, never>;
 }
 
-export interface Wall {
-  polygonCorners: number[][];
-  dimensions: number[];
-  transform: number[];
-  parentIdentifier: string | null;
-  story: number;
-  identifier: string;
-  completedEdges: never[];
+export interface WallData extends SurfaceData {
   category: WallCategory;
-  curve: null;
-  confidence: Confidence;
+}
+
+export class Wall extends Surface {
+  public category: WallCategory;
+
+  constructor(data: WallData) {
+    super(data);
+    this.category = data.category;
+  }
 }

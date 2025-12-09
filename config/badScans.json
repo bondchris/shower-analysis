@@ -778,5 +778,29 @@
     "environment": "bond_production",
     "id": "b30549ac-9716-4cd2-93f7-6a404e381331",
     "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
+  },
+  {
+    "date": "2025-12-09T01:32:16.675Z",
+    "environment": "bond_demo",
+    "id": "3e241079-47e0-4b9d-bbec-022084a5dc87",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
+  },
+  {
+    "date": "2025-12-09T01:32:17.340Z",
+    "environment": "bond_demo",
+    "id": "e80cd601-bb74-413c-88e6-25c5f73c1305",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
+  },
+  {
+    "date": "2025-12-09T01:32:19.611Z",
+    "environment": "bond_demo",
+    "id": "4d711912-521f-4cfa-b338-e3d1c82db543",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
+  },
+  {
+    "date": "2025-12-09T01:32:29.815Z",
+    "environment": "bond_demo",
+    "id": "901da958-5e35-4638-9a5e-c99578cc2845",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
   }
 ]

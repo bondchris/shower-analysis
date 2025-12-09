@@ -38,9 +38,8 @@ export class ArtifactApi {
   }
 
   public async fetchScanArtifacts(page: number): Promise<ApiResponse> {
-    const FIRST_PAGE = 1;
-    // If we haven't validated the cache yet, or it's page 1, force a network fetch to check freshness
-    if (!this.hasValidatedCache || page === FIRST_PAGE) {
+    // If we haven't validated the cache yet, force a network fetch to check freshness
+    if (!this.hasValidatedCache) {
       return this.fetchAndValidate(page);
     }
 

@@ -1,10 +1,5 @@
 import { ArFrame } from "./arFrame";
 
-export * from "./arFrame";
-export * from "./cameraResolution";
-export * from "./exifData";
-export * from "./lightEstimate";
-
 export interface ArDataContent {
   data: Record<string, ArFrame>;
 }

@@ -5,47 +5,9 @@ import * as fs from "fs";
 import * as path from "path";
 import PDFDocument from "pdfkit";
 
-import { ArData } from "../models/arData";
-import { RawScan } from "../models/rawScan";
-
-const MIN_CORNERS = 3;
-const INDEX_X = 0;
-const INDEX_Y = 1;
-const DIVISOR = 2.0;
-const INITIAL_COUNT = 0;
-const NEXT_OFFSET = 1;
-const DEFAULT_DECIMALS = 0;
-
-interface SimpleFloor {
-  polygonCorners?: number[][];
-  dimensions?: number[];
-}
-interface SimpleRawScan {
-  floors?: SimpleFloor[];
-}
-
-function calculatePolygonArea(corners: number[][]): number {
-  if (corners.length < MIN_CORNERS) {
-    return INITIAL_COUNT;
-  }
-  let area = INITIAL_COUNT;
-  for (let i = INITIAL_COUNT; i < corners.length; i++) {
-    const j = (i + NEXT_OFFSET) % corners.length;
-    const p1 = corners[i];
-    const p2 = corners[j];
-    if (p1 !== undefined && p2 !== undefined && p1.length >= MIN_CORNERS && p2.length >= MIN_CORNERS) {
-      const x1 = p1[INDEX_X];
-      const y1 = p1[INDEX_Y];
-      const x2 = p2[INDEX_X];
-      const y2 = p2[INDEX_Y];
-      if (x1 !== undefined && y1 !== undefined && x2 !== undefined && y2 !== undefined) {
-        area += x1 * y2;
-        area -= x2 * y1;
-      }
-    }
-  }
-  return Math.abs(area) / DIVISOR;
-}
+import { ArData } from "../models/arData/arData";
+import { Floor } from "../models/rawScan/floor";
+import { RawScan, RawScanData } from "../models/rawScan/rawScan";
 
 interface VideoMetadata {
   path: string;
@@ -61,6 +23,13 @@ interface VideoMetadata {
   avgIso?: number;
   avgBrightness?: number;
   roomAreaSqFt?: number;
+  hasNonRectWall?: boolean;
+  toiletCount?: number;
+  tubCount?: number;
+  sinkCount?: number;
+  storageCount?: number;
+  wallCount?: number;
+  hasCurvedWall?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -71,10 +40,9 @@ async function getVideoMetadata(filePath: string): Promise<VideoMetadata | null>
   const PATH_OFFSET_ENVIRONMENT = 3;
   const DEFAULT_VALUE = 0;
 
-  const minMetadata = await new Promise<VideoMetadata | null>((resolve) => {
+  const result = await new Promise<VideoMetadata | null>((resolve) => {
     ffmpeg.ffprobe(filePath, (err, metadata) => {
       if (err !== null && err !== undefined) {
-        console.error(`Error probing ${filePath}:`, err);
         resolve(null);
         return;
       }
@@ -114,7 +82,7 @@ async function getVideoMetadata(filePath: string): Promise<VideoMetadata | null>
       });
     });
   });
-  return minMetadata;
+  return result;
 }
 
 function findVideoFiles(dir: string): string[] {
@@ -136,7 +104,6 @@ function findVideoFiles(dir: string): string[] {
 }
 
 // Chart Service
-// Chart Service
 
 interface HistogramOptions {
   binSize: number;
@@ -153,7 +120,9 @@ async function createHistogram(
   title: string,
   options: HistogramOptions
 ): Promise<Buffer> {
+  const DEFAULT_DECIMALS = 0;
   const { binSize, decimalPlaces = DEFAULT_DECIMALS, height, max, min, width } = options;
+  const INITIAL_COUNT = 0;
   const INCREMENT_STEP = 1;
   const DEFAULT_WIDTH = 600;
   const DEFAULT_HEIGHT = 400;
@@ -238,6 +207,7 @@ interface BarChartOptions {
   height?: number;
   horizontal?: boolean;
   width?: number;
+  totalForPercentages?: number;
 }
 
 async function createBarChart(
@@ -246,18 +216,63 @@ async function createBarChart(
   title: string,
   options: BarChartOptions = {}
 ): Promise<Buffer> {
-  const { height, horizontal = false, width } = options;
+  const { height, horizontal = false, totalForPercentages, width } = options;
   const INCREMENT_STEP = 1;
   const DEFAULT_WIDTH = 600;
   const DEFAULT_HEIGHT = 400;
   const CHART_WIDTH = width ?? DEFAULT_WIDTH;
   const CHART_HEIGHT = height ?? DEFAULT_HEIGHT;
+  const RIGHT_PADDING = 60; // Space for labels
+  const PCT_MULTIPLIER = 100;
+  const PCT_DECIMALS = 2;
+  const NO_PADDING = 0;
+
+  // Custom plugin to draw percentages manually
+  const customLabelsPlugin = {
+    afterDatasetsDraw(chart: import("chart.js").Chart) {
+      const DATASET_INDEX = 0;
+      const LABEL_OFFSET = 4;
+      const FONT_SIZE_PX = 12;
+
+      if (totalForPercentages === undefined) {
+        return;
+      }
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(DATASET_INDEX);
+
+      ctx.save();
+      ctx.font = `bold ${FONT_SIZE_PX.toString()}px sans-serif`;
+      ctx.fillStyle = "black";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+
+      meta.data.forEach((element, index) => {
+        const value = data[index];
+        if (value !== undefined) {
+          const pctVal = (value / totalForPercentages) * PCT_MULTIPLIER;
+          const pctStr = parseFloat(pctVal.toFixed(PCT_DECIMALS)).toString();
+          const text = `${pctStr}%`;
+          // element.x is the end of the bar for horizontal charts
+          // element.y is the vertical center of the bar
+          const props = element.getProps(["x", "y"], true) as { x: number; y: number };
+          const { x, y } = props;
+          ctx.fillText(text, x + LABEL_OFFSET, y);
+        }
+      });
+      ctx.restore();
+    },
+    id: "customLabels"
+  };
 
   const chartCallback = (ChartJS: typeof import("chart.js").Chart) => {
     ChartJS.defaults.responsive = false;
     ChartJS.defaults.maintainAspectRatio = false;
   };
-  const chartJSNodeCanvas = new ChartJSNodeCanvas({ chartCallback, height: CHART_HEIGHT, width: CHART_WIDTH });
+  const chartJSNodeCanvas = new ChartJSNodeCanvas({
+    chartCallback,
+    height: CHART_HEIGHT,
+    width: CHART_WIDTH
+  });
 
   const configuration: ChartConfiguration = {
     data: {
@@ -274,6 +289,11 @@ async function createBarChart(
     },
     options: {
       indexAxis: horizontal ? "y" : "x",
+      layout: {
+        padding: {
+          right: totalForPercentages !== undefined ? RIGHT_PADDING : NO_PADDING
+        }
+      },
       plugins: {
         legend: { position: "top" },
         title: { display: true, text: title }
@@ -283,6 +303,7 @@ async function createBarChart(
         y: { beginAtZero: true, ticks: { autoSkip: false } }
       }
     },
+    plugins: [customLabelsPlugin],
     type: "bar"
   };
   const buffer = await chartJSNodeCanvas.renderToBuffer(configuration);
@@ -304,13 +325,16 @@ async function main(): Promise<void> {
   const PDF_BODY_SIZE = 12;
   const SPACING_SMALL = 0.5;
   const PDF_SUBTITLE_SIZE = 16;
+  const CHART_SPACING = 10;
 
   // Histogram Constants
-  const MIN_CORNERS = 3;
-  const DIMENSIONS_LENGTH = 3;
-  const INDEX_X = 0;
-  const INDEX_Y = 1;
+
   const SQ_M_TO_SQ_FT = 10.7639;
+  const MIN_TOILETS = 2;
+  const MIN_TUBS = 2;
+  const MIN_WALLS = 4;
+  const DEFAULT_WALL_COUNT = 4;
+  const MIN_NON_RECT_CORNERS = 4;
 
   console.log("Finding video files...");
   const videoFiles = findVideoFiles(DATA_DIR);
@@ -323,38 +347,47 @@ async function main(): Promise<void> {
   for (const file of videoFiles) {
     const metadata = await getVideoMetadata(file);
     if (metadata !== null) {
-      // 1. RawScan Analysis (Room Area)
+      // 1. RawScan Analysis (Room Area & Features)
       const rawScanPath = path.join(path.dirname(file), "rawScan.json");
       if (fs.existsSync(rawScanPath)) {
         try {
           const rawContent = fs.readFileSync(rawScanPath, "utf-8");
-          const rawScan = JSON.parse(rawContent) as SimpleRawScan;
+          const rawScan = JSON.parse(rawContent) as Partial<RawScanData>;
 
           if (rawScan.floors !== undefined && Array.isArray(rawScan.floors)) {
             let totalAreaSqM = INITIAL_COUNT;
 
-            for (const floor of rawScan.floors) {
-              if (
-                floor.polygonCorners !== undefined &&
-                Array.isArray(floor.polygonCorners) &&
-                floor.polygonCorners.length >= MIN_CORNERS
-              ) {
-                totalAreaSqM += calculatePolygonArea(floor.polygonCorners);
-              } else if (
-                floor.dimensions !== undefined &&
-                Array.isArray(floor.dimensions) &&
-                floor.dimensions.length === DIMENSIONS_LENGTH
-              ) {
-                const dimX = floor.dimensions[INDEX_X];
-                const dimY = floor.dimensions[INDEX_Y];
-                if (dimX !== undefined && dimY !== undefined) {
-                  totalAreaSqM += dimX * dimY;
-                }
-              }
+            for (const _floor of rawScan.floors) {
+              const floor = new Floor(_floor);
+              totalAreaSqM += floor.area;
             }
             if (totalAreaSqM > INITIAL_COUNT) {
               metadata.roomAreaSqFt = totalAreaSqM * SQ_M_TO_SQ_FT;
             }
+          }
+
+          // Features
+          if (rawScan.walls !== undefined && Array.isArray(rawScan.walls)) {
+            metadata.wallCount = rawScan.walls.length;
+            metadata.hasNonRectWall = rawScan.walls.some((w) => {
+              const wall = w as Partial<import("../models/rawScan/wall").Wall>;
+              // Cast to unknown then shape with curve to safe check despite strict type definition
+              const wallWithCurve = w as unknown as { curve?: unknown };
+              return (
+                (wallWithCurve.curve !== undefined && wallWithCurve.curve !== null) ||
+                (wall.polygonCorners !== undefined && wall.polygonCorners.length > MIN_NON_RECT_CORNERS)
+              );
+            });
+            metadata.hasCurvedWall = rawScan.walls.some((w) => {
+              const wallWithCurve = w as unknown as { curve?: unknown };
+              return wallWithCurve.curve !== undefined && wallWithCurve.curve !== null;
+            });
+          }
+          if (rawScan.objects !== undefined && Array.isArray(rawScan.objects)) {
+            metadata.toiletCount = rawScan.objects.filter((o) => o.category.toilet !== undefined).length;
+            metadata.tubCount = rawScan.objects.filter((o) => o.category.bathtub !== undefined).length;
+            metadata.sinkCount = rawScan.objects.filter((o) => o.category.sink !== undefined).length;
+            metadata.storageCount = rawScan.objects.filter((o) => o.category.storage !== undefined).length;
           }
         } catch {
           // Ignore
@@ -429,6 +462,7 @@ async function main(): Promise<void> {
             if (cTemp > INITIAL_COUNT) {
               metadata.avgColorTemperature = totalTemp / cTemp;
             }
+            // Removed avgColorTemperature logic as it is not in interface
             if (cIso > INITIAL_COUNT) {
               metadata.avgIso = totalIso / cIso;
             }
@@ -554,7 +588,13 @@ async function main(): Promise<void> {
   });
 
   // Room Area: 0-150, bin 10
-  const areaChart = await createHistogram(areaVals, "Sq Ft", "Room Area", { binSize: 10, max: 150, min: 0 });
+  const areaChart = await createHistogram(areaVals, "Sq Ft", "Room Area", {
+    binSize: 10,
+    height: DURATION_CHART_HEIGHT,
+    max: 150,
+    min: 0,
+    width: DURATION_CHART_WIDTH
+  });
 
   // Existing FPS/Res logic
   const framerates = metadataList.map((m) => Math.round(m.fps));
@@ -575,6 +615,56 @@ async function main(): Promise<void> {
   const resCounts = resLabels.map((l) => resDistribution[l] ?? INITIAL_COUNT);
   const resChart = await createBarChart(resLabels, resCounts, "Resolution");
 
+  // Layout Constants (Needed for feature chart)
+  const Y_START = 130;
+  const H = 160;
+  const W = 250;
+  const GAP_Y = 200;
+  const FULL_W = 510;
+  const LEFT_X = 50;
+  const TEXT_PADDING = 15;
+  const RIGHT_X = LEFT_X + W + CHART_SPACING;
+
+  // Feature Prevalence
+  let countNonRect = INITIAL_COUNT;
+  let countTwoToilets = INITIAL_COUNT;
+  let countTwoTubs = INITIAL_COUNT;
+  let countFewWalls = INITIAL_COUNT;
+  let countCurvedWalls = INITIAL_COUNT;
+  let countNoVanity = INITIAL_COUNT;
+
+  for (const m of metadataList) {
+    if (m.hasNonRectWall === true) {
+      countNonRect++;
+    }
+    if (m.hasCurvedWall === true) {
+      countCurvedWalls++;
+    }
+    if ((m.toiletCount ?? INITIAL_COUNT) >= MIN_TOILETS) {
+      countTwoToilets++;
+    }
+    if ((m.tubCount ?? INITIAL_COUNT) >= MIN_TUBS) {
+      countTwoTubs++;
+    }
+    if ((m.wallCount ?? DEFAULT_WALL_COUNT) < MIN_WALLS) {
+      countFewWalls++;
+    }
+    const sinks = m.sinkCount ?? INITIAL_COUNT;
+    const storage = m.storageCount ?? INITIAL_COUNT;
+    if (sinks === INITIAL_COUNT && storage === INITIAL_COUNT) {
+      countNoVanity++;
+    }
+  }
+
+  const featureLabels = ["Non-Rectangular Walls", "Curved Walls", "2+ Toilets", "2+ Tubs", "< 4 Walls", "No Vanity"];
+  const featureCounts = [countNonRect, countCurvedWalls, countTwoToilets, countTwoTubs, countFewWalls, countNoVanity];
+  const featureChart = await createBarChart(featureLabels, featureCounts, "Feature Prevalence", {
+    height: DURATION_CHART_HEIGHT,
+    horizontal: true,
+    totalForPercentages: metadataList.length,
+    width: DURATION_CHART_WIDTH
+  });
+
   // PDF Generation
   console.log("Generating PDF...");
   const doc = new PDFDocument({ margin: MARGIN });
@@ -585,16 +675,6 @@ async function main(): Promise<void> {
   doc.fontSize(PDF_TITLE_SIZE).text("Artifact Data Analysis", { align: "center" });
   doc.fontSize(PDF_BODY_SIZE).text(summaryText, { align: "center" });
   doc.moveDown(SPACING_SMALL);
-
-  // Layout Constants
-  const Y_START = 130;
-  const H = 160;
-  const W = 250;
-  const FULL_W = 510;
-  const LEFT_X = 50;
-  const RIGHT_X = 310;
-  const GAP_Y = 190;
-  const TEXT_PADDING = 5;
 
   // Row 1: Duration (Full Width)
   doc.image(durationChart, LEFT_X, Y_START, { height: H, width: FULL_W });
@@ -635,8 +715,11 @@ async function main(): Promise<void> {
   doc.addPage();
   doc.fontSize(PDF_SUBTITLE_SIZE).text("Room Analysis", { align: "center" });
 
-  doc.image(areaChart, LEFT_X, Y_START, { height: H, width: W });
-  doc.text("Room Area (Sq Ft)", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: W });
+  doc.image(areaChart, LEFT_X, Y_START, { height: H, width: FULL_W });
+  doc.text("Room Area (Sq Ft)", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: FULL_W });
+
+  doc.image(featureChart, LEFT_X, Y_START + GAP_Y, { height: H, width: FULL_W });
+  doc.text("Feature Prevalence", LEFT_X, Y_START + GAP_Y + H + TEXT_PADDING, { align: "center", width: FULL_W });
 
   doc.end();
   console.log(`Report generated at: ${REPORT_PATH}`);

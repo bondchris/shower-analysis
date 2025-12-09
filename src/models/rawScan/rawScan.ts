@@ -1,17 +1,17 @@
 import { Door } from "./door";
-import { Floor } from "./floor";
+import { Floor, FloorData } from "./floor";
 import { ObjectItem } from "./objectItem";
 import { Opening } from "./opening";
 import { Section } from "./section";
-import { Wall } from "./wall";
+import { Wall, WallData } from "./wall";
 import { Window } from "./window";
 
 export interface RawScanData {
   version: number;
   sections: Section[];
   coreModel: string;
-  floors: Floor[];
-  walls: Wall[];
+  floors: FloorData[];
+  walls: WallData[];
   objects: ObjectItem[];
   windows: Window[];
   doors: Door[];
@@ -83,13 +83,13 @@ export class RawScan {
     if (!Array.isArray(typedData.floors)) {
       throw new Error('Invalid raw scan: missing or invalid "floors" array');
     }
-    this.floors = typedData.floors;
+    this.floors = typedData.floors.map((f) => new Floor(f));
 
     // Validate Walls
     if (!Array.isArray(typedData.walls)) {
       throw new Error('Invalid raw scan: missing or invalid "walls" array');
     }
-    this.walls = typedData.walls;
+    this.walls = typedData.walls.map((w) => new Wall(w));
 
     // Validate Objects
     if (!Array.isArray(typedData.objects)) {
