@@ -7,11 +7,11 @@ import * as stream from "stream";
 import { promisify } from "util";
 
 import { ENVIRONMENTS } from "../../config/config";
-import { ArtifactApi } from "../api";
+import { Artifact, SpatialService } from "../services/spatialService";
 
 const finished = promisify(stream.finished);
 
-const REQUIRED_FIELDS = ["id", "projectId", "scanDate", "rawScan", "arData", "video"];
+const REQUIRED_FIELDS: (keyof Artifact)[] = ["id", "projectId", "scanDate", "rawScan", "arData", "video"];
 
 interface EnvStats {
   artifactsWithIssues: number;
@@ -39,11 +39,11 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
   const DATE_PART_INDEX = 0;
   const NO_PAGES_LEFT = 0;
 
-  const api = new ArtifactApi(env.domain, env.name);
+  const service = new SpatialService(env.domain, env.name);
   const page = 1;
 
   try {
-    const initialRes = await api.fetchScanArtifacts(page);
+    const initialRes = await service.fetchScanArtifacts(page);
     const { pagination } = initialRes;
     stats.totalArtifacts = pagination.total;
     const lastPage = pagination.lastPage;
@@ -59,7 +59,7 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
 
     const processPage = async (pageNum: number) => {
       try {
-        const res = await api.fetchScanArtifacts(pageNum);
+        const res = await service.fetchScanArtifacts(pageNum);
 
         for (const item of res.data) {
           stats.processed++;

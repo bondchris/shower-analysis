@@ -6,7 +6,7 @@ import * as stream from "stream";
 import { promisify } from "util";
 
 import { ENVIRONMENTS } from "../../config/config";
-import { ArtifactApi } from "../api";
+import { Artifact, SpatialService } from "../services/spatialService";
 
 const finished = promisify(stream.finished);
 
@@ -67,14 +67,6 @@ async function downloadFile(url: string, outputPath: string): Promise<boolean> {
   }
 }
 
-interface PageArtifact {
-  [key: string]: unknown;
-  id: string;
-  video: unknown;
-  rawScan: unknown;
-  arData: unknown;
-}
-
 async function syncEnvironment(env: { domain: string; name: string }): Promise<SyncStats> {
   console.log(`\nStarting sync for: ${env.name}`);
   const dataDir = path.join(process.cwd(), "data", "artifacts", env.name.replace(/[^a-z0-9]/gi, "_").toLowerCase());
@@ -88,7 +80,6 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
     skipped: 0
   };
 
-  const MIN_ARTIFACTS = 0;
   const NOT_FOUND = -1;
   const PROMISE_REMOVE_COUNT = 1;
   const CONCURRENCY_LIMIT = 5;
@@ -102,12 +93,12 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
   const badScanIds = getBadScanIds();
   console.log(`Loaded ${badScanIds.size.toString()} known bad scans to skip.`);
 
-  const api = new ArtifactApi(env.domain, env.name);
+  const service = new SpatialService(env.domain, env.name);
 
   // Get initial page to determine total pages
   const page = 1;
   try {
-    const initialRes = await api.fetchScanArtifacts(page);
+    const initialRes = await service.fetchScanArtifacts(page);
     const totalArtifacts = initialRes.pagination.total;
     const lastPage = initialRes.pagination.lastPage;
 
@@ -118,17 +109,14 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
     const pages = Array.from({ length: lastPage }, (_, i) => i + page);
 
     const activePromises: Promise<void>[] = [];
+    let completed = 0;
+    const totalPages = pages.length;
 
     const processPage = async (pageNum: number) => {
       try {
-        const res = await api.fetchScanArtifacts(pageNum);
+        const res = await service.fetchScanArtifacts(pageNum);
 
-        const artifacts: PageArtifact[] = res.data.map((item) => ({
-          arData: item.arData,
-          rawScan: item.rawScan,
-          video: item.video,
-          ...item // Include any other properties
-        }));
+        const artifacts: Artifact[] = res.data;
 
         for (const artifact of artifacts) {
           if (badScanIds.has(artifact.id)) {
@@ -143,9 +131,9 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
             typeof artifact.arData === "string"
           ) {
             const artifactDir = path.join(dataDir, artifact.id);
-            if (fs.existsSync(artifactDir)) {
-              // Exists
-            } else {
+            const exists = fs.existsSync(artifactDir);
+
+            if (!exists) {
               fs.mkdirSync(artifactDir, { recursive: true });
             }
 
@@ -194,26 +182,30 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
 
             if (artifactFailed) {
               stats.failed++;
-
               try {
                 fs.rmSync(artifactDir, { force: true, recursive: true });
               } catch (e) {
                 console.error(`Failed to delete incomplete artifact ${artifact.id}:`, e);
               }
             } else {
+              if (!exists) {
+                stats.new++;
+              }
               process.stdout.write(".");
             }
           }
         }
       } catch (e) {
-        console.error(
-          `\nError fetching page ${pageNum.toString()} for ${env.name}:`,
-          e instanceof Error ? e.message : e
-        );
+        console.error(`Error fetching page ${pageNum.toString()}:`, e);
+      } finally {
+        completed++;
+        process.stdout.write(`\rProcessed pages ${completed.toString()}/${totalPages.toString()}...`);
       }
     };
 
-    while (pages.length > MIN_ARTIFACTS) {
+    const NO_PAGES_LEFT = 0;
+
+    while (pages.length > NO_PAGES_LEFT) {
       if (activePromises.length < CONCURRENCY_LIMIT) {
         const pageNum = pages.shift();
         if (pageNum !== undefined) {
@@ -233,13 +225,12 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
     }
 
     await Promise.all(activePromises);
-    console.log(`\nCompleted sync for ${env.name}`);
-
-    return stats;
+    console.log(`\n${env.name} complete.`);
   } catch (e) {
-    console.error(`Failed to get initial page for ${env.name}:`, e);
-    return stats;
+    console.error(`Failed to sync ${env.name}:`, e);
   }
+
+  return stats;
 }
 
 async function generateSyncReport(allStats: SyncStats[]) {
