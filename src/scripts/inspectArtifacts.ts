@@ -6,6 +6,7 @@ import PDFDocument from "pdfkit";
 import { ArData } from "../models/arData/arData";
 import { Floor } from "../models/rawScan/floor";
 import { RawScan, RawScanData } from "../models/rawScan/rawScan";
+import { Wall } from "../models/rawScan/wall";
 import * as ChartUtils from "../utils/chartUtils";
 
 interface VideoMetadata {
@@ -311,75 +312,7 @@ async function main(): Promise<void> {
 
           // Refined Logic (Step 3): Check for Soffits (270-degree notches in wall polygons)
           if (rawScan.walls !== undefined && Array.isArray(rawScan.walls)) {
-            metadata.hasSoffit = rawScan.walls.some((w) => {
-              const wall = w as { polygonCorners?: number[][] };
-              const corners = wall.polygonCorners;
-              const MIN_POLY_CORNERS = 3;
-              const DEFAULT_COORD = 0;
-              const ANGLE_NORMALIZER_ZERO = 0;
-              const HALF_CIRCLE_DEG = 180;
-              const FULL_CIRCLE_DEG = 360;
-              const SOFFIT_MIN_ANGLE = 260;
-              const SOFFIT_MAX_ANGLE = 280;
-              const X_IDX = 0;
-              const Y_IDX = 1;
-              const OFFSET_PREV = 1;
-              const OFFSET_NEXT = 1;
-
-              if (!corners || corners.length < MIN_POLY_CORNERS) {
-                return false;
-              }
-
-              // Project to 2D (assume Wall local space is X-Y plane, Z is constant/thickness)
-              // Calculate signed angles
-              for (let i = 0; i < corners.length; i++) {
-                const pPrev = corners[(i - OFFSET_PREV + corners.length) % corners.length];
-                const pCurr = corners[i];
-                const pNext = corners[(i + OFFSET_NEXT) % corners.length];
-
-                if (!pPrev || !pCurr || !pNext) {
-                  continue;
-                }
-
-                // Vector BA (Curr -> Prev)
-                const v1x = (pPrev[X_IDX] ?? DEFAULT_COORD) - (pCurr[X_IDX] ?? DEFAULT_COORD);
-                const v1y = (pPrev[Y_IDX] ?? DEFAULT_COORD) - (pCurr[Y_IDX] ?? DEFAULT_COORD);
-
-                // Vector BC (Curr -> Next)
-                const v2x = (pNext[X_IDX] ?? DEFAULT_COORD) - (pCurr[X_IDX] ?? DEFAULT_COORD);
-                const v2y = (pNext[Y_IDX] ?? DEFAULT_COORD) - (pCurr[Y_IDX] ?? DEFAULT_COORD);
-
-                // Calculate interior angle using atan2
-                // atan2(cross, dot) gives angle from v1 to v2
-                // Cross product 2D: v1x*v2y - v1y*v2x
-                // Dot product: v1x*v2x + v1y*v2y
-
-                const v1xv2y = v1x * v2y;
-                const v1yv2x = v1y * v2x;
-                const cross = v1xv2y - v1yv2x;
-
-                const v1xv2x = v1x * v2x;
-                const v1yv2y = v1y * v2y;
-                const dot = v1xv2x + v1yv2y;
-
-                let angle = Math.atan2(cross, dot) * (HALF_CIRCLE_DEG / Math.PI);
-
-                // Normalize to [0, 360]
-                if (angle < ANGLE_NORMALIZER_ZERO) {
-                  angle += FULL_CIRCLE_DEG;
-                }
-
-                // Check for reflex angle (approx 270)
-                // ARKit wall polygons are usually CCW? Or CW?
-                // If standard 90 deg corner, angle is 90.
-                // If "notch" (soffit), angle is 270.
-                // Allow tolerance +/- 10 degrees?
-                if (angle > SOFFIT_MIN_ANGLE && angle < SOFFIT_MAX_ANGLE) {
-                  return true;
-                }
-              }
-              return false;
-            });
+            metadata.hasSoffit = rawScan.walls.some((wData) => new Wall(wData).hasSoffit);
           }
         } catch {
           // Ignore
