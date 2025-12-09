@@ -112,6 +112,8 @@ async function main(): Promise<void> {
   const DECIMAL_PLACES = 2;
   const INCREMENT_STEP = 1;
 
+
+
   // PDF Constants
   const MARGIN = 50;
   const PDF_TITLE_SIZE = 25;
@@ -199,6 +201,85 @@ async function main(): Promise<void> {
             metadata.hasExternalOpening = rawScan.openings.some((o) => {
               return o.parentIdentifier !== null && o.parentIdentifier !== undefined && wallIds.has(o.parentIdentifier);
             });
+
+            // Refined Logic (Step 2): Check if wall is on floor perimeter
+            if (rawScan.floors !== undefined && rawScan.floors.length > INITIAL_COUNT && metadata.hasExternalOpening) {
+              const floor = rawScan.floors[INITIAL_COUNT]; // Assume single floor layer for now
+              if (floor) {
+                const corners = floor.polygonCorners;
+
+                // Local definition to avoid missing constant
+                const MIN_POLY_CORNERS = 3;
+
+                if (corners && corners.length >= MIN_POLY_CORNERS) {
+                  // Filter "candidate" external openings by checking if their parent wall is on the perimeter
+                  const validExternalOpenings = rawScan.openings.filter((o) => {
+                    if (!o.parentIdentifier) return false;
+
+                    // Find the wall
+                    const wall = rawScan.walls?.find((w) => w.identifier === o.parentIdentifier);
+                    if (!wall || !wall.transform || wall.transform.length !== 16) return false;
+
+                    // Extract Wall Position (Translation from column-major transform matrix)
+                    // Indices 12, 13, 14 are X, Y, Z translation
+                    const wx = wall.transform[12] ?? 0;
+                    const wy = wall.transform[13] ?? 0;
+                    // const wz = wall.transform[14]; // Z is usually height/floor level
+
+                    // Check distance to any floor edge
+                    let isOnPerimeter = false;
+                    const THRESHOLD = 0.5; // Meters? Units in ARKit are meters. Wall might be slightly offset.
+
+                    for (let i = 0; i < corners.length; i++) {
+                      const p1 = corners[i];
+                      const p2 = corners[(i + 1) % corners.length];
+                      if (!p1 || !p2) continue;
+
+                      // Point-to-Segment Distance (2D X-Y projection)
+                      const x1 = p1[0] ?? 0;
+                      const y1 = p1[1] ?? 0;
+                      const x2 = p2[0] ?? 0;
+                      const y2 = p2[1] ?? 0;
+
+                      const A = wx - x1;
+                      const B = wy - y1;
+                      const C = x2 - x1;
+                      const D = y2 - y1;
+
+                      const dot = A * C + B * D;
+                      const lenSq = C * C + D * D;
+                      let param = -1;
+                      if (lenSq !== 0) param = dot / lenSq;
+
+                      let xx, yy;
+
+                      if (param < 0) {
+                        xx = x1;
+                        yy = y1;
+                      } else if (param > 1) {
+                        xx = x2;
+                        yy = y2;
+                      } else {
+                        xx = x1 + param * C;
+                        yy = y1 + param * D;
+                      }
+
+                      const dx = wx - xx;
+                      const dy = wy - yy;
+                      const dist = Math.sqrt(dx * dx + dy * dy);
+
+                      if (dist < THRESHOLD) {
+                        isOnPerimeter = true;
+                        break;
+                      }
+                    }
+                    return isOnPerimeter;
+                  });
+
+                  metadata.hasExternalOpening = validExternalOpenings.length > 0;
+                }
+              }
+            }
           }
         } catch {
           // Ignore
