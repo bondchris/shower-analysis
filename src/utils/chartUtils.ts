@@ -14,6 +14,7 @@ export interface HistogramOptions {
   width?: number;
   height?: number;
   decimalPlaces?: number;
+  hideUnderflow?: boolean;
 }
 
 export interface BarChartOptions {
@@ -77,7 +78,7 @@ export async function createHistogram(
   const MAX_TICKS = 20;
   const CHART_BG_COLOR = "white";
 
-  const { binSize, decimalPlaces = DEFAULT_DECIMALS, height, max, min, width } = options;
+  const { binSize, decimalPlaces = DEFAULT_DECIMALS, height, max, min, width, hideUnderflow } = options;
   const CHART_WIDTH = width ?? DEFAULT_WIDTH;
   const CHART_HEIGHT = height ?? DEFAULT_HEIGHT;
 
@@ -127,6 +128,16 @@ export async function createHistogram(
     }
   }
 
+  // Filter out underflow bucket if requested
+  let finalBuckets = buckets;
+  let finalLabels = labels;
+  if (hideUnderflow === true) {
+    // Remove the first element (index 0)
+    const START_INDEX = 1;
+    finalBuckets = buckets.slice(START_INDEX);
+    finalLabels = labels.slice(START_INDEX);
+  }
+
   const configuration: ChartConfiguration = {
     data: {
       datasets: [
@@ -134,11 +145,11 @@ export async function createHistogram(
           backgroundColor: "rgba(54, 162, 235, 0.5)",
           borderColor: "rgba(54, 162, 235, 1)",
           borderWidth: INCREMENT_STEP,
-          data: buckets,
+          data: finalBuckets,
           label
         }
       ],
-      labels
+      labels: finalLabels
     },
     options: {
       plugins: {

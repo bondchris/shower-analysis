@@ -478,44 +478,51 @@ async function main(): Promise<void> {
   // Charts
   console.log("Generating charts...");
 
-  // Duration: min 0, max 120, bin 10
+  // Duration: min 10, max 120, bin 10
   const durationChart = await ChartUtils.createHistogram(durations, "Seconds", "Duration", {
     binSize: 10,
     height: DURATION_CHART_HEIGHT,
+    hideUnderflow: true,
     max: 120,
-    min: 0,
+    min: 10,
     width: DURATION_CHART_WIDTH
   });
 
-  // Ambient: 950-1050, bin 5
+  // Ambient: 980-1040, bin 5
   const ambChart = await ChartUtils.createHistogram(intensityVals, "Lumens", "Ambient Intensity", {
     binSize: 5,
-    max: 1050,
-    min: 950
+    max: 1040,
+    min: 980
   });
 
-  // Temp: 4000-5500, bin 250
+  // Temp: 4000-6000, bin 250
   const tempChart = await ChartUtils.createHistogram(tempVals, "Kelvin", "Color Temperature", {
     binSize: 250,
-    max: 5500,
+    max: 6000,
     min: 4000
   });
 
-  // ISO: 0-3200, bin 200
-  const isoChart = await ChartUtils.createHistogram(isoVals, "ISO", "ISO Speed", { binSize: 200, max: 3200, min: 0 });
+  // ISO: 0-800, bin 50
+  const isoChart = await ChartUtils.createHistogram(isoVals, "ISO", "ISO Speed", {
+    binSize: 50,
+    hideUnderflow: true,
+    max: 800,
+    min: 0
+  });
 
-  // Brightness: -3 to 10, bin 1
+  // Brightness: 0-6, bin 1
   const briChart = await ChartUtils.createHistogram(briVals, "Value (EV)", "Brightness Value", {
     binSize: 1,
     decimalPlaces: 1,
-    max: 10,
-    min: -3
+    max: 6,
+    min: 0
   });
 
   // Room Area: 0-150, bin 10
   const areaChart = await ChartUtils.createHistogram(areaVals, "Sq Ft", "Room Area", {
     binSize: 10,
     height: DURATION_CHART_HEIGHT,
+    hideUnderflow: true,
     max: 150,
     min: 0,
     width: DURATION_CHART_WIDTH
