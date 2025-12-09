@@ -36,6 +36,7 @@ interface VideoMetadata {
   hasTubGapErrors?: boolean;
   hasWallGapErrors?: boolean;
   hasColinearWallErrors?: boolean;
+  hasNibWalls?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -838,7 +839,9 @@ async function main(): Promise<void> {
                   }
                 }
 
-                const dot = Math.abs((vAx * vBx) + (vAy * vBy));
+                const dotTerm1 = vAx * vBx;
+                const dotTerm2 = vAy * vBy;
+                const dot = Math.abs(dotTerm1 + dotTerm2);
                 if (dot > PARALLEL_THRESHOLD) {
                   colinearErrorFound = true;
                   break;
@@ -851,6 +854,44 @@ async function main(): Promise<void> {
 
             if (colinearErrorFound) {
               metadata.hasColinearWallErrors = true;
+            }
+
+            // 5. Nib Wall Detection (Length < 1ft / 0.3048m)
+            const NIB_WALL_THRESHOLD = 0.3048;
+            let nibWallFound = false;
+
+            for (const w of roomWalls) {
+              // Calculate wall length.
+              // We'll use the 'corners' we already computed.
+              // Assuming wall corners form a loop, find max distance between any two corners?
+              // Or sum of segments? Usually they are rects. The longest side is the length.
+              let maxDist = 0;
+              for (let i = 0; i < w.corners.length; i++) {
+                const NEXT_IDX = 1;
+                for (let j = i + NEXT_IDX; j < w.corners.length; j++) {
+                  const p1 = w.corners[i];
+                  const p2 = w.corners[j];
+                  if (!p1 || !p2) {
+                    continue;
+                  }
+                  const termX = (p2.x - p1.x) * (p2.x - p1.x);
+                  const termY = (p2.y - p1.y) * (p2.y - p1.y);
+                  const d = Math.sqrt(termX + termY);
+                  if (d > maxDist) {
+                    maxDist = d;
+                  }
+                }
+              }
+
+              const MIN_LENGTH = 0;
+              if (maxDist < NIB_WALL_THRESHOLD && maxDist > MIN_LENGTH) {
+                nibWallFound = true;
+                break;
+              }
+            }
+
+            if (nibWallFound) {
+              metadata.hasNibWalls = true;
             }
           }
         } catch {
@@ -1086,7 +1127,7 @@ async function main(): Promise<void> {
   const resCounts = resLabels.map((l) => resDistribution[l] ?? INITIAL_COUNT);
   const resChart = await ChartUtils.createBarChart(resLabels, resCounts, "Resolution");
 
-  // Layout Constants (Needed for feature chart)
+  // Layout Constants (Needed for PDF layout)
   const Y_START = 130;
   const H = 160;
   const W = 250;
@@ -1109,6 +1150,7 @@ async function main(): Promise<void> {
   let countTubGapErrors = INITIAL_COUNT;
   let countWallGapErrors = INITIAL_COUNT;
   let countColinearWallErrors = INITIAL_COUNT;
+  let countNibWalls = INITIAL_COUNT;
 
   for (const m of metadataList) {
     if (m.hasNonRectWall === true) {
@@ -1149,6 +1191,9 @@ async function main(): Promise<void> {
     if (m.hasColinearWallErrors === true) {
       countColinearWallErrors++;
     }
+    if (m.hasNibWalls === true) {
+      countNibWalls++;
+    }
   }
 
   const featureLabels = [
@@ -1159,7 +1204,8 @@ async function main(): Promise<void> {
     "< 4 Walls",
     "No Vanity",
     "External Opening",
-    "Soffit"
+    "Soffit",
+    "Nib Walls (< 1ft)"
   ];
   const featureCounts = [
     countNonRect,
@@ -1169,7 +1215,8 @@ async function main(): Promise<void> {
     countFewWalls,
     countNoVanity,
     countExternalOpening,
-    countSoffit
+    countSoffit,
+    countNibWalls
   ];
   const featureChart = await ChartUtils.createBarChart(featureLabels, featureCounts, "Feature Prevalence", {
     height: DURATION_CHART_HEIGHT,
@@ -1185,10 +1232,10 @@ async function main(): Promise<void> {
     errorCounts,
     "Capture Warnings",
     {
-      height: H,
+      height: DURATION_CHART_HEIGHT,
       horizontal: true,
       totalForPercentages: metadataList.length,
-      width: FULL_W
+      width: DURATION_CHART_WIDTH
     }
   );
 
