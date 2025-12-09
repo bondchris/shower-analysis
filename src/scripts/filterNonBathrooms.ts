@@ -1,8 +1,8 @@
-import { GenerativeModel, GoogleGenerativeAI } from "@google/generative-ai";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
 
+import { GeminiService } from "../services/geminiService";
 import { getBadScans, saveBadScans } from "../utils/badScans";
 import { getCheckedScans, saveCheckedScans } from "../utils/checkedScans";
 
@@ -30,7 +30,7 @@ function findArtifactDirectories(dir: string): string[] {
 
 async function processArtifact(
   dir: string,
-  model: GenerativeModel,
+  service: GeminiService,
   badScanIds: Set<string>,
   badScans: ReturnType<typeof getBadScans>,
   checkedScanIds: Set<string>,
@@ -66,18 +66,19 @@ async function processArtifact(
     const videoBuffer = fs.readFileSync(videoPath);
     const prompt = "Is this video showing a bathroom? Reply YES or NO.";
 
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: videoBuffer.toString("base64"),
-          mimeType: "video/mp4"
+    const text = (
+      await service.generateContent(prompt, [
+        {
+          inlineData: {
+            data: videoBuffer.toString("base64"),
+            mimeType: "video/mp4"
+          }
         }
-      }
-    ]);
+      ])
+    )
+      .trim()
+      .toUpperCase();
 
-    const response = result.response;
-    const text = response.text().trim().toUpperCase();
     console.log(`  -> ${artifactId}: Gemini says: ${text}`);
 
     if (text.includes("NO")) {
@@ -120,15 +121,14 @@ async function main() {
   const EXIT_FAILURE = 1;
   const CONCURRENCY = 16;
   const apiKey = process.env["GEMINI_API_KEY"];
-  const MODEL_NAME = "gemini-3-pro-preview";
+  const MODEL_NAME = "gemini-1.5-pro-preview";
 
   if (apiKey === undefined || apiKey === "") {
     console.error("Error: GEMINI_API_KEY not found in environment variables.");
     process.exit(EXIT_FAILURE);
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+  const service = new GeminiService(apiKey, MODEL_NAME);
 
   const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
 
@@ -158,7 +158,7 @@ async function main() {
         if (dir !== undefined) {
           const { processed, removed, skipped } = await processArtifact(
             dir,
-            model,
+            service,
             badScanIds,
             badScans,
             checkedScanIds,
