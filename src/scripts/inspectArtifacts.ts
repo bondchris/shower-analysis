@@ -33,6 +33,7 @@ interface VideoMetadata {
   hasExternalOpening?: boolean;
   hasSoffit?: boolean;
   hasToiletGapErrors?: boolean;
+  hasTubGapErrors?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -116,7 +117,7 @@ async function main(): Promise<void> {
   const INCREMENT_STEP = 1;
   const TRANSFORM_SIZE = 16;
   const X_IDX = 12;
-  const Y_IDX = 13;
+  const Z_IDX = 14;
   const DEFAULT_VALUE = 0;
   // Toilet Gap Constants
   const GAP_THRESHOLD_METERS = 0.0254; // 1 inch
@@ -124,7 +125,44 @@ async function main(): Promise<void> {
 
   // Math Helpers (Local)
   const getPosition = (transform: number[]): { x: number; y: number } => {
-    return { x: transform[X_IDX] ?? DEFAULT_VALUE, y: transform[Y_IDX] ?? DEFAULT_VALUE };
+    // Check if transform is valid (size 16)
+    if (transform.length !== TRANSFORM_SIZE) {
+      return { x: 0, y: 0 };
+    }
+    // Use X (idx 12) and Z (idx 14) for floor plane position
+    return { x: transform[X_IDX] ?? DEFAULT_VALUE, y: transform[Z_IDX] ?? DEFAULT_VALUE };
+  };
+
+  const transformPoint = (p: { x: number; y: number }, m: number[]): { x: number; y: number } => {
+    // X-Z Plane Transform (Top Down)
+    // x' = x*m0 + z*m8 + tx
+    // z' = x*m2 + z*m10 + tz
+    // Note: Input p.y corresponds to Local Z. Output p.y corresponds to World Z.
+    const MAT_M0 = 0; // r0, c0 (Xx)
+    const MAT_M2 = 2; // r2, c0 (Xz)
+    const MAT_M8 = 8; // r0, c2 (Zx)
+    const MAT_M10 = 10; // r2, c2 (Zz)
+    const MAT_TX = 12; // r0, c3 (Tx)
+    const MAT_TZ = 14; // r2, c3 (Tz)
+    const DEFAULT_VALUE = 0;
+
+    const m0 = m[MAT_M0] ?? DEFAULT_VALUE;
+    const m8 = m[MAT_M8] ?? DEFAULT_VALUE;
+    const mTx = m[MAT_TX] ?? DEFAULT_VALUE;
+
+    const m2 = m[MAT_M2] ?? DEFAULT_VALUE;
+    const m10 = m[MAT_M10] ?? DEFAULT_VALUE;
+    const mTz = m[MAT_TZ] ?? DEFAULT_VALUE;
+
+    const termX1 = p.x * m0;
+    const termX2 = p.y * m8;
+    const x = termX1 + termX2 + mTx;
+
+    const termZ1 = p.x * m2;
+    const termZ2 = p.y * m10;
+    const y = termZ1 + termZ2 + mTz;
+
+    return { x, y };
   };
 
   const distToSegment = (
@@ -394,11 +432,11 @@ async function main(): Promise<void> {
               // This is rotation invariant for the "closest point" logic if we assume
               // the wall is the one behind it.
 
-              const Z_DIM_IDX = 2;
+              const Z_DIM_IDX = 2; // Fixed: Dimensions[2] is Depth
               const HALF_DIVISOR = 2;
 
-              const tPos = getPosition(toilet.transform);
-              const tDepth = toilet.dimensions[Z_DIM_IDX] ?? DEFAULT_VALUE; // x, y, z dimensions. Z is usually depth.
+              const tPos = getPosition(toilet.transform); // Now returns (x, z)
+              const tDepth = toilet.dimensions[Z_DIM_IDX] ?? DEFAULT_VALUE;
               const halfDepth = tDepth / HALF_DIVISOR;
               const distThreshold = halfDepth + GAP_THRESHOLD_METERS;
 
@@ -504,6 +542,128 @@ async function main(): Promise<void> {
 
             if (gapErrorFound) {
               metadata.hasToiletGapErrors = true;
+            }
+          }
+
+          // Refined Logic (Step 5): Check for Tub Gaps (1" < gap < 6")
+          if (rawScan.objects !== undefined && Array.isArray(rawScan.objects)) {
+            const tubs = rawScan.objects.filter((o) => o.category.bathtub !== undefined);
+            const walls = rawScan.walls ?? [];
+            let tubGapErrorFound = false;
+
+            const GAP_TUB_MIN = 0.0254; // 1 inch
+            const GAP_TUB_MAX = 0.1524; // 6 inches
+
+            for (const tub of tubs) {
+              const DIM_X = 0;
+              const DIM_Z = 2;
+              const HALF_DIVISOR = 2;
+              const halfW = (tub.dimensions[DIM_X] ?? DEFAULT_VALUE) / HALF_DIVISOR;
+              const halfD = (tub.dimensions[DIM_Z] ?? DEFAULT_VALUE) / HALF_DIVISOR; // Half Depth
+              const tubCornersLocal = [
+                { x: -halfW, y: -halfD },
+                { x: halfW, y: -halfD },
+                { x: halfW, y: halfD },
+                { x: -halfW, y: halfD }
+              ];
+
+              const tubCornersWorld = tubCornersLocal.map((p) => transformPoint(p, tub.transform));
+
+              // Check each wall
+              for (const w of walls) {
+                if (w.transform?.length !== TRANSFORM_SIZE) {
+                  continue;
+                }
+
+                // Transform Wall Segments to World
+                const wallCornersWorld: { x: number; y: number }[] = [];
+                // w.polygonCorners is mandatory in Wall type
+                let pCorners = w.polygonCorners;
+
+                // Fallback: If no polygon corners, use Dimensions (Length along X)
+                // Wall Local Space: X=Length, Y=Height, Z=Thickness.
+                // We define segment on X-axis (Z=0).
+                const MIN_CORNERS = 0;
+                // Lint fix: Property appears to be non-nullable in types
+                const numCorners = pCorners.length;
+
+                if (numCorners === MIN_CORNERS) {
+                  const DIM_LEN_IDX = 0;
+                  const halfLen = (w.dimensions[DIM_LEN_IDX] ?? DEFAULT_VALUE) / HALF_DIVISOR;
+                  // Create 2D local points [x, z]. z is 0.
+                  const ZERO_Z = 0;
+                  pCorners = [
+                    [-halfLen, ZERO_Z],
+                    [halfLen, ZERO_Z]
+                  ];
+                }
+
+                // Safe loop
+                const MIN_POINT_SIZE = 2;
+                const PT_X_IDX = 0;
+                const PT_Z_IDX = 1;
+                for (const p of pCorners) {
+                  if (p.length >= MIN_POINT_SIZE) {
+                    // We assume p[1] is the 2nd dimension on the plane.
+                    // If fallback, p[1] is 0.
+                    wallCornersWorld.push(
+                      transformPoint({ x: p[PT_X_IDX] ?? DEFAULT_VALUE, y: p[PT_Z_IDX] ?? DEFAULT_VALUE }, w.transform)
+                    );
+                  }
+                }
+
+                const MIN_WALL_CORNERS = 2;
+                if (wallCornersWorld.length < MIN_WALL_CORNERS) {
+                  continue;
+                }
+
+                // Min Distance Tub <-> Wall
+                let minDist = Number.MAX_VALUE;
+
+                // 1. Tub Corners -> Wall Segments
+                const NEXT_IDX = 1;
+                for (const tc of tubCornersWorld) {
+                  for (let i = 0; i < wallCornersWorld.length; i++) {
+                    const p1 = wallCornersWorld[i];
+                    const p2 = wallCornersWorld[(i + NEXT_IDX) % wallCornersWorld.length];
+                    if (!p1 || !p2) {
+                      continue;
+                    }
+                    const d = distToSegment(tc, p1, p2);
+                    if (d < minDist) {
+                      minDist = d;
+                    }
+                  }
+                }
+
+                // 2. Wall Corners -> Tub Segments
+                for (const wc of wallCornersWorld) {
+                  for (let i = 0; i < tubCornersWorld.length; i++) {
+                    const p1 = tubCornersWorld[i];
+                    const p2 = tubCornersWorld[(i + NEXT_IDX) % tubCornersWorld.length];
+                    if (!p1 || !p2) {
+                      continue;
+                    }
+                    const d = distToSegment(wc, p1, p2);
+                    if (d < minDist) {
+                      minDist = d;
+                    }
+                  }
+                }
+
+                if (minDist > GAP_TUB_MIN && minDist < GAP_TUB_MAX) {
+                  // Found a bad gap!
+                  tubGapErrorFound = true;
+                  break;
+                }
+              }
+              if (tubGapErrorFound) {
+                break;
+              }
+            }
+
+            if (tubGapErrorFound) {
+              metadata.hasTubGapErrors = true;
             }
           }
         } catch {
@@ -759,6 +919,7 @@ async function main(): Promise<void> {
   let countExternalOpening = INITIAL_COUNT;
   let countSoffit = INITIAL_COUNT;
   let countToiletGapErrors = INITIAL_COUNT;
+  let countTubGapErrors = INITIAL_COUNT;
 
   for (const m of metadataList) {
     if (m.hasNonRectWall === true) {
@@ -790,6 +951,9 @@ async function main(): Promise<void> {
     if (m.hasToiletGapErrors === true) {
       countToiletGapErrors++;
     }
+    if (m.hasTubGapErrors === true) {
+      countTubGapErrors++;
+    }
   }
 
   const featureLabels = [
@@ -819,14 +983,19 @@ async function main(): Promise<void> {
     width: DURATION_CHART_WIDTH
   });
 
-  const errorLabels = ['Toilet Gap > 1"'];
-  const errorCounts = [countToiletGapErrors];
-  const errorChart = await ChartUtils.createBarChart(errorLabels, errorCounts, "Capture Warnings", {
-    height: 150, // Smaller height for fewer items
-    horizontal: true,
-    totalForPercentages: metadataList.length,
-    width: DURATION_CHART_WIDTH
-  });
+  // Error Chart
+  const errorCounts = [countToiletGapErrors, countTubGapErrors];
+  const errorChart = await ChartUtils.createBarChart(
+    ['Toilet Gap > 1"', 'Tub Gap 1"-6"'],
+    errorCounts,
+    "Capture Warnings",
+    {
+      height: H,
+      horizontal: true,
+      totalForPercentages: metadataList.length,
+      width: FULL_W
+    }
+  );
 
   // PDF Generation
   console.log("Generating PDF...");
