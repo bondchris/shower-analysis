@@ -34,6 +34,7 @@ interface VideoMetadata {
   hasSoffit?: boolean;
   hasToiletGapErrors?: boolean;
   hasTubGapErrors?: boolean;
+  hasWallGapErrors?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -551,13 +552,72 @@ async function main(): Promise<void> {
             const walls = rawScan.walls ?? [];
             let tubGapErrorFound = false;
 
+            // 1. Collect Wall Segments (World Space)
+            const roomWalls: { id: string; corners: { x: number; y: number }[] }[] = [];
+            const HALF_DIVISOR = 2;
+
+            for (const w of walls) {
+              if (w.transform?.length !== TRANSFORM_SIZE) {
+                continue;
+              }
+
+              // Transform Wall Segments to World
+              const wallCornersWorld: { x: number; y: number }[] = [];
+              // w.polygonCorners is mandatory in Wall type
+              let pCorners = w.polygonCorners;
+
+              // Fallback: If no polygon corners, use Dimensions (Length along X)
+              // Wall Local Space: X=Length, Y=Height, Z=Thickness.
+              // We define segment on X-axis (Z=0).
+              const MIN_CORNERS = 0;
+              // Lint fix: Property appears to be non-nullable in types
+              const numCorners = pCorners.length;
+
+              if (numCorners === MIN_CORNERS) {
+                const DIM_LEN_IDX = 0;
+                const halfLen = (w.dimensions[DIM_LEN_IDX] ?? DEFAULT_VALUE) / HALF_DIVISOR;
+                // Create 2D local points [x, z]. z is 0.
+                const ZERO_Z = 0;
+                pCorners = [
+                  [-halfLen, ZERO_Z],
+                  [halfLen, ZERO_Z]
+                ];
+              }
+
+              // Safe loop
+              const MIN_POINT_SIZE = 2;
+              const PT_X_IDX = 0;
+              const PT_Z_IDX = 1;
+              for (const p of pCorners) {
+                if (p.length >= MIN_POINT_SIZE) {
+                  // We assume p[1] is the 2nd dimension on the plane.
+                  // If fallback, p[1] is 0.
+                  wallCornersWorld.push(
+                    transformPoint({ x: p[PT_X_IDX] ?? DEFAULT_VALUE, y: p[PT_Z_IDX] ?? DEFAULT_VALUE }, w.transform)
+                  );
+                }
+              }
+
+              const MIN_WALL_CORNERS = 2;
+              if (wallCornersWorld.length < MIN_WALL_CORNERS) {
+                continue;
+              }
+
+              // Store for Wall Gap Analysis
+              roomWalls.push({
+                corners: wallCornersWorld,
+                id: w.identifier ?? `wall_${roomWalls.length.toString()}`
+              });
+            }
+
+            // 2. Tub Gap Analysis (1" < gap < 6")
             const GAP_TUB_MIN = 0.0254; // 1 inch
             const GAP_TUB_MAX = 0.1524; // 6 inches
 
             for (const tub of tubs) {
               const DIM_X = 0;
               const DIM_Z = 2;
-              const HALF_DIVISOR = 2;
+              // HALF_DIVISOR is defined above
               const halfW = (tub.dimensions[DIM_X] ?? DEFAULT_VALUE) / HALF_DIVISOR;
               const halfD = (tub.dimensions[DIM_Z] ?? DEFAULT_VALUE) / HALF_DIVISOR; // Half Depth
               const tubCornersLocal = [
@@ -569,58 +629,13 @@ async function main(): Promise<void> {
 
               const tubCornersWorld = tubCornersLocal.map((p) => transformPoint(p, tub.transform));
 
-              // Check each wall
-              for (const w of walls) {
-                if (w.transform?.length !== TRANSFORM_SIZE) {
-                  continue;
-                }
-
-                // Transform Wall Segments to World
-                const wallCornersWorld: { x: number; y: number }[] = [];
-                // w.polygonCorners is mandatory in Wall type
-                let pCorners = w.polygonCorners;
-
-                // Fallback: If no polygon corners, use Dimensions (Length along X)
-                // Wall Local Space: X=Length, Y=Height, Z=Thickness.
-                // We define segment on X-axis (Z=0).
-                const MIN_CORNERS = 0;
-                // Lint fix: Property appears to be non-nullable in types
-                const numCorners = pCorners.length;
-
-                if (numCorners === MIN_CORNERS) {
-                  const DIM_LEN_IDX = 0;
-                  const halfLen = (w.dimensions[DIM_LEN_IDX] ?? DEFAULT_VALUE) / HALF_DIVISOR;
-                  // Create 2D local points [x, z]. z is 0.
-                  const ZERO_Z = 0;
-                  pCorners = [
-                    [-halfLen, ZERO_Z],
-                    [halfLen, ZERO_Z]
-                  ];
-                }
-
-                // Safe loop
-                const MIN_POINT_SIZE = 2;
-                const PT_X_IDX = 0;
-                const PT_Z_IDX = 1;
-                for (const p of pCorners) {
-                  if (p.length >= MIN_POINT_SIZE) {
-                    // We assume p[1] is the 2nd dimension on the plane.
-                    // If fallback, p[1] is 0.
-                    wallCornersWorld.push(
-                      transformPoint({ x: p[PT_X_IDX] ?? DEFAULT_VALUE, y: p[PT_Z_IDX] ?? DEFAULT_VALUE }, w.transform)
-                    );
-                  }
-                }
-
-                const MIN_WALL_CORNERS = 2;
-                if (wallCornersWorld.length < MIN_WALL_CORNERS) {
-                  continue;
-                }
-
+              // Check each wall (using pre-calculated corners)
+              for (const rw of roomWalls) {
+                const wallCornersWorld = rw.corners;
                 // Min Distance Tub <-> Wall
                 let minDist = Number.MAX_VALUE;
 
-                // 1. Tub Corners -> Wall Segments
+                // 2a. Tub Corners -> Wall Segments
                 const NEXT_IDX = 1;
                 for (const tc of tubCornersWorld) {
                   for (let i = 0; i < wallCornersWorld.length; i++) {
@@ -636,7 +651,7 @@ async function main(): Promise<void> {
                   }
                 }
 
-                // 2. Wall Corners -> Tub Segments
+                // 2b. Wall Corners -> Tub Segments
                 for (const wc of wallCornersWorld) {
                   for (let i = 0; i < tubCornersWorld.length; i++) {
                     const p1 = tubCornersWorld[i];
@@ -664,6 +679,58 @@ async function main(): Promise<void> {
 
             if (tubGapErrorFound) {
               metadata.hasTubGapErrors = true;
+            }
+
+            // 3. Wall Gap Analysis (Gap between wall endpoints)
+            const GAP_WALL_MIN = 0.0254; // 1 inch
+            const GAP_WALL_MAX = 0.3048; // 12 inches
+            let wallGapErrorFound = false;
+
+            // Compare every wall endpoint with every other wall endpoint
+            for (let i = 0; i < roomWalls.length; i++) {
+              const wA = roomWalls[i];
+              if (!wA) {
+                continue;
+              }
+
+              // A wall segment effectively has 2 endpoints if it's a line/rect.
+              // We computed corners. If it's a 2-point segment (from fallback), it's endpoints.
+              // If it's a 4-point rect (from polygon), all 4 are "endpoints".
+              for (const pA of wA.corners) {
+                let minEndpointDist = Number.MAX_VALUE;
+
+                for (let j = 0; j < roomWalls.length; j++) {
+                  if (i === j) {
+                    continue;
+                  }
+                  const wB = roomWalls[j];
+                  if (!wB) {
+                    continue;
+                  }
+
+                  for (const pB of wB.corners) {
+                    const EXPONENT_SQUARED = 2;
+                    const d = Math.sqrt(
+                      Math.pow(pA.x - pB.x, EXPONENT_SQUARED) + Math.pow(pA.y - pB.y, EXPONENT_SQUARED)
+                    );
+                    if (d < minEndpointDist) {
+                      minEndpointDist = d;
+                    }
+                  }
+                }
+
+                if (minEndpointDist > GAP_WALL_MIN && minEndpointDist < GAP_WALL_MAX) {
+                  wallGapErrorFound = true;
+                  break;
+                }
+              }
+              if (wallGapErrorFound) {
+                break;
+              }
+            }
+
+            if (wallGapErrorFound) {
+              metadata.hasWallGapErrors = true;
             }
           }
         } catch {
@@ -920,6 +987,7 @@ async function main(): Promise<void> {
   let countSoffit = INITIAL_COUNT;
   let countToiletGapErrors = INITIAL_COUNT;
   let countTubGapErrors = INITIAL_COUNT;
+  let countWallGapErrors = INITIAL_COUNT;
 
   for (const m of metadataList) {
     if (m.hasNonRectWall === true) {
@@ -954,6 +1022,9 @@ async function main(): Promise<void> {
     if (m.hasTubGapErrors === true) {
       countTubGapErrors++;
     }
+    if (m.hasWallGapErrors === true) {
+      countWallGapErrors++;
+    }
   }
 
   const featureLabels = [
@@ -984,9 +1055,9 @@ async function main(): Promise<void> {
   });
 
   // Error Chart
-  const errorCounts = [countToiletGapErrors, countTubGapErrors];
+  const errorCounts = [countToiletGapErrors, countTubGapErrors, countWallGapErrors];
   const errorChart = await ChartUtils.createBarChart(
-    ['Toilet Gap > 1"', 'Tub Gap 1"-6"'],
+    ['Toilet Gap > 1"', 'Tub Gap 1"-6"', 'Wall Gaps 1"-12"'],
     errorCounts,
     "Capture Warnings",
     {
