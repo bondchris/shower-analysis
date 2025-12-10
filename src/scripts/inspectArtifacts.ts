@@ -42,6 +42,18 @@ interface VideoMetadata {
   hasWallObjectIntersectionErrors?: boolean;
   hasWallWallIntersectionErrors?: boolean;
   hasCrookedWallErrors?: boolean;
+  hasWasherDryer?: boolean;
+  hasStove?: boolean;
+  hasTable?: boolean;
+  hasChair?: boolean;
+  hasBed?: boolean;
+  hasSofa?: boolean;
+  hasDishwasher?: boolean;
+  hasOven?: boolean;
+  hasRefrigerator?: boolean;
+  hasStairs?: boolean;
+  hasFireplace?: boolean;
+  hasTelevision?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -274,6 +286,18 @@ async function main(): Promise<void> {
             metadata.tubCount = rawScan.objects.filter((o) => o.category.bathtub !== undefined).length;
             metadata.sinkCount = rawScan.objects.filter((o) => o.category.sink !== undefined).length;
             metadata.storageCount = rawScan.objects.filter((o) => o.category.storage !== undefined).length;
+            metadata.hasWasherDryer = rawScan.objects.some((o) => o.category.washerDryer !== undefined);
+            metadata.hasStove = rawScan.objects.some((o) => o.category.stove !== undefined);
+            metadata.hasTable = rawScan.objects.some((o) => o.category.table !== undefined);
+            metadata.hasChair = rawScan.objects.some((o) => o.category.chair !== undefined);
+            metadata.hasBed = rawScan.objects.some((o) => o.category.bed !== undefined);
+            metadata.hasSofa = rawScan.objects.some((o) => o.category.sofa !== undefined);
+            metadata.hasDishwasher = rawScan.objects.some((o) => o.category.dishwasher !== undefined);
+            metadata.hasOven = rawScan.objects.some((o) => o.category.oven !== undefined);
+            metadata.hasRefrigerator = rawScan.objects.some((o) => o.category.refrigerator !== undefined);
+            metadata.hasStairs = rawScan.objects.some((o) => o.category.stairs !== undefined);
+            metadata.hasFireplace = rawScan.objects.some((o) => o.category.fireplace !== undefined);
+            metadata.hasTelevision = rawScan.objects.some((o) => o.category.television !== undefined);
           }
 
           if (
@@ -1486,6 +1510,18 @@ async function main(): Promise<void> {
   let countWallObjectIntersectionErrors = INITIAL_COUNT;
   let countWallWallIntersectionErrors = INITIAL_COUNT;
   let countCrookedWallErrors = INITIAL_COUNT;
+  let countWasherDryer = INITIAL_COUNT;
+  let countStove = INITIAL_COUNT;
+  let countTable = INITIAL_COUNT;
+  let countChair = INITIAL_COUNT;
+  let countBed = INITIAL_COUNT;
+  let countSofa = INITIAL_COUNT;
+  let countDishwasher = INITIAL_COUNT;
+  let countOven = INITIAL_COUNT;
+  let countRefrigerator = INITIAL_COUNT;
+  let countStairs = INITIAL_COUNT;
+  let countFireplace = INITIAL_COUNT;
+  let countTelevision = INITIAL_COUNT;
 
   for (const m of metadataList) {
     if (m.hasNonRectWall === true) {
@@ -1541,6 +1577,43 @@ async function main(): Promise<void> {
     if (m.hasCrookedWallErrors === true) {
       countCrookedWallErrors++;
     }
+    // New Feature Counts
+    if (m.hasWasherDryer === true) {
+      countWasherDryer++;
+    }
+    if (m.hasStove === true) {
+      countStove++;
+    }
+    if (m.hasTable === true) {
+      countTable++;
+    }
+    if (m.hasChair === true) {
+      countChair++;
+    }
+    if (m.hasBed === true) {
+      countBed++;
+    }
+    if (m.hasSofa === true) {
+      countSofa++;
+    }
+    if (m.hasDishwasher === true) {
+      countDishwasher++;
+    }
+    if (m.hasOven === true) {
+      countOven++;
+    }
+    if (m.hasRefrigerator === true) {
+      countRefrigerator++;
+    }
+    if (m.hasStairs === true) {
+      countStairs++;
+    }
+    if (m.hasFireplace === true) {
+      countFireplace++;
+    }
+    if (m.hasTelevision === true) {
+      countTelevision++;
+    }
   }
 
   const featureLabels = [
@@ -1552,7 +1625,19 @@ async function main(): Promise<void> {
     "No Vanity",
     "External Opening",
     "Soffit",
-    "Nib Walls (< 1ft)"
+    "Nib Walls (< 1ft)",
+    "Washer/Dryer",
+    "Stove",
+    "Table",
+    "Chair",
+    "Bed",
+    "Sofa",
+    "Dishwasher",
+    "Oven",
+    "Refrigerator",
+    "Stairs",
+    "Fireplace",
+    "Television"
   ];
   const featureCounts = [
     countNonRect,
@@ -1563,10 +1648,23 @@ async function main(): Promise<void> {
     countNoVanity,
     countExternalOpening,
     countSoffit,
-    countNibWalls
+    countNibWalls,
+    countWasherDryer,
+    countStove,
+    countTable,
+    countChair,
+    countBed,
+    countSofa,
+    countDishwasher,
+    countOven,
+    countRefrigerator,
+    countStairs,
+    countFireplace,
+    countTelevision
   ];
+  const FEATURE_CHART_HEIGHT = 1500;
   const featureChart = await ChartUtils.createBarChart(featureLabels, featureCounts, "Feature Prevalence", {
-    height: DURATION_CHART_HEIGHT,
+    height: FEATURE_CHART_HEIGHT,
     horizontal: true,
     totalForPercentages: metadataList.length,
     width: DURATION_CHART_WIDTH
@@ -1653,17 +1751,18 @@ async function main(): Promise<void> {
   doc.image(areaChart, LEFT_X, Y_START, { height: H, width: FULL_W });
   doc.text("Room Area (Sq Ft)", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: FULL_W });
 
-  doc.image(featureChart, LEFT_X, Y_START + GAP_Y, { height: H, width: FULL_W });
-  doc.text("Feature Prevalence", LEFT_X, Y_START + GAP_Y + H + TEXT_PADDING, { align: "center", width: FULL_W });
-
-  const HEIGHT_ADJUSTMENT_FACTOR = 2;
-  const gapScaled = GAP_Y * HEIGHT_ADJUSTMENT_FACTOR;
-  const errorChartY = Y_START + gapScaled;
-  doc.image(errorChart, LEFT_X, errorChartY, { height: H, width: FULL_W });
-  doc.text("Capture Errors", LEFT_X, errorChartY + H + TEXT_PADDING, {
+  doc.image(errorChart, LEFT_X, Y_START + GAP_Y, { height: H, width: FULL_W });
+  doc.text("Capture Errors", LEFT_X, Y_START + GAP_Y + H + TEXT_PADDING, {
     align: "center",
     width: FULL_W
   });
+
+  // --- Page 4: Feature Prevalence ---
+  doc.addPage();
+  doc.fontSize(PDF_SUBTITLE_SIZE).text("Feature Prevalence", { align: "center" });
+
+  const FEATURE_PDF_HEIGHT = 600;
+  doc.image(featureChart, LEFT_X, Y_START, { height: FEATURE_PDF_HEIGHT, width: FULL_W });
 
   doc.end();
   console.log(`Report generated at: ${REPORT_PATH}`);
