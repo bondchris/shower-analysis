@@ -39,6 +39,7 @@ interface VideoMetadata {
   hasColinearWallErrors?: boolean;
   hasNibWalls?: boolean;
   hasObjectIntersectionErrors?: boolean;
+  hasWallObjectIntersectionErrors?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -911,13 +912,16 @@ async function main(): Promise<void> {
               minX: number;
               minZ: number;
               corners: { x: number; y: number }[];
+              innerCorners: { x: number; y: number }[];
             }[] = [];
 
+            const TOLERANCE = 0.0254; // 1 inch
             const DIM_X = 0;
             const DIM_Z = 2;
             const HALF = 2;
             const DEFAULT_DIM = 0;
             const INIT_COORD = 0;
+            const ZERO = 0;
             const DIM_SIZE = 3;
 
             for (const o of objects) {
@@ -927,6 +931,7 @@ async function main(): Promise<void> {
               if (o.transform.length !== TRANSFORM_SIZE || o.dimensions.length !== DIM_SIZE) {
                 objAABBs.push({
                   corners: [],
+                  innerCorners: [],
                   isSink: false,
                   isStorage: false,
                   maxX: INIT_COORD,
@@ -946,6 +951,17 @@ async function main(): Promise<void> {
                 { x: halfW, y: -halfD },
                 { x: halfW, y: halfD },
                 { x: -halfW, y: halfD }
+              ];
+
+              // Inner corners (shrunk by tolerance)
+              // If object is smaller than 2*tolerance, innerCorners collapses to center or very small box
+              const innerHalfW = Math.max(ZERO, halfW - TOLERANCE);
+              const innerHalfD = Math.max(ZERO, halfD - TOLERANCE);
+              const innerCornersLocal = [
+                { x: -innerHalfW, y: -innerHalfD },
+                { x: innerHalfW, y: -innerHalfD },
+                { x: innerHalfW, y: innerHalfD },
+                { x: -innerHalfW, y: innerHalfD }
               ];
 
               let minX = Number.MAX_VALUE;
@@ -971,6 +987,10 @@ async function main(): Promise<void> {
 
               objAABBs.push({
                 corners: corners.map((c) => {
+                  const res = transformPoint(c, o.transform);
+                  return { x: res.x, y: res.y };
+                }),
+                innerCorners: innerCornersLocal.map((c) => {
                   const res = transformPoint(c, o.transform);
                   return { x: res.x, y: res.y };
                 }),
@@ -1026,6 +1046,66 @@ async function main(): Promise<void> {
 
             if (objIntersectionFound) {
               metadata.hasObjectIntersectionErrors = true;
+            }
+
+            // --- Wall <-> Object Intersection ---
+            // rawScan.walls might be undefined in some partial scans
+            const wallsToCheck = rawScan.walls ?? [];
+            let wallObjectIntersectionFound = false;
+
+            for (const w of wallsToCheck) {
+              // Transform is optional
+              const wTransform = w.transform;
+              if (wTransform === undefined) {
+                continue;
+              }
+
+              // Dimensions is explicitly required by logic, trusting ESLint/Interface over Class ?
+              const wDims = w.dimensions;
+
+              if (wTransform.length !== TRANSFORM_SIZE || wDims.length !== DIM_SIZE) {
+                continue;
+              }
+
+              const halfW = (wDims[DIM_X] ?? DEFAULT_DIM) / HALF;
+              const halfD = (wDims[DIM_Z] ?? DEFAULT_DIM) / HALF;
+
+              const corners = [
+                { x: -halfW, y: -halfD },
+                { x: halfW, y: -halfD },
+                { x: halfW, y: halfD },
+                { x: -halfW, y: halfD }
+              ];
+
+              const wallCorners = corners.map((c) => {
+                const res = transformPoint(c, wTransform);
+                return { x: res.x, y: res.y };
+              });
+
+              for (const objAABB of objAABBs) {
+                const EMPTY_LEN = 0;
+                if (objAABB.corners.length === EMPTY_LEN) {
+                  continue;
+                }
+
+                // Use innerCorners for Wall intersection to allow "touching"
+                if (objAABB.innerCorners.length === EMPTY_LEN) {
+                  continue;
+                }
+
+                if (doPolygonsIntersect(wallCorners, objAABB.innerCorners)) {
+                  wallObjectIntersectionFound = true;
+                  break;
+                }
+              }
+
+              if (wallObjectIntersectionFound) {
+                break;
+              }
+            }
+
+            if (wallObjectIntersectionFound) {
+              metadata.hasWallObjectIntersectionErrors = true;
             }
           }
         } catch {
@@ -1286,6 +1366,7 @@ async function main(): Promise<void> {
   let countColinearWallErrors = INITIAL_COUNT;
   let countNibWalls = INITIAL_COUNT;
   let countObjectIntersectionErrors = INITIAL_COUNT;
+  let countWallObjectIntersectionErrors = INITIAL_COUNT;
 
   for (const m of metadataList) {
     if (m.hasNonRectWall === true) {
@@ -1332,6 +1413,9 @@ async function main(): Promise<void> {
     if (m.hasObjectIntersectionErrors === true) {
       countObjectIntersectionErrors++;
     }
+    if (m.hasWallObjectIntersectionErrors === true) {
+      countWallObjectIntersectionErrors++;
+    }
   }
 
   const featureLabels = [
@@ -1369,14 +1453,16 @@ async function main(): Promise<void> {
     'Tub Gap 1"-6"',
     'Wall Gaps 1"-12"',
     "Colinear Walls",
-    "Object Intersections"
+    "Object Intersections",
+    "Wall <-> Object Intersections"
   ];
   const errorCounts = [
     countToiletGapErrors,
     countTubGapErrors,
     countWallGapErrors,
     countColinearWallErrors,
-    countObjectIntersectionErrors
+    countObjectIntersectionErrors,
+    countWallObjectIntersectionErrors
   ];
   const errorChart = await ChartUtils.createBarChart(errorLabels, errorCounts, "Capture Errors", {
     height: DURATION_CHART_HEIGHT,

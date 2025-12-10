@@ -324,38 +324,65 @@ export async function createBarChart(
   return buffer;
 }
 
-/* eslint-disable no-magic-numbers */
+// Based on Tanner Helland's algorithm
 export function kelvinToRgb(k: number): string {
-  const temp = k / 100;
-  let r = 0;
-  let g = 0;
-  let b = 0;
+  const KELVIN_SCALE = 100;
+  const TEMP_THRESHOLD = 66;
+  const MIN_TEMP_BLUE = 19;
+  const BLUE_OFFSET = 10;
 
-  if (temp <= 66) {
-    r = 255;
+  // Red/Green/Blue calculation constants
+  const RED_MAX = 255;
+  const GREEN_LOG_MULT = 99.4708025861;
+  const GREEN_LOG_SUB = 161.1195681661;
+  const BLUE_LOG_MULT = 138.5177312231;
+  const BLUE_LOG_SUB = 305.0447927307;
+
+  const HIGH_TEMP_OFFSET = 60;
+  const RED_POW_MULT = 329.698727446;
+  const RED_POW_EXP = -0.1332047592;
+  const GREEN_POW_MULT = 288.1221695283;
+  const GREEN_POW_EXP = -0.0755148492;
+  const BLUE_MAX = 255;
+
+  const CLAMP_MIN = 0;
+  const CLAMP_MAX = 255;
+  const ALPHA = 0.8;
+
+  const temp = k / KELVIN_SCALE;
+  let r = CLAMP_MIN;
+  let g = CLAMP_MIN;
+  let b = CLAMP_MIN;
+
+  if (temp <= TEMP_THRESHOLD) {
+    r = RED_MAX;
     g = temp;
-    const gLog = 99.4708025861 * Math.log(g);
-    g = gLog - 161.1195681661;
-    if (temp <= 19) {
-      b = 0;
+    const gLog = GREEN_LOG_MULT * Math.log(g);
+    g = gLog - GREEN_LOG_SUB;
+
+    if (temp <= MIN_TEMP_BLUE) {
+      b = CLAMP_MIN;
     } else {
-      b = temp - 10;
-      const bLog = 138.5177312231 * Math.log(b);
-      b = bLog - 305.0447927307;
+      b = temp - BLUE_OFFSET;
+      const bLog = BLUE_LOG_MULT * Math.log(b);
+      b = bLog - BLUE_LOG_SUB;
     }
   } else {
-    r = temp - 60;
-    r = 329.698727446 * Math.pow(r, -0.1332047592);
-    g = temp - 60;
-    g = 288.1221695283 * Math.pow(g, -0.0755148492);
-    b = 255;
+    // High temp red
+    const rBase = temp - HIGH_TEMP_OFFSET;
+    r = RED_POW_MULT * Math.pow(rBase, RED_POW_EXP);
+
+    // High temp green
+    const gBase = temp - HIGH_TEMP_OFFSET;
+    g = GREEN_POW_MULT * Math.pow(gBase, GREEN_POW_EXP);
+
+    b = BLUE_MAX;
   }
 
   // Clamp 0-255
-  r = Math.min(255, Math.max(0, r));
-  g = Math.min(255, Math.max(0, g));
-  b = Math.min(255, Math.max(0, b));
+  r = Math.min(CLAMP_MAX, Math.max(CLAMP_MIN, r));
+  g = Math.min(CLAMP_MAX, Math.max(CLAMP_MIN, g));
+  b = Math.min(CLAMP_MAX, Math.max(CLAMP_MIN, b));
 
-  return `rgba(${Math.round(r).toString()}, ${Math.round(g).toString()}, ${Math.round(b).toString()}, 0.8)`;
+  return `rgba(${Math.round(r).toString()}, ${Math.round(g).toString()}, ${Math.round(b).toString()}, ${ALPHA.toString()})`;
 }
-/* eslint-enable no-magic-numbers */
