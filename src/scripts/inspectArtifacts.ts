@@ -4,6 +4,7 @@ import * as path from "path";
 import PDFDocument from "pdfkit";
 
 import { ArData } from "../models/arData/arData";
+import { ArtifactMetadata } from "../models/artifactMetadata";
 import { Floor } from "../models/rawScan/floor";
 import { RawScan, RawScanData } from "../models/rawScan/rawScan";
 import { Wall } from "../models/rawScan/wall";
@@ -11,78 +12,31 @@ import * as ChartUtils from "../utils/chartUtils";
 import { distToSegment, getPosition, transformPoint } from "../utils/mathUtils";
 import { doPolygonsIntersect } from "../utils/sat";
 
-export interface ArtifactMetadata {
-  path: string;
-  filename: string;
-  environment: string;
-  width: number;
-  height: number;
-  fps: number;
-  duration: number;
-  lensModel?: string;
-  avgAmbientIntensity?: number;
-  avgColorTemperature?: number;
-  avgIso?: number;
-  avgBrightness?: number;
-  roomAreaSqFt?: number;
-  hasNonRectWall?: boolean;
-  toiletCount?: number;
-  tubCount?: number;
-  sinkCount?: number;
-  storageCount?: number;
-  wallCount?: number;
-  hasCurvedWall?: boolean;
-  hasExternalOpening?: boolean;
-  hasSoffit?: boolean;
-  hasToiletGapErrors?: boolean;
-  hasTubGapErrors?: boolean;
-  hasWallGapErrors?: boolean;
-  hasColinearWallErrors?: boolean;
-  hasNibWalls?: boolean;
-  hasObjectIntersectionErrors?: boolean;
-  hasWallObjectIntersectionErrors?: boolean;
-  hasWallWallIntersectionErrors?: boolean;
-  hasCrookedWallErrors?: boolean;
-  hasWasherDryer?: boolean;
-  hasStove?: boolean;
-  hasTable?: boolean;
-  hasChair?: boolean;
-  hasBed?: boolean;
-  hasSofa?: boolean;
-  hasDishwasher?: boolean;
-  hasOven?: boolean;
-  hasRefrigerator?: boolean;
-  hasStairs?: boolean;
-  hasFireplace?: boolean;
-  hasTelevision?: boolean;
-  hasDoorBlockingError?: boolean;
-}
-
-async function getArtifactMetadata(filePath: string): Promise<ArtifactMetadata | null> {
-  const SPLIT_LENGTH = 2;
+// 1. Video Metadata Extraction
+async function addVideoMetadata(filePath: string, metadata: ArtifactMetadata): Promise<boolean> {
   const NUMERATOR_IDX = 0;
   const DENOMINATOR_IDX = 1;
   const PATH_OFFSET_ENVIRONMENT = 3;
   const DEFAULT_VALUE = 0;
 
-  const result = await new Promise<ArtifactMetadata | null>((resolve) => {
-    ffmpeg.ffprobe(filePath, (err, metadata) => {
+  const result = await new Promise<boolean>((resolve) => {
+    ffmpeg.ffprobe(filePath, (err, meta) => {
       if (err !== null && err !== undefined) {
-        resolve(null);
+        resolve(false);
         return;
       }
 
-      const stream = metadata.streams.find((s) => s.codec_type === "video");
+      const stream = meta.streams.find((s) => s.codec_type === "video");
       if (stream === undefined) {
-        resolve(null);
+        resolve(false);
         return;
       }
 
-      // Extract FPS (e.g., "60/1" -> 60)
       let fps = DEFAULT_VALUE;
+      // Handle fraction fps if present (e.g. "30/1")
       if (stream.r_frame_rate !== undefined) {
-        const parts = stream.r_frame_rate.split("/");
-        if (parts.length === SPLIT_LENGTH) {
+        if (stream.r_frame_rate.includes("/")) {
+          const parts = stream.r_frame_rate.split("/");
           const num = parts[NUMERATOR_IDX];
           const den = parts[DENOMINATOR_IDX];
           if (num !== undefined && den !== undefined) {
@@ -96,15 +50,16 @@ async function getArtifactMetadata(filePath: string): Promise<ArtifactMetadata |
       const parts = filePath.split(path.sep);
       const environment = parts[parts.length - PATH_OFFSET_ENVIRONMENT] ?? "unknown";
 
-      resolve({
-        duration: metadata.format.duration ?? DEFAULT_VALUE,
-        environment,
-        filename: path.basename(path.dirname(filePath)),
-        fps,
-        height: stream.height ?? DEFAULT_VALUE,
-        path: filePath,
-        width: stream.width ?? DEFAULT_VALUE
-      });
+      // Populate valid metadata
+      metadata.duration = meta.format.duration ?? DEFAULT_VALUE;
+      metadata.environment = environment;
+      metadata.filename = path.basename(path.dirname(filePath));
+      metadata.fps = fps;
+      metadata.height = stream.height ?? DEFAULT_VALUE;
+      metadata.path = filePath;
+      metadata.width = stream.width ?? DEFAULT_VALUE;
+
+      resolve(true);
     });
   });
   return result;
@@ -156,18 +111,20 @@ async function main(): Promise<void> {
   const MIN_TOILETS = 2;
   const MIN_TUBS = 2;
   const MIN_WALLS = 4;
-  const DEFAULT_WALL_COUNT = 4;
   const MIN_NON_RECT_CORNERS = 4;
   const videoFiles = findVideoFiles(DATA_DIR);
   console.log(`Found ${videoFiles.length.toString()} video files.`);
 
   console.log(" extracting metadata...");
   const metadataList: ArtifactMetadata[] = [];
+  const DEFAULT_STR = "";
+  const DEFAULT_NUM = 0;
   let processed = INITIAL_COUNT;
 
   for (const file of videoFiles) {
-    const metadata = await getArtifactMetadata(file);
-    if (metadata !== null) {
+    const metadata = new ArtifactMetadata();
+    const success = await addVideoMetadata(file, metadata);
+    if (success) {
       // 1. RawScan Analysis (Room Area & Features)
       const rawScanPath = path.join(path.dirname(file), "rawScan.json");
       if (fs.existsSync(rawScanPath)) {
@@ -1245,9 +1202,11 @@ async function main(): Promise<void> {
           if (frames.length > INITIAL_COUNT) {
             // Lens Model
             const firstFrame = frames[INITIAL_COUNT];
-            // Use optional chaining for safe access to frames array item, but exifData is required
-            if (firstFrame?.exifData.LensModel !== undefined) {
-              metadata.lensModel = firstFrame.exifData.LensModel;
+            if (firstFrame) {
+              const model = firstFrame.exifData.LensModel;
+              if (model !== undefined && model !== DEFAULT_STR) {
+                metadata.lensModel = model;
+              }
             }
           }
 
@@ -1257,58 +1216,46 @@ async function main(): Promise<void> {
           let totalISO = 0;
           let totalBrightness = 0; // Exif BrightnessValue
           let count = 0;
-          let isoCount = 0;
-          let briCount = 0;
           const MIN_VALID_FRAMES = 0;
 
           for (const frame of frames) {
             // Check for existence explicitly if needed, but safe navigation usage suggests they are optional
             // Using strict checks to satisfy linter
             // exifData is required per interface, so no check needed
-            if (frame.lightEstimate !== undefined) {
+            if (frame.lightEstimate) {
               // ambientIntensity and ambientColorTemperature are required in LightEstimate interface
               totalIntensity += frame.lightEstimate.ambientIntensity;
               totalTemperature += frame.lightEstimate.ambientColorTemperature;
+              count++;
             }
 
             // ISOSpeedRatings check (exifData is required)
-            if (frame.exifData.ISOSpeedRatings !== undefined) {
+            const isoRatings = frame.exifData.ISOSpeedRatings;
+            if (isoRatings !== undefined && isoRatings !== DEFAULT_STR) {
               // Strip non-numeric chars (sometimes comes as "( 125 )" or similar)
-              const isoStr = frame.exifData.ISOSpeedRatings.replace(/[^0-9.]/g, "");
+              const isoStr = isoRatings.replace(/[^0-9.]/g, "");
               const isoVal = parseFloat(isoStr);
               if (!isNaN(isoVal)) {
                 totalISO += isoVal;
-                isoCount++;
               }
             }
 
             // BrightnessValue check
-            if (frame.exifData.BrightnessValue !== undefined) {
+            const brightness = frame.exifData.BrightnessValue;
+            if (brightness !== undefined && brightness !== DEFAULT_STR) {
               // BrightnessValue is typically a number string, but sanity check
-              const briVal = parseFloat(frame.exifData.BrightnessValue);
+              const briVal = parseFloat(brightness);
               if (!isNaN(briVal)) {
                 totalBrightness += briVal;
-                briCount++;
               }
-            }
-
-            // Increment count if we have valid light estimate?
-            // Original logic was "if (frame.lightEstimate && frame.exifData)".
-            // Since exifData is always there, effective check was just lightEstimate.
-            if (frame.lightEstimate !== undefined) {
-              count++;
             }
           }
 
           if (count > MIN_VALID_FRAMES) {
             metadata.avgAmbientIntensity = totalIntensity / count;
             metadata.avgColorTemperature = totalTemperature / count;
-          }
-          if (isoCount > MIN_VALID_FRAMES) {
-            metadata.avgIso = totalISO / isoCount;
-          }
-          if (briCount > MIN_VALID_FRAMES) {
-            metadata.avgBrightness = totalBrightness / briCount;
+            metadata.avgIso = totalISO / count;
+            metadata.avgBrightness = totalBrightness / count;
           }
         } catch {
           // Ignore
@@ -1369,7 +1316,7 @@ async function main(): Promise<void> {
   // Lens Models
   const lensMap: Record<string, number> = {};
   for (const m of metadataList) {
-    if (m.lensModel !== undefined && m.lensModel.length > INITIAL_COUNT) {
+    if (m.lensModel !== DEFAULT_STR) {
       lensMap[m.lensModel] = (lensMap[m.lensModel] ?? INITIAL_COUNT) + INCREMENT_STEP;
     }
   }
@@ -1383,11 +1330,11 @@ async function main(): Promise<void> {
   });
 
   // Lighting & Exposure Data
-  const intensityVals = metadataList.map((m) => m.avgAmbientIntensity).filter((v): v is number => v !== undefined);
-  const tempVals = metadataList.map((m) => m.avgColorTemperature).filter((v): v is number => v !== undefined);
-  const isoVals = metadataList.map((m) => m.avgIso).filter((v): v is number => v !== undefined);
-  const briVals = metadataList.map((m) => m.avgBrightness).filter((v): v is number => v !== undefined);
-  const areaVals = metadataList.map((m) => m.roomAreaSqFt).filter((v): v is number => v !== undefined);
+  const intensityVals = metadataList.map((m) => m.avgAmbientIntensity).filter((v) => v > DEFAULT_NUM);
+  const tempVals = metadataList.map((m) => m.avgColorTemperature).filter((v) => v > DEFAULT_NUM);
+  const isoVals = metadataList.map((m) => m.avgIso).filter((v) => v > DEFAULT_NUM);
+  const briVals = metadataList.map((m) => m.avgBrightness).filter((v) => v !== DEFAULT_NUM);
+  const areaVals = metadataList.map((m) => m.roomAreaSqFt).filter((v) => v > DEFAULT_NUM);
 
   // Charts
   console.log("Generating charts...");
@@ -1505,97 +1452,97 @@ async function main(): Promise<void> {
   let countTelevision = INITIAL_COUNT;
 
   for (const m of metadataList) {
-    if (m.hasNonRectWall === true) {
+    if (m.hasNonRectWall) {
       countNonRect++;
     }
-    if (m.hasCurvedWall === true) {
+    if (m.hasCurvedWall) {
       countCurvedWalls++;
     }
-    if ((m.toiletCount ?? INITIAL_COUNT) >= MIN_TOILETS) {
+    if (m.toiletCount >= MIN_TOILETS) {
       countTwoToilets++;
     }
-    if ((m.tubCount ?? INITIAL_COUNT) >= MIN_TUBS) {
+    if (m.tubCount >= MIN_TUBS) {
       countTwoTubs++;
     }
-    if ((m.wallCount ?? DEFAULT_WALL_COUNT) < MIN_WALLS) {
+    if (m.wallCount < MIN_WALLS) {
       countFewWalls++;
     }
-    const sinks = m.sinkCount ?? INITIAL_COUNT;
-    const storage = m.storageCount ?? INITIAL_COUNT;
+    const sinks = m.sinkCount;
+    const storage = m.storageCount;
     if (sinks === INITIAL_COUNT && storage === INITIAL_COUNT) {
       countNoVanity++;
     }
-    if (m.hasExternalOpening === true) {
+    if (m.hasExternalOpening) {
       countExternalOpening++;
     }
-    if (m.hasSoffit === true) {
+    if (m.hasSoffit) {
       countSoffit++;
     }
-    if (m.hasToiletGapErrors === true) {
+    if (m.hasToiletGapErrors) {
       countToiletGapErrors++;
     }
-    if (m.hasTubGapErrors === true) {
+    if (m.hasTubGapErrors) {
       countTubGapErrors++;
     }
-    if (m.hasWallGapErrors === true) {
+    if (m.hasWallGapErrors) {
       countWallGapErrors++;
     }
-    if (m.hasColinearWallErrors === true) {
+    if (m.hasColinearWallErrors) {
       countColinearWallErrors++;
     }
-    if (m.hasNibWalls === true) {
+    if (m.hasNibWalls) {
       countNibWalls++;
     }
-    if (m.hasObjectIntersectionErrors === true) {
+    if (m.hasObjectIntersectionErrors) {
       countObjectIntersectionErrors++;
     }
-    if (m.hasWallObjectIntersectionErrors === true) {
+    if (m.hasWallObjectIntersectionErrors) {
       countWallObjectIntersectionErrors++;
     }
-    if (m.hasWallWallIntersectionErrors === true) {
+    if (m.hasWallWallIntersectionErrors) {
       countWallWallIntersectionErrors++;
     }
-    if (m.hasCrookedWallErrors === true) {
+    if (m.hasCrookedWallErrors) {
       countCrookedWallErrors++;
     }
-    if (m.hasDoorBlockingError === true) {
+    if (m.hasDoorBlockingError) {
       countDoorBlockingErrors++;
     }
     // New Feature Counts
-    if (m.hasWasherDryer === true) {
+    if (m.hasWasherDryer) {
       countWasherDryer++;
     }
-    if (m.hasStove === true) {
+    if (m.hasStove) {
       countStove++;
     }
-    if (m.hasTable === true) {
+    if (m.hasTable) {
       countTable++;
     }
-    if (m.hasChair === true) {
+    if (m.hasChair) {
       countChair++;
     }
-    if (m.hasBed === true) {
+    if (m.hasBed) {
       countBed++;
     }
-    if (m.hasSofa === true) {
+    if (m.hasSofa) {
       countSofa++;
     }
-    if (m.hasDishwasher === true) {
+    if (m.hasDishwasher) {
       countDishwasher++;
     }
-    if (m.hasOven === true) {
+    if (m.hasOven) {
       countOven++;
     }
-    if (m.hasRefrigerator === true) {
+    if (m.hasRefrigerator) {
       countRefrigerator++;
     }
-    if (m.hasStairs === true) {
+    if (m.hasStairs) {
       countStairs++;
     }
-    if (m.hasFireplace === true) {
+    if (m.hasFireplace) {
       countFireplace++;
     }
-    if (m.hasTelevision === true) {
+    if (m.hasTelevision) {
       countTelevision++;
     }
   }
