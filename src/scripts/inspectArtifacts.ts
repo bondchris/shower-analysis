@@ -8,9 +8,10 @@ import { Floor } from "../models/rawScan/floor";
 import { RawScan, RawScanData } from "../models/rawScan/rawScan";
 import { Wall } from "../models/rawScan/wall";
 import * as ChartUtils from "../utils/chartUtils";
+import { distToSegment, getPosition, transformPoint } from "../utils/mathUtils";
 import { doPolygonsIntersect } from "../utils/sat";
 
-interface VideoMetadata {
+export interface ArtifactMetadata {
   path: string;
   filename: string;
   environment: string;
@@ -57,15 +58,14 @@ interface VideoMetadata {
   hasDoorBlockingError?: boolean;
 }
 
-// 1. Video Metadata Extraction
-async function getVideoMetadata(filePath: string): Promise<VideoMetadata | null> {
+async function getArtifactMetadata(filePath: string): Promise<ArtifactMetadata | null> {
   const SPLIT_LENGTH = 2;
   const NUMERATOR_IDX = 0;
   const DENOMINATOR_IDX = 1;
   const PATH_OFFSET_ENVIRONMENT = 3;
   const DEFAULT_VALUE = 0;
 
-  const result = await new Promise<VideoMetadata | null>((resolve) => {
+  const result = await new Promise<ArtifactMetadata | null>((resolve) => {
     ffmpeg.ffprobe(filePath, (err, metadata) => {
       if (err !== null && err !== undefined) {
         resolve(null);
@@ -128,7 +128,6 @@ function findVideoFiles(dir: string): string[] {
   return results;
 }
 
-// Main Execution
 async function main(): Promise<void> {
   const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
   const REPORT_PATH = path.join(process.cwd(), "reports", "data-analysis.pdf");
@@ -137,87 +136,12 @@ async function main(): Promise<void> {
   const DECIMAL_PLACES = 2;
   const INCREMENT_STEP = 1;
   const TRANSFORM_SIZE = 16;
-  const X_IDX = 12;
-  const Z_IDX = 14;
   const DEFAULT_VALUE = 0;
   // Toilet Gap Constants
   const GAP_THRESHOLD_METERS = 0.0254; // 1 inch
   const MAX_WALL_DIST_METERS = 2.0; // Reasonable max dist to check for a backing wall
 
-  // Math Helpers (Local)
-  const getPosition = (transform: number[]): { x: number; y: number } => {
-    // Check if transform is valid (size 16)
-    if (transform.length !== TRANSFORM_SIZE) {
-      return { x: 0, y: 0 };
-    }
-    // Use X (idx 12) and Z (idx 14) for floor plane position
-    return { x: transform[X_IDX] ?? DEFAULT_VALUE, y: transform[Z_IDX] ?? DEFAULT_VALUE };
-  };
-
-  const transformPoint = (p: { x: number; y: number }, m: number[]): { x: number; y: number } => {
-    // X-Z Plane Transform (Top Down)
-    // x' = x*m0 + z*m8 + tx
-    // z' = x*m2 + z*m10 + tz
-    // Note: Input p.y corresponds to Local Z. Output p.y corresponds to World Z.
-    const MAT_M0 = 0; // r0, c0 (Xx)
-    const MAT_M2 = 2; // r2, c0 (Xz)
-    const MAT_M8 = 8; // r0, c2 (Zx)
-    const MAT_M10 = 10; // r2, c2 (Zz)
-    const MAT_TX = 12; // r0, c3 (Tx)
-    const MAT_TZ = 14; // r2, c3 (Tz)
-    const DEFAULT_VALUE = 0;
-
-    const m0 = m[MAT_M0] ?? DEFAULT_VALUE;
-    const m8 = m[MAT_M8] ?? DEFAULT_VALUE;
-    const mTx = m[MAT_TX] ?? DEFAULT_VALUE;
-
-    const m2 = m[MAT_M2] ?? DEFAULT_VALUE;
-    const m10 = m[MAT_M10] ?? DEFAULT_VALUE;
-    const mTz = m[MAT_TZ] ?? DEFAULT_VALUE;
-
-    const termX1 = p.x * m0;
-    const termX2 = p.y * m8;
-    const x = termX1 + termX2 + mTx;
-
-    const termZ1 = p.x * m2;
-    const termZ2 = p.y * m10;
-    const y = termZ1 + termZ2 + mTz;
-
-    return { x, y };
-  };
-
-  const distToSegment = (
-    p: { x: number; y: number },
-    v: { x: number; y: number },
-    w: { x: number; y: number }
-  ): number => {
-    // l2 = length squared of segment vw
-    const EXPONENT_SQUARED = 2;
-    const l2 = Math.pow(v.x - w.x, EXPONENT_SQUARED) + Math.pow(v.y - w.y, EXPONENT_SQUARED);
-    const ZERO_LENGTH = 0;
-    if (l2 === ZERO_LENGTH) {
-      return Math.sqrt(Math.pow(p.x - v.x, EXPONENT_SQUARED) + Math.pow(p.y - v.y, EXPONENT_SQUARED));
-    }
-    // t = projection of p onto line vw, clamped between 0 and 1
-    // t = dot(p - v, w - v) / l2
-    const pXDiff = p.x - v.x;
-    const vXDiff = w.x - v.x;
-    const pYDiff = p.y - v.y;
-    const vYDiff = w.y - v.y;
-    const term1 = pXDiff * vXDiff;
-    const term2 = pYDiff * vYDiff;
-    const dotP = term1 + term2;
-    let t = dotP / l2;
-    const MIN_CLAMP = 0;
-    const MAX_CLAMP = 1;
-    t = Math.max(MIN_CLAMP, Math.min(MAX_CLAMP, t));
-    // Projection Point = v + t * (w - v)
-    const tX = t * (w.x - v.x);
-    const projX = v.x + tX;
-    const tY = t * (w.y - v.y);
-    const projY = v.y + tY;
-    return Math.sqrt(Math.pow(p.x - projX, EXPONENT_SQUARED) + Math.pow(p.y - projY, EXPONENT_SQUARED));
-  };
+  console.log("Finding video files...");
 
   const MARGIN = 50;
   const PDF_TITLE_SIZE = 25;
@@ -234,17 +158,15 @@ async function main(): Promise<void> {
   const MIN_WALLS = 4;
   const DEFAULT_WALL_COUNT = 4;
   const MIN_NON_RECT_CORNERS = 4;
-
-  console.log("Finding video files...");
   const videoFiles = findVideoFiles(DATA_DIR);
   console.log(`Found ${videoFiles.length.toString()} video files.`);
 
   console.log(" extracting metadata...");
-  const metadataList: VideoMetadata[] = [];
+  const metadataList: ArtifactMetadata[] = [];
   let processed = INITIAL_COUNT;
 
   for (const file of videoFiles) {
-    const metadata = await getVideoMetadata(file);
+    const metadata = await getArtifactMetadata(file);
     if (metadata !== null) {
       // 1. RawScan Analysis (Room Area & Features)
       const rawScanPath = path.join(path.dirname(file), "rawScan.json");
@@ -568,7 +490,6 @@ async function main(): Promise<void> {
                 if (minWallDist > distThreshold) {
                   // Found a gap!
                   gapErrorFound = true;
-                  // console.log(`DEBUG: Toilet Gap: ${(minWallDist - tDepth / 2) * 39.37} inches`);
                 }
               }
             }
