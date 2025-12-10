@@ -54,6 +54,7 @@ interface VideoMetadata {
   hasStairs?: boolean;
   hasFireplace?: boolean;
   hasTelevision?: boolean;
+  hasDoorBlockingError?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -98,7 +99,7 @@ async function getVideoMetadata(filePath: string): Promise<VideoMetadata | null>
       resolve({
         duration: metadata.format.duration ?? DEFAULT_VALUE,
         environment,
-        filename: path.basename(filePath),
+        filename: path.basename(path.dirname(filePath)),
         fps,
         height: stream.height ?? DEFAULT_VALUE,
         path: filePath,
@@ -1249,6 +1250,64 @@ async function main(): Promise<void> {
               metadata.hasCrookedWallErrors = true;
             }
           }
+
+          // 4. Door Blocking Check
+          if (rawScan.doors !== undefined && rawScan.objects !== undefined) {
+            const DOOR_CLEARANCE_METERS = 0.6;
+            const DIM_X_IDX = 0;
+            const DIM_Z_IDX = 2;
+            const DIVISOR = 2;
+            const VAL_ZERO = 0;
+            const WIDTH_SHRINK = 0.1; // 10cm narrower to avoid grazing
+
+            // Pre-calculate Object Polygons
+            const objPolys: { category: string; corners: { x: number; y: number }[] }[] = [];
+            for (const o of rawScan.objects) {
+              const dX = o.dimensions[DIM_X_IDX] ?? VAL_ZERO;
+              const dZ = o.dimensions[DIM_Z_IDX] ?? VAL_ZERO;
+              const hX = dX / DIVISOR;
+              const hZ = dZ / DIVISOR;
+              // Local corners (bottom footprint)
+              const localCorners = [
+                { x: -hX, y: -hZ },
+                { x: hX, y: -hZ },
+                { x: hX, y: hZ },
+                { x: -hX, y: hZ }
+              ];
+              const worldCorners = localCorners.map((p) => transformPoint(p, o.transform));
+              objPolys.push({ category: JSON.stringify(o.category), corners: worldCorners });
+            }
+
+            let doorBlocked = false;
+
+            for (const door of rawScan.doors) {
+              const dW = door.dimensions[DIM_X_IDX] ?? VAL_ZERO;
+              const halfDW = Math.max(VAL_ZERO, dW - WIDTH_SHRINK) / DIVISOR;
+              // Clearance box
+              const clearanceBox = [
+                { x: -halfDW, y: -DOOR_CLEARANCE_METERS },
+                { x: halfDW, y: -DOOR_CLEARANCE_METERS },
+                { x: halfDW, y: DOOR_CLEARANCE_METERS },
+                { x: -halfDW, y: DOOR_CLEARANCE_METERS }
+              ];
+              const clearancePoly = clearanceBox.map((p) => transformPoint(p, door.transform));
+
+              for (const objRes of objPolys) {
+                const intersects = doPolygonsIntersect(clearancePoly, objRes.corners);
+                if (intersects) {
+                  doorBlocked = true;
+                  break;
+                }
+              }
+              if (doorBlocked) {
+                break;
+              }
+            }
+
+            if (doorBlocked) {
+              metadata.hasDoorBlockingError = true;
+            }
+          }
         } catch {
           // Ignore
         }
@@ -1510,6 +1569,7 @@ async function main(): Promise<void> {
   let countWallObjectIntersectionErrors = INITIAL_COUNT;
   let countWallWallIntersectionErrors = INITIAL_COUNT;
   let countCrookedWallErrors = INITIAL_COUNT;
+  let countDoorBlockingErrors = INITIAL_COUNT;
   let countWasherDryer = INITIAL_COUNT;
   let countStove = INITIAL_COUNT;
   let countTable = INITIAL_COUNT;
@@ -1576,6 +1636,9 @@ async function main(): Promise<void> {
     }
     if (m.hasCrookedWallErrors === true) {
       countCrookedWallErrors++;
+    }
+    if (m.hasDoorBlockingError === true) {
+      countDoorBlockingErrors++;
     }
     // New Feature Counts
     if (m.hasWasherDryer === true) {
@@ -1679,7 +1742,8 @@ async function main(): Promise<void> {
     "Object Intersections",
     "Wall <-> Object Intersections",
     "Wall <-> Wall Intersections",
-    "Crooked Walls"
+    "Crooked Walls",
+    "Door Blocked"
   ];
   const errorCounts = [
     countToiletGapErrors,
@@ -1689,7 +1753,8 @@ async function main(): Promise<void> {
     countObjectIntersectionErrors,
     countWallObjectIntersectionErrors,
     countWallWallIntersectionErrors,
-    countCrookedWallErrors
+    countCrookedWallErrors,
+    countDoorBlockingErrors
   ];
   const errorChart = await ChartUtils.createBarChart(errorLabels, errorCounts, "Capture Errors", {
     height: DURATION_CHART_HEIGHT,
