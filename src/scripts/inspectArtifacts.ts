@@ -13,7 +13,8 @@ import { distToSegment, getPosition, transformPoint } from "../utils/mathUtils";
 import { doPolygonsIntersect } from "../utils/sat";
 
 // 1. Video Metadata Extraction
-async function addVideoMetadata(filePath: string, metadata: ArtifactMetadata): Promise<boolean> {
+async function addVideoMetadata(dirPath: string, metadata: ArtifactMetadata): Promise<boolean> {
+  const filePath = path.join(dirPath, "video.mp4");
   const NUMERATOR_IDX = 0;
   const DENOMINATOR_IDX = 1;
   const PATH_OFFSET_ENVIRONMENT = 3;
@@ -65,19 +66,23 @@ async function addVideoMetadata(filePath: string, metadata: ArtifactMetadata): P
   return result;
 }
 
-function findVideoFiles(dir: string): string[] {
+function findArtifactDirectories(dir: string): string[] {
   let results: string[] = [];
   if (!fs.existsSync(dir)) {
     return [];
   }
   const list = fs.readdirSync(dir);
+
+  // Check if this directory is an artifact directory (contains video.mp4, arData.json, and rawScan.json)
+  if (list.includes("video.mp4") && list.includes("arData.json") && list.includes("rawScan.json")) {
+    results.push(dir);
+  }
+
   for (const file of list) {
     const fullPath = path.join(dir, file);
     const stat = fs.statSync(fullPath);
     if (stat.isDirectory()) {
-      results = results.concat(findVideoFiles(fullPath));
-    } else if (file === "video.mp4") {
-      results.push(fullPath);
+      results = results.concat(findArtifactDirectories(fullPath));
     }
   }
   return results;
@@ -112,21 +117,21 @@ async function main(): Promise<void> {
   const MIN_TUBS = 2;
   const MIN_WALLS = 4;
   const MIN_NON_RECT_CORNERS = 4;
-  const videoFiles = findVideoFiles(DATA_DIR);
-  console.log(`Found ${videoFiles.length.toString()} video files.`);
+  const artifactDirs = findArtifactDirectories(DATA_DIR);
+  console.log(`Found ${artifactDirs.length.toString()} artifact directories.`);
 
   console.log(" extracting metadata...");
   const metadataList: ArtifactMetadata[] = [];
-  const DEFAULT_STR = "";
-  const DEFAULT_NUM = 0;
+  const NOT_SET = "";
+  const NO_RESULTS = 0;
   let processed = INITIAL_COUNT;
 
-  for (const file of videoFiles) {
+  for (const dir of artifactDirs) {
     const metadata = new ArtifactMetadata();
-    const success = await addVideoMetadata(file, metadata);
+    const success = await addVideoMetadata(dir, metadata);
     if (success) {
       // 1. RawScan Analysis (Room Area & Features)
-      const rawScanPath = path.join(path.dirname(file), "rawScan.json");
+      const rawScanPath = path.join(dir, "rawScan.json");
       if (fs.existsSync(rawScanPath)) {
         try {
           const rawContent = fs.readFileSync(rawScanPath, "utf-8");
@@ -1191,7 +1196,7 @@ async function main(): Promise<void> {
         }
       }
 
-      const arDataPath = path.join(path.dirname(file), "arData.json");
+      const arDataPath = path.join(dir, "arData.json");
       if (fs.existsSync(arDataPath)) {
         try {
           const content = fs.readFileSync(arDataPath, "utf-8");
@@ -1204,7 +1209,7 @@ async function main(): Promise<void> {
             const firstFrame = frames[INITIAL_COUNT];
             if (firstFrame) {
               const model = firstFrame.exifData.LensModel;
-              if (model !== undefined && model !== DEFAULT_STR) {
+              if (model !== undefined && model !== NOT_SET) {
                 metadata.lensModel = model;
               }
             }
@@ -1231,7 +1236,7 @@ async function main(): Promise<void> {
 
             // ISOSpeedRatings check (exifData is required)
             const isoRatings = frame.exifData.ISOSpeedRatings;
-            if (isoRatings !== undefined && isoRatings !== DEFAULT_STR) {
+            if (isoRatings !== undefined && isoRatings !== NOT_SET) {
               // Strip non-numeric chars (sometimes comes as "( 125 )" or similar)
               const isoStr = isoRatings.replace(/[^0-9.]/g, "");
               const isoVal = parseFloat(isoStr);
@@ -1242,7 +1247,7 @@ async function main(): Promise<void> {
 
             // BrightnessValue check
             const brightness = frame.exifData.BrightnessValue;
-            if (brightness !== undefined && brightness !== DEFAULT_STR) {
+            if (brightness !== undefined && brightness !== NOT_SET) {
               // BrightnessValue is typically a number string, but sanity check
               const briVal = parseFloat(brightness);
               if (!isNaN(briVal)) {
@@ -1316,7 +1321,7 @@ async function main(): Promise<void> {
   // Lens Models
   const lensMap: Record<string, number> = {};
   for (const m of metadataList) {
-    if (m.lensModel !== DEFAULT_STR) {
+    if (m.lensModel !== NOT_SET) {
       lensMap[m.lensModel] = (lensMap[m.lensModel] ?? INITIAL_COUNT) + INCREMENT_STEP;
     }
   }
@@ -1330,11 +1335,11 @@ async function main(): Promise<void> {
   });
 
   // Lighting & Exposure Data
-  const intensityVals = metadataList.map((m) => m.avgAmbientIntensity).filter((v) => v > DEFAULT_NUM);
-  const tempVals = metadataList.map((m) => m.avgColorTemperature).filter((v) => v > DEFAULT_NUM);
-  const isoVals = metadataList.map((m) => m.avgIso).filter((v) => v > DEFAULT_NUM);
-  const briVals = metadataList.map((m) => m.avgBrightness).filter((v) => v !== DEFAULT_NUM);
-  const areaVals = metadataList.map((m) => m.roomAreaSqFt).filter((v) => v > DEFAULT_NUM);
+  const intensityVals = metadataList.map((m) => m.avgAmbientIntensity).filter((v) => v > NO_RESULTS);
+  const tempVals = metadataList.map((m) => m.avgColorTemperature).filter((v) => v > NO_RESULTS);
+  const isoVals = metadataList.map((m) => m.avgIso).filter((v) => v > NO_RESULTS);
+  const briVals = metadataList.map((m) => m.avgBrightness).filter((v) => v !== NO_RESULTS);
+  const areaVals = metadataList.map((m) => m.roomAreaSqFt).filter((v) => v > NO_RESULTS);
 
   // Charts
   console.log("Generating charts...");
