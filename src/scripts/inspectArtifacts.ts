@@ -1063,6 +1063,7 @@ async function main(): Promise<void> {
             const WALL_SHRINK_METERS = 0.1; // 10cm shrink
             const JOIN_DIST_METERS = 0.2; // 20cm tolerance for "joined"
             const CROOKED_THRESHOLD_DEG = 5;
+            const CROOKED_MIN_DEG = 1.0;
             const RAD_TO_DEG = 57.2957795; // 180 / PI
 
             // 1. Pre-process Walls
@@ -1204,7 +1205,7 @@ async function main(): Promise<void> {
                   const angleRad = Math.acos(Math.abs(clampedDot));
                   const angleDeg = angleRad * RAD_TO_DEG;
 
-                  if (angleDeg <= CROOKED_THRESHOLD_DEG) {
+                  if (angleDeg > CROOKED_MIN_DEG && angleDeg <= CROOKED_THRESHOLD_DEG) {
                     crookedWallFound = true;
                   }
                 }
