@@ -40,6 +40,7 @@ interface VideoMetadata {
   hasNibWalls?: boolean;
   hasObjectIntersectionErrors?: boolean;
   hasWallObjectIntersectionErrors?: boolean;
+  hasWallWallIntersectionErrors?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -1048,11 +1049,16 @@ async function main(): Promise<void> {
               metadata.hasObjectIntersectionErrors = true;
             }
 
-            // --- Wall <-> Object Intersection ---
+            // --- Wall Processing & Intersections ---
             // rawScan.walls might be undefined in some partial scans
             const wallsToCheck = rawScan.walls ?? [];
-            let wallObjectIntersectionFound = false;
+            const processedWalls: {
+              fullCorners: { x: number; y: number }[];
+              shrunkCorners: { x: number; y: number }[];
+            }[] = [];
+            const WALL_SHRINK_METERS = 0.1; // 10cm shrink ~4 inches from ends to avoid corner overlaps
 
+            // 1. Pre-process Walls
             for (const w of wallsToCheck) {
               // Transform is optional
               const wTransform = w.transform;
@@ -1060,7 +1066,6 @@ async function main(): Promise<void> {
                 continue;
               }
 
-              // Dimensions is explicitly required by logic, trusting ESLint/Interface over Class ?
               const wDims = w.dimensions;
 
               if (wTransform.length !== TRANSFORM_SIZE || wDims.length !== DIM_SIZE) {
@@ -1069,7 +1074,9 @@ async function main(): Promise<void> {
 
               const halfW = (wDims[DIM_X] ?? DEFAULT_DIM) / HALF;
               const halfD = (wDims[DIM_Z] ?? DEFAULT_DIM) / HALF;
+              const shrunkHalfW = Math.max(ZERO, halfW - WALL_SHRINK_METERS);
 
+              // Standard Corners (Full Size)
               const corners = [
                 { x: -halfW, y: -halfD },
                 { x: halfW, y: -halfD },
@@ -1077,11 +1084,30 @@ async function main(): Promise<void> {
                 { x: -halfW, y: halfD }
               ];
 
-              const wallCorners = corners.map((c) => {
+              // Shrunk Corners (For Wall-Wall checks)
+              const sCorners = [
+                { x: -shrunkHalfW, y: -halfD },
+                { x: shrunkHalfW, y: -halfD },
+                { x: shrunkHalfW, y: halfD },
+                { x: -shrunkHalfW, y: halfD }
+              ];
+
+              const fullCorners = corners.map((c) => {
                 const res = transformPoint(c, wTransform);
                 return { x: res.x, y: res.y };
               });
 
+              const shrunkCorners = sCorners.map((c) => {
+                const res = transformPoint(c, wTransform);
+                return { x: res.x, y: res.y };
+              });
+
+              processedWalls.push({ fullCorners, shrunkCorners });
+            }
+
+            // 2. Wall <-> Object Intersection
+            let wallObjectIntersectionFound = false;
+            for (const pw of processedWalls) {
               for (const objAABB of objAABBs) {
                 const EMPTY_LEN = 0;
                 if (objAABB.corners.length === EMPTY_LEN) {
@@ -1093,19 +1119,45 @@ async function main(): Promise<void> {
                   continue;
                 }
 
-                if (doPolygonsIntersect(wallCorners, objAABB.innerCorners)) {
+                // Use Full Wall vs Shrunk Object
+                if (doPolygonsIntersect(pw.fullCorners, objAABB.innerCorners)) {
                   wallObjectIntersectionFound = true;
                   break;
                 }
               }
-
               if (wallObjectIntersectionFound) {
+                break;
+              }
+            }
+
+            // 3. Wall <-> Wall Intersection
+            let wallWallIntersectionFound = false;
+            for (let i = 0; i < processedWalls.length; i++) {
+              const pw1 = processedWalls[i];
+              if (pw1 === undefined) {
+                continue;
+              }
+              for (let j = i + INCREMENT_STEP; j < processedWalls.length; j++) {
+                const pw2 = processedWalls[j];
+                if (pw2 === undefined) {
+                  continue;
+                }
+                // Use Shrunk Wall vs Shrunk Wall to avoid corner touches
+                if (doPolygonsIntersect(pw1.shrunkCorners, pw2.shrunkCorners)) {
+                  wallWallIntersectionFound = true;
+                  break;
+                }
+              }
+              if (wallWallIntersectionFound) {
                 break;
               }
             }
 
             if (wallObjectIntersectionFound) {
               metadata.hasWallObjectIntersectionErrors = true;
+            }
+            if (wallWallIntersectionFound) {
+              metadata.hasWallWallIntersectionErrors = true;
             }
           }
         } catch {
@@ -1367,6 +1419,7 @@ async function main(): Promise<void> {
   let countNibWalls = INITIAL_COUNT;
   let countObjectIntersectionErrors = INITIAL_COUNT;
   let countWallObjectIntersectionErrors = INITIAL_COUNT;
+  let countWallWallIntersectionErrors = INITIAL_COUNT;
 
   for (const m of metadataList) {
     if (m.hasNonRectWall === true) {
@@ -1416,6 +1469,9 @@ async function main(): Promise<void> {
     if (m.hasWallObjectIntersectionErrors === true) {
       countWallObjectIntersectionErrors++;
     }
+    if (m.hasWallWallIntersectionErrors === true) {
+      countWallWallIntersectionErrors++;
+    }
   }
 
   const featureLabels = [
@@ -1454,7 +1510,8 @@ async function main(): Promise<void> {
     'Wall Gaps 1"-12"',
     "Colinear Walls",
     "Object Intersections",
-    "Wall <-> Object Intersections"
+    "Wall <-> Object Intersections",
+    "Wall <-> Wall Intersections"
   ];
   const errorCounts = [
     countToiletGapErrors,
@@ -1462,7 +1519,8 @@ async function main(): Promise<void> {
     countWallGapErrors,
     countColinearWallErrors,
     countObjectIntersectionErrors,
-    countWallObjectIntersectionErrors
+    countWallObjectIntersectionErrors,
+    countWallWallIntersectionErrors
   ];
   const errorChart = await ChartUtils.createBarChart(errorLabels, errorCounts, "Capture Errors", {
     height: DURATION_CHART_HEIGHT,
