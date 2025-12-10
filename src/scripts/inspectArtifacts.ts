@@ -8,6 +8,7 @@ import { Floor } from "../models/rawScan/floor";
 import { RawScan, RawScanData } from "../models/rawScan/rawScan";
 import { Wall } from "../models/rawScan/wall";
 import * as ChartUtils from "../utils/chartUtils";
+import { doPolygonsIntersect } from "../utils/sat";
 
 interface VideoMetadata {
   path: string;
@@ -37,6 +38,7 @@ interface VideoMetadata {
   hasWallGapErrors?: boolean;
   hasColinearWallErrors?: boolean;
   hasNibWalls?: boolean;
+  hasObjectIntersectionErrors?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -893,6 +895,138 @@ async function main(): Promise<void> {
             if (nibWallFound) {
               metadata.hasNibWalls = true;
             }
+
+            // 6. Object Intersection Detection (AABB)
+            // Exclusion: Sink <-> Storage
+            // Types guarantee rawScan.objects is an array
+            const objects = rawScan.objects;
+            let objIntersectionFound = false;
+
+            // Pre-calculate AABBs
+            const objAABBs: {
+              isSink: boolean;
+              isStorage: boolean;
+              maxX: number;
+              maxZ: number;
+              minX: number;
+              minZ: number;
+              corners: { x: number; y: number }[];
+            }[] = [];
+
+            const DIM_X = 0;
+            const DIM_Z = 2;
+            const HALF = 2;
+            const DEFAULT_DIM = 0;
+            const INIT_COORD = 0;
+            const DIM_SIZE = 3;
+
+            for (const o of objects) {
+              // Validating lengths. TS thinks they are mandatory, but safe check at runtime inside try/catch if strictly needed.
+              // Linter: Unnecessary optional chain on non-nullish.
+              // Removing optional chain as per linter, relying on try-catch for runtime safety if needed.
+              if (o.transform.length !== TRANSFORM_SIZE || o.dimensions.length !== DIM_SIZE) {
+                objAABBs.push({
+                  corners: [],
+                  isSink: false,
+                  isStorage: false,
+                  maxX: INIT_COORD,
+                  maxZ: INIT_COORD,
+                  minX: INIT_COORD,
+                  minZ: INIT_COORD
+                }); // Empty/Invalid
+                continue;
+              }
+
+              const halfW = (o.dimensions[DIM_X] ?? DEFAULT_DIM) / HALF;
+              const halfD = (o.dimensions[DIM_Z] ?? DEFAULT_DIM) / HALF;
+
+              // Local corners (y is ignored for floor plan)
+              const corners = [
+                { x: -halfW, y: -halfD },
+                { x: halfW, y: -halfD },
+                { x: halfW, y: halfD },
+                { x: -halfW, y: halfD }
+              ];
+
+              let minX = Number.MAX_VALUE;
+              let minZ = Number.MAX_VALUE;
+              let maxX = -Number.MAX_VALUE;
+              let maxZ = -Number.MAX_VALUE;
+
+              for (const c of corners) {
+                const worldP = transformPoint(c, o.transform);
+                if (worldP.x < minX) {
+                  minX = worldP.x;
+                }
+                if (worldP.x > maxX) {
+                  maxX = worldP.x;
+                }
+                if (worldP.y < minZ) {
+                  minZ = worldP.y;
+                }
+                if (worldP.y > maxZ) {
+                  maxZ = worldP.y;
+                }
+              }
+
+              objAABBs.push({
+                corners: corners.map((c) => {
+                  const res = transformPoint(c, o.transform);
+                  return { x: res.x, y: res.y };
+                }),
+                isSink: o.category.sink !== undefined,
+                isStorage: o.category.storage !== undefined,
+                maxX,
+                maxZ,
+                minX,
+                minZ
+              });
+            }
+
+            for (let i = 0; i < objects.length; i++) {
+              const boxA = objAABBs[i];
+              if (!boxA) {
+                continue;
+              }
+              // Skip invalid boxes if any
+              if (boxA.minX >= boxA.maxX) {
+                continue;
+              }
+
+              // Loop start index
+              const NEXT_IDX = 1;
+              for (let j = i + NEXT_IDX; j < objects.length; j++) {
+                const boxB = objAABBs[j];
+                if (!boxB) {
+                  continue;
+                }
+                if (boxB.minX >= boxB.maxX) {
+                  continue;
+                }
+
+                // Check Exclusion: Sink <-> Storage
+                if ((boxA.isSink && boxB.isStorage) || (boxA.isStorage && boxB.isSink)) {
+                  continue;
+                }
+
+                // Check Intersection using Separating Axis Theorem (SAT)
+                // AABBs are too crude for rotated objects.
+                const cornersA = boxA.corners; // We need to store corners in objAABBs
+                const cornersB = boxB.corners;
+
+                if (doPolygonsIntersect(cornersA, cornersB)) {
+                  objIntersectionFound = true;
+                  break;
+                }
+              }
+              if (objIntersectionFound) {
+                break;
+              }
+            }
+
+            if (objIntersectionFound) {
+              metadata.hasObjectIntersectionErrors = true;
+            }
           }
         } catch {
           // Ignore
@@ -1151,6 +1285,7 @@ async function main(): Promise<void> {
   let countWallGapErrors = INITIAL_COUNT;
   let countColinearWallErrors = INITIAL_COUNT;
   let countNibWalls = INITIAL_COUNT;
+  let countObjectIntersectionErrors = INITIAL_COUNT;
 
   for (const m of metadataList) {
     if (m.hasNonRectWall === true) {
@@ -1194,6 +1329,9 @@ async function main(): Promise<void> {
     if (m.hasNibWalls === true) {
       countNibWalls++;
     }
+    if (m.hasObjectIntersectionErrors === true) {
+      countObjectIntersectionErrors++;
+    }
   }
 
   const featureLabels = [
@@ -1226,18 +1364,26 @@ async function main(): Promise<void> {
   });
 
   // Error Chart
-  const errorCounts = [countToiletGapErrors, countTubGapErrors, countWallGapErrors, countColinearWallErrors];
-  const errorChart = await ChartUtils.createBarChart(
-    ['Toilet Gap > 1"', 'Tub Gap 1"-6"', 'Wall Gaps 1"-12"', "Colinear Walls"],
-    errorCounts,
-    "Capture Warnings",
-    {
-      height: DURATION_CHART_HEIGHT,
-      horizontal: true,
-      totalForPercentages: metadataList.length,
-      width: DURATION_CHART_WIDTH
-    }
-  );
+  const errorLabels = [
+    'Toilet Gap > 1"',
+    'Tub Gap 1"-6"',
+    'Wall Gaps 1"-12"',
+    "Colinear Walls",
+    "Object Intersections"
+  ];
+  const errorCounts = [
+    countToiletGapErrors,
+    countTubGapErrors,
+    countWallGapErrors,
+    countColinearWallErrors,
+    countObjectIntersectionErrors
+  ];
+  const errorChart = await ChartUtils.createBarChart(errorLabels, errorCounts, "Capture Errors", {
+    height: DURATION_CHART_HEIGHT,
+    horizontal: true,
+    totalForPercentages: metadataList.length,
+    width: DURATION_CHART_WIDTH
+  });
 
   // PDF Generation
   console.log("Generating PDF...");
@@ -1299,7 +1445,7 @@ async function main(): Promise<void> {
   const gapScaled = GAP_Y * HEIGHT_ADJUSTMENT_FACTOR;
   const errorChartY = Y_START + gapScaled;
   doc.image(errorChart, LEFT_X, errorChartY, { height: H, width: FULL_W });
-  doc.text("Capture Warnings", LEFT_X, errorChartY + H + TEXT_PADDING, {
+  doc.text("Capture Errors", LEFT_X, errorChartY + H + TEXT_PADDING, {
     align: "center",
     width: FULL_W
   });
