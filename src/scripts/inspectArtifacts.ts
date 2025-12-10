@@ -41,6 +41,7 @@ interface VideoMetadata {
   hasObjectIntersectionErrors?: boolean;
   hasWallObjectIntersectionErrors?: boolean;
   hasWallWallIntersectionErrors?: boolean;
+  hasCrookedWallErrors?: boolean;
 }
 
 // 1. Video Metadata Extraction
@@ -1052,11 +1053,17 @@ async function main(): Promise<void> {
             // --- Wall Processing & Intersections ---
             // rawScan.walls might be undefined in some partial scans
             const wallsToCheck = rawScan.walls ?? [];
+
             const processedWalls: {
               fullCorners: { x: number; y: number }[];
               shrunkCorners: { x: number; y: number }[];
+              endpoints: { x: number; y: number }[];
+              dir: { x: number; y: number };
             }[] = [];
-            const WALL_SHRINK_METERS = 0.1; // 10cm shrink ~4 inches from ends to avoid corner overlaps
+            const WALL_SHRINK_METERS = 0.1; // 10cm shrink
+            const JOIN_DIST_METERS = 0.2; // 20cm tolerance for "joined"
+            const CROOKED_THRESHOLD_DEG = 5;
+            const RAD_TO_DEG = 57.2957795; // 180 / PI
 
             // 1. Pre-process Walls
             for (const w of wallsToCheck) {
@@ -1102,7 +1109,22 @@ async function main(): Promise<void> {
                 return { x: res.x, y: res.y };
               });
 
-              processedWalls.push({ fullCorners, shrunkCorners });
+              // Endpoints (Center Left, Center Right along local X)
+              const pLeft = transformPoint({ x: -halfW, y: 0 }, wTransform);
+              const pRight = transformPoint({ x: halfW, y: 0 }, wTransform);
+              const dx = pRight.x - pLeft.x;
+              const dy = pRight.y - pLeft.y;
+              const dxSq = dx * dx;
+              const dySq = dy * dy;
+              const len = Math.sqrt(dxSq + dySq);
+              const dir = len > ZERO ? { x: dx / len, y: dy / len } : { x: 1, y: 0 };
+
+              processedWalls.push({
+                dir,
+                endpoints: [pLeft, pRight],
+                fullCorners,
+                shrunkCorners
+              });
             }
 
             // 2. Wall <-> Object Intersection
@@ -1113,13 +1135,9 @@ async function main(): Promise<void> {
                 if (objAABB.corners.length === EMPTY_LEN) {
                   continue;
                 }
-
-                // Use innerCorners for Wall intersection to allow "touching"
                 if (objAABB.innerCorners.length === EMPTY_LEN) {
                   continue;
                 }
-
-                // Use Full Wall vs Shrunk Object
                 if (doPolygonsIntersect(pw.fullCorners, objAABB.innerCorners)) {
                   wallObjectIntersectionFound = true;
                   break;
@@ -1130,8 +1148,10 @@ async function main(): Promise<void> {
               }
             }
 
-            // 3. Wall <-> Wall Intersection
+            // 3. Wall <-> Wall Intersection & Crooked Walls
             let wallWallIntersectionFound = false;
+            let crookedWallFound = false;
+
             for (let i = 0; i < processedWalls.length; i++) {
               const pw1 = processedWalls[i];
               if (pw1 === undefined) {
@@ -1142,13 +1162,54 @@ async function main(): Promise<void> {
                 if (pw2 === undefined) {
                   continue;
                 }
-                // Use Shrunk Wall vs Shrunk Wall to avoid corner touches
+                // A. Intersection Check (Shrunk vs Shrunk)
                 if (doPolygonsIntersect(pw1.shrunkCorners, pw2.shrunkCorners)) {
                   wallWallIntersectionFound = true;
-                  break;
+                }
+
+                // B. Crooked Wall Check (Joined at small angle)
+                // Check if any endpoints are close
+                let checkJoined = false;
+                for (const ep1 of pw1.endpoints) {
+                  for (const ep2 of pw2.endpoints) {
+                    const diffX = ep1.x - ep2.x;
+                    const diffY = ep1.y - ep2.y;
+                    const EXPONENT_SQ = 2;
+                    const distSq = Math.pow(diffX, EXPONENT_SQ) + Math.pow(diffY, EXPONENT_SQ);
+                    const thresholdSq = Math.pow(JOIN_DIST_METERS, EXPONENT_SQ);
+
+                    if (distSq < thresholdSq) {
+                      checkJoined = true;
+                      break;
+                    }
+                  }
+                  if (checkJoined) {
+                    break;
+                  }
+                }
+
+                if (checkJoined) {
+                  // Angle check
+                  // Dot product
+                  const dotX = pw1.dir.x * pw2.dir.x;
+                  const dotY = pw1.dir.y * pw2.dir.y;
+                  const dot = dotX + dotY;
+                  // Clamp to -1..1
+                  const CLAMP_DOT_MIN = -1;
+                  const CLAMP_DOT_MAX = 1;
+                  const clampedDot = Math.max(CLAMP_DOT_MIN, Math.min(CLAMP_DOT_MAX, dot));
+                  // We care about the angle of the lines, so |dot| corresponds to 0..90 range deviation
+                  // If lines are parallel, |dot| = 1. Angle = 0.
+                  // If lines are perpendicular, |dot| = 0. Angle = 90.
+                  const angleRad = Math.acos(Math.abs(clampedDot));
+                  const angleDeg = angleRad * RAD_TO_DEG;
+
+                  if (angleDeg <= CROOKED_THRESHOLD_DEG) {
+                    crookedWallFound = true;
+                  }
                 }
               }
-              if (wallWallIntersectionFound) {
+              if (wallWallIntersectionFound && crookedWallFound) {
                 break;
               }
             }
@@ -1158,6 +1219,9 @@ async function main(): Promise<void> {
             }
             if (wallWallIntersectionFound) {
               metadata.hasWallWallIntersectionErrors = true;
+            }
+            if (crookedWallFound) {
+              metadata.hasCrookedWallErrors = true;
             }
           }
         } catch {
@@ -1420,6 +1484,7 @@ async function main(): Promise<void> {
   let countObjectIntersectionErrors = INITIAL_COUNT;
   let countWallObjectIntersectionErrors = INITIAL_COUNT;
   let countWallWallIntersectionErrors = INITIAL_COUNT;
+  let countCrookedWallErrors = INITIAL_COUNT;
 
   for (const m of metadataList) {
     if (m.hasNonRectWall === true) {
@@ -1472,6 +1537,9 @@ async function main(): Promise<void> {
     if (m.hasWallWallIntersectionErrors === true) {
       countWallWallIntersectionErrors++;
     }
+    if (m.hasCrookedWallErrors === true) {
+      countCrookedWallErrors++;
+    }
   }
 
   const featureLabels = [
@@ -1511,7 +1579,8 @@ async function main(): Promise<void> {
     "Colinear Walls",
     "Object Intersections",
     "Wall <-> Object Intersections",
-    "Wall <-> Wall Intersections"
+    "Wall <-> Wall Intersections",
+    "Crooked Walls"
   ];
   const errorCounts = [
     countToiletGapErrors,
@@ -1520,7 +1589,8 @@ async function main(): Promise<void> {
     countColinearWallErrors,
     countObjectIntersectionErrors,
     countWallObjectIntersectionErrors,
-    countWallWallIntersectionErrors
+    countWallWallIntersectionErrors,
+    countCrookedWallErrors
   ];
   const errorChart = await ChartUtils.createBarChart(errorLabels, errorCounts, "Capture Errors", {
     height: DURATION_CHART_HEIGHT,
