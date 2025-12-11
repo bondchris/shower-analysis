@@ -144,6 +144,14 @@ npm run check-format
 npm run format
 ```
 
+### Testing
+
+Run unit tests with Jest:
+
+```bash
+npm test
+```
+
 ## Directory Structure
 
 - `src/`: Source TypeScript files.
