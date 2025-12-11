@@ -9,6 +9,16 @@ module.exports = {
     "plugin:@typescript-eslint/stylistic-type-checked",
     "prettier"
   ],
+  ignorePatterns: ["jest.config.js"],
+  overrides: [
+    {
+      files: ["tests/**/*.ts", "tests/**/*.js"],
+      rules: {
+        "@typescript-eslint/ban-ts-comment": "off",
+        "no-magic-numbers": "off"
+      }
+    }
+  ],
   parser: "@typescript-eslint/parser",
   parserOptions: {
     ecmaVersion: "latest",
