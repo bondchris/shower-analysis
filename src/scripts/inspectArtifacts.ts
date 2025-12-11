@@ -61,6 +61,7 @@ async function addVideoMetadata(dirPath: string, metadata: ArtifactMetadata): Pr
       const environment = parts[parts.length - PATH_OFFSET_ENVIRONMENT] ?? "unknown";
 
       // Populate valid metadata
+      // Populate valid metadata
       metadata.duration = meta.format.duration ?? DEFAULT_VALUE;
       metadata.environment = environment;
       metadata.filename = path.basename(path.dirname(filePath));
@@ -73,6 +74,26 @@ async function addVideoMetadata(dirPath: string, metadata: ArtifactMetadata): Pr
     });
   });
   return result;
+}
+
+interface ChartDef {
+  check: (m: ArtifactMetadata) => boolean;
+  count: number;
+  label: string;
+}
+
+interface CaptureCharts {
+  ambient: Buffer;
+  area: Buffer;
+  brightness: Buffer;
+  duration: Buffer;
+  errors: Buffer;
+  features: Buffer;
+  fps: Buffer;
+  iso: Buffer;
+  lens: Buffer;
+  resolution: Buffer;
+  temperature: Buffer;
 }
 
 // 2. RawScan Analysis
@@ -239,25 +260,304 @@ function findArtifactDirectories(dir: string): string[] {
   return results;
 }
 
-async function main(): Promise<void> {
-  const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
-  const REPORT_PATH = path.join(process.cwd(), "reports", "data-analysis.pdf");
+async function generateCharts(metadataList: ArtifactMetadata[]): Promise<CaptureCharts> {
   const INITIAL_COUNT = 0;
-  const PROGRESS_UPDATE_INTERVAL = 10;
-  const DECIMAL_PLACES = 2;
   const INCREMENT_STEP = 1;
-
-  const MARGIN = 50;
-  const PDF_TITLE_SIZE = 25;
-  const PDF_BODY_SIZE = 12;
-  const SPACING_SMALL = 0.5;
-  const PDF_SUBTITLE_SIZE = 16;
-  const CHART_SPACING = 10;
+  const NOT_SET = "";
+  const NO_RESULTS = 0;
+  // Chart Params
+  const DURATION_CHART_WIDTH = 1020;
+  const DURATION_CHART_HEIGHT = 320;
 
   // Histogram Constants
   const MIN_TOILETS = 2;
   const MIN_TUBS = 2;
   const MIN_WALLS = 4;
+
+  console.log("Generating charts...");
+  const charts = {} as CaptureCharts;
+
+  // Lens Models
+  const lensMap: Record<string, number> = {};
+  for (const m of metadataList) {
+    if (m.lensModel !== NOT_SET) {
+      lensMap[m.lensModel] = (lensMap[m.lensModel] ?? INITIAL_COUNT) + INCREMENT_STEP;
+    }
+  }
+  // Sort by count descending
+  const lensLabels = Object.keys(lensMap).sort((a, b) => (lensMap[b] ?? INITIAL_COUNT) - (lensMap[a] ?? INITIAL_COUNT));
+  const lensCounts = lensLabels.map((l) => lensMap[l] ?? INITIAL_COUNT);
+  charts.lens = await ChartUtils.createBarChart(lensLabels, lensCounts, "Lens Model Distribution", {
+    height: DURATION_CHART_HEIGHT,
+    horizontal: true,
+    width: DURATION_CHART_WIDTH
+  });
+
+  // Lighting & Exposure Data
+  const intensityVals = metadataList.map((m) => m.avgAmbientIntensity).filter((v) => v > NO_RESULTS);
+  const tempVals = metadataList.map((m) => m.avgColorTemperature).filter((v) => v > NO_RESULTS);
+  const isoVals = metadataList.map((m) => m.avgIso).filter((v) => v > NO_RESULTS);
+  const briVals = metadataList.map((m) => m.avgBrightness).filter((v) => v !== NO_RESULTS);
+  const areaVals = metadataList.map((m) => m.roomAreaSqFt).filter((v) => v > NO_RESULTS);
+  const durations = metadataList.map((m) => m.duration);
+
+  // Duration: min 10, max 120, bin 10
+  charts.duration = await ChartUtils.createHistogram(durations, "Seconds", "Duration", {
+    binSize: 10,
+    height: DURATION_CHART_HEIGHT,
+    hideUnderflow: true,
+    max: 120,
+    min: 10,
+    width: DURATION_CHART_WIDTH
+  });
+
+  // Ambient: 980-1040, bin 5
+  charts.ambient = await ChartUtils.createHistogram(intensityVals, "Lumens", "Ambient Intensity", {
+    binSize: 5,
+    max: 1040,
+    min: 980
+  });
+
+  // Temp: 4000-6000, bin 250
+  charts.temperature = await ChartUtils.createHistogram(tempVals, "Kelvin", "Color Temperature", {
+    binSize: 250,
+    colorByValue: ChartUtils.kelvinToRgb,
+    max: 6000,
+    min: 4000
+  });
+
+  // ISO: 0-800, bin 50
+  charts.iso = await ChartUtils.createHistogram(isoVals, "ISO", "ISO Speed", {
+    binSize: 50,
+    hideUnderflow: true,
+    max: 800,
+    min: 0
+  });
+
+  // Brightness: 0-6, bin 1
+  charts.brightness = await ChartUtils.createHistogram(briVals, "Value (EV)", "Brightness Value", {
+    binSize: 1,
+    decimalPlaces: 1,
+    max: 6,
+    min: 0
+  });
+
+  // Room Area: 0-150, bin 10
+  charts.area = await ChartUtils.createHistogram(areaVals, "Sq Ft", "Room Area", {
+    binSize: 10,
+    height: DURATION_CHART_HEIGHT,
+    hideUnderflow: true,
+    max: 150,
+    min: 0,
+    width: DURATION_CHART_WIDTH
+  });
+
+  // Existing FPS/Res logic
+  const framerates = metadataList.map((m) => Math.round(m.fps));
+  const fpsDistribution: Record<string, number> = {};
+  framerates.forEach((fps) => {
+    fpsDistribution[String(fps)] = (fpsDistribution[String(fps)] ?? INITIAL_COUNT) + INCREMENT_STEP;
+  });
+  const fpsLabels = Object.keys(fpsDistribution).sort((a, b) => parseFloat(a) - parseFloat(b));
+  const fpsCounts = fpsLabels.map((l) => fpsDistribution[l] ?? INITIAL_COUNT);
+  charts.fps = await ChartUtils.createBarChart(fpsLabels, fpsCounts, "Framerate");
+
+  const resolutions = metadataList.map((m) => `${m.width.toString()}x${m.height.toString()}`);
+  const resDistribution: Record<string, number> = {};
+  resolutions.forEach((res) => {
+    resDistribution[res] = (resDistribution[res] ?? INITIAL_COUNT) + INCREMENT_STEP;
+  });
+  const resLabels = Object.keys(resDistribution).sort();
+  const resCounts = resLabels.map((l) => resDistribution[l] ?? INITIAL_COUNT);
+  charts.resolution = await ChartUtils.createBarChart(resLabels, resCounts, "Resolution");
+
+  // Feature Prevalence
+  const featureDefs: ChartDef[] = [
+    { check: (m: ArtifactMetadata) => m.hasNonRectWall, count: INITIAL_COUNT, label: "Non-Rectangular Walls" },
+    { check: (m: ArtifactMetadata) => m.hasCurvedWall, count: INITIAL_COUNT, label: "Curved Walls" },
+    { check: (m: ArtifactMetadata) => m.toiletCount >= MIN_TOILETS, count: INITIAL_COUNT, label: "2+ Toilets" },
+    { check: (m: ArtifactMetadata) => m.tubCount >= MIN_TUBS, count: INITIAL_COUNT, label: "2+ Tubs" },
+    { check: (m: ArtifactMetadata) => m.wallCount < MIN_WALLS, count: INITIAL_COUNT, label: "< 4 Walls" },
+    {
+      check: (m: ArtifactMetadata) => m.sinkCount === INITIAL_COUNT && m.storageCount === INITIAL_COUNT,
+      count: INITIAL_COUNT,
+      label: "No Vanity"
+    },
+    { check: (m: ArtifactMetadata) => m.hasExternalOpening, count: INITIAL_COUNT, label: "External Opening" },
+    { check: (m: ArtifactMetadata) => m.hasSoffit, count: INITIAL_COUNT, label: "Soffit" },
+    { check: (m: ArtifactMetadata) => m.hasNibWalls, count: INITIAL_COUNT, label: "Nib Walls (< 1ft)" },
+    { check: (m: ArtifactMetadata) => m.hasWasherDryer, count: INITIAL_COUNT, label: "Washer/Dryer" },
+    { check: (m: ArtifactMetadata) => m.hasStove, count: INITIAL_COUNT, label: "Stove" },
+    { check: (m: ArtifactMetadata) => m.hasTable, count: INITIAL_COUNT, label: "Table" },
+    { check: (m: ArtifactMetadata) => m.hasChair, count: INITIAL_COUNT, label: "Chair" },
+    { check: (m: ArtifactMetadata) => m.hasBed, count: INITIAL_COUNT, label: "Bed" },
+    { check: (m: ArtifactMetadata) => m.hasSofa, count: INITIAL_COUNT, label: "Sofa" },
+    { check: (m: ArtifactMetadata) => m.hasDishwasher, count: INITIAL_COUNT, label: "Dishwasher" },
+    { check: (m: ArtifactMetadata) => m.hasOven, count: INITIAL_COUNT, label: "Oven" },
+    { check: (m: ArtifactMetadata) => m.hasRefrigerator, count: INITIAL_COUNT, label: "Refrigerator" },
+    { check: (m: ArtifactMetadata) => m.hasStairs, count: INITIAL_COUNT, label: "Stairs" },
+    { check: (m: ArtifactMetadata) => m.hasFireplace, count: INITIAL_COUNT, label: "Fireplace" },
+    { check: (m: ArtifactMetadata) => m.hasTelevision, count: INITIAL_COUNT, label: "Television" }
+  ];
+
+  const errorDefs: ChartDef[] = [
+    { check: (m: ArtifactMetadata) => m.hasToiletGapErrors, count: INITIAL_COUNT, label: 'Toilet Gap > 1"' },
+    { check: (m: ArtifactMetadata) => m.hasTubGapErrors, count: INITIAL_COUNT, label: 'Tub Gap 1"-6"' },
+    { check: (m: ArtifactMetadata) => m.hasWallGapErrors, count: INITIAL_COUNT, label: 'Wall Gaps 1"-12"' },
+    { check: (m: ArtifactMetadata) => m.hasColinearWallErrors, count: INITIAL_COUNT, label: "Colinear Walls" },
+    {
+      check: (m: ArtifactMetadata) => m.hasObjectIntersectionErrors,
+      count: INITIAL_COUNT,
+      label: "Object Intersections"
+    },
+    {
+      check: (m: ArtifactMetadata) => m.hasWallObjectIntersectionErrors,
+      count: INITIAL_COUNT,
+      label: "Wall <-> Object Intersections"
+    },
+    {
+      check: (m: ArtifactMetadata) => m.hasWallWallIntersectionErrors,
+      count: INITIAL_COUNT,
+      label: "Wall <-> Wall Intersections"
+    },
+    { check: (m: ArtifactMetadata) => m.hasCrookedWallErrors, count: INITIAL_COUNT, label: "Crooked Walls" },
+    { check: (m: ArtifactMetadata) => m.hasDoorBlockingError, count: INITIAL_COUNT, label: "Door Blocked" }
+  ];
+
+  for (const m of metadataList) {
+    for (const def of featureDefs) {
+      if (def.check(m)) {
+        def.count++;
+      }
+    }
+    for (const def of errorDefs) {
+      if (def.check(m)) {
+        def.count++;
+      }
+    }
+  }
+
+  const FEATURE_CHART_HEIGHT = 1500;
+  charts.features = await ChartUtils.createBarChart(
+    featureDefs.map((d) => d.label),
+    featureDefs.map((d) => d.count),
+    "Feature Prevalence",
+    {
+      height: FEATURE_CHART_HEIGHT,
+      horizontal: true,
+      totalForPercentages: metadataList.length,
+      width: DURATION_CHART_WIDTH
+    }
+  );
+
+  charts.errors = await ChartUtils.createBarChart(
+    errorDefs.map((d) => d.label),
+    errorDefs.map((d) => d.count),
+    "Capture Errors",
+    {
+      height: 320,
+      horizontal: true,
+      totalForPercentages: metadataList.length,
+      width: DURATION_CHART_WIDTH
+    }
+  );
+
+  return charts;
+}
+
+function generatePdfReport(charts: CaptureCharts, avgDuration: number, videoCount: number, reportPath: string): void {
+  const SPACING_SMALL = 10;
+  const MARGIN = 50;
+  const CHART_SPACING = 30;
+  const PDF_TITLE_SIZE = 24;
+  const PDF_SUBTITLE_SIZE = 18;
+  const PDF_BODY_SIZE = 12;
+
+  console.log("Generating PDF...");
+  const doc = new PDFDocument({ margin: MARGIN });
+  doc.pipe(fs.createWriteStream(reportPath));
+
+  // Layout Constants
+  const Y_START = 130;
+  const H = 160;
+  const W = 250;
+  const GAP_Y = 200;
+  const FULL_W = 510;
+  const LEFT_X = 50;
+  const TEXT_PADDING = 15;
+  const RIGHT_X = LEFT_X + W + CHART_SPACING;
+
+  // --- Page 1: Summary ---
+  const DECIMAL_PLACES = 1;
+  const summaryText = `Avg Duration: ${avgDuration.toFixed(DECIMAL_PLACES)}s | Videos: ${videoCount.toString()}`;
+  doc.fontSize(PDF_TITLE_SIZE).text("Artifact Data Analysis", { align: "center" });
+  doc.fontSize(PDF_BODY_SIZE).text(summaryText, { align: "center" });
+  doc.moveDown(SPACING_SMALL);
+
+  // Row 1: Duration (Full Width)
+  doc.image(charts.duration, LEFT_X, Y_START, { height: H, width: FULL_W });
+  doc.text("Duration", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: FULL_W });
+
+  // Row 2: Lens Model (Full Width, Horizontal)
+  const Y_ROW2 = Y_START + GAP_Y;
+  doc.image(charts.lens, LEFT_X, Y_ROW2, { height: H, width: FULL_W });
+  doc.text("Lens Model", LEFT_X, Y_ROW2 + H + TEXT_PADDING, { align: "center", width: FULL_W });
+
+  // Row 3: Framerate (Left) & Resolution (Right)
+  const Y_ROW3 = Y_ROW2 + GAP_Y;
+  doc.image(charts.fps, LEFT_X, Y_ROW3, { height: H, width: W });
+  doc.text("Framerate", LEFT_X, Y_ROW3 + H + TEXT_PADDING, { align: "center", width: W });
+
+  doc.image(charts.resolution, RIGHT_X, Y_ROW3, { height: H, width: W });
+  doc.text("Resolution", RIGHT_X, Y_ROW3 + H + TEXT_PADDING, { align: "center", width: W });
+
+  // --- Page 2: Lighting ---
+  doc.addPage();
+  doc.fontSize(PDF_SUBTITLE_SIZE).text("Lighting & Exposure", { align: "center" });
+
+  // Row 1: Ambient (Left) & Temp (Right)
+  doc.image(charts.ambient, LEFT_X, Y_START, { height: H, width: W });
+  doc.text("Ambient Intensity", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: W });
+
+  doc.image(charts.temperature, RIGHT_X, Y_START, { height: H, width: W });
+  doc.text("Color Temperature", RIGHT_X, Y_START + H + TEXT_PADDING, { align: "center", width: W });
+
+  // Row 2: ISO (Left) & Brightness (Right)
+  doc.image(charts.iso, LEFT_X, Y_ROW2, { height: H, width: W });
+  doc.text("ISO Speed", LEFT_X, Y_ROW2 + H + TEXT_PADDING, { align: "center", width: W });
+
+  doc.image(charts.brightness, RIGHT_X, Y_ROW2, { height: H, width: W });
+  doc.text("Brightness Value", RIGHT_X, Y_ROW2 + H + TEXT_PADDING, { align: "center", width: W });
+
+  // --- Page 3: Room Analysis ---
+  doc.addPage();
+  doc.fontSize(PDF_SUBTITLE_SIZE).text("Room Analysis", { align: "center" });
+
+  doc.image(charts.area, LEFT_X, Y_START, { height: H, width: FULL_W });
+  doc.text("Room Area (Sq Ft)", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: FULL_W });
+
+  doc.image(charts.errors, LEFT_X, Y_START + GAP_Y, { height: H, width: FULL_W });
+  doc.text("Capture Errors", LEFT_X, Y_START + GAP_Y + H + TEXT_PADDING, {
+    align: "center",
+    width: FULL_W
+  });
+
+  // --- Page 4: Feature Prevalence ---
+  doc.addPage();
+  doc.fontSize(PDF_SUBTITLE_SIZE).text("Feature Prevalence", { align: "center" });
+
+  const FEATURE_PDF_HEIGHT = 600;
+  doc.image(charts.features, LEFT_X, Y_START, { height: FEATURE_PDF_HEIGHT, width: FULL_W });
+
+  doc.end();
+  console.log(`Report generated at: ${reportPath}`);
+}
+
+async function main(): Promise<void> {
+  const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
+  const REPORT_PATH = path.join(process.cwd(), "reports", "data-analysis.pdf");
+  const INITIAL_COUNT = 0;
+  const PROGRESS_UPDATE_INTERVAL = 10;
 
   console.log("Finding artifacts...");
   const artifactDirs = findArtifactDirectories(DATA_DIR);
@@ -265,8 +565,7 @@ async function main(): Promise<void> {
 
   console.log(" extracting metadata...");
   const metadataList: ArtifactMetadata[] = [];
-  const NOT_SET = "";
-  const NO_RESULTS = 0;
+
   let processed = INITIAL_COUNT;
 
   for (const dir of artifactDirs) {
@@ -291,428 +590,19 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Validate Raw Scans
-  console.log("Validating Raw Scans...");
-  const invalidScans: string[] = [];
-  for (const m of metadataList) {
-    const rawScanPath = path.join(path.dirname(m.path), "rawScan.json");
-    if (fs.existsSync(rawScanPath)) {
-      try {
-        const content = fs.readFileSync(rawScanPath, "utf-8");
-        const json = JSON.parse(content) as unknown;
-        const _scan = new RawScan(json); // Validates on construction
-        // Use variable to avoid unused error
-        process.stdout.write(_scan.version ? "" : "");
-      } catch (e) {
-        invalidScans.push(`${m.filename} [${m.environment}]: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    }
-  }
-
-  if (invalidScans.length > INITIAL_COUNT) {
-    console.log("\n--- Invalid Raw Scans ---");
-    invalidScans.forEach((s) => {
-      console.log(`- ${s}`);
-    });
-    console.log("-------------------------\n");
-  } else {
-    console.log("All raw scans are valid.\n");
-  }
   // --- Analysis ---
-  const DURATION_CHART_WIDTH = 1020;
-  const DURATION_CHART_HEIGHT = 320;
   const durations = metadataList.map((m) => m.duration);
   const avgDuration =
     durations.length > INITIAL_COUNT
       ? durations.reduce((a, b) => a + b, INITIAL_COUNT) / durations.length
       : INITIAL_COUNT;
 
-  // Lens Models
-  const lensMap: Record<string, number> = {};
-  for (const m of metadataList) {
-    if (m.lensModel !== NOT_SET) {
-      lensMap[m.lensModel] = (lensMap[m.lensModel] ?? INITIAL_COUNT) + INCREMENT_STEP;
-    }
-  }
-  // Sort by count descending
-  const lensLabels = Object.keys(lensMap).sort((a, b) => (lensMap[b] ?? INITIAL_COUNT) - (lensMap[a] ?? INITIAL_COUNT));
-  const lensCounts = lensLabels.map((l) => lensMap[l] ?? INITIAL_COUNT);
-  const lensChart = await ChartUtils.createBarChart(lensLabels, lensCounts, "Lens Model Distribution", {
-    height: DURATION_CHART_HEIGHT,
-    horizontal: true,
-    width: DURATION_CHART_WIDTH
-  });
-
-  // Lighting & Exposure Data
-  const intensityVals = metadataList.map((m) => m.avgAmbientIntensity).filter((v) => v > NO_RESULTS);
-  const tempVals = metadataList.map((m) => m.avgColorTemperature).filter((v) => v > NO_RESULTS);
-  const isoVals = metadataList.map((m) => m.avgIso).filter((v) => v > NO_RESULTS);
-  const briVals = metadataList.map((m) => m.avgBrightness).filter((v) => v !== NO_RESULTS);
-  const areaVals = metadataList.map((m) => m.roomAreaSqFt).filter((v) => v > NO_RESULTS);
-
   // Charts
   console.log("Generating charts...");
-
-  // Duration: min 10, max 120, bin 10
-  const durationChart = await ChartUtils.createHistogram(durations, "Seconds", "Duration", {
-    binSize: 10,
-    height: DURATION_CHART_HEIGHT,
-    hideUnderflow: true,
-    max: 120,
-    min: 10,
-    width: DURATION_CHART_WIDTH
-  });
-
-  // Ambient: 980-1040, bin 5
-  const ambChart = await ChartUtils.createHistogram(intensityVals, "Lumens", "Ambient Intensity", {
-    binSize: 5,
-    max: 1040,
-    min: 980
-  });
-
-  // Temp: 4000-6000, bin 250
-  const tempChart = await ChartUtils.createHistogram(tempVals, "Kelvin", "Color Temperature", {
-    binSize: 250,
-    colorByValue: ChartUtils.kelvinToRgb,
-    max: 6000,
-    min: 4000
-  });
-
-  // ISO: 0-800, bin 50
-  const isoChart = await ChartUtils.createHistogram(isoVals, "ISO", "ISO Speed", {
-    binSize: 50,
-    hideUnderflow: true,
-    max: 800,
-    min: 0
-  });
-
-  // Brightness: 0-6, bin 1
-  const briChart = await ChartUtils.createHistogram(briVals, "Value (EV)", "Brightness Value", {
-    binSize: 1,
-    decimalPlaces: 1,
-    max: 6,
-    min: 0
-  });
-
-  // Room Area: 0-150, bin 10
-  const areaChart = await ChartUtils.createHistogram(areaVals, "Sq Ft", "Room Area", {
-    binSize: 10,
-    height: DURATION_CHART_HEIGHT,
-    hideUnderflow: true,
-    max: 150,
-    min: 0,
-    width: DURATION_CHART_WIDTH
-  });
-
-  // Existing FPS/Res logic
-  const framerates = metadataList.map((m) => Math.round(m.fps));
-  const fpsDistribution: Record<string, number> = {};
-  framerates.forEach((fps) => {
-    fpsDistribution[String(fps)] = (fpsDistribution[String(fps)] ?? INITIAL_COUNT) + INCREMENT_STEP;
-  });
-  const fpsLabels = Object.keys(fpsDistribution).sort((a, b) => parseFloat(a) - parseFloat(b));
-  const fpsCounts = fpsLabels.map((l) => fpsDistribution[l] ?? INITIAL_COUNT);
-  const fpsChart = await ChartUtils.createBarChart(fpsLabels, fpsCounts, "Framerate");
-
-  const resolutions = metadataList.map((m) => `${m.width.toString()}x${m.height.toString()}`);
-  const resDistribution: Record<string, number> = {};
-  resolutions.forEach((res) => {
-    resDistribution[res] = (resDistribution[res] ?? INITIAL_COUNT) + INCREMENT_STEP;
-  });
-  const resLabels = Object.keys(resDistribution).sort();
-  const resCounts = resLabels.map((l) => resDistribution[l] ?? INITIAL_COUNT);
-  const resChart = await ChartUtils.createBarChart(resLabels, resCounts, "Resolution");
-
-  // Layout Constants (Needed for PDF layout)
-  const Y_START = 130;
-  const H = 160;
-  const W = 250;
-  const GAP_Y = 200;
-  const FULL_W = 510;
-  const LEFT_X = 50;
-  const TEXT_PADDING = 15;
-  const RIGHT_X = LEFT_X + W + CHART_SPACING;
-
-  // Feature Prevalence
-  let countNonRect = INITIAL_COUNT;
-  let countTwoToilets = INITIAL_COUNT;
-  let countTwoTubs = INITIAL_COUNT;
-  let countFewWalls = INITIAL_COUNT;
-  let countCurvedWalls = INITIAL_COUNT;
-  let countNoVanity = INITIAL_COUNT;
-  let countExternalOpening = INITIAL_COUNT;
-  let countSoffit = INITIAL_COUNT;
-  let countToiletGapErrors = INITIAL_COUNT;
-  let countTubGapErrors = INITIAL_COUNT;
-  let countWallGapErrors = INITIAL_COUNT;
-  let countColinearWallErrors = INITIAL_COUNT;
-  let countNibWalls = INITIAL_COUNT;
-  let countObjectIntersectionErrors = INITIAL_COUNT;
-  let countWallObjectIntersectionErrors = INITIAL_COUNT;
-  let countWallWallIntersectionErrors = INITIAL_COUNT;
-  let countCrookedWallErrors = INITIAL_COUNT;
-  let countDoorBlockingErrors = INITIAL_COUNT;
-  let countWasherDryer = INITIAL_COUNT;
-  let countStove = INITIAL_COUNT;
-  let countTable = INITIAL_COUNT;
-  let countChair = INITIAL_COUNT;
-  let countBed = INITIAL_COUNT;
-  let countSofa = INITIAL_COUNT;
-  let countDishwasher = INITIAL_COUNT;
-  let countOven = INITIAL_COUNT;
-  let countRefrigerator = INITIAL_COUNT;
-  let countStairs = INITIAL_COUNT;
-  let countFireplace = INITIAL_COUNT;
-  let countTelevision = INITIAL_COUNT;
-
-  for (const m of metadataList) {
-    if (m.hasNonRectWall) {
-      countNonRect++;
-    }
-    if (m.hasCurvedWall) {
-      countCurvedWalls++;
-    }
-    if (m.toiletCount >= MIN_TOILETS) {
-      countTwoToilets++;
-    }
-    if (m.tubCount >= MIN_TUBS) {
-      countTwoTubs++;
-    }
-    if (m.wallCount < MIN_WALLS) {
-      countFewWalls++;
-    }
-    const sinks = m.sinkCount;
-    const storage = m.storageCount;
-    if (sinks === INITIAL_COUNT && storage === INITIAL_COUNT) {
-      countNoVanity++;
-    }
-    if (m.hasExternalOpening) {
-      countExternalOpening++;
-    }
-    if (m.hasSoffit) {
-      countSoffit++;
-    }
-    if (m.hasToiletGapErrors) {
-      countToiletGapErrors++;
-    }
-    if (m.hasTubGapErrors) {
-      countTubGapErrors++;
-    }
-    if (m.hasWallGapErrors) {
-      countWallGapErrors++;
-    }
-    if (m.hasColinearWallErrors) {
-      countColinearWallErrors++;
-    }
-    if (m.hasNibWalls) {
-      countNibWalls++;
-    }
-    if (m.hasObjectIntersectionErrors) {
-      countObjectIntersectionErrors++;
-    }
-    if (m.hasWallObjectIntersectionErrors) {
-      countWallObjectIntersectionErrors++;
-    }
-    if (m.hasWallWallIntersectionErrors) {
-      countWallWallIntersectionErrors++;
-    }
-    if (m.hasCrookedWallErrors) {
-      countCrookedWallErrors++;
-    }
-    if (m.hasDoorBlockingError) {
-      countDoorBlockingErrors++;
-    }
-    // New Feature Counts
-    if (m.hasWasherDryer) {
-      countWasherDryer++;
-    }
-    if (m.hasStove) {
-      countStove++;
-    }
-    if (m.hasTable) {
-      countTable++;
-    }
-    if (m.hasChair) {
-      countChair++;
-    }
-    if (m.hasBed) {
-      countBed++;
-    }
-    if (m.hasSofa) {
-      countSofa++;
-    }
-    if (m.hasDishwasher) {
-      countDishwasher++;
-    }
-    if (m.hasOven) {
-      countOven++;
-    }
-    if (m.hasRefrigerator) {
-      countRefrigerator++;
-    }
-    if (m.hasStairs) {
-      countStairs++;
-    }
-    if (m.hasFireplace) {
-      countFireplace++;
-    }
-    if (m.hasTelevision) {
-      countTelevision++;
-    }
-  }
-
-  const featureLabels = [
-    "Non-Rectangular Walls",
-    "Curved Walls",
-    "2+ Toilets",
-    "2+ Tubs",
-    "< 4 Walls",
-    "No Vanity",
-    "External Opening",
-    "Soffit",
-    "Nib Walls (< 1ft)",
-    "Washer/Dryer",
-    "Stove",
-    "Table",
-    "Chair",
-    "Bed",
-    "Sofa",
-    "Dishwasher",
-    "Oven",
-    "Refrigerator",
-    "Stairs",
-    "Fireplace",
-    "Television"
-  ];
-  const featureCounts = [
-    countNonRect,
-    countCurvedWalls,
-    countTwoToilets,
-    countTwoTubs,
-    countFewWalls,
-    countNoVanity,
-    countExternalOpening,
-    countSoffit,
-    countNibWalls,
-    countWasherDryer,
-    countStove,
-    countTable,
-    countChair,
-    countBed,
-    countSofa,
-    countDishwasher,
-    countOven,
-    countRefrigerator,
-    countStairs,
-    countFireplace,
-    countTelevision
-  ];
-  const FEATURE_CHART_HEIGHT = 1500;
-  const featureChart = await ChartUtils.createBarChart(featureLabels, featureCounts, "Feature Prevalence", {
-    height: FEATURE_CHART_HEIGHT,
-    horizontal: true,
-    totalForPercentages: metadataList.length,
-    width: DURATION_CHART_WIDTH
-  });
-
-  // Error Chart
-  const errorLabels = [
-    'Toilet Gap > 1"',
-    'Tub Gap 1"-6"',
-    'Wall Gaps 1"-12"',
-    "Colinear Walls",
-    "Object Intersections",
-    "Wall <-> Object Intersections",
-    "Wall <-> Wall Intersections",
-    "Crooked Walls",
-    "Door Blocked"
-  ];
-  const errorCounts = [
-    countToiletGapErrors,
-    countTubGapErrors,
-    countWallGapErrors,
-    countColinearWallErrors,
-    countObjectIntersectionErrors,
-    countWallObjectIntersectionErrors,
-    countWallWallIntersectionErrors,
-    countCrookedWallErrors,
-    countDoorBlockingErrors
-  ];
-  const errorChart = await ChartUtils.createBarChart(errorLabels, errorCounts, "Capture Errors", {
-    height: DURATION_CHART_HEIGHT,
-    horizontal: true,
-    totalForPercentages: metadataList.length,
-    width: DURATION_CHART_WIDTH
-  });
+  const charts = await generateCharts(metadataList);
 
   // PDF Generation
-  console.log("Generating PDF...");
-  const doc = new PDFDocument({ margin: MARGIN });
-  doc.pipe(fs.createWriteStream(REPORT_PATH));
-
-  // --- Page 1: Summary ---
-  const summaryText = `Avg Duration: ${avgDuration.toFixed(DECIMAL_PLACES)}s | Videos: ${metadataList.length.toString()}`;
-  doc.fontSize(PDF_TITLE_SIZE).text("Artifact Data Analysis", { align: "center" });
-  doc.fontSize(PDF_BODY_SIZE).text(summaryText, { align: "center" });
-  doc.moveDown(SPACING_SMALL);
-
-  // Row 1: Duration (Full Width)
-  doc.image(durationChart, LEFT_X, Y_START, { height: H, width: FULL_W });
-  doc.text("Duration", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: FULL_W });
-
-  // Row 2: Lens Model (Full Width, Horizontal)
-  const Y_ROW2 = Y_START + GAP_Y;
-  doc.image(lensChart, LEFT_X, Y_ROW2, { height: H, width: FULL_W });
-  doc.text("Lens Model", LEFT_X, Y_ROW2 + H + TEXT_PADDING, { align: "center", width: FULL_W });
-
-  // Row 3: Framerate (Left) & Resolution (Right)
-  const Y_ROW3 = Y_ROW2 + GAP_Y;
-  doc.image(fpsChart, LEFT_X, Y_ROW3, { height: H, width: W });
-  doc.text("Framerate", LEFT_X, Y_ROW3 + H + TEXT_PADDING, { align: "center", width: W });
-
-  doc.image(resChart, RIGHT_X, Y_ROW3, { height: H, width: W });
-  doc.text("Resolution", RIGHT_X, Y_ROW3 + H + TEXT_PADDING, { align: "center", width: W });
-
-  // --- Page 2: Lighting ---
-  doc.addPage();
-  doc.fontSize(PDF_SUBTITLE_SIZE).text("Lighting & Exposure", { align: "center" });
-
-  // Row 1: Ambient (Left) & Temp (Right)
-  doc.image(ambChart, LEFT_X, Y_START, { height: H, width: W });
-  doc.text("Ambient Intensity", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: W });
-
-  doc.image(tempChart, RIGHT_X, Y_START, { height: H, width: W });
-  doc.text("Color Temperature", RIGHT_X, Y_START + H + TEXT_PADDING, { align: "center", width: W });
-
-  // Row 2: ISO (Left) & Brightness (Right)
-  doc.image(isoChart, LEFT_X, Y_ROW2, { height: H, width: W });
-  doc.text("ISO Speed", LEFT_X, Y_ROW2 + H + TEXT_PADDING, { align: "center", width: W });
-
-  doc.image(briChart, RIGHT_X, Y_ROW2, { height: H, width: W });
-  doc.text("Brightness Value", RIGHT_X, Y_ROW2 + H + TEXT_PADDING, { align: "center", width: W });
-
-  // --- Page 3: Room Analysis ---
-  doc.addPage();
-  doc.fontSize(PDF_SUBTITLE_SIZE).text("Room Analysis", { align: "center" });
-
-  doc.image(areaChart, LEFT_X, Y_START, { height: H, width: FULL_W });
-  doc.text("Room Area (Sq Ft)", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: FULL_W });
-
-  doc.image(errorChart, LEFT_X, Y_START + GAP_Y, { height: H, width: FULL_W });
-  doc.text("Capture Errors", LEFT_X, Y_START + GAP_Y + H + TEXT_PADDING, {
-    align: "center",
-    width: FULL_W
-  });
-
-  // --- Page 4: Feature Prevalence ---
-  doc.addPage();
-  doc.fontSize(PDF_SUBTITLE_SIZE).text("Feature Prevalence", { align: "center" });
-
-  const FEATURE_PDF_HEIGHT = 600;
-  doc.image(featureChart, LEFT_X, Y_START, { height: FEATURE_PDF_HEIGHT, width: FULL_W });
-
-  doc.end();
-  console.log(`Report generated at: ${REPORT_PATH}`);
+  generatePdfReport(charts, avgDuration, metadataList.length, REPORT_PATH);
 }
 
 main().catch(console.error);
