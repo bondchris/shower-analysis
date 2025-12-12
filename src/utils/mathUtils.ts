@@ -87,10 +87,6 @@ export const segmentsIntersect = (
   d: { x: number; y: number }
 ): boolean => {
   // Input Validation
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions
-  if (!a || !b || !c || !d) {
-    return false;
-  }
   if (
     !Number.isFinite(a.x) ||
     !Number.isFinite(a.y) ||
@@ -287,6 +283,9 @@ export const checkPolygonIntegrity = (corners: number[][]): boolean => {
   if (hasCollinearOverlaps(corners)) {
     return false;
   }
+  if (hasDuplicatePoints(corners)) {
+    return false;
+  }
 
   return true;
 };
@@ -417,6 +416,38 @@ const hasSelfIntersection = (corners: number[][]): boolean => {
         )
       ) {
         return true;
+      }
+    }
+  }
+  return false;
+};
+
+const hasDuplicatePoints = (corners: number[][]): boolean => {
+  const EPSILON = 1e-9;
+  const EPSILON_SQ = EPSILON * EPSILON;
+  const X_IDX = 0;
+  const Y_IDX = 1;
+  const COORD_ZERO = 0;
+  const NEXT_OFFSET = 1;
+
+  const n = corners.length;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + NEXT_OFFSET; j < n; j++) {
+      const pA = corners[i];
+      const pB = corners[j];
+      if (pA && pB) {
+        const ax = pA[X_IDX] ?? COORD_ZERO;
+        const ay = pA[Y_IDX] ?? COORD_ZERO;
+        const bx = pB[X_IDX] ?? COORD_ZERO;
+        const by = pB[Y_IDX] ?? COORD_ZERO;
+        const dx = ax - bx;
+        const dy = ay - by;
+        const dx2 = dx * dx;
+        const dy2 = dy * dy;
+        const distSq = dx2 + dy2;
+        if (distSq < EPSILON_SQ) {
+          return true;
+        }
       }
     }
   }
