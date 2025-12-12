@@ -31,8 +31,15 @@ export function checkExternalOpening(rawScan: RawScan): boolean {
     if (o.parentIdentifier === undefined || o.parentIdentifier === null) {
       continue;
     }
+    // Check story (if present on object) against rawScan.story
+    // If object has no story, we assume it's valid or relies on parent wall check.
+    // User requirement: "Have a different story... Expect: false".
+    if (o.story !== undefined && o.story !== rawScan.story) {
+      continue;
+    }
+
     const wall = rawScan.walls.find((w) => w.identifier === o.parentIdentifier);
-    if (wall?.transform?.length !== MAT_SIZE) {
+    if (!wall || wall.transform?.length !== MAT_SIZE) {
       continue;
     }
 
