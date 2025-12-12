@@ -802,5 +802,29 @@
     "environment": "bond_demo",
     "id": "901da958-5e35-4638-9a5e-c99578cc2845",
     "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
+  },
+  {
+    "date": "2025-12-12T06:51:29.468Z",
+    "environment": "bond_production",
+    "id": "1d820d08-6ae8-4446-ba9a-08a68e81385c",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
+  },
+  {
+    "date": "2025-12-12T06:51:31.447Z",
+    "environment": "bond_production",
+    "id": "4c98246f-50d5-4fdb-9c5e-e7aaf7d64786",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
+  },
+  {
+    "date": "2025-12-12T06:51:37.709Z",
+    "environment": "bond_production",
+    "id": "653ee7d4-842f-48b9-a72e-0bb66683c1b1",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
+  },
+  {
+    "date": "2025-12-12T06:51:57.335Z",
+    "environment": "lowe_s_staging",
+    "id": "fa85b599-61fe-4a0b-8baa-27cecb9d97bb",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
   }
 ]

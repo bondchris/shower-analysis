@@ -9323,5 +9323,530 @@
     "date": "2025-12-09T18:03:10.206Z",
     "id": "d7c27ecf-05ac-43d9-a7b4-4929d16339e5",
     "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:49:48.843Z",
+    "id": "196fa033-5abf-4db6-9bba-558afd69dac8",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:49:55.804Z",
+    "id": "048d9360-c448-4abb-abe5-8721acd5a9f6",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:49:56.356Z",
+    "id": "01b082a3-6401-4d2a-a4db-e4b46db8fbb0",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:49:58.429Z",
+    "id": "09113da5-ed5e-41a7-addb-3fb3708ba78f",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:49:59.503Z",
+    "id": "03010c62-02c2-47a6-b6e3-5ca42380e791",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:00.836Z",
+    "id": "24c038e2-7d61-4bf6-a729-480c4de12882",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:01.153Z",
+    "id": "0aef1de9-e463-4adb-86cb-45e8f4c4a649",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:02.172Z",
+    "id": "00a776ce-369e-4a8e-a999-a890087e0a17",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:03.434Z",
+    "id": "12ace29a-42c8-414a-9ea2-f57a34717586",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:03.471Z",
+    "id": "02dc5918-2de8-424e-af39-4be0d110bf54",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:05.229Z",
+    "id": "027f3eb1-44d6-4a9a-b15b-791a8bee7b85",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:07.311Z",
+    "id": "22eda8f0-5361-41e1-9242-c06ae5bbb867",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:07.698Z",
+    "id": "25454195-9b22-472e-8ca3-8d530991a7f3",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:07.726Z",
+    "id": "2985180f-53de-412f-b168-6519c3522c7c",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:07.795Z",
+    "id": "1c0e6123-afc6-44e1-96bc-0d4b254813b7",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:07.974Z",
+    "id": "12f5ec07-0caf-4b12-8f37-5727a7115503",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:08.878Z",
+    "id": "2344367d-8d67-4757-9a1f-38ae382b6b91",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:10.392Z",
+    "id": "06459454-a8ec-473b-84e9-7b9042e430ab",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:11.182Z",
+    "id": "32f9f0e4-b55a-45a3-8c28-4d06add8690d",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:14.534Z",
+    "id": "4b65e8d2-9759-4a94-81aa-8d9260476afb",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:15.881Z",
+    "id": "266320b0-4b0c-419e-87ab-eed0ffd58e3b",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:16.600Z",
+    "id": "68620947-6ec5-43d8-9526-410f61478abb",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:18.854Z",
+    "id": "57fde84c-64b8-4f4f-a8c3-99ae4ef71e7b",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:19.043Z",
+    "id": "69c3749a-f79d-493d-9a8a-de34139c015d",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:19.274Z",
+    "id": "3a4ce2b4-2afc-4cbd-ade3-b992a4f19cc3",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:23.484Z",
+    "id": "73e218b4-bc21-4e34-a9e6-37815a182082",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:25.279Z",
+    "id": "346a75e1-6d85-4627-b599-8cd1ccb8012d",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:27.306Z",
+    "id": "810904c3-bdfa-4549-9448-b54708fc5d58",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:27.793Z",
+    "id": "7d3b479b-6c75-4879-8c5e-fc9e73bef6a1",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:28.146Z",
+    "id": "56544efc-ea8b-4e97-8ed6-6499b0b80fb3",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:28.427Z",
+    "id": "7ebcd9d8-1b49-4e35-8033-66fe7a6ca34c",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:28.803Z",
+    "id": "84ef1dc1-5d40-421d-aac7-7410161f6b8a",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:33.883Z",
+    "id": "8ca1422b-1db6-42e2-9edb-e8594b66535d",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:34.567Z",
+    "id": "7c376dce-fdb5-4bd2-81ad-eb320e734ad1",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:36.110Z",
+    "id": "6b2f948e-6a29-417f-bbd7-b23c5b9a7256",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:37.720Z",
+    "id": "2e2df8f0-033c-4f17-929f-1f528c154aa0",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:39.451Z",
+    "id": "95de3756-d236-4bbb-8eab-e79d3ffc0f79",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:41.532Z",
+    "id": "8d86af81-551b-40eb-9fa6-c1e89f9820ef",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:43.400Z",
+    "id": "965e0fde-9b2b-4d14-9ed1-59e4d7b1f137",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:44.736Z",
+    "id": "8e265f10-3761-476a-ad69-6f9ca3c26cc2",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:44.846Z",
+    "id": "94b66970-e93c-4f74-9d42-74464f53c3d7",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:46.319Z",
+    "id": "8edf6074-2244-4382-9e3d-9a66aae72b4a",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:47.017Z",
+    "id": "80cbe8b0-6a14-4cd4-b7ce-78b77a198cb4",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:47.119Z",
+    "id": "9a0be856-e7ee-4049-be54-e7c9e21137c5",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:47.197Z",
+    "id": "71f95ab1-a63d-4500-ac0b-0548cc115947",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:48.808Z",
+    "id": "9cdabbb6-5326-45bf-83fe-2439a2f15cb1",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:49.033Z",
+    "id": "860e6b00-83fe-4346-94c4-6c004b6c19ab",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:49.321Z",
+    "id": "8f452e1d-a96f-473e-b5d6-98952451349a",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:50.525Z",
+    "id": "93610f18-5ae7-4115-945c-0b3927a00e2d",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:51.104Z",
+    "id": "9f858383-13bc-46f5-8c58-19c423bc626f",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:51.371Z",
+    "id": "a57b7ebe-3e65-423b-a62c-01f0cd2e551a",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:52.128Z",
+    "id": "a2c980cf-978d-4a75-ace8-3c202e88c7be",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:52.439Z",
+    "id": "a47d3cfb-f4ff-49fc-b2c8-c8564180eab3",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:52.794Z",
+    "id": "a07629ae-6eb3-4f1e-bde2-6ea94e7aab9a",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:57.215Z",
+    "id": "9fb9a0f8-759f-4525-857f-ecbc2ac3120b",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:50:58.295Z",
+    "id": "a8d38699-ddbb-4bba-b54c-94ccfab75bd6",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:04.345Z",
+    "id": "b0a86c44-62cb-4b3b-9fb1-e14acc000939",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:04.517Z",
+    "id": "a9a6545e-90dd-43da-85f0-aa6500751dbc",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:04.918Z",
+    "id": "aad8dfa2-ae7b-4e7b-9ab0-191ecc2bdcba",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:06.343Z",
+    "id": "c0687954-86ab-449e-9f2d-0d2a31614351",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:08.269Z",
+    "id": "a9f27dd9-2682-4b8d-8ab6-15980f5a1329",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:08.535Z",
+    "id": "cc8c2147-6218-4fb1-a441-ce9d25095302",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:08.612Z",
+    "id": "c74beacd-b67c-4429-9117-9f89f6dfc9c6",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:09.018Z",
+    "id": "c78740ea-1416-4d66-be2a-3db46c4617e8",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:09.278Z",
+    "id": "aeb4ce89-cbb8-4b57-b316-11fdd8080784",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:10.042Z",
+    "id": "cddacefd-535f-4ec7-86ae-107e07150635",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:11.914Z",
+    "id": "b4c374cd-9560-44e7-887e-63f3db490db1",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:13.395Z",
+    "id": "d2da0896-1be7-41a1-81df-2a53411eca1e",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:14.175Z",
+    "id": "d2c48d02-0bca-406e-9ff5-be5e1b28feac",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:15.481Z",
+    "id": "cd0d2c6d-e466-4d10-a45f-4cac05f9d429",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:17.243Z",
+    "id": "b8f44f7d-fcdd-418d-9cdf-2c3cc2ef6fe0",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:17.487Z",
+    "id": "d3289cbd-40d1-4a32-a352-3529cc5e14da",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:17.690Z",
+    "id": "d4f33fe9-e152-4f1a-a533-abe80a2e3d05",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:18.612Z",
+    "id": "cca06194-5edf-4d8f-b8fb-65ea3c9e71c1",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:18.769Z",
+    "id": "dd72174c-e45d-480a-bfc0-640ac8796012",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:22.969Z",
+    "id": "dfce4b6d-63d8-4ec3-9bd2-f0b9da130d3e",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:23.870Z",
+    "id": "f1e7168a-8107-4520-85a2-5c959a3343aa",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:24.686Z",
+    "id": "f45cee61-6dc8-4501-8041-6a388c39aa08",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:31.638Z",
+    "id": "f4cdc594-5397-4624-ba87-3640a1bf553d",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:34.824Z",
+    "id": "ed11c4f7-2105-4f9d-92f4-5d55c258e3a1",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:36.657Z",
+    "id": "e0f34f25-300f-475d-b7bf-24ef18d0a20e",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:37.170Z",
+    "id": "e3989546-9642-4c40-a305-df4e594a111a",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:37.985Z",
+    "id": "ea4ded82-cdd4-48ee-8e86-b799e7d3a2ff",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:38.064Z",
+    "id": "2ab49877-4783-415d-ab21-15331d5fd33e",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:39.673Z",
+    "id": "f889e97a-6041-492e-a831-bb51da697ce6",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:39.694Z",
+    "id": "6a639516-0eeb-4b69-9d4c-d8d957311b91",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:42.591Z",
+    "id": "ddf30a97-f0db-43d0-b4a9-6b383d96561a",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:44.162Z",
+    "id": "070c39c3-850e-45b8-acce-7be7530a9d98",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:44.792Z",
+    "id": "067882e5-5849-4438-b9aa-c43512eaf27a",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:45.615Z",
+    "id": "82f42c5f-cc5d-478c-8b9c-2cb4197e4626",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:45.645Z",
+    "id": "f872fb76-c48b-4803-9dbd-c0903506e3a6",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:45.953Z",
+    "id": "ffb71eb4-a854-4377-a1a7-d07188035d44",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:46.116Z",
+    "id": "54e791a9-7dab-43ff-8148-ffc7d794c87d",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:49.235Z",
+    "id": "7ad3a18f-f89b-47f6-9e14-94ad3ba86a95",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:49.514Z",
+    "id": "cf858c30-b522-4839-8851-0b52e70d6c48",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:49.963Z",
+    "id": "9ab2e736-9dbe-428d-b55d-dfb580dcd0f7",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:54.171Z",
+    "id": "ec252361-ca10-478f-8648-128731653bca",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:56.719Z",
+    "id": "f20dcf7e-533b-4d09-9e68-77e560977313",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:57.643Z",
+    "id": "eb92dfa5-71ac-443c-a4e8-64db226cad7e",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:51:58.966Z",
+    "id": "f267b53e-3551-483c-abf3-155a34b4003e",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:52:00.600Z",
+    "id": "f4f69c41-008c-40f9-854c-c487cc6ee2a5",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:52:00.774Z",
+    "id": "fc79d604-8473-44b7-b6a0-97904b00634f",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:52:01.552Z",
+    "id": "a0adc7ec-ba89-43b1-8692-bdc71a966350",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:52:02.478Z",
+    "id": "e00d1533-ac24-4650-b4bc-f8c56aeb6882",
+    "model": "gemini-3-pro-preview"
+  },
+  {
+    "date": "2025-12-12T06:52:02.946Z",
+    "id": "43968752-cf68-4155-813f-0913afdfa274",
+    "model": "gemini-3-pro-preview"
   }
 ]
