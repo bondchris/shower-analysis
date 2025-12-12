@@ -1,5 +1,5 @@
 import { RawScan } from "../../src/models/rawScan/rawScan";
-import { checkExternalOpening } from "../../src/utils/roomUtils";
+import { checkExternalOpening, checkToiletGaps } from "../../src/utils/roomUtils";
 
 // Mock helper to create a minimal valid RawScan
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,7 +36,10 @@ const createFloor = (story = 1) => ({
 // distToSegment logic:
 // Floor segment: (0,0) to (10,0).
 // Wall at (5, 0). Dist = 0.
-const createExternalWall = (id: string) => ({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const createExternalWall = (id: string, overrides: Partial<any> = {}) => ({
+  dimensions: [10, 2.7, 0.2], // 10m long, 2.7m high, 0.2m thick
   identifier: id,
   transform: [
     1,
@@ -55,7 +58,8 @@ const createExternalWall = (id: string) => ({
     0,
     0,
     1 // tx=5, ty=0 (index 12 and 13)
-  ]
+  ],
+  ...overrides
 });
 
 // Helper for an Internal Wall (far from 0-10 box, e.g. at 100, 100)
@@ -530,6 +534,297 @@ describe("checkExternalOpening", () => {
         walls: [createExternalWall("w1")]
       });
       expect(checkExternalOpening(scan)).toBe(false);
+    });
+  });
+});
+
+// Helper for checkToiletGaps tests
+// Default: 1x1x1 meter toilet at (0,0,0) with identity rotation
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const createToilet = (id: string, overrides: Partial<any> = {}) => ({
+  attributes: {},
+  category: { toilet: {} },
+  confidence: { confidence: 1 },
+  // 0.5m width (X), 1m height (Y), 0.5m depth (Z)
+  dimensions: [0.5, 1, 0.5],
+  identifier: id,
+  parentIdentifier: null,
+  story: 1,
+  transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+  ...overrides
+});
+
+describe("checkToiletGaps", () => {
+  // Helper to create a wall flush with the toilet backface (Z = -0.25)
+  // Toilet Depth=0.5. Backface at -0.25.
+  // We place wall at Z = -0.25 so distance is 0.
+  // Wall is X-aligned (length along X).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const createFlushWall = (id: string, overrides: Partial<any> = {}) => {
+    const w = createExternalWall(id);
+    // Move to Z = -0.25 (index 14)
+    w.transform[14] = -0.25;
+    return { ...w, ...overrides };
+  };
+
+  // A. Object filtering and "vacuous pass" behavior
+  describe("A. Object filtering", () => {
+    it("should pass if no objects exist", () => {
+      const scan = createMockScan({ objects: [], walls: [createFlushWall("w1")] });
+      expect(checkToiletGaps(scan)).toBe(false);
+    });
+
+    it("should pass if objects exist but none are toilets", () => {
+      const scan = createMockScan({
+        objects: [
+          // Sink
+          {
+            attributes: {},
+            category: { sink: {} },
+            confidence: { confidence: 1 },
+            dimensions: [1, 1, 1],
+            identifier: "s1",
+            parentIdentifier: null,
+            story: 1,
+            transform: new Array(16).fill(0)
+          }
+        ],
+        walls: [createFlushWall("w1")]
+      });
+      expect(checkToiletGaps(scan)).toBe(false);
+    });
+
+    it("should treat object with empty category as non-toilet (Pass)", () => {
+      const scan = createMockScan({
+        objects: [
+          createToilet("t1", { category: {} }) // Malformed category
+        ],
+        walls: [createFlushWall("w1")]
+      });
+      expect(checkToiletGaps(scan)).toBe(false);
+    });
+
+    it("should fail if mixed validity (one bad toilet)", () => {
+      // Wall (Flush) is at Z=-0.25. Valid for Toilet 1 (at 0,0).
+      // Toilet 2 at Z=10 (Far).
+      const t1 = createToilet("t1"); // At 0,0,0. Back at -0.25. Dist to Wall(-0.25) = 0. OK.
+      const t2 = createToilet("t2", {
+        transform: [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          10,
+          1 // z=10. Back at 9.75. Dist to Wall(-0.25) = ~10. Fail.
+        ]
+      });
+
+      const scan = createMockScan({
+        objects: [t1, t2],
+        walls: [createFlushWall("w1")]
+      });
+      expect(checkToiletGaps(scan)).toBe(true);
+    });
+  });
+
+  // B. Wall presence / selection
+  describe("B. Wall presence", () => {
+    it("should fail if toilet exists but walls: []", () => {
+      const scan = createMockScan({
+        objects: [createToilet("t1")],
+        walls: []
+      });
+      expect(checkToiletGaps(scan)).toBe(true);
+    });
+
+    it("should fail if walls exist but on different story", () => {
+      const scan = createMockScan({
+        objects: [createToilet("t1", { story: 1 })],
+        walls: [
+          createFlushWall("w1", { story: 0 }) // Different story
+        ]
+      });
+      expect(checkToiletGaps(scan)).toBe(true);
+    });
+
+    it("should use closest wall (pass if one is close enough)", () => {
+      const t1 = createToilet("t1");
+      const wClose = createFlushWall("w_close"); // At -0.25. Dist 0.
+      const wFar = createExternalWall("w_far");
+      wFar.transform[14] = 10; // At Z=10.
+
+      const scan = createMockScan({
+        objects: [t1],
+        walls: [wClose, wFar]
+      });
+      expect(checkToiletGaps(scan)).toBe(false);
+    });
+  });
+
+  // C. Threshold behavior (1 inch rule)
+  describe("C. Threshold behavior", () => {
+    // Toilet Backface at Z = -0.25.
+    // Threshold = 1 inch = 0.0254m.
+    // Wall Z position determines Gap.
+    // Gap = |WallZ - (-0.25)| = |WallZ + 0.25|.
+
+    const createTestScan = (wallZ: number) => {
+      const t1 = createToilet("t1"); // Back at -0.25
+      const w1 = createExternalWall("w1");
+      w1.transform[14] = wallZ; // Set Wall Z
+      return createMockScan({ objects: [t1], walls: [w1] });
+    };
+
+    it("should pass if backface flush (dist = 0)", () => {
+      // Wall at -0.25. Gap 0. Pass.
+      expect(checkToiletGaps(createTestScan(-0.25))).toBe(false);
+    });
+
+    it("should pass if within tolerance (0.5 inch gap)", () => {
+      // Gap 0.5 inch = 0.0127.
+      // Wall at -0.25 - 0.0127 = -0.2627.
+      expect(checkToiletGaps(createTestScan(-0.2627))).toBe(false);
+    });
+
+    it("should pass at exactly threshold (1.0 inch gap)", () => {
+      // Wall at -0.25 - 0.0254.
+      expect(checkToiletGaps(createTestScan(-0.25 - 0.0254))).toBe(false);
+    });
+
+    it("should fail check just over threshold (1.0001 inch)", () => {
+      // Wall at -0.25 - 0.0255.
+      expect(checkToiletGaps(createTestScan(-0.25 - 0.0255))).toBe(true);
+    });
+
+    it("should fail well over threshold (6 inches)", () => {
+      // Wall at -0.25 - 0.15.
+      expect(checkToiletGaps(createTestScan(-0.4))).toBe(true);
+    });
+  });
+
+  // D. Backface definition via transform
+  describe("D. Backface definition", () => {
+    it("should fail if toilet rotated 180 (front to wall)", () => {
+      // Wall at Z = -0.26 (Gap 0.01 inch from -0.25).
+      // Toilet Rotated 180.
+      // New Backface at Z = +0.25.
+      // Distance to Wall (-0.26) is | -0.26 - 0.25 | = 0.51.
+      // 0.51 > 1 inch -> Fail.
+
+      const t1 = createToilet("t1", {
+        transform: [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1]
+      });
+      const w1 = createFlushWall("w1");
+      w1.transform[14] = -0.26; // 1cm behind normal backface location
+
+      const scan = createMockScan({
+        objects: [t1],
+        walls: [w1]
+      });
+      expect(checkToiletGaps(scan)).toBe(true);
+    });
+  });
+
+  // E. Data integrity
+  describe("E. Data integrity", () => {
+    it("should handle invalid transform gracefully (skip)", () => {
+      const scan = createMockScan({
+        objects: [
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+          createToilet("t1", { transform: [] as any })
+        ],
+        walls: [createFlushWall("w1")]
+      });
+      expect(checkToiletGaps(scan)).toBe(false);
+    });
+
+    it("should handle degenerate wall polygons", () => {
+      const scan = createMockScan({
+        objects: [createToilet("t1")],
+        walls: [
+          createFlushWall("wRef"), // Valid Wall at -0.25
+          {
+            category: { wall: {} },
+            confidence: { confidence: 1 },
+            identifier: "wDegenerate",
+            polygonCorners: [],
+            story: 1,
+            transform: new Array(16).fill(0)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any
+        ]
+      });
+      // Should pass because wRef logic is handled and degenerate skipped
+      expect(checkToiletGaps(scan)).toBe(false);
+    });
+  });
+
+  // F. Only walls count
+  describe("F. Only walls count", () => {
+    it("should fail if nearest object is not a wall", () => {
+      const t1 = createToilet("t1");
+      const s1 = {
+        attributes: {},
+        category: { storage: {} },
+        confidence: { confidence: 1 },
+        dimensions: [1, 1, 1],
+        identifier: "s1",
+        parentIdentifier: null,
+        story: 1,
+        transform: [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          -0.25,
+          1 // Storage at Z=-0.25 (Flush)
+        ]
+      };
+
+      const wFar = createExternalWall("wFar");
+      wFar.transform[14] = 10; // Wall Far
+
+      const scan = createMockScan({
+        objects: [t1, s1],
+        walls: [wFar]
+      });
+      expect(checkToiletGaps(scan)).toBe(true);
+    });
+  });
+
+  // G. Penetration
+  describe("G. Penetration", () => {
+    it("should pass if toilet is inside wall (Distance < threshold)", () => {
+      // Shallow Penetration Test.
+      const t1 = createToilet("t1");
+      const wInside = createFlushWall("wInside");
+      wInside.transform[14] = -0.24; // 1cm inside from backface (-0.25)
+      // Dist = |-0.24 - (-0.25)| = 0.01. < Threshold. Pass.
+      const scan = createMockScan({
+        objects: [t1],
+        walls: [wInside]
+      });
+      expect(checkToiletGaps(scan)).toBe(false);
     });
   });
 });

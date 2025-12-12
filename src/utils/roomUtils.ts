@@ -1,5 +1,5 @@
 import { RawScan } from "../models/rawScan/rawScan";
-import { distToSegment, doPolygonsIntersect, getPosition, transformPoint } from "./mathUtils";
+import { distToSegment, doPolygonsIntersect, transformPoint } from "./mathUtils";
 
 // Helper: Check for External Openings (Wall on Floor Perimeter)
 export function checkExternalOpening(rawScan: RawScan): boolean {
@@ -73,11 +73,67 @@ export function checkToiletGaps(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
   const TRANSFORM_SIZE = 16;
   const MIN_DIMENSIONS = 3;
-  const Z_DIM_IDX = 2; // Fixed: Dimensions[2] is Depth
+  const Z_DIM_IDX = 2; // Dimensions[2] is Depth (Z) in local space
   const HALF_DIVISOR = 2;
   const GAP_THRESHOLD_METERS = 0.0254; // 1 inch
-  const MAX_WALL_DIST_METERS = 2.0;
   const DEFAULT_VALUE = 0;
+  const PT_X_IDX = 0;
+  const PT_Z_IDX = 1;
+
+  // Prepare Walls (Projected to 2D World X-Z plane)
+  // We use `transformPoint` which maps {x, y} (Input: Local X, Z) -> {x, y} (Output: World X, Z).
+  const roomWalls: { corners: { x: number; y: number }[] }[] = [];
+  const MIN_CORNERS = 0;
+  const MIN_POINT_SIZE = 2; // Defined here for scope access
+
+  for (const w of walls) {
+    if (w.transform?.length !== TRANSFORM_SIZE) {
+      continue;
+    }
+
+    let pCorners = w.polygonCorners ?? [];
+    const numCorners = pCorners.length;
+
+    // Fallback to dimensions if no corners
+    if (numCorners === MIN_CORNERS) {
+      const DIM_LEN_IDX = 0; // Length is usually X
+      const halfLen = (w.dimensions?.[DIM_LEN_IDX] ?? DEFAULT_VALUE) / HALF_DIVISOR;
+      const ZERO_Z = 0;
+      // Local wall segment along X axis
+      pCorners = [
+        [-halfLen, ZERO_Z],
+        [halfLen, ZERO_Z]
+      ];
+    }
+
+    const wallCornersWorld: { x: number; y: number }[] = [];
+    const MIN_POINT_SIZE = 2;
+    for (const p of pCorners) {
+      if (p.length >= MIN_POINT_SIZE) {
+        // Map Local (X, Z) -> transformPoint expects {x, y}
+        const ptLocal = {
+          x: p[PT_X_IDX] ?? DEFAULT_VALUE,
+          y: p[PT_Z_IDX] ?? DEFAULT_VALUE // y is Local Z
+        };
+
+        const worldPt = transformPoint(ptLocal, w.transform);
+        // Result worldPt is {x: WorldX, y: WorldZ}
+        wallCornersWorld.push({ x: worldPt.x, y: worldPt.y });
+      }
+    }
+
+    if (wallCornersWorld.length > MIN_CORNERS) {
+      roomWalls.push({ corners: wallCornersWorld });
+    }
+  }
+
+  /*
+   * Logic:
+   * Check strict "Backface" distance.
+   * Assume "Back" is local -Z.
+   * Distance > 1 inch -> Error.
+   * No compatible walls -> Error.
+   */
 
   let gapErrorFound = false;
 
@@ -86,90 +142,72 @@ export function checkToiletGaps(rawScan: RawScan): boolean {
       continue;
     }
     if (toilet.dimensions.length < MIN_DIMENSIONS) {
+      // Cannot determine depth
       continue;
     }
 
-    const tPos = getPosition(toilet.transform); // Now returns (x, z)
-    const tDepth = toilet.dimensions[Z_DIM_IDX] ?? DEFAULT_VALUE;
-    const halfDepth = tDepth / HALF_DIVISOR;
-    const distThreshold = halfDepth + GAP_THRESHOLD_METERS;
+    const halfDepth = (toilet.dimensions[Z_DIM_IDX] ?? DEFAULT_VALUE) / HALF_DIVISOR;
 
-    // Find distance to closest wall
-    let minWallDist = Number.MAX_VALUE;
+    // Define Backface Point in Local Space (X, Z) -> {x, y}
+    // Assume Back is -Z.
+    const backfaceLocal = { x: 0, y: -halfDepth };
 
-    for (const w of walls) {
-      if (w.transform?.length !== TRANSFORM_SIZE) {
+    const backfaceWorld = transformPoint(backfaceLocal, toilet.transform);
+    // backfaceWorld is {x: WorldX, y: WorldZ}
+    const backfacePos2D = backfaceWorld;
+
+    let minBackfaceDist = Number.MAX_VALUE;
+    let hasCompatibleWall = false;
+
+    // TODO: Optimize this O(N*M) loop if necessary.
+    for (let i = 0; i < walls.length; i++) {
+      const w = walls[i];
+      if (!w) {
         continue;
       }
 
-      // Transform Wall Segments to World
-      const m = w.transform;
-      // 2D Rotation/Translation:
-      // x' = m0*x + m4*y + m12
-      // y' = m1*x + m5*y + m13
+      // Story Check
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (w.story !== undefined && toilet.story !== undefined && w.story !== toilet.story) {
+        continue;
+      }
+
+      const rw = roomWalls[i];
+      if (!rw || rw.corners.length < MIN_POINT_SIZE) {
+        continue; // Need segment
+      }
+
+      hasCompatibleWall = true;
+
       const NEXT_IDX = 1;
-      if (w.polygonCorners) {
-        for (let i = 0; i < w.polygonCorners.length; i++) {
-          const p1Local = w.polygonCorners[i];
-          const p2Local = w.polygonCorners[(i + NEXT_IDX) % w.polygonCorners.length];
-          if (!p1Local || !p2Local) {
-            continue;
-          }
+      for (let j = 0; j < rw.corners.length; j++) {
+        const p1 = rw.corners[j];
+        const p2 = rw.corners[(j + NEXT_IDX) % rw.corners.length];
+        if (!p1 || !p2) {
+          continue;
+        }
 
-          const X_IDX_MAT = 0;
-          const Y_IDX_MAT = 1;
-          const TX_IDX_MAT = 12;
-          const TY_IDX_MAT = 13;
-          const M0 = 0;
-          const M1 = 1;
-          const M4 = 4;
-          const M5 = 5;
-
-          const p1x = p1Local[X_IDX_MAT] ?? DEFAULT_VALUE;
-          const p1y = p1Local[Y_IDX_MAT] ?? DEFAULT_VALUE;
-          const p2x = p2Local[X_IDX_MAT] ?? DEFAULT_VALUE;
-          const p2y = p2Local[Y_IDX_MAT] ?? DEFAULT_VALUE;
-
-          // Transform: x' = x*m0 + y*m4 + tx
-          // Transform: y' = x*m1 + y*m5 + ty
-          const m0 = m[M0] ?? DEFAULT_VALUE;
-          const m4 = m[M4] ?? DEFAULT_VALUE;
-          const mTx = m[TX_IDX_MAT] ?? DEFAULT_VALUE;
-          const m1 = m[M1] ?? DEFAULT_VALUE;
-          const m5 = m[M5] ?? DEFAULT_VALUE;
-          const mTy = m[TY_IDX_MAT] ?? DEFAULT_VALUE;
-
-          const x1Term1 = p1x * m0;
-          const x1Term2 = p1y * m4;
-          const x1 = x1Term1 + x1Term2 + mTx;
-
-          const y1Term1 = p1x * m1;
-          const y1Term2 = p1y * m5;
-          const y1 = y1Term1 + y1Term2 + mTy;
-
-          const x2Term1 = p2x * m0;
-          const x2Term2 = p2y * m4;
-          const x2 = x2Term1 + x2Term2 + mTx;
-
-          const y2Term1 = p2x * m1;
-          const y2Term2 = p2y * m5;
-          const y2 = y2Term1 + y2Term2 + mTy;
-
-          const dist = distToSegment(tPos, { x: x1, y: y1 }, { x: x2, y: y2 });
-          if (dist < minWallDist) {
-            minWallDist = dist;
-          }
+        const dist = distToSegment(backfacePos2D, p1, p2);
+        if (dist < minBackfaceDist) {
+          minBackfaceDist = dist;
         }
       }
     }
 
-    if (minWallDist < MAX_WALL_DIST_METERS) {
-      if (minWallDist > distThreshold) {
-        // Found a gap!
-        gapErrorFound = true;
-      }
+    // Evaluation
+    if (!hasCompatibleWall) {
+      // "Expect: fail (no eligible walls)"
+      // Treat no walls as infinite gap -> Error.
+      gapErrorFound = true;
+    } else if (minBackfaceDist > GAP_THRESHOLD_METERS) {
+      gapErrorFound = true;
+    }
+
+    if (gapErrorFound) {
+      break;
     }
   }
+
   return gapErrorFound;
 }
 
