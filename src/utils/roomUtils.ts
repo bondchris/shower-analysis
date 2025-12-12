@@ -1,6 +1,5 @@
 import { RawScan } from "../models/rawScan/rawScan";
-import { distToSegment, getPosition, transformPoint } from "./mathUtils";
-import { doPolygonsIntersect } from "./sat";
+import { distToSegment, doPolygonsIntersect, getPosition, transformPoint } from "./mathUtils";
 
 // Helper: Check for External Openings (Wall on Floor Perimeter)
 export function checkExternalOpening(rawScan: RawScan): boolean {
