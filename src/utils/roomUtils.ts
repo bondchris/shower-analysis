@@ -167,8 +167,7 @@ export function checkToiletGaps(rawScan: RawScan): boolean {
       }
 
       // Story Check
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (w.story !== undefined && toilet.story !== undefined && w.story !== toilet.story) {
+      if (w.story !== undefined && w.story !== toilet.story) {
         continue;
       }
 
@@ -230,7 +229,7 @@ export function checkTubGaps(rawScan: RawScan): boolean {
   const MIN_CORNERS = 0;
 
   // 1. Collect Wall Segments (World Space)
-  const roomWalls: { corners: { x: number; y: number }[] }[] = [];
+  const roomWalls: { corners: { x: number; y: number }[]; story?: number }[] = [];
 
   for (const w of walls) {
     if (w.transform?.length !== TRANSFORM_SIZE) {
@@ -263,7 +262,7 @@ export function checkTubGaps(rawScan: RawScan): boolean {
     if (wallCornersWorld.length < MIN_WALL_CORNERS) {
       continue;
     }
-    roomWalls.push({ corners: wallCornersWorld });
+    roomWalls.push({ corners: wallCornersWorld, ...(w.story !== undefined ? { story: w.story } : {}) });
   }
 
   let tubGapErrorFound = false;
@@ -282,16 +281,20 @@ export function checkTubGaps(rawScan: RawScan): boolean {
 
     for (const rw of roomWalls) {
       const wallCornersWorld = rw.corners;
+      if (rw.story !== undefined && rw.story !== tub.story) {
+        continue;
+      }
       let minDist = Number.MAX_VALUE;
 
       // 2a. Tub Corners -> Wall Segments
       for (const tc of tubCornersWorld) {
         for (let i = 0; i < wallCornersWorld.length; i++) {
-          const p1 = wallCornersWorld[i];
-          const p2 = wallCornersWorld[(i + NEXT_IDX) % wallCornersWorld.length];
+          const p1 = wallCornersWorld[i] as { x: number; y: number } | undefined;
+          const p2 = wallCornersWorld[(i + NEXT_IDX) % wallCornersWorld.length] as { x: number; y: number } | undefined;
           if (!p1 || !p2) {
             continue;
           }
+
           const d = distToSegment(tc, p1, p2);
           if (d < minDist) {
             minDist = d;
@@ -302,11 +305,12 @@ export function checkTubGaps(rawScan: RawScan): boolean {
       // 2b. Wall Corners -> Tub Segments
       for (const wc of wallCornersWorld) {
         for (let i = 0; i < tubCornersWorld.length; i++) {
-          const p1 = tubCornersWorld[i];
-          const p2 = tubCornersWorld[(i + NEXT_IDX) % tubCornersWorld.length];
+          const p1 = tubCornersWorld[i] as { x: number; y: number } | undefined;
+          const p2 = tubCornersWorld[(i + NEXT_IDX) % tubCornersWorld.length] as { x: number; y: number } | undefined;
           if (!p1 || !p2) {
             continue;
           }
+
           const d = distToSegment(wc, p1, p2);
           if (d < minDist) {
             minDist = d;
@@ -314,9 +318,12 @@ export function checkTubGaps(rawScan: RawScan): boolean {
         }
       }
 
-      if (minDist > GAP_TUB_MIN && minDist < GAP_TUB_MAX) {
+      // Logic: if ANY wall is within the Forbidden Zone (1" < gap < 6"), Flag Error.
+      // We use inclusive bounds (-epsilon).
+      const EPSILON = 1e-5;
+      if (minDist >= GAP_TUB_MIN - EPSILON && minDist <= GAP_TUB_MAX + EPSILON) {
         tubGapErrorFound = true;
-        break;
+        break; // Optimization: One bad gap is enough to fail
       }
     }
     if (tubGapErrorFound) {

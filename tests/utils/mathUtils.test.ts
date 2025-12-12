@@ -928,52 +928,40 @@ describe("mathUtils", () => {
     // 3. Nullish / Sparse Arrays
     describe("3. Nullish / Sparse Arrays", () => {
       it("should return {0,0} for sparse array with all undefined", () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const t: any[] = new Array(16); // Sparse/Undefined
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        const t = new Array(16) as number[]; // Sparse/Undefined
         expect(getPosition(t)).toEqual({ x: 0, y: 0 });
       });
 
       it("should handle X undefined, Z set", () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const t: any[] = new Array(16);
+        const t = new Array(16) as number[];
         t[14] = 7;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         expect(getPosition(t)).toEqual({ x: 0, y: 7 });
       });
 
       it("should handle Z undefined, X set", () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const t: any[] = new Array(16);
+        const t = new Array(16) as number[];
         t[12] = 9;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         expect(getPosition(t)).toEqual({ x: 9, y: 0 });
       });
 
       it("should handle Null at X index", () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const t: any[] = new Array(16);
-        t[12] = null;
+        const t = new Array(16) as number[];
+        t[12] = null as unknown as number;
         t[14] = 7;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         expect(getPosition(t)).toEqual({ x: 0, y: 7 });
       });
 
       it("should handle Null at Z index", () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const t: any[] = new Array(16);
+        const t = new Array(16) as number[];
         t[12] = 9;
-        t[14] = null;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        t[14] = null as unknown as number;
         expect(getPosition(t)).toEqual({ x: 9, y: 0 });
       });
 
       it("should handle sparse but defined indices", () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const t: any[] = new Array(16);
+        const t = new Array(16) as number[];
         t[12] = 42;
         t[14] = -10;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         expect(getPosition(t)).toEqual({ x: 42, y: -10 });
       });
     });
@@ -1007,22 +995,18 @@ describe("mathUtils", () => {
     // 5. Non-numeric but Length-Correct
     describe("5. Non-numeric but Length-Correct", () => {
       it("should pass through string and boolean values", () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const t: any[] = new Array(16).fill(0);
-        t[12] = "hello";
-        t[14] = true;
+        const t = new Array(16).fill(0) as number[];
+        t[12] = "hello" as unknown as number;
+        t[14] = true as unknown as number;
         // Since function logic uses `?? 0`, non-nullish non-numeric values are returned as-is
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         expect(getPosition(t)).toEqual({ x: "hello", y: true });
       });
 
       it("should handle mixed nullish + string", () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const t: any[] = new Array(16).fill(0);
-        t[12] = undefined;
-        t[14] = "100";
+        const t = new Array(16).fill(0) as number[];
+        t[12] = undefined as unknown as number;
+        t[14] = "100" as unknown as number;
         // undefined -> 0, "100" -> "100"
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         expect(getPosition(t)).toEqual({ x: 0, y: "100" });
       });
     });
