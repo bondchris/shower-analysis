@@ -346,7 +346,7 @@ export function checkWallGaps(rawScan: RawScan): boolean {
   const PT_Z_IDX = 1;
   const MIN_POINT_SIZE = 2;
   const MIN_CORNERS = 0;
-  const EXPONENT_SQUARED = 2;
+  const NEXT_IDX_ONE = 1;
 
   // 1. Collect Wall Segments (World Space)
   const roomWalls: { corners: { x: number; y: number }[] }[] = [];
@@ -387,34 +387,51 @@ export function checkWallGaps(rawScan: RawScan): boolean {
 
   let wallGapErrorFound = false;
 
-  // Compare every wall endpoint with every other wall endpoint
+  // Compare every wall against every other wall
   for (let i = 0; i < roomWalls.length; i++) {
     const wA = roomWalls[i];
     if (!wA) {
       continue;
     }
 
-    for (const pA of wA.corners) {
-      let minEndpointDist = Number.MAX_VALUE;
+    // Check against subsequent walls (unique pairs)
+    for (let j = i + NEXT_IDX_ONE; j < roomWalls.length; j++) {
+      const wB = roomWalls[j];
+      if (!wB) {
+        continue;
+      }
 
-      for (let j = 0; j < roomWalls.length; j++) {
-        if (i === j) {
-          continue;
-        }
-        const wB = roomWalls[j];
-        if (!wB) {
-          continue;
-        }
+      let minGapDist = Number.MAX_VALUE;
 
-        for (const pB of wB.corners) {
-          const d = Math.sqrt(Math.pow(pA.x - pB.x, EXPONENT_SQUARED) + Math.pow(pA.y - pB.y, EXPONENT_SQUARED));
-          if (d < minEndpointDist) {
-            minEndpointDist = d;
+      // Check distance from every corner of A to every segment of B
+      for (const pA of wA.corners) {
+        for (let k = 0; k < wB.corners.length; k++) {
+          const pB1 = wB.corners[k];
+          const pB2 = wB.corners[(k + NEXT_IDX_ONE) % wB.corners.length];
+          if (pB1 && pB2) {
+            const d = distToSegment(pA, pB1, pB2);
+            if (d < minGapDist) {
+              minGapDist = d;
+            }
           }
         }
       }
 
-      if (minEndpointDist > GAP_WALL_MIN && minEndpointDist < GAP_WALL_MAX) {
+      // Check distance from every corner of B to every segment of A
+      for (const pB of wB.corners) {
+        for (let k = 0; k < wA.corners.length; k++) {
+          const pA1 = wA.corners[k];
+          const pA2 = wA.corners[(k + NEXT_IDX_ONE) % wA.corners.length];
+          if (pA1 && pA2) {
+            const d = distToSegment(pB, pA1, pA2);
+            if (d < minGapDist) {
+              minGapDist = d;
+            }
+          }
+        }
+      }
+
+      if (minGapDist > GAP_WALL_MIN && minGapDist < GAP_WALL_MAX) {
         wallGapErrorFound = true;
         break;
       }
