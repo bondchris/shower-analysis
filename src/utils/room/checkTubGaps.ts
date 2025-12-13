@@ -1,5 +1,6 @@
 import { RawScan } from "../../models/rawScan/rawScan";
-import { distToSegment, transformPoint } from "../mathUtils";
+import { distToSegment } from "../math/segment";
+import { transformPoint } from "../math/transform";
 
 // Helper: Check for Tub Gaps (1" < gap < 6")
 export function checkTubGaps(rawScan: RawScan): boolean {

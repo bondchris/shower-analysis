@@ -1,5 +1,6 @@
 import { RawScan } from "../../models/rawScan/rawScan";
-import { doPolygonsIntersect, transformPoint } from "../mathUtils";
+import { doPolygonsIntersect } from "../math/polygon";
+import { transformPoint } from "../math/transform";
 
 // Helper: Check for Door Blocking (Door sweep intersects Object)
 export function checkDoorBlocking(rawScan: RawScan): boolean {

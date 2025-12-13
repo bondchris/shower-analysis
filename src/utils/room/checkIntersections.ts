@@ -1,5 +1,6 @@
 import { RawScan } from "../../models/rawScan/rawScan";
-import { doPolygonsIntersect, transformPoint } from "../mathUtils";
+import { doPolygonsIntersect } from "../math/polygon";
+import { transformPoint } from "../math/transform";
 
 // Helper: Check for Object Intersections (Object-Object and Wall-Object)
 function checkObjectIntersectionsInternal(rawScan: RawScan): {

@@ -1,5 +1,5 @@
 import { RawScan } from "../../models/rawScan/rawScan";
-import { transformPoint } from "../mathUtils";
+import { transformPoint } from "../math/transform";
 
 // Helper: Check for Nib Walls (Length < 1ft / 0.3048m)
 export function checkNibWalls(rawScan: RawScan): boolean {

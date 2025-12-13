@@ -1,5 +1,6 @@
 import { RawScan } from "../../models/rawScan/rawScan";
-import { distToSegment, transformPoint } from "../mathUtils";
+import { distToSegment } from "../math/segment";
+import { transformPoint } from "../math/transform";
 
 // Helper: Check for Crooked Walls (Angles not multiple of 90 deg)
 export function checkCrookedWalls(rawScan: RawScan): boolean {

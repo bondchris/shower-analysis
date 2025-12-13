@@ -1,5 +1,6 @@
 import { RawScan } from "../../models/rawScan/rawScan";
-import { distToSegment, transformPoint } from "../mathUtils";
+import { distToSegment } from "../math/segment";
+import { transformPoint } from "../math/transform";
 
 // Helper: Check for Colinear Walls (Touching and Parallel)
 export function checkColinearWalls(rawScan: RawScan): boolean {

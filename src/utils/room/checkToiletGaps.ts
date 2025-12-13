@@ -1,5 +1,6 @@
 import { RawScan } from "../../models/rawScan/rawScan";
-import { distToSegment, transformPoint } from "../mathUtils";
+import { distToSegment } from "../math/segment";
+import { transformPoint } from "../math/transform";
 
 // Helper: Check for Toilet Gaps (> 1 inch from wall)
 export function checkToiletGaps(rawScan: RawScan): boolean {

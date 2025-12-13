@@ -1,5 +1,5 @@
 import { RawScan } from "../../models/rawScan/rawScan";
-import { distToSegment } from "../mathUtils";
+import { distToSegment } from "../math/segment";
 
 // Helper: Check for External Openings (Wall on Floor Perimeter)
 export function checkExternalOpening(rawScan: RawScan): boolean {
