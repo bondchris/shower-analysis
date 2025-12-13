@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import { BadScanRecord } from "../models/badScanRecord";
+import { BadScanRecord } from "../../models/badScanRecord";
 
 export function getBadScans(): BadScanRecord[] {
   const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");

@@ -2,7 +2,7 @@ import ffmpeg from "fluent-ffmpeg";
 import * as fs from "fs";
 import * as path from "path";
 
-import { getBadScans, saveBadScans } from "../utils/badScans";
+import { getBadScans, saveBadScans } from "../utils/data/badScans";
 
 async function checkVideo(filePath: string): Promise<boolean> {
   const success = await new Promise<boolean>((resolve) => {

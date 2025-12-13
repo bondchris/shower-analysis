@@ -3,8 +3,8 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { GeminiService } from "../services/geminiService";
-import { getBadScans, saveBadScans } from "../utils/badScans";
-import { getCheckedScans, saveCheckedScans } from "../utils/checkedScans";
+import { getBadScans, saveBadScans } from "../utils/data/badScans";
+import { getCheckedScans, saveCheckedScans } from "../utils/data/checkedScans";
 
 dotenv.config();
 

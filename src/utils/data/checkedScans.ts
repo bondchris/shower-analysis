@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import { CheckedScanRecord } from "../models/checkedScanRecord";
+import { CheckedScanRecord } from "../../models/checkedScanRecord";
 
 export function getCheckedScans(): CheckedScanRecord[] {
   const CHECKED_SCANS_FILE = path.join(process.cwd(), "config", "checkedScans.json");
