@@ -8,17 +8,15 @@ import { ArData } from "../models/arData/arData";
 import { ArtifactMetadata } from "../models/artifactMetadata";
 import { RawScan } from "../models/rawScan/rawScan";
 import * as ChartUtils from "../utils/chartUtils";
-import {
-  checkColinearWalls,
-  checkCrookedWalls,
-  checkDoorBlocking,
-  checkExternalOpening,
-  checkIntersections,
-  checkNibWalls,
-  checkToiletGaps,
-  checkTubGaps,
-  checkWallGaps
-} from "../utils/roomUtils";
+import { checkColinearWalls } from "../utils/room/checkColinearWalls";
+import { checkCrookedWalls } from "../utils/room/checkCrookedWalls";
+import { checkDoorBlocking } from "../utils/room/checkDoorBlocking";
+import { checkExternalOpening } from "../utils/room/checkExternalOpening";
+import { checkIntersections } from "../utils/room/checkIntersections";
+import { checkNibWalls } from "../utils/room/checkNibWalls";
+import { checkToiletGaps } from "../utils/room/checkToiletGaps";
+import { checkTubGaps } from "../utils/room/checkTubGaps";
+import { checkWallGaps } from "../utils/room/checkWallGaps";
 
 // 1. Video Metadata Extraction
 async function addVideoMetadata(dirPath: string, metadata: ArtifactMetadata): Promise<boolean> {
