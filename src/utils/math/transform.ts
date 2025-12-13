@@ -1,5 +1,7 @@
+import { TRANSFORM_SIZE } from "./constants";
+import { dotProduct } from "./vector";
+
 export const getPosition = (transform: number[]): { x: number; y: number } => {
-  const TRANSFORM_SIZE = 16;
   const X_IDX = 12;
   const Z_IDX = 14;
   const DEFAULT_VALUE = 0;
@@ -36,13 +38,12 @@ export const transformPoint = (p: { x: number; y: number }, m: number[]): { x: n
   const m10 = m[MAT_M10] ?? DEFAULT_VALUE;
   const mTz = m[MAT_TZ] ?? DEFAULT_VALUE;
 
-  const termX1 = p.x * m0;
-  const termX2 = p.y * m8;
-  const x = termX1 + termX2 + mTx;
-
-  const termZ1 = p.x * m2;
-  const termZ2 = p.y * m10;
-  const y = termZ1 + termZ2 + mTz;
+  /*
+   * x' = dot({x, y}, {m0, m8}) + mTx
+   * z' = dot({x, y}, {m2, m10}) + mTz
+   */
+  const x = dotProduct(p, { x: m0, y: m8 }) + mTx;
+  const y = dotProduct(p, { x: m2, y: m10 }) + mTz;
 
   return { x, y };
 };

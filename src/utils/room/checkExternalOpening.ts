@@ -1,4 +1,5 @@
 import { RawScan } from "../../models/rawScan/rawScan";
+import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
 
 // Helper: Check for External Openings (Wall on Floor Perimeter)
@@ -21,7 +22,6 @@ export function checkExternalOpening(rawScan: RawScan): boolean {
   const PERIMETER_THRESHOLD = 0.5;
   const TX_IDX = 12;
   const TY_IDX = 13;
-  const MAT_SIZE = 16;
   const DEFAULT_COORD = 0;
   const X_IDX = 0;
   const Y_IDX = 1;
@@ -39,7 +39,7 @@ export function checkExternalOpening(rawScan: RawScan): boolean {
     }
 
     const wall = rawScan.walls.find((w) => w.identifier === o.parentIdentifier);
-    if (!wall || wall.transform?.length !== MAT_SIZE) {
+    if (!wall || wall.transform?.length !== TRANSFORM_SIZE) {
       continue;
     }
 

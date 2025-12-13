@@ -1,6 +1,8 @@
 import { RawScan } from "../../models/rawScan/rawScan";
+import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
+import { dotProduct, magnitudeSquared, subtract } from "../math/vector";
 
 // Helper: Check for Colinear Walls (Touching and Parallel)
 export function checkColinearWalls(rawScan: RawScan): boolean {
@@ -9,7 +11,6 @@ export function checkColinearWalls(rawScan: RawScan): boolean {
   // Parallel: Dot product > 0.996 (approx 5 degrees)
   const TOUCH_THRESHOLD = 0.0762;
   const PARALLEL_THRESHOLD = 0.996;
-  const TRANSFORM_SIZE = 16;
   const HALF_DIVISOR = 2;
   const DEFAULT_VALUE = 0;
   const PT_X_IDX = 0;
@@ -82,15 +83,12 @@ export function checkColinearWalls(rawScan: RawScan): boolean {
         continue;
       }
 
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
-      const termX = dx * dx;
-      const termY = dy * dy;
-      const len = Math.sqrt(termX + termY);
+      const v = subtract(p2, p1);
+      const len = Math.sqrt(magnitudeSquared(v));
       if (len > maxLenA) {
         maxLenA = len;
-        vAx = dx / len;
-        vAy = dy / len;
+        vAx = v.x / len;
+        vAy = v.y / len;
       }
     }
 
@@ -120,21 +118,16 @@ export function checkColinearWalls(rawScan: RawScan): boolean {
           continue;
         }
 
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
-        const termX = dx * dx;
-        const termY = dy * dy;
-        const len = Math.sqrt(termX + termY);
+        const v = subtract(p2, p1);
+        const len = Math.sqrt(magnitudeSquared(v));
         if (len > maxLenB) {
           maxLenB = len;
-          vBx = dx / len;
-          vBy = dy / len;
+          vBx = v.x / len;
+          vBy = v.y / len;
         }
       }
 
-      const dotTerm1 = vAx * vBx;
-      const dotTerm2 = vAy * vBy;
-      const dot = Math.abs(dotTerm1 + dotTerm2);
+      const dot = Math.abs(dotProduct({ x: vAx, y: vAy }, { x: vBx, y: vBy }));
 
       if (dot <= PARALLEL_THRESHOLD) {
         continue; // Not parallel

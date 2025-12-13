@@ -1,4 +1,6 @@
+import { TRANSFORM_SIZE } from "../../../src/utils/math/constants";
 import { getPosition, transformPoint } from "../../../src/utils/math/transform";
+import { magnitudeSquared } from "../../../src/utils/math/vector";
 
 describe("transform utils", () => {
   describe("transformPoint", () => {
@@ -18,14 +20,14 @@ describe("transform utils", () => {
         // Only Tx(12) and Tz(14) set. Diagonals 0 (not identity-based, raw translation)
         // If diagonals are 0, then scaling is 0?
         // This implies m0=0, so x*0 + ... + Tx.
-        const matrix: number[] = new Array(16).fill(0) as number[];
+        const matrix: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         matrix[12] = 10;
         matrix[14] = 20;
         expect(transformPoint({ x: 0, y: 0 }, matrix)).toEqual({ x: 10, y: 20 });
       });
 
       it("should handle Pure Scaling", () => {
-        const matrix: number[] = new Array(16).fill(0) as number[];
+        const matrix: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         matrix[0] = 2; // sx
         matrix[10] = 3; // sz
         const p = { x: 4, y: 5 };
@@ -41,7 +43,7 @@ describe("transform utils", () => {
         // x' = x*m0 + z*m8 + tx
         // z' = x*m2 + z*m10 + tz
         // Desired: x' = z (so m8=1), z' = -x (so m2=-1)
-        const matrix: number[] = new Array(16).fill(0) as number[];
+        const matrix: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         matrix[8] = 1;
         matrix[2] = -1;
         matrix[15] = 1; // standard homogeneous
@@ -53,7 +55,7 @@ describe("transform utils", () => {
       it("should handle 180 deg rotation", () => {
         // x' = -x, z' = -z
         // m0=-1, m10=-1
-        const matrix: number[] = new Array(16).fill(0) as number[];
+        const matrix: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         matrix[0] = -1;
         matrix[10] = -1;
         expect(transformPoint({ x: 10, y: 20 }, matrix)).toEqual({ x: -10, y: -20 });
@@ -67,7 +69,7 @@ describe("transform utils", () => {
         // z' = x*m2 + z*m10 + tz
         // Let m0=1, m8=2, tx=5
         // Let m2=3, m10=4, tz=6
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[0] = 1;
         m[8] = 2;
         m[12] = 5;
@@ -84,7 +86,7 @@ describe("transform utils", () => {
     // 2. Edge Cases & Matrix Defaulting
     describe("2. Edge Cases & Matrix Defaulting", () => {
       it("should handle Zero Matrix", () => {
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         expect(transformPoint({ x: 123, y: 456 }, m)).toEqual({ x: 0, y: 0 });
       });
 
@@ -116,21 +118,21 @@ describe("transform utils", () => {
     // 3. Point Input Boundary Tests
     describe("3. Point Input Boundary Tests", () => {
       it("should handle Zero point", () => {
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[12] = 5;
         m[14] = -5;
         expect(transformPoint({ x: 0, y: 0 }, m)).toEqual({ x: 5, y: -5 });
       });
 
       it("should handle Negative Coordinates", () => {
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[0] = 2;
         m[10] = 2; // Scale 2
         expect(transformPoint({ x: -5, y: -5 }, m)).toEqual({ x: -10, y: -10 });
       });
 
       it("should handle Fractional Coordinates", () => {
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[0] = 0.5;
         m[10] = 0.25;
         const res = transformPoint({ x: 3, y: 4 }, m);
@@ -139,7 +141,7 @@ describe("transform utils", () => {
       });
 
       it("should handle Very Small Values", () => {
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[0] = 1e6;
         m[10] = 1e6;
         const p = { x: 1e-9, y: 1e-9 };
@@ -150,7 +152,7 @@ describe("transform utils", () => {
       });
 
       it("should handle Large Values", () => {
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[0] = 100;
         m[10] = 100;
         // 1e6 * 100 = 1e8
@@ -163,7 +165,7 @@ describe("transform utils", () => {
     // 4. Input Mapping Verification (p.y as local Z)
     describe("4. Input Mapping Verification", () => {
       it("should confirm Z affects X via m[8]", () => {
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[8] = 2;
         const p = { x: 0, y: 5 }; // y is local Z
         // x' = x*m0 + z*m8 = 0 + 5*2 = 10
@@ -171,7 +173,7 @@ describe("transform utils", () => {
       });
 
       it("should confirm Z affects Z via m[10]", () => {
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[10] = 3;
         const p = { x: 0, y: 4 };
         // z' = 4*3 = 12
@@ -179,7 +181,7 @@ describe("transform utils", () => {
       });
 
       it("should verify X-only transformation", () => {
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[0] = 2;
         m[2] = 2; // X affects X and Z
         // Varying Y should not change result
@@ -195,7 +197,7 @@ describe("transform utils", () => {
       it("should handle Shear transformation", () => {
         // x' = x + 2z
         // z' = 3x + z
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[0] = 1;
         m[8] = 2;
         m[2] = 3;
@@ -206,7 +208,7 @@ describe("transform utils", () => {
 
       it("should handle Reflection across axes", () => {
         // x' = -x, z' = -z
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[0] = -1;
         m[10] = -1;
         expect(transformPoint({ x: 10, y: 20 }, m)).toEqual({ x: -10, y: -20 });
@@ -214,7 +216,7 @@ describe("transform utils", () => {
 
       it("should handle Singular matrix (collapse X)", () => {
         // m0=0, m10=1. X input irrelevant.
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[10] = 1;
         const res1 = transformPoint({ x: 1, y: 5 }, m);
         const res2 = transformPoint({ x: 999, y: 5 }, m);
@@ -226,30 +228,25 @@ describe("transform utils", () => {
     // 6. Mathematical Correctness
     describe("6. Mathematical Correctness", () => {
       it("should preserve distance under pure rotation", () => {
-        const m: number[] = new Array(16).fill(0) as number[];
+        const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         // Rotate 90
         m[8] = 1;
         m[2] = -1;
         const p = { x: 3, y: 4 };
         const res = transformPoint(p, m);
         // Dist orig = 5. Dist new = sqrt(4^2 + (-3)^2) = 5.
-        const sqX = p.x * p.x;
-        const sqY = p.y * p.y;
-        const distOrig = Math.sqrt(sqX + sqY);
-
-        const resSqX = res.x * res.x;
-        const resSqY = res.y * res.y;
-        const distNew = Math.sqrt(resSqX + resSqY);
+        const distOrig = Math.sqrt(magnitudeSquared(p));
+        const distNew = Math.sqrt(magnitudeSquared(res));
         expect(distNew).toBeCloseTo(distOrig);
       });
 
       it("should satisfy inverse transformation property (simple case)", () => {
         // Scale by 2, Inverse is Scale by 0.5
-        const M: number[] = new Array(16).fill(0) as number[];
+        const M: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         M[0] = 2;
         M[10] = 2;
         M[15] = 1;
-        const InvM: number[] = new Array(16).fill(0) as number[];
+        const InvM: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         InvM[0] = 0.5;
         InvM[10] = 0.5;
         InvM[15] = 1;
@@ -264,16 +261,16 @@ describe("transform utils", () => {
         // T1: Translate (10, 0)
         // T2: Translate (0, 20)
         // Combined: Translate (10, 20)
-        const T1: number[] = new Array(16).fill(0) as number[];
+        const T1: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         T1[0] = 1;
         T1[10] = 1;
         T1[12] = 10;
-        const T2: number[] = new Array(16).fill(0) as number[];
+        const T2: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         T2[0] = 1;
         T2[10] = 1;
         T2[14] = 20;
         // Manual Composition for test
-        const TComb: number[] = new Array(16).fill(0) as number[];
+        const TComb: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         TComb[0] = 1;
         TComb[10] = 1;
         TComb[12] = 10;
@@ -311,7 +308,7 @@ describe("transform utils", () => {
     // 1. Happy Path / Core Behavior
     describe("1. Happy Path / Core Behavior", () => {
       it("should extract position from standard valid matrix", () => {
-        const transform: number[] = new Array(16).fill(0) as number[];
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         transform[12] = 10;
         transform[14] = 20;
         expect(getPosition(transform)).toEqual({ x: 10, y: 20 });
@@ -319,20 +316,20 @@ describe("transform utils", () => {
 
       it("should extract correct indices even in incremental array", () => {
         // [0, 1, 2, ..., 15]
-        const transform = Array.from({ length: 16 }, (_, i) => i);
+        const transform = Array.from({ length: TRANSFORM_SIZE }, (_, i) => i);
         // Expected: x at 12, y at 14
         expect(getPosition(transform)).toEqual({ x: 12, y: 14 });
       });
 
       it("should handle negative and decimal coordinates", () => {
-        const transform: number[] = new Array(16).fill(0) as number[];
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         transform[12] = -5.5;
         transform[14] = -10.1;
         expect(getPosition(transform)).toEqual({ x: -5.5, y: -10.1 });
       });
 
       it("should handle all zeros valid transform", () => {
-        const transform: number[] = new Array(16).fill(0) as number[];
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         expect(getPosition(transform)).toEqual({ x: 0, y: 0 });
       });
     });
@@ -357,38 +354,38 @@ describe("transform utils", () => {
     // 3. Nullish / Sparse Arrays
     describe("3. Nullish / Sparse Arrays", () => {
       it("should return {0,0} for sparse array with all undefined", () => {
-        const t = new Array(16) as number[]; // Sparse/Undefined
+        const t = new Array(TRANSFORM_SIZE) as number[]; // Sparse/Undefined
         expect(getPosition(t)).toEqual({ x: 0, y: 0 });
       });
 
       it("should handle X undefined, Z set", () => {
-        const t = new Array(16) as number[];
+        const t = new Array(TRANSFORM_SIZE) as number[];
         t[14] = 7;
         expect(getPosition(t)).toEqual({ x: 0, y: 7 });
       });
 
       it("should handle Z undefined, X set", () => {
-        const t = new Array(16) as number[];
+        const t = new Array(TRANSFORM_SIZE) as number[];
         t[12] = 9;
         expect(getPosition(t)).toEqual({ x: 9, y: 0 });
       });
 
       it("should handle Null at X index", () => {
-        const t = new Array(16) as number[];
+        const t = new Array(TRANSFORM_SIZE) as number[];
         t[12] = null as unknown as number;
         t[14] = 7;
         expect(getPosition(t)).toEqual({ x: 0, y: 7 });
       });
 
       it("should handle Null at Z index", () => {
-        const t = new Array(16) as number[];
+        const t = new Array(TRANSFORM_SIZE) as number[];
         t[12] = 9;
         t[14] = null as unknown as number;
         expect(getPosition(t)).toEqual({ x: 9, y: 0 });
       });
 
       it("should handle sparse but defined indices", () => {
-        const t = new Array(16) as number[];
+        const t = new Array(TRANSFORM_SIZE) as number[];
         t[12] = 42;
         t[14] = -10;
         expect(getPosition(t)).toEqual({ x: 42, y: -10 });
@@ -398,7 +395,7 @@ describe("transform utils", () => {
     // 4. Special Numeric & Weird Values
     describe("4. Special Numeric & Weird Values", () => {
       it("should return NaN if inputs are NaN", () => {
-        const t: number[] = new Array(16).fill(0) as number[];
+        const t: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         t[12] = NaN;
         t[14] = NaN;
         const result = getPosition(t);
@@ -407,14 +404,14 @@ describe("transform utils", () => {
       });
 
       it("should handle Infinity", () => {
-        const t: number[] = new Array(16).fill(0) as number[];
+        const t: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         t[12] = Infinity;
         t[14] = -Infinity;
         expect(getPosition(t)).toEqual({ x: Infinity, y: -Infinity });
       });
 
       it("should pass through very large numbers", () => {
-        const t: number[] = new Array(16).fill(0) as number[];
+        const t: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         t[12] = Number.MAX_VALUE;
         t[14] = -Number.MAX_VALUE;
         expect(getPosition(t)).toEqual({ x: Number.MAX_VALUE, y: -Number.MAX_VALUE });
@@ -424,7 +421,7 @@ describe("transform utils", () => {
     // 5. Non-numeric but Length-Correct
     describe("5. Non-numeric but Length-Correct", () => {
       it("should pass through string and boolean values", () => {
-        const t = new Array(16).fill(0) as number[];
+        const t = new Array(TRANSFORM_SIZE).fill(0) as number[];
         t[12] = "hello" as unknown as number;
         t[14] = true as unknown as number;
         // Since function logic uses `?? 0`, non-nullish non-numeric values are returned as-is
@@ -432,7 +429,7 @@ describe("transform utils", () => {
       });
 
       it("should handle mixed nullish + string", () => {
-        const t = new Array(16).fill(0) as number[];
+        const t = new Array(TRANSFORM_SIZE).fill(0) as number[];
         t[12] = undefined as unknown as number;
         t[14] = "100" as unknown as number;
         // undefined -> 0, "100" -> "100"

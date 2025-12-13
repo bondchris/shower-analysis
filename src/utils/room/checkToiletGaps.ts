@@ -1,4 +1,5 @@
 import { RawScan } from "../../models/rawScan/rawScan";
+import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
 
@@ -6,7 +7,7 @@ import { transformPoint } from "../math/transform";
 export function checkToiletGaps(rawScan: RawScan): boolean {
   const toilets = rawScan.objects.filter((o) => o.category.toilet !== undefined);
   const walls = rawScan.walls;
-  const TRANSFORM_SIZE = 16;
+
   const MIN_DIMENSIONS = 3;
   const Z_DIM_IDX = 2; // Dimensions[2] is Depth (Z) in local space
   const HALF_DIVISOR = 2;

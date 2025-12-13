@@ -1,3 +1,4 @@
+import { TRANSFORM_SIZE } from "../../utils/math/constants";
 import { ArFrame } from "./arFrame";
 
 export interface ArDataContent {
@@ -26,7 +27,6 @@ export class ArData {
   public data: Record<string, ArFrame>;
 
   constructor(json: unknown) {
-    const TRANSFORM_LENGTH = 16;
     if (typeof json !== "object" || json === null) {
       throw new Error("Invalid ArData: must be an object");
     }
@@ -63,9 +63,9 @@ export class ArData {
       }
 
       // Validate CameraTransform
-      if (!Array.isArray(unsafeFrame.cameraTransform) || unsafeFrame.cameraTransform.length !== TRANSFORM_LENGTH) {
+      if (!Array.isArray(unsafeFrame.cameraTransform) || unsafeFrame.cameraTransform.length !== TRANSFORM_SIZE) {
         throw new Error(
-          `Invalid ArData: frame "${key}" has invalid cameraTransform (must be ${TRANSFORM_LENGTH.toString()}-element array)`
+          `Invalid ArData: frame "${key}" has invalid cameraTransform (must be ${TRANSFORM_SIZE.toString()}-element array)`
         );
       }
 

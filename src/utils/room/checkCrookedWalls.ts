@@ -1,11 +1,13 @@
 import { RawScan } from "../../models/rawScan/rawScan";
+import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
+import { subtract } from "../math/vector";
 
 // Helper: Check for Crooked Walls (Angles not multiple of 90 deg)
 export function checkCrookedWalls(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
-  const TRANSFORM_SIZE = 16;
+
   // const MAT_IDX_M00 = 0; // Keeping if needed for future
   // const MAT_IDX_M02 = 2; // Unused
   // const MAT_IDX_M08 = 8; // Unused
@@ -31,9 +33,8 @@ export function checkCrookedWalls(rawScan: RawScan): boolean {
     const p1End = transformPoint({ x: l1, y: 0 }, w1.transform);
 
     // Get vector 1
-    const dx1 = p1End.x - p1Start.x;
-    const dy1 = p1End.y - p1Start.y; // Y is World Z
-    const angle1 = Math.atan2(dy1, dx1); // Radians
+    const v1 = subtract(p1End, p1Start);
+    const angle1 = Math.atan2(v1.y, v1.x); // Radians
 
     for (let j = i + NEXT_IDX; j < walls.length; j++) {
       const w2 = walls[j];
@@ -64,9 +65,8 @@ export function checkCrookedWalls(rawScan: RawScan): boolean {
 
       if (minDist <= DIST_THRESHOLD) {
         // Connected. Check Angle.
-        const dx2 = p2End.x - p2Start.x;
-        const dy2 = p2End.y - p2Start.y;
-        const angle2 = Math.atan2(dy2, dx2);
+        const v2 = subtract(p2End, p2Start);
+        const angle2 = Math.atan2(v2.y, v2.x);
 
         let angleDiff = Math.abs((angle1 - angle2) * RAD_TO_DEG);
         // Normalize to [0, 180] deviation from parallel

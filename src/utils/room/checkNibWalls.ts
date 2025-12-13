@@ -1,11 +1,12 @@
 import { RawScan } from "../../models/rawScan/rawScan";
+import { TRANSFORM_SIZE } from "../math/constants";
 import { transformPoint } from "../math/transform";
+import { magnitudeSquared } from "../math/vector";
 
 // Helper: Check for Nib Walls (Length < 1ft / 0.3048m)
 export function checkNibWalls(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
   const NIB_WALL_THRESHOLD = 0.3048;
-  const TRANSFORM_SIZE = 16;
   const HALF_DIVISOR = 2;
   const DEFAULT_VALUE = 0;
   const PT_X_IDX = 0;
@@ -66,9 +67,7 @@ export function checkNibWalls(rawScan: RawScan): boolean {
         if (!p1 || !p2) {
           continue;
         }
-        const termX = (p2.x - p1.x) * (p2.x - p1.x);
-        const termY = (p2.y - p1.y) * (p2.y - p1.y);
-        const d = Math.sqrt(termX + termY);
+        const d = Math.sqrt(magnitudeSquared({ x: p2.x - p1.x, y: p2.y - p1.y }));
         if (d > maxDist) {
           maxDist = d;
         }

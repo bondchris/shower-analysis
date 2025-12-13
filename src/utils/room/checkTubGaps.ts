@@ -1,4 +1,5 @@
 import { RawScan } from "../../models/rawScan/rawScan";
+import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
 
@@ -9,7 +10,6 @@ export function checkTubGaps(rawScan: RawScan): boolean {
 
   const GAP_TUB_MIN = 0.0254; // 1 inch
   const GAP_TUB_MAX = 0.1524; // 6 inches
-  const TRANSFORM_SIZE = 16;
   const HALF_DIVISOR = 2;
   const DEFAULT_VALUE = 0;
   const DIM_X = 0;

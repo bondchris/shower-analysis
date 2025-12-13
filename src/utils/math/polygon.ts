@@ -1,4 +1,5 @@
 import { segmentsIntersect } from "./segment";
+import { crossProduct, dotProduct, magnitudeSquared, subtract } from "./vector";
 
 /**
  * Checks if a polygon is valid:
@@ -78,11 +79,7 @@ export const checkPolygonIntegrity = (corners: number[][]): boolean => {
     const y3 = p3[Y_IDX] ?? COORD_ZERO;
 
     // Edge Length Check (p1 -> p2)
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const dx2 = dx * dx;
-    const dy2 = dy * dy;
-    const len = Math.sqrt(dx2 + dy2);
+    const len = Math.sqrt(magnitudeSquared({ x: x2 - x1, y: y2 - y1 }));
     if (len < MIN_EDGE_LENGTH) {
       return false;
     }
@@ -94,22 +91,16 @@ export const checkPolygonIntegrity = (corners: number[][]): boolean => {
     const vBCx = x3 - x2;
     const vBCy = y3 - y2;
 
-    const vBAx2 = vBAx * vBAx;
-    const vBAy2 = vBAy * vBAy;
-    const lenBA = Math.sqrt(vBAx2 + vBAy2);
-
-    const vBCx2 = vBCx * vBCx;
-    const vBCy2 = vBCy * vBCy;
-    const lenBC = Math.sqrt(vBCx2 + vBCy2);
+    const lenBA = Math.sqrt(magnitudeSquared({ x: vBAx, y: vBAy }));
+    const lenBC = Math.sqrt(magnitudeSquared({ x: vBCx, y: vBCy }));
 
     if (lenBA < EPSILON || lenBC < EPSILON) {
       return false;
     } // Should be caught by edge length, but safety.
 
     // Dot product
-    const dotX = vBAx * vBCx;
-    const dotY = vBAy * vBCy;
-    const dot = dotX + dotY;
+    // Dot product
+    const dot = dotProduct({ x: vBAx, y: vBAy }, { x: vBCx, y: vBCy });
     // Cos theta
     let cosTheta = dot / (lenBA * lenBC);
     // Clamp for float errors
@@ -190,7 +181,6 @@ const hasCollinearOverlaps = (corners: number[][]): boolean => {
     const a2 = { x: pA2[X_IDX] ?? COORD_ZERO, y: pA2[Y_IDX] ?? COORD_ZERO };
 
     // Check against other edges
-    // Check against other edges
     for (let j = i + ADJACENT_OFFSET; j < n; j++) {
       // Skip adjacent edges
       if (Math.abs(i - j) === ADJACENT_OFFSET || (i === START_IDX && j === n - ADJACENT_OFFSET)) {
@@ -221,19 +211,15 @@ const areSegmentsCollinearOverlapping = (
   b2: { x: number; y: number }
 ): boolean => {
   const EPSILON = 1e-9;
-  const vecA = { x: a2.x - a1.x, y: a2.y - a1.y };
-  const vecB = { x: b2.x - b1.x, y: b2.y - b1.y };
-  const crossTerm1 = vecA.x * vecB.y;
-  const crossTerm2 = vecA.y * vecB.x;
-  const cross = crossTerm1 - crossTerm2;
+  const vecA = subtract(a2, a1);
+  const vecB = subtract(b2, b1);
+  const cross = crossProduct(vecA, vecB);
   if (Math.abs(cross) > EPSILON) {
     return false;
   }
 
-  const vecAtoB1 = { x: b1.x - a1.x, y: b1.y - a1.y };
-  const cross2Term1 = vecA.x * vecAtoB1.y;
-  const cross2Term2 = vecA.y * vecAtoB1.x;
-  const cross2 = cross2Term1 - cross2Term2;
+  const vecAtoB1 = subtract(b1, a1);
+  const cross2 = crossProduct(vecA, vecAtoB1);
   if (Math.abs(cross2) > EPSILON) {
     return false;
   }
@@ -319,11 +305,7 @@ const hasDuplicatePoints = (corners: number[][]): boolean => {
         const ay = pA[Y_IDX] ?? COORD_ZERO;
         const bx = pB[X_IDX] ?? COORD_ZERO;
         const by = pB[Y_IDX] ?? COORD_ZERO;
-        const dx = ax - bx;
-        const dy = ay - by;
-        const dx2 = dx * dx;
-        const dy2 = dy * dy;
-        const distSq = dx2 + dy2;
+        const distSq = magnitudeSquared({ x: ax - bx, y: ay - by });
         if (distSq < EPSILON_SQ) {
           return true;
         }
@@ -350,9 +332,7 @@ export function doPolygonsIntersect(a: { x: number; y: number }[], b: { x: numbe
       let minA = Infinity;
       let maxA = -Infinity;
       for (const p of a) {
-        const termX = normal.x * p.x;
-        const termY = normal.y * p.y;
-        const projected = termX + termY;
+        const projected = dotProduct(normal, p);
         if (projected < minA) {
           minA = projected;
         }
@@ -364,9 +344,7 @@ export function doPolygonsIntersect(a: { x: number; y: number }[], b: { x: numbe
       let minB = Infinity;
       let maxB = -Infinity;
       for (const p of b) {
-        const termX = normal.x * p.x;
-        const termY = normal.y * p.y;
-        const projected = termX + termY;
+        const projected = dotProduct(normal, p);
         if (projected < minB) {
           minB = projected;
         }

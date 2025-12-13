@@ -1,13 +1,14 @@
 import { RawScan } from "../../models/rawScan/rawScan";
+import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
 
-// Helper: Check for Wall Gaps (Gap between wall endpoints)
+// Helper: Check for Wall Gaps (> 6")
 export function checkWallGaps(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
+
   const GAP_WALL_MIN = 0.0254; // 1 inch
   const GAP_WALL_MAX = 0.3048; // 12 inches
-  const TRANSFORM_SIZE = 16;
   const HALF_DIVISOR = 2;
   const DEFAULT_VALUE = 0;
   const PT_X_IDX = 0;

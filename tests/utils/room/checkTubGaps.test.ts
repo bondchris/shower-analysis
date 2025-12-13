@@ -1,3 +1,4 @@
+import { dotProduct } from "../../../src/utils/math/vector";
 import { checkTubGaps } from "../../../src/utils/room/checkTubGaps";
 import { createDoor, createExternalWall, createMockScan, createTub } from "./testHelpers";
 
@@ -168,9 +169,7 @@ describe("checkTubGaps", () => {
       const s = Math.sin(ang);
       tub.transform = [c, 0, s, 0, 0, 1, 0, 0, -s, 0, c, 0, 0, 0, 0, 1];
 
-      const zTerm1 = 0.75 * s;
-      const zTerm2 = 0.35 * c;
-      const maxZ = zTerm1 + zTerm2; // ~0.77
+      const maxZ = dotProduct({ x: 0.75, y: 0.35 }, { x: s, y: c }); // ~0.77
       const w = createExternalWall("w_flat");
       if (w.transform) {
         const gap = 3 * INCH;

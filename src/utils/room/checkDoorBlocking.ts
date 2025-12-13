@@ -1,4 +1,5 @@
 import { RawScan } from "../../models/rawScan/rawScan";
+import { TRANSFORM_SIZE } from "../math/constants";
 import { doPolygonsIntersect } from "../math/polygon";
 import { transformPoint } from "../math/transform";
 
@@ -10,7 +11,7 @@ export function checkDoorBlocking(rawScan: RawScan): boolean {
   const VAL_ZERO = 0;
   const DIM_X_IDX = 0;
   const DIM_Z_IDX = 2;
-  const TRANSFORM_SIZE = 16;
+
   // Step-over threshold: Objects lower than this (relative to door bottom) do not block.
   // E.g. thresholds, rugs, small piping.
   const STEP_OVER_HEIGHT = 0.05; // 5cm

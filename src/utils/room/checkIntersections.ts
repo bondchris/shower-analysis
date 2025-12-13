@@ -1,6 +1,8 @@
 import { RawScan } from "../../models/rawScan/rawScan";
+import { TRANSFORM_SIZE } from "../math/constants";
 import { doPolygonsIntersect } from "../math/polygon";
 import { transformPoint } from "../math/transform";
+import { crossProduct, dotProduct, magnitudeSquared } from "../math/vector";
 
 // Helper: Check for Object Intersections (Object-Object and Wall-Object)
 function checkObjectIntersectionsInternal(rawScan: RawScan): {
@@ -29,7 +31,7 @@ function checkObjectIntersectionsInternal(rawScan: RawScan): {
   const DIM_Z = 2;
   const HALF = 2;
   const DEFAULT_DIM = 0;
-  const TRANSFORM_SIZE = 16;
+
   const INIT_COORD = 0;
   const ZERO = 0;
   const DIM_SIZE = 3;
@@ -226,7 +228,6 @@ function checkObjectIntersectionsInternal(rawScan: RawScan): {
 
 // Helper: Check for Wall-Wall Intersections (Non-End/Corner)
 function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
-  const TRANSFORM_SIZE = 16;
   const MIN_POLY_POINTS = 0;
   const DEFAULT_VALUE = 0;
   const MIN_ITEMS = 0;
@@ -318,21 +319,11 @@ function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
       const EPSILON = 1e-9;
       if (Math.abs(den) < EPSILON) {
         // Parallel. Check for collinear overlap.
-        // 1. Are they collinear? Dist from P3 to Line(P1-P2) == 0.
-        // Area of triangle P1,P2,P3 = 0.5 * |(x2-x1)(y3-y1) - (x3-x1)(y2-y1)|
-        const vec1x = x2 - x1;
-        const vec1y = y3 - y1;
-        const vec2x = x3 - x1;
-        const vec2y = y2 - y1;
-        const cp1 = vec1x * vec1y;
-        const cp2 = vec2x * vec2y;
-        const crossProd = cp1 - cp2;
-        const area = Math.abs(crossProd);
+        // Area of triangle P1,P2,P3
+        const area = Math.abs(crossProduct({ x: x2 - x1, y: y2 - y1 }, { x: x3 - x1, y: y3 - y1 }));
 
         // If "area" is small, checks collinearity.
         const COLLINEAR_TOLERANCE = 1e-5; // Tolerance for collinearity (distance).
-        // Normalizing by lengthSquared might provide cleaner threshold?
-        // Let's use simple cross product check.
         if (area > COLLINEAR_TOLERANCE) {
           continue; // Parallel but separated
         }
@@ -340,9 +331,7 @@ function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
         // Collinear. Check for Overlap.
         // Create 1D projection onto Line(P1-P2).
         // Parametric T for P3 on P1-P2: Use Dot Product.
-        const dotA = (x2 - x1) * (x2 - x1);
-        const dotB = (y2 - y1) * (y2 - y1);
-        const dot11 = dotA + dotB;
+        const dot11 = magnitudeSquared({ x: x2 - x1, y: y2 - y1 });
         if (dot11 < EPSILON) {
           continue; // Zero length segment?
         }
@@ -352,9 +341,7 @@ function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
           const dy = py - y1;
           const lineDx = x2 - x1;
           const lineDy = y2 - y1;
-          const num1 = dx * lineDx;
-          const num2 = dy * lineDy;
-          return (num1 + num2) / dot11;
+          return dotProduct({ x: dx, y: dy }, { x: lineDx, y: lineDy }) / dot11;
         };
 
         /*
