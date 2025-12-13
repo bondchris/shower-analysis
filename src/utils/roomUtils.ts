@@ -644,6 +644,9 @@ export function checkNibWalls(rawScan: RawScan): boolean {
   const roomWalls: { corners: { x: number; y: number }[] }[] = [];
 
   for (const w of walls) {
+    if (w.story !== undefined && w.story !== rawScan.story) {
+      continue;
+    }
     if (w.transform?.length !== TRANSFORM_SIZE) {
       continue;
     }
