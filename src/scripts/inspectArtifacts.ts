@@ -13,12 +13,11 @@ import {
   checkCrookedWalls,
   checkDoorBlocking,
   checkExternalOpening,
+  checkIntersections,
   checkNibWalls,
-  checkObjectIntersections,
   checkToiletGaps,
   checkTubGaps,
-  checkWallGaps,
-  checkWallIntersections
+  checkWallGaps
 } from "../utils/roomUtils";
 
 // 1. Video Metadata Extraction
@@ -146,11 +145,10 @@ function addRawScanMetadata(dirPath: string, metadata: ArtifactMetadata): void {
 
       metadata.hasNibWalls = checkNibWalls(rawScan);
 
-      const intersectionResults = checkObjectIntersections(rawScan);
+      const intersectionResults = checkIntersections(rawScan);
       metadata.hasObjectIntersectionErrors = intersectionResults.hasObjectIntersectionErrors;
       metadata.hasWallObjectIntersectionErrors = intersectionResults.hasWallObjectIntersectionErrors;
-
-      metadata.hasWallWallIntersectionErrors = checkWallIntersections(rawScan);
+      metadata.hasWallWallIntersectionErrors = intersectionResults.hasWallWallIntersectionErrors;
 
       metadata.hasCrookedWallErrors = checkCrookedWalls(rawScan);
 
@@ -274,7 +272,6 @@ async function generateCharts(metadataList: ArtifactMetadata[]): Promise<Capture
   const MIN_TUBS = 2;
   const MIN_WALLS = 4;
 
-  console.log("Generating charts...");
   const charts = {} as CaptureCharts;
 
   // Lens Models

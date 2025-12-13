@@ -711,13 +711,13 @@ export function checkNibWalls(rawScan: RawScan): boolean {
 }
 
 // Helper: Check for Object Intersections (Object-Object and Wall-Object)
-export function checkObjectIntersections(rawScan: RawScan): {
+function checkObjectIntersectionsInternal(rawScan: RawScan): {
   hasObjectIntersectionErrors: boolean;
   hasWallObjectIntersectionErrors: boolean;
 } {
+  let wallObjIntersectionFound = false;
   const objects = rawScan.objects;
   let objIntersectionFound = false;
-  let wallObjIntersectionFound = false;
 
   // Pre-calculate AABBs
   const objAABBs: {
@@ -729,6 +729,7 @@ export function checkObjectIntersections(rawScan: RawScan): {
     minZ: number;
     corners: { x: number; y: number }[];
     innerCorners: { x: number; y: number }[];
+    story: number;
   }[] = [];
 
   const TOLERANCE = 0.0254; // 1 inch
@@ -745,6 +746,22 @@ export function checkObjectIntersections(rawScan: RawScan): {
   const MIN_ITEMS = 0;
 
   for (const o of objects) {
+    // Check for degenerate dimensions (Zero Volume)
+    if (o.dimensions.every((d) => d === ZERO)) {
+      objAABBs.push({
+        corners: [],
+        innerCorners: [],
+        isSink: false,
+        isStorage: false,
+        maxX: INIT_COORD,
+        maxZ: INIT_COORD,
+        minX: INIT_COORD,
+        minZ: INIT_COORD,
+        story: o.story
+      });
+      continue;
+    }
+
     if (o.transform.length !== TRANSFORM_SIZE || o.dimensions.length !== DIM_SIZE) {
       objAABBs.push({
         corners: [],
@@ -754,7 +771,8 @@ export function checkObjectIntersections(rawScan: RawScan): {
         maxX: INIT_COORD,
         maxZ: INIT_COORD,
         minX: INIT_COORD,
-        minZ: INIT_COORD
+        minZ: INIT_COORD,
+        story: o.story
       }); // Empty/Invalid
       continue;
     }
@@ -813,7 +831,8 @@ export function checkObjectIntersections(rawScan: RawScan): {
       maxX,
       maxZ,
       minX,
-      minZ
+      minZ,
+      story: o.story
     });
   }
 
@@ -834,6 +853,11 @@ export function checkObjectIntersections(rawScan: RawScan): {
         continue;
       }
       if (boxB.corners.length === ZERO) {
+        continue;
+      }
+
+      // Check Story
+      if (boxA.story !== boxB.story) {
         continue;
       }
 
@@ -889,6 +913,9 @@ export function checkObjectIntersections(rawScan: RawScan): {
       if (box.innerCorners.length === MIN_ITEMS) {
         continue;
       }
+      if (w.story !== box.story) {
+        continue;
+      }
       if (doPolygonsIntersect(wallPolyWorld, box.innerCorners)) {
         wallObjIntersectionFound = true;
         break;
@@ -906,7 +933,7 @@ export function checkObjectIntersections(rawScan: RawScan): {
 }
 
 // Helper: Check for Wall-Wall Intersections (Non-End/Corner)
-export function checkWallIntersections(rawScan: RawScan): boolean {
+function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
   const TRANSFORM_SIZE = 16;
   const MIN_POLY_POINTS = 0;
   const DEFAULT_VALUE = 0;
@@ -961,12 +988,12 @@ export function checkWallIntersections(rawScan: RawScan): boolean {
         if (p1Local !== null && p2Local !== null) {
           const p1 = transformPoint(p1Local, w.transform);
           const p2 = transformPoint(p2Local, w.transform);
-          return { p1, p2 };
+          return { p1, p2, story: w.story };
         }
       }
       return null;
     })
-    .filter((s) => s !== null) as { p1: { x: number; y: number }; p2: { x: number; y: number } }[];
+    .filter((s) => s !== null) as { p1: { x: number; y: number }; p2: { x: number; y: number }; story: number }[];
 
   let wallIntersectErr = false;
   // Check pair-wise
@@ -976,6 +1003,9 @@ export function checkWallIntersections(rawScan: RawScan): boolean {
       const s2 = wallSegments[j];
 
       if (!s1 || !s2) {
+        continue;
+      }
+      if (s1.story !== s2.story) {
         continue;
       }
 
@@ -995,7 +1025,74 @@ export function checkWallIntersections(rawScan: RawScan): boolean {
       const den = term1 - term2;
       const EPSILON = 1e-9;
       if (Math.abs(den) < EPSILON) {
-        continue; // Parallel
+        // Parallel. Check for collinear overlap.
+        // 1. Are they collinear? Dist from P3 to Line(P1-P2) == 0.
+        // Area of triangle P1,P2,P3 = 0.5 * |(x2-x1)(y3-y1) - (x3-x1)(y2-y1)|
+        const vec1x = x2 - x1;
+        const vec1y = y3 - y1;
+        const vec2x = x3 - x1;
+        const vec2y = y2 - y1;
+        const cp1 = vec1x * vec1y;
+        const cp2 = vec2x * vec2y;
+        const crossProd = cp1 - cp2;
+        const area = Math.abs(crossProd);
+
+        // If "area" is small, checks collinearity.
+        const COLLINEAR_TOLERANCE = 1e-5; // Tolerance for collinearity (distance).
+        // Normalizing by lengthSquared might provide cleaner threshold?
+        // Let's use simple cross product check.
+        if (area > COLLINEAR_TOLERANCE) {
+          continue; // Parallel but separated
+        }
+
+        // Collinear. Check for Overlap.
+        // Create 1D projection onto Line(P1-P2).
+        // Parametric T for P3 on P1-P2: Use Dot Product.
+        const dotA = (x2 - x1) * (x2 - x1);
+        const dotB = (y2 - y1) * (y2 - y1);
+        const dot11 = dotA + dotB;
+        if (dot11 < EPSILON) {
+          continue; // Zero length segment?
+        }
+
+        const getT = (px: number, py: number): number => {
+          const dx = px - x1;
+          const dy = py - y1;
+          const lineDx = x2 - x1;
+          const lineDy = y2 - y1;
+          const num1 = dx * lineDx;
+          const num2 = dy * lineDy;
+          return (num1 + num2) / dot11;
+        };
+
+        /*
+           S1 is T=[0, 1].
+           S2 (P3..P4). Compute T3, T4.
+           Check if Interval [0, 1] overlaps Interval [T3, T4].
+        */
+        const t3 = getT(x3, y3);
+        const t4 = getT(x4, y4);
+
+        const minT = Math.min(t3, t4);
+        const maxT = Math.max(t3, t4);
+
+        // Overlap Condition:
+        // [0, 1] intersects [minT, maxT].
+        // max(0, minT) < min(1, maxT)
+        // STRICT inequality to exclude just touching endpoints (Corner joins).
+        const ZERO_LIMIT = 0;
+        const ONE_LIMIT = 1;
+        const overlapStart = Math.max(ZERO_LIMIT, minT);
+        const overlapEnd = Math.min(ONE_LIMIT, maxT);
+
+        // Use tolerance to ignore endpoint-only connections.
+        const OVERLAP_EPS = 1e-5;
+        if (overlapEnd - overlapStart > OVERLAP_EPS) {
+          wallIntersectErr = true;
+          break;
+        }
+
+        continue;
       }
 
       const numTTerm1 = (x1 - x3) * (y3 - y4);
@@ -1027,6 +1124,21 @@ export function checkWallIntersections(rawScan: RawScan): boolean {
   }
 
   return wallIntersectErr;
+}
+
+// Unified Intersection Check
+export function checkIntersections(rawScan: RawScan): {
+  hasObjectIntersectionErrors: boolean;
+  hasWallObjectIntersectionErrors: boolean;
+  hasWallWallIntersectionErrors: boolean;
+} {
+  const objRes = checkObjectIntersectionsInternal(rawScan);
+  const wallRes = checkWallIntersectionsInternal(rawScan);
+  return {
+    hasObjectIntersectionErrors: objRes.hasObjectIntersectionErrors,
+    hasWallObjectIntersectionErrors: objRes.hasWallObjectIntersectionErrors,
+    hasWallWallIntersectionErrors: wallRes
+  };
 }
 
 // Helper: Check for Crooked Walls (Angles not multiple of 90 deg)
