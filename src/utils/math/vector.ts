@@ -1,13 +1,10 @@
-export interface Vector2D {
-  x: number;
-  y: number;
-}
+import { Point } from "../../models/point";
 
 /**
  * Calculates the dot product of two 2D vectors.
  * Dot Product = (a.x * b.x) + (a.y * b.y)
  */
-export const dotProduct = (a: Vector2D, b: Vector2D): number => {
+export const dotProduct = (a: Point, b: Point): number => {
   const xTerm = a.x * b.x;
   const yTerm = a.y * b.y;
   return xTerm + yTerm;
@@ -18,7 +15,7 @@ export const dotProduct = (a: Vector2D, b: Vector2D): number => {
  * Useful for distance comparisons without square roots.
  * |v|^2 = v . v
  */
-export const magnitudeSquared = (v: Vector2D): number => {
+export const magnitudeSquared = (v: Point): number => {
   return dotProduct(v, v);
 };
 
@@ -26,7 +23,7 @@ export const magnitudeSquared = (v: Vector2D): number => {
  * Calculates the cross product of two 2D vectors (z-component).
  * Cross Product = (a.x * b.y) - (a.y * b.x)
  */
-export const crossProduct = (a: Vector2D, b: Vector2D): number => {
+export const crossProduct = (a: Point, b: Point): number => {
   const term1 = a.x * b.y;
   const term2 = a.y * b.x;
   return term1 - term2;
@@ -35,6 +32,6 @@ export const crossProduct = (a: Vector2D, b: Vector2D): number => {
 /**
  * Subtracts vector b from vector a (a - b).
  */
-export const subtract = (a: Vector2D, b: Vector2D): Vector2D => {
-  return { x: a.x - b.x, y: a.y - b.y };
+export const subtract = (a: Point, b: Point): Point => {
+  return new Point(a.x - b.x, a.y - b.y);
 };

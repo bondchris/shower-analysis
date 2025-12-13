@@ -1,3 +1,4 @@
+import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
 import { doPolygonsIntersect } from "../math/polygon";
@@ -18,7 +19,7 @@ export function checkDoorBlocking(rawScan: RawScan): boolean {
 
   const objPolys: {
     category: string;
-    corners: { x: number; y: number }[];
+    corners: Point[];
     story: number;
     minY: number;
     maxY: number;
@@ -44,12 +45,7 @@ export function checkDoorBlocking(rawScan: RawScan): boolean {
     const maxY = oTy + hY;
 
     // Local corners (bottom footprint)
-    const localCorners = [
-      { x: -hX, y: -hZ },
-      { x: hX, y: -hZ },
-      { x: hX, y: hZ },
-      { x: -hX, y: hZ }
-    ];
+    const localCorners = [new Point(-hX, -hZ), new Point(hX, -hZ), new Point(hX, hZ), new Point(-hX, hZ)];
     const worldCorners = localCorners.map((p) => transformPoint(p, o.transform));
     objPolys.push({
       category: JSON.stringify(o.category),
@@ -81,11 +77,12 @@ export function checkDoorBlocking(rawScan: RawScan): boolean {
 
     // Clearance box - Directional (Front only: 0 to +CLEARANCE)
     // Assuming Local Y+ is "Front" (or Z+ mapped to Y in 2D proj)
+    const ZERO = 0;
     const clearanceBox = [
-      { x: -halfDW, y: 0 },
-      { x: halfDW, y: 0 },
-      { x: halfDW, y: DOOR_CLEARANCE_METERS },
-      { x: -halfDW, y: DOOR_CLEARANCE_METERS }
+      new Point(-halfDW, ZERO),
+      new Point(halfDW, ZERO),
+      new Point(halfDW, DOOR_CLEARANCE_METERS),
+      new Point(-halfDW, DOOR_CLEARANCE_METERS)
     ];
     const clearancePoly = clearanceBox.map((p) => transformPoint(p, door.transform));
 

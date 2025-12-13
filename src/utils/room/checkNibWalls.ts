@@ -1,7 +1,8 @@
+import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
 import { transformPoint } from "../math/transform";
-import { magnitudeSquared } from "../math/vector";
+import { magnitudeSquared, subtract } from "../math/vector";
 
 // Helper: Check for Nib Walls (Length < 1ft / 0.3048m)
 export function checkNibWalls(rawScan: RawScan): boolean {
@@ -16,7 +17,7 @@ export function checkNibWalls(rawScan: RawScan): boolean {
   const MIN_LENGTH = 0;
 
   // 1. Collect Wall Segments (World Space)
-  const roomWalls: { corners: { x: number; y: number }[] }[] = [];
+  const roomWalls: { corners: Point[] }[] = [];
 
   for (const w of walls) {
     if (w.story !== undefined && w.story !== rawScan.story) {
@@ -26,7 +27,6 @@ export function checkNibWalls(rawScan: RawScan): boolean {
       continue;
     }
 
-    const wallCornersWorld: { x: number; y: number }[] = [];
     let pCorners = w.polygonCorners ?? [];
     const numCorners = pCorners.length;
 
@@ -40,10 +40,11 @@ export function checkNibWalls(rawScan: RawScan): boolean {
       ];
     }
 
+    const wallCornersWorld: Point[] = [];
     for (const p of pCorners) {
       if (p.length >= MIN_POINT_SIZE) {
         wallCornersWorld.push(
-          transformPoint({ x: p[PT_X_IDX] ?? DEFAULT_VALUE, y: p[PT_Z_IDX] ?? DEFAULT_VALUE }, w.transform)
+          transformPoint(new Point(p[PT_X_IDX] ?? DEFAULT_VALUE, p[PT_Z_IDX] ?? DEFAULT_VALUE), w.transform)
         );
       }
     }
@@ -67,7 +68,7 @@ export function checkNibWalls(rawScan: RawScan): boolean {
         if (!p1 || !p2) {
           continue;
         }
-        const d = Math.sqrt(magnitudeSquared({ x: p2.x - p1.x, y: p2.y - p1.y }));
+        const d = Math.sqrt(magnitudeSquared(subtract(p2, p1)));
         if (d > maxDist) {
           maxDist = d;
         }

@@ -1,3 +1,4 @@
+import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
@@ -28,9 +29,10 @@ export function checkCrookedWalls(rawScan: RawScan): boolean {
       continue;
     }
     // Get w1 edge points
+    const ZERO = 0;
     const l1 = w1.dimensions?.[DIM_IDX_X] ?? DEFAULT_VALUE;
-    const p1Start = transformPoint({ x: 0, y: 0 }, w1.transform);
-    const p1End = transformPoint({ x: l1, y: 0 }, w1.transform);
+    const p1Start: Point = transformPoint(new Point(ZERO, ZERO), w1.transform);
+    const p1End: Point = transformPoint(new Point(l1, ZERO), w1.transform);
 
     // Get vector 1
     const v1 = subtract(p1End, p1Start);
@@ -47,8 +49,8 @@ export function checkCrookedWalls(rawScan: RawScan): boolean {
       }
 
       const l2 = w2.dimensions?.[DIM_IDX_X] ?? DEFAULT_VALUE;
-      const p2Start = transformPoint({ x: 0, y: 0 }, w2.transform);
-      const p2End = transformPoint({ x: l2, y: 0 }, w2.transform);
+      const p2Start: Point = transformPoint(new Point(ZERO, ZERO), w2.transform);
+      const p2End: Point = transformPoint(new Point(l2, ZERO), w2.transform);
 
       // Check distance (Connectivity)
       // distance between segment S1 and S2.

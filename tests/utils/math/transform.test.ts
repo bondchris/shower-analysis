@@ -1,3 +1,4 @@
+import { Point } from "../../../src/models/point";
 import { TRANSFORM_SIZE } from "../../../src/utils/math/constants";
 import { getPosition, transformPoint } from "../../../src/utils/math/transform";
 import { magnitudeSquared } from "../../../src/utils/math/vector";
@@ -8,12 +9,12 @@ describe("transform utils", () => {
     describe("1. Basic Transformations", () => {
       it("should return same point for Identity matrix", () => {
         const matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-        expect(transformPoint({ x: 5, y: 10 }, matrix)).toEqual({ x: 5, y: 10 });
+        expect(transformPoint(new Point(5, 10), matrix)).toEqual(new Point(5, 10));
       });
 
       it("should handle Identity + Translation", () => {
         const matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10, 0, 20, 1];
-        expect(transformPoint({ x: 2, y: 4 }, matrix)).toEqual({ x: 12, y: 24 });
+        expect(transformPoint(new Point(2, 4), matrix)).toEqual(new Point(12, 24));
       });
 
       it("should handle Pure Translation from origin", () => {
@@ -23,17 +24,17 @@ describe("transform utils", () => {
         const matrix: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         matrix[12] = 10;
         matrix[14] = 20;
-        expect(transformPoint({ x: 0, y: 0 }, matrix)).toEqual({ x: 10, y: 20 });
+        expect(transformPoint(new Point(0, 0), matrix)).toEqual(new Point(10, 20));
       });
 
       it("should handle Pure Scaling", () => {
         const matrix: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         matrix[0] = 2; // sx
         matrix[10] = 3; // sz
-        const p = { x: 4, y: 5 };
+        const p = new Point(4, 5);
         // x' = 4*2 + 0 + 0 = 8
         // z' = 0 + 5*3 + 0 = 15
-        expect(transformPoint(p, matrix)).toEqual({ x: 8, y: 15 });
+        expect(transformPoint(p, matrix)).toEqual(new Point(8, 15));
       });
 
       it("should handle Pure Rotation (90 deg CW around Y)", () => {
@@ -48,8 +49,8 @@ describe("transform utils", () => {
         matrix[2] = -1;
         matrix[15] = 1; // standard homogeneous
 
-        expect(transformPoint({ x: 1, y: 0 }, matrix)).toEqual({ x: 0, y: -1 });
-        expect(transformPoint({ x: 0, y: 1 }, matrix)).toEqual({ x: 1, y: 0 });
+        expect(transformPoint(new Point(1, 0), matrix)).toEqual(new Point(0, -1));
+        expect(transformPoint(new Point(0, 1), matrix)).toEqual(new Point(1, 0));
       });
 
       it("should handle 180 deg rotation", () => {
@@ -58,7 +59,7 @@ describe("transform utils", () => {
         const matrix: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         matrix[0] = -1;
         matrix[10] = -1;
-        expect(transformPoint({ x: 10, y: 20 }, matrix)).toEqual({ x: -10, y: -20 });
+        expect(transformPoint(new Point(10, 20), matrix)).toEqual(new Point(-10, -20));
       });
 
       it("should handle Combined Transform (Scale + Rotate + Translate)", () => {
@@ -79,7 +80,7 @@ describe("transform utils", () => {
         // p={x:10, y:1}. (y=z)
         // x' = 10*1 + 1*2 + 5 = 17
         // z' = 10*3 + 1*4 + 6 = 30 + 4 + 6 = 40
-        expect(transformPoint({ x: 10, y: 1 }, m)).toEqual({ x: 17, y: 40 });
+        expect(transformPoint(new Point(10, 1), m)).toEqual(new Point(17, 40));
       });
     });
 
@@ -87,17 +88,17 @@ describe("transform utils", () => {
     describe("2. Edge Cases & Matrix Defaulting", () => {
       it("should handle Zero Matrix", () => {
         const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
-        expect(transformPoint({ x: 123, y: 456 }, m)).toEqual({ x: 0, y: 0 });
+        expect(transformPoint(new Point(123, 456), m)).toEqual(new Point(0, 0));
       });
 
       it("should handle Empty Matrix ([])", () => {
-        expect(transformPoint({ x: 10, y: 10 }, [])).toEqual({ x: 0, y: 0 });
+        expect(transformPoint(new Point(10, 10), [])).toEqual(new Point(0, 0));
       });
 
       it("should handle Short Matrix (missing translation)", () => {
         const m = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]; // Length 12
         // Defaults m12/m14 to 0. Behaves like identity (for X/Z) if m0/m10 set.
-        expect(transformPoint({ x: 5, y: 6 }, m)).toEqual({ x: 5, y: 6 });
+        expect(transformPoint(new Point(5, 6), m)).toEqual(new Point(5, 6));
       });
 
       it("should handle Sparse Matrix (missing indices)", () => {
@@ -105,13 +106,13 @@ describe("transform utils", () => {
         m[0] = 2;
         m[10] = 3;
         // Should act like scale 2,3
-        expect(transformPoint({ x: 2, y: 2 }, m)).toEqual({ x: 4, y: 6 });
+        expect(transformPoint(new Point(2, 2), m)).toEqual(new Point(4, 6));
       });
 
       it("should ignore extra elements beyond index 15", () => {
         const m = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10, 0, 20, 1, 99, 99, 99];
         // Should behave like Identity + Translation(10, 20)
-        expect(transformPoint({ x: 5, y: 5 }, m)).toEqual({ x: 15, y: 25 });
+        expect(transformPoint(new Point(5, 5), m)).toEqual(new Point(15, 25));
       });
     });
 
@@ -121,21 +122,21 @@ describe("transform utils", () => {
         const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[12] = 5;
         m[14] = -5;
-        expect(transformPoint({ x: 0, y: 0 }, m)).toEqual({ x: 5, y: -5 });
+        expect(transformPoint(new Point(0, 0), m)).toEqual(new Point(5, -5));
       });
 
       it("should handle Negative Coordinates", () => {
         const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[0] = 2;
         m[10] = 2; // Scale 2
-        expect(transformPoint({ x: -5, y: -5 }, m)).toEqual({ x: -10, y: -10 });
+        expect(transformPoint(new Point(-5, -5), m)).toEqual(new Point(-10, -10));
       });
 
       it("should handle Fractional Coordinates", () => {
         const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[0] = 0.5;
         m[10] = 0.25;
-        const res = transformPoint({ x: 3, y: 4 }, m);
+        const res = transformPoint(new Point(3, 4), m);
         expect(res.x).toBeCloseTo(1.5);
         expect(res.y).toBeCloseTo(1.0);
       });
@@ -144,7 +145,7 @@ describe("transform utils", () => {
         const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[0] = 1e6;
         m[10] = 1e6;
-        const p = { x: 1e-9, y: 1e-9 };
+        const p = new Point(1e-9, 1e-9);
         // Result: 1e-3
         const res = transformPoint(p, m);
         expect(res.x).toBeCloseTo(0.001);
@@ -156,7 +157,7 @@ describe("transform utils", () => {
         m[0] = 100;
         m[10] = 100;
         // 1e6 * 100 = 1e8
-        const res = transformPoint({ x: 1e6, y: 2e6 }, m);
+        const res = transformPoint(new Point(1e6, 2e6), m);
         expect(res.x).toBeCloseTo(1e8);
         expect(res.y).toBeCloseTo(2e8);
       });
@@ -167,17 +168,17 @@ describe("transform utils", () => {
       it("should confirm Z affects X via m[8]", () => {
         const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[8] = 2;
-        const p = { x: 0, y: 5 }; // y is local Z
+        const p = new Point(0, 5); // y is local Z
         // x' = x*m0 + z*m8 = 0 + 5*2 = 10
-        expect(transformPoint(p, m)).toEqual({ x: 10, y: 0 });
+        expect(transformPoint(p, m)).toEqual(new Point(10, 0));
       });
 
       it("should confirm Z affects Z via m[10]", () => {
         const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[10] = 3;
-        const p = { x: 0, y: 4 };
+        const p = new Point(0, 4);
         // z' = 4*3 = 12
-        expect(transformPoint(p, m)).toEqual({ x: 0, y: 12 });
+        expect(transformPoint(p, m)).toEqual(new Point(0, 12));
       });
 
       it("should verify X-only transformation", () => {
@@ -185,13 +186,14 @@ describe("transform utils", () => {
         m[0] = 2;
         m[2] = 2; // X affects X and Z
         // Varying Y should not change result
-        const res1 = transformPoint({ x: 5, y: 0 }, m);
-        const res2 = transformPoint({ x: 5, y: 100 }, m);
+        const res1 = transformPoint(new Point(5, 0), m);
+        const res2 = transformPoint(new Point(5, 100), m);
         expect(res1).toEqual(res2); // Both should depend only on x=5
-        expect(res1).toEqual({ x: 10, y: 10 });
+        expect(res1).toEqual(new Point(10, 10));
       });
     });
 
+    // 5. Specific Matrix Patterns
     // 5. Specific Matrix Patterns
     describe("5. Specific Matrix Patterns", () => {
       it("should handle Shear transformation", () => {
@@ -203,7 +205,7 @@ describe("transform utils", () => {
         m[2] = 3;
         m[10] = 1;
         // p(1, 3) -> x'=1+6=7, z'=3+3=6
-        expect(transformPoint({ x: 1, y: 3 }, m)).toEqual({ x: 7, y: 6 });
+        expect(transformPoint(new Point(1, 3), m)).toEqual(new Point(7, 6));
       });
 
       it("should handle Reflection across axes", () => {
@@ -211,17 +213,17 @@ describe("transform utils", () => {
         const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[0] = -1;
         m[10] = -1;
-        expect(transformPoint({ x: 10, y: 20 }, m)).toEqual({ x: -10, y: -20 });
+        expect(transformPoint(new Point(10, 20), m)).toEqual(new Point(-10, -20));
       });
 
       it("should handle Singular matrix (collapse X)", () => {
         // m0=0, m10=1. X input irrelevant.
         const m: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         m[10] = 1;
-        const res1 = transformPoint({ x: 1, y: 5 }, m);
-        const res2 = transformPoint({ x: 999, y: 5 }, m);
-        expect(res1).toEqual({ x: 0, y: 5 });
-        expect(res2).toEqual({ x: 0, y: 5 });
+        const res1 = transformPoint(new Point(1, 5), m);
+        const res2 = transformPoint(new Point(999, 5), m);
+        expect(res1).toEqual(new Point(0, 5));
+        expect(res2).toEqual(new Point(0, 5));
       });
     });
 
@@ -232,7 +234,7 @@ describe("transform utils", () => {
         // Rotate 90
         m[8] = 1;
         m[2] = -1;
-        const p = { x: 3, y: 4 };
+        const p = new Point(3, 4);
         const res = transformPoint(p, m);
         // Dist orig = 5. Dist new = sqrt(4^2 + (-3)^2) = 5.
         const distOrig = Math.sqrt(magnitudeSquared(p));
@@ -251,7 +253,7 @@ describe("transform utils", () => {
         InvM[10] = 0.5;
         InvM[15] = 1;
 
-        const p = { x: 10, y: 20 };
+        const p = new Point(10, 20);
         const pPrime = transformPoint(p, M);
         const pBack = transformPoint(pPrime, InvM);
         expect(pBack).toEqual(p);
@@ -276,12 +278,12 @@ describe("transform utils", () => {
         TComb[12] = 10;
         TComb[14] = 20;
 
-        const p = { x: 5, y: 5 };
+        const p = new Point(5, 5);
         const p1 = transformPoint(p, T1);
         const p2 = transformPoint(p1, T2); // Sequential
         const pDirect = transformPoint(p, TComb); // Composited
 
-        expect(p2).toEqual({ x: 15, y: 25 });
+        expect(p2).toEqual(new Point(15, 25));
         expect(pDirect).toEqual(p2);
       });
     });
@@ -289,16 +291,16 @@ describe("transform utils", () => {
     // 7. Structural / Non-mutation
     describe("7. Structural / Non-mutation", () => {
       it("should not mutate the input point", () => {
-        const p = { x: 10, y: 10 };
+        const p = new Point(10, 10);
         const m = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
         transformPoint(p, m);
-        expect(p).toEqual({ x: 10, y: 10 });
+        expect(p).toEqual(new Point(10, 10));
       });
 
       it("should not mutate the input matrix", () => {
         const m = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10, 0, 20, 1];
         const copy = [...m];
-        transformPoint({ x: 5, y: 5 }, m);
+        transformPoint(new Point(5, 5), m);
         expect(m).toEqual(copy);
       });
     });
@@ -311,43 +313,43 @@ describe("transform utils", () => {
         const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         transform[12] = 10;
         transform[14] = 20;
-        expect(getPosition(transform)).toEqual({ x: 10, y: 20 });
+        expect(getPosition(transform)).toEqual(new Point(10, 20));
       });
 
       it("should extract correct indices even in incremental array", () => {
         // [0, 1, 2, ..., 15]
         const transform = Array.from({ length: TRANSFORM_SIZE }, (_, i) => i);
         // Expected: x at 12, y at 14
-        expect(getPosition(transform)).toEqual({ x: 12, y: 14 });
+        expect(getPosition(transform)).toEqual(new Point(12, 14));
       });
 
       it("should handle negative and decimal coordinates", () => {
         const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         transform[12] = -5.5;
         transform[14] = -10.1;
-        expect(getPosition(transform)).toEqual({ x: -5.5, y: -10.1 });
+        expect(getPosition(transform)).toEqual(new Point(-5.5, -10.1));
       });
 
       it("should handle all zeros valid transform", () => {
         const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
-        expect(getPosition(transform)).toEqual({ x: 0, y: 0 });
+        expect(getPosition(transform)).toEqual(new Point(0, 0));
       });
     });
 
     // 2. Length / Validation Logic
     describe("2. Length / Validation Logic", () => {
       it("should return {0,0} for empty array", () => {
-        expect(getPosition([])).toEqual({ x: 0, y: 0 });
+        expect(getPosition([])).toEqual(new Point(0, 0));
       });
 
       it("should return {0,0} for array too short", () => {
         const transform: number[] = new Array(15).fill(0) as number[];
-        expect(getPosition(transform)).toEqual({ x: 0, y: 0 });
+        expect(getPosition(transform)).toEqual(new Point(0, 0));
       });
 
       it("should return {0,0} for array too long", () => {
         const transform: number[] = new Array(17).fill(0) as number[];
-        expect(getPosition(transform)).toEqual({ x: 0, y: 0 });
+        expect(getPosition(transform)).toEqual(new Point(0, 0));
       });
     });
 
@@ -355,40 +357,40 @@ describe("transform utils", () => {
     describe("3. Nullish / Sparse Arrays", () => {
       it("should return {0,0} for sparse array with all undefined", () => {
         const t = new Array(TRANSFORM_SIZE) as number[]; // Sparse/Undefined
-        expect(getPosition(t)).toEqual({ x: 0, y: 0 });
+        expect(getPosition(t)).toEqual(new Point(0, 0));
       });
 
       it("should handle X undefined, Z set", () => {
         const t = new Array(TRANSFORM_SIZE) as number[];
         t[14] = 7;
-        expect(getPosition(t)).toEqual({ x: 0, y: 7 });
+        expect(getPosition(t)).toEqual(new Point(0, 7));
       });
 
       it("should handle Z undefined, X set", () => {
         const t = new Array(TRANSFORM_SIZE) as number[];
         t[12] = 9;
-        expect(getPosition(t)).toEqual({ x: 9, y: 0 });
+        expect(getPosition(t)).toEqual(new Point(9, 0));
       });
 
       it("should handle Null at X index", () => {
         const t = new Array(TRANSFORM_SIZE) as number[];
         t[12] = null as unknown as number;
         t[14] = 7;
-        expect(getPosition(t)).toEqual({ x: 0, y: 7 });
+        expect(getPosition(t)).toEqual(new Point(0, 7));
       });
 
       it("should handle Null at Z index", () => {
         const t = new Array(TRANSFORM_SIZE) as number[];
         t[12] = 9;
         t[14] = null as unknown as number;
-        expect(getPosition(t)).toEqual({ x: 9, y: 0 });
+        expect(getPosition(t)).toEqual(new Point(9, 0));
       });
 
       it("should handle sparse but defined indices", () => {
         const t = new Array(TRANSFORM_SIZE) as number[];
         t[12] = 42;
         t[14] = -10;
-        expect(getPosition(t)).toEqual({ x: 42, y: -10 });
+        expect(getPosition(t)).toEqual(new Point(42, -10));
       });
     });
 
@@ -407,14 +409,14 @@ describe("transform utils", () => {
         const t: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         t[12] = Infinity;
         t[14] = -Infinity;
-        expect(getPosition(t)).toEqual({ x: Infinity, y: -Infinity });
+        expect(getPosition(t)).toEqual(new Point(Infinity, -Infinity));
       });
 
       it("should pass through very large numbers", () => {
         const t: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
         t[12] = Number.MAX_VALUE;
         t[14] = -Number.MAX_VALUE;
-        expect(getPosition(t)).toEqual({ x: Number.MAX_VALUE, y: -Number.MAX_VALUE });
+        expect(getPosition(t)).toEqual(new Point(Number.MAX_VALUE, -Number.MAX_VALUE));
       });
     });
 
@@ -425,7 +427,13 @@ describe("transform utils", () => {
         t[12] = "hello" as unknown as number;
         t[14] = true as unknown as number;
         // Since function logic uses `?? 0`, non-nullish non-numeric values are returned as-is
-        expect(getPosition(t)).toEqual({ x: "hello", y: true });
+        // Note: validation of Point type vs JS runtime behavior.
+        // Assuming Point(x, y) just assigns this.x = x.
+        // So strict equality check should pass if Point stores whatever is passed.
+        // However, Typescript might complain if new Point expects numbers.
+        // Tests use `as unknown as number` so it compiles.
+        // Tests use `as unknown as number` so it compiles.
+        expect(getPosition(t)).toEqual(new Point("hello" as unknown as number, true as unknown as number));
       });
 
       it("should handle mixed nullish + string", () => {
@@ -433,7 +441,8 @@ describe("transform utils", () => {
         t[12] = undefined as unknown as number;
         t[14] = "100" as unknown as number;
         // undefined -> 0, "100" -> "100"
-        expect(getPosition(t)).toEqual({ x: 0, y: "100" });
+        // undefined -> 0, "100" -> "100"
+        expect(getPosition(t)).toEqual(new Point(0, "100" as unknown as number));
       });
     });
 

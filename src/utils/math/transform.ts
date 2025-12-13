@@ -1,26 +1,22 @@
+import { Point } from "../../models/point";
 import { TRANSFORM_SIZE } from "./constants";
 import { dotProduct } from "./vector";
 
-export const getPosition = (transform: number[]): { x: number; y: number } => {
+export const getPosition = (transform: number[]): Point => {
   const X_IDX = 12;
   const Z_IDX = 14;
   const DEFAULT_VALUE = 0;
 
   // Check if transform is valid (size 16)
   if (transform.length !== TRANSFORM_SIZE) {
-    return { x: 0, y: 0 };
+    return new Point(DEFAULT_VALUE, DEFAULT_VALUE);
   }
   // Use X (idx 12) and Z (idx 14) for floor plane position
-  return {
-    x: transform[X_IDX] ?? DEFAULT_VALUE,
-    y: transform[Z_IDX] ?? DEFAULT_VALUE
-  };
+  return new Point(transform[X_IDX] ?? DEFAULT_VALUE, transform[Z_IDX] ?? DEFAULT_VALUE);
 };
 
-export const transformPoint = (p: { x: number; y: number }, m: number[]): { x: number; y: number } => {
+export const transformPoint = (p: Point, m: number[]): Point => {
   // X-Z Plane Transform (Top Down)
-  // x' = x*m0 + z*m8 + tx
-  // z' = x*m2 + z*m10 + tz
   // Note: Input p.y corresponds to Local Z. Output p.y corresponds to World Z.
   const MAT_M0 = 0; // r0, c0 (Xx)
   const MAT_M2 = 2; // r2, c0 (Xz)
@@ -38,12 +34,8 @@ export const transformPoint = (p: { x: number; y: number }, m: number[]): { x: n
   const m10 = m[MAT_M10] ?? DEFAULT_VALUE;
   const mTz = m[MAT_TZ] ?? DEFAULT_VALUE;
 
-  /*
-   * x' = dot({x, y}, {m0, m8}) + mTx
-   * z' = dot({x, y}, {m2, m10}) + mTz
-   */
-  const x = dotProduct(p, { x: m0, y: m8 }) + mTx;
-  const y = dotProduct(p, { x: m2, y: m10 }) + mTz;
+  const x = dotProduct(p, new Point(m0, m8)) + mTx;
+  const y = dotProduct(p, new Point(m2, m10)) + mTz;
 
-  return { x, y };
+  return new Point(x, y);
 };

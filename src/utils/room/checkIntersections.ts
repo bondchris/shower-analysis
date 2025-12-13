@@ -1,8 +1,9 @@
+import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
 import { doPolygonsIntersect } from "../math/polygon";
 import { transformPoint } from "../math/transform";
-import { crossProduct, dotProduct, magnitudeSquared } from "../math/vector";
+import { crossProduct, dotProduct, magnitudeSquared, subtract } from "../math/vector";
 
 // Helper: Check for Object Intersections (Object-Object and Wall-Object)
 function checkObjectIntersectionsInternal(rawScan: RawScan): {
@@ -21,8 +22,8 @@ function checkObjectIntersectionsInternal(rawScan: RawScan): {
     maxZ: number;
     minX: number;
     minZ: number;
-    corners: { x: number; y: number }[];
-    innerCorners: { x: number; y: number }[];
+    corners: Point[];
+    innerCorners: Point[];
     story: number;
   }[] = [];
 
@@ -76,20 +77,20 @@ function checkObjectIntersectionsInternal(rawScan: RawScan): {
 
     // Local corners (y is ignored for floor plan)
     const corners = [
-      { x: -halfW, y: -halfD },
-      { x: halfW, y: -halfD },
-      { x: halfW, y: halfD },
-      { x: -halfW, y: halfD }
+      new Point(-halfW, -halfD),
+      new Point(halfW, -halfD),
+      new Point(halfW, halfD),
+      new Point(-halfW, halfD)
     ];
 
     // Inner corners (shrunk by tolerance)
     const innerHalfW = Math.max(ZERO, halfW - TOLERANCE);
     const innerHalfD = Math.max(ZERO, halfD - TOLERANCE);
     const innerCornersLocal = [
-      { x: -innerHalfW, y: -innerHalfD },
-      { x: innerHalfW, y: -innerHalfD },
-      { x: innerHalfW, y: innerHalfD },
-      { x: -innerHalfW, y: innerHalfD }
+      new Point(-innerHalfW, -innerHalfD),
+      new Point(innerHalfW, -innerHalfD),
+      new Point(innerHalfW, innerHalfD),
+      new Point(-innerHalfW, innerHalfD)
     ];
 
     let minX = Number.MAX_VALUE;
@@ -117,8 +118,7 @@ function checkObjectIntersectionsInternal(rawScan: RawScan): {
     objAABBs.push({
       corners: worldCorners,
       innerCorners: innerCornersLocal.map((c) => {
-        const res = transformPoint(c, o.transform);
-        return { x: res.x, y: res.y };
+        return transformPoint(c, o.transform);
       }),
       isSink: o.category.sink !== undefined,
       isStorage: o.category.storage !== undefined,
@@ -190,16 +190,16 @@ function checkObjectIntersectionsInternal(rawScan: RawScan): {
     const halfThick = (w.dimensions?.[DIM_THICK_IDX] ?? THICKNESS_DEFAULT) / HALF_DIVISOR;
 
     const wallFootprintLocal = [
-      { x: -halfLen, y: -halfThick },
-      { x: halfLen, y: -halfThick },
-      { x: halfLen, y: halfThick },
-      { x: -halfLen, y: halfThick }
+      new Point(-halfLen, -halfThick),
+      new Point(halfLen, -halfThick),
+      new Point(halfLen, halfThick),
+      new Point(-halfLen, halfThick)
     ];
 
-    const wallPolyWorld: { x: number; y: number }[] = [];
+    const wallPolyWorld: Point[] = [];
     for (const p of wallFootprintLocal) {
       // p.y is Local Z (Thickness)
-      wallPolyWorld.push(transformPoint({ x: p.x, y: p.y }, w.transform));
+      wallPolyWorld.push(transformPoint(new Point(p.x, p.y), w.transform));
     }
 
     // Check Intersection with Objects
@@ -237,10 +237,10 @@ function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
 
   // We need 2D Segments of Walls' center-lines.
   const wallSegments = rawScan.walls
-    .map((w) => {
+    .map((w, i) => {
       if (w.transform?.length === TRANSFORM_SIZE) {
-        let p1Local: { x: number; y: number } | null = null;
-        let p2Local: { x: number; y: number } | null = null;
+        let p1Local: Point | null = null;
+        let p2Local: Point | null = null;
         // 1. Try PolygonCorners (Preferred)
         const wPolySafe = w as unknown as { polygonCorners?: number[][] };
         if (wPolySafe.polygonCorners !== undefined && wPolySafe.polygonCorners.length >= MIN_POLY_POINTS) {
@@ -248,6 +248,7 @@ function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
           let minX = Number.MAX_VALUE;
           let maxX = -Number.MAX_VALUE;
           const PT_X_IDX = 0;
+
           // Safe Check for Corners Loop
           if (w.polygonCorners !== undefined) {
             for (const p of w.polygonCorners) {
@@ -261,9 +262,10 @@ function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
             }
           }
           // Avoid tiny walls? Original code didn't filter them.
+          const ZERO = 0;
           if (maxX > minX) {
-            p1Local = { x: minX, y: 0 };
-            p2Local = { x: maxX, y: 0 };
+            p1Local = new Point(minX, ZERO);
+            p2Local = new Point(maxX, ZERO);
           }
         }
 
@@ -272,21 +274,22 @@ function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
           const wSafe = w as unknown as { dimensions?: number[] };
           if (wSafe.dimensions !== undefined && wSafe.dimensions.length > MIN_ITEMS) {
             const DIM_LEN_IDX = 0;
+            const ZERO = 0;
             const halfLen = (wSafe.dimensions[DIM_LEN_IDX] ?? DEFAULT_VALUE) / HALF_DIVISOR;
-            p1Local = { x: -halfLen, y: 0 };
-            p2Local = { x: halfLen, y: 0 };
+            p1Local = new Point(-halfLen, ZERO);
+            p2Local = new Point(halfLen, ZERO);
           }
         }
 
         if (p1Local !== null && p2Local !== null) {
           const p1 = transformPoint(p1Local, w.transform);
           const p2 = transformPoint(p2Local, w.transform);
-          return { p1, p2, story: w.story };
+          return { p1, p2, story: w.story, wallIndex: i }; // Changed wallIndex to i
         }
       }
       return null;
     })
-    .filter((s) => s !== null) as { p1: { x: number; y: number }; p2: { x: number; y: number }; story: number }[];
+    .filter((s) => s !== null) as { p1: Point; p2: Point; story: number; wallIndex: number }[];
 
   let wallIntersectErr = false;
   // Check pair-wise
@@ -320,7 +323,7 @@ function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
       if (Math.abs(den) < EPSILON) {
         // Parallel. Check for collinear overlap.
         // Area of triangle P1,P2,P3
-        const area = Math.abs(crossProduct({ x: x2 - x1, y: y2 - y1 }, { x: x3 - x1, y: y3 - y1 }));
+        const area = Math.abs(crossProduct(subtract(s1.p2, s1.p1), subtract(s2.p1, s1.p1)));
 
         // If "area" is small, checks collinearity.
         const COLLINEAR_TOLERANCE = 1e-5; // Tolerance for collinearity (distance).
@@ -331,17 +334,14 @@ function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
         // Collinear. Check for Overlap.
         // Create 1D projection onto Line(P1-P2).
         // Parametric T for P3 on P1-P2: Use Dot Product.
-        const dot11 = magnitudeSquared({ x: x2 - x1, y: y2 - y1 });
+        const dot11 = magnitudeSquared(subtract(s1.p2, s1.p1));
         if (dot11 < EPSILON) {
           continue; // Zero length segment?
         }
 
         const getT = (px: number, py: number): number => {
-          const dx = px - x1;
-          const dy = py - y1;
-          const lineDx = x2 - x1;
-          const lineDy = y2 - y1;
-          return dotProduct({ x: dx, y: dy }, { x: lineDx, y: lineDy }) / dot11;
+          const p = new Point(px, py);
+          return dotProduct(subtract(p, s1.p1), subtract(s1.p2, s1.p1)) / dot11;
         };
 
         /*

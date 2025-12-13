@@ -1,3 +1,4 @@
+import { Point } from "../../models/point";
 import { segmentsIntersect } from "./segment";
 import { crossProduct, dotProduct, magnitudeSquared, subtract } from "./vector";
 
@@ -13,19 +14,15 @@ import { crossProduct, dotProduct, magnitudeSquared, subtract } from "./vector";
  * 8. No self-intersections.
  * 9. No collinear overlapping edges.
  */
-export const checkPolygonIntegrity = (corners: number[][]): boolean => {
+export const checkPolygonIntegrity = (points: Point[]): boolean => {
   const EPSILON = 1e-9;
   const MAX_COORDINATE = 10000;
   const MIN_EDGE_LENGTH = 0.001; // 1mm
   const MIN_ANGLE_DEG = 5;
   const MAX_ANGLE_DEG = 175;
 
-  const X_IDX = 0;
-  const Y_IDX = 1;
-  const COORD_ZERO = 0;
   const NEXT_OFFSET = 1;
   const NEXT_OFFSET_2 = 2;
-  const AREA_DIVISOR = 2;
   const CLAMP_MAX = 1;
   const CLAMP_MIN = -1;
   const RAD_TO_DEG = 180;
@@ -33,74 +30,58 @@ export const checkPolygonIntegrity = (corners: number[][]): boolean => {
   const LAST_OFFSET = 1;
   const MIN_VERTICES = 3;
 
-  if (corners.length < MIN_VERTICES) {
+  if (points.length < MIN_VERTICES) {
     return false;
   }
 
   // 1. Coordinate Validity Check
-  for (const p of corners) {
-    const x = p[X_IDX] ?? COORD_ZERO;
-    const y = p[Y_IDX] ?? COORD_ZERO;
-    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+  for (const p of points) {
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) {
       return false;
     }
-    if (Math.abs(x) > MAX_COORDINATE || Math.abs(y) > MAX_COORDINATE) {
+    if (Math.abs(p.x) > MAX_COORDINATE || Math.abs(p.y) > MAX_COORDINATE) {
       return false;
     }
   }
 
   // 2. Implicit Closure Check
-  const first = corners[START_IDX];
-  const last = corners[corners.length - LAST_OFFSET];
-  if (first !== undefined && last !== undefined) {
-    const x1 = first[X_IDX] ?? COORD_ZERO;
-    const y1 = first[Y_IDX] ?? COORD_ZERO;
-    const xn = last[X_IDX] ?? COORD_ZERO;
-    const yn = last[Y_IDX] ?? COORD_ZERO;
-    if (Math.abs(x1 - xn) < EPSILON && Math.abs(y1 - yn) < EPSILON) {
+  const first = points[START_IDX];
+  const last = points[points.length - LAST_OFFSET];
+  if (first && last) {
+    if (Math.abs(first.x - last.x) < EPSILON && Math.abs(first.y - last.y) < EPSILON) {
       return false;
     }
   }
 
   // 3. Edge Length and Angle Check
-  for (let i = 0; i < corners.length; i++) {
-    const p1 = corners[i];
-    const p2 = corners[(i + NEXT_OFFSET) % corners.length];
-    const p3 = corners[(i + NEXT_OFFSET_2) % corners.length];
+  for (let i = 0; i < points.length; i++) {
+    const p1 = points[i];
+    const p2 = points[(i + NEXT_OFFSET) % points.length];
+    const p3 = points[(i + NEXT_OFFSET_2) % points.length];
     if (!p1 || !p2 || !p3) {
       continue;
     }
 
-    const x1 = p1[X_IDX] ?? COORD_ZERO;
-    const y1 = p1[Y_IDX] ?? COORD_ZERO;
-    const x2 = p2[X_IDX] ?? COORD_ZERO;
-    const y2 = p2[Y_IDX] ?? COORD_ZERO;
-    const x3 = p3[X_IDX] ?? COORD_ZERO;
-    const y3 = p3[Y_IDX] ?? COORD_ZERO;
-
     // Edge Length Check (p1 -> p2)
-    const len = Math.sqrt(magnitudeSquared({ x: x2 - x1, y: y2 - y1 }));
+    const len = Math.sqrt(magnitudeSquared(subtract(p2, p1)));
     if (len < MIN_EDGE_LENGTH) {
       return false;
     }
 
     // Angle Integity Check (Angle at p2)
     // Vector BA (p2 -> p1) and BC (p2 -> p3)
-    const vBAx = x1 - x2;
-    const vBAy = y1 - y2;
-    const vBCx = x3 - x2;
-    const vBCy = y3 - y2;
+    const vBA = subtract(p1, p2);
+    const vBC = subtract(p3, p2);
 
-    const lenBA = Math.sqrt(magnitudeSquared({ x: vBAx, y: vBAy }));
-    const lenBC = Math.sqrt(magnitudeSquared({ x: vBCx, y: vBCy }));
+    const lenBA = Math.sqrt(magnitudeSquared(vBA));
+    const lenBC = Math.sqrt(magnitudeSquared(vBC));
 
     if (lenBA < EPSILON || lenBC < EPSILON) {
       return false;
     } // Should be caught by edge length, but safety.
 
     // Dot product
-    // Dot product
-    const dot = dotProduct({ x: vBAx, y: vBAy }, { x: vBCx, y: vBCy });
+    const dot = dotProduct(vBA, vBC);
     // Cos theta
     let cosTheta = dot / (lenBA * lenBC);
     // Clamp for float errors
@@ -121,18 +102,15 @@ export const checkPolygonIntegrity = (corners: number[][]): boolean => {
 
   // 4. Area and Winding Order (Clockwise)
   let area = 0;
-  for (let i = 0; i < corners.length; i++) {
-    const p1 = corners[i];
-    const p2 = corners[(i + NEXT_OFFSET) % corners.length];
+  const AREA_DIVISOR = 2;
+  for (let i = 0; i < points.length; i++) {
+    const p1 = points[i];
+    const p2 = points[(i + NEXT_OFFSET) % points.length];
     if (!p1 || !p2) {
       continue;
     }
-    const x1 = p1[X_IDX] ?? COORD_ZERO;
-    const y1 = p1[Y_IDX] ?? COORD_ZERO;
-    const x2 = p2[X_IDX] ?? COORD_ZERO;
-    const y2 = p2[Y_IDX] ?? COORD_ZERO;
-    const width = x2 - x1;
-    const height = y2 + y1;
+    const width = p2.x - p1.x;
+    const height = p2.y + p1.y;
     area += width * height;
   }
   area /= AREA_DIVISOR;
@@ -147,13 +125,13 @@ export const checkPolygonIntegrity = (corners: number[][]): boolean => {
   }
 
   // 4. Self-intersection and Collinear Overlap
-  if (hasSelfIntersection(corners)) {
+  if (hasSelfIntersection(points)) {
     return false;
   }
-  if (hasCollinearOverlaps(corners)) {
+  if (hasCollinearOverlaps(points)) {
     return false;
   }
-  if (hasDuplicatePoints(corners)) {
+  if (hasDuplicatePoints(points)) {
     return false;
   }
 
@@ -161,24 +139,18 @@ export const checkPolygonIntegrity = (corners: number[][]): boolean => {
 };
 
 // Private helpers
-const hasCollinearOverlaps = (corners: number[][]): boolean => {
-  const X_IDX = 0;
-  const Y_IDX = 1;
-  const COORD_ZERO = 0;
-  const n = corners.length;
+export const hasCollinearOverlaps = (points: Point[]): boolean => {
+  const n = points.length;
   const ADJACENT_OFFSET = 1;
   const NEXT_OFFSET = 1;
   const START_IDX = 0;
 
   for (let i = 0; i < n; i++) {
-    const pA1 = corners[i];
-    const pA2 = corners[(i + NEXT_OFFSET) % n];
+    const pA1 = points[i];
+    const pA2 = points[(i + NEXT_OFFSET) % n];
     if (!pA1 || !pA2) {
       continue;
     }
-
-    const a1 = { x: pA1[X_IDX] ?? COORD_ZERO, y: pA1[Y_IDX] ?? COORD_ZERO };
-    const a2 = { x: pA2[X_IDX] ?? COORD_ZERO, y: pA2[Y_IDX] ?? COORD_ZERO };
 
     // Check against other edges
     for (let j = i + ADJACENT_OFFSET; j < n; j++) {
@@ -187,16 +159,13 @@ const hasCollinearOverlaps = (corners: number[][]): boolean => {
         continue;
       }
 
-      const pB1 = corners[j];
-      const pB2 = corners[(j + NEXT_OFFSET) % n];
+      const pB1 = points[j];
+      const pB2 = points[(j + NEXT_OFFSET) % n];
       if (!pB1 || !pB2) {
         continue;
       }
 
-      const b1 = { x: pB1[X_IDX] ?? COORD_ZERO, y: pB1[Y_IDX] ?? COORD_ZERO };
-      const b2 = { x: pB2[X_IDX] ?? COORD_ZERO, y: pB2[Y_IDX] ?? COORD_ZERO };
-
-      if (areSegmentsCollinearOverlapping(a1, a2, b1, b2)) {
+      if (areSegmentsCollinearOverlapping(pA1, pA2, pB1, pB2)) {
         return true;
       }
     }
@@ -204,33 +173,28 @@ const hasCollinearOverlaps = (corners: number[][]): boolean => {
   return false;
 };
 
-const areSegmentsCollinearOverlapping = (
-  a1: { x: number; y: number },
-  a2: { x: number; y: number },
-  b1: { x: number; y: number },
-  b2: { x: number; y: number }
-): boolean => {
+export const areSegmentsCollinearOverlapping = (p1: Point, p2: Point, q1: Point, q2: Point): boolean => {
   const EPSILON = 1e-9;
-  const vecA = subtract(a2, a1);
-  const vecB = subtract(b2, b1);
+  const vecA = subtract(p2, p1);
+  const vecB = subtract(q2, q1);
   const cross = crossProduct(vecA, vecB);
   if (Math.abs(cross) > EPSILON) {
     return false;
   }
 
-  const vecAtoB1 = subtract(b1, a1);
+  const vecAtoB1 = subtract(q1, p1); // q1 - p1
   const cross2 = crossProduct(vecA, vecAtoB1);
   if (Math.abs(cross2) > EPSILON) {
     return false;
   }
 
   const isVertical = Math.abs(vecA.x) < EPSILON;
-  const project = (p: { x: number; y: number }) => (isVertical ? p.y : p.x);
+  const project = (p: Point) => (isVertical ? p.y : p.x);
 
-  let tA1 = project(a1);
-  let tA2 = project(a2);
-  let tB1 = project(b1);
-  let tB2 = project(b2);
+  let tA1 = project(p1);
+  let tA2 = project(p2);
+  let tB1 = project(q1);
+  let tB2 = project(q2);
 
   if (tA1 > tA2) {
     [tA1, tA2] = [tA2, tA1];
@@ -245,17 +209,14 @@ const areSegmentsCollinearOverlapping = (
   return overlapEnd - overlapStart > EPSILON;
 };
 
-const hasSelfIntersection = (corners: number[][]): boolean => {
-  const X_IDX = 0;
-  const Y_IDX = 1;
-  const COORD_ZERO = 0;
+export const hasSelfIntersection = (points: Point[]): boolean => {
   const START_IDX = 0;
   const ADJACENT_OFFSET = 1;
   const NEXT_OFFSET = 1;
-  const n = corners.length;
+  const n = points.length;
   for (let i = 0; i < n; i++) {
-    const p1 = corners[i];
-    const p2 = corners[(i + NEXT_OFFSET) % n];
+    const p1 = points[i];
+    const p2 = points[(i + NEXT_OFFSET) % n];
     if (!p1 || !p2) {
       continue;
     }
@@ -266,20 +227,13 @@ const hasSelfIntersection = (corners: number[][]): boolean => {
         continue;
       }
 
-      const p3 = corners[j];
-      const p4 = corners[(j + NEXT_OFFSET) % n];
+      const p3 = points[j];
+      const p4 = points[(j + NEXT_OFFSET) % n];
       if (!p3 || !p4) {
         continue;
       }
 
-      if (
-        segmentsIntersect(
-          { x: p1[X_IDX] ?? COORD_ZERO, y: p1[Y_IDX] ?? COORD_ZERO },
-          { x: p2[X_IDX] ?? COORD_ZERO, y: p2[Y_IDX] ?? COORD_ZERO },
-          { x: p3[X_IDX] ?? COORD_ZERO, y: p3[Y_IDX] ?? COORD_ZERO },
-          { x: p4[X_IDX] ?? COORD_ZERO, y: p4[Y_IDX] ?? COORD_ZERO }
-        )
-      ) {
+      if (segmentsIntersect(p1, p2, p3, p4)) {
         return true;
       }
     }
@@ -287,25 +241,18 @@ const hasSelfIntersection = (corners: number[][]): boolean => {
   return false;
 };
 
-const hasDuplicatePoints = (corners: number[][]): boolean => {
+export const hasDuplicatePoints = (points: Point[]): boolean => {
   const EPSILON = 1e-9;
   const EPSILON_SQ = EPSILON * EPSILON;
-  const X_IDX = 0;
-  const Y_IDX = 1;
-  const COORD_ZERO = 0;
   const NEXT_OFFSET = 1;
 
-  const n = corners.length;
+  const n = points.length;
   for (let i = 0; i < n; i++) {
     for (let j = i + NEXT_OFFSET; j < n; j++) {
-      const pA = corners[i];
-      const pB = corners[j];
+      const pA = points[i];
+      const pB = points[j];
       if (pA && pB) {
-        const ax = pA[X_IDX] ?? COORD_ZERO;
-        const ay = pA[Y_IDX] ?? COORD_ZERO;
-        const bx = pB[X_IDX] ?? COORD_ZERO;
-        const by = pB[Y_IDX] ?? COORD_ZERO;
-        const distSq = magnitudeSquared({ x: ax - bx, y: ay - by });
+        const distSq = magnitudeSquared(subtract(pB, pA));
         if (distSq < EPSILON_SQ) {
           return true;
         }
@@ -315,8 +262,8 @@ const hasDuplicatePoints = (corners: number[][]): boolean => {
   return false;
 };
 
-export function doPolygonsIntersect(a: { x: number; y: number }[], b: { x: number; y: number }[]): boolean {
-  const polygons = [a, b];
+export const doPolygonsIntersect = (poly1: Point[], poly2: Point[]): boolean => {
+  const polygons = [poly1, poly2];
   for (const polygon of polygons) {
     for (let i = 0; i < polygon.length; i++) {
       const NEXT_OFF = 1;
@@ -327,11 +274,11 @@ export function doPolygonsIntersect(a: { x: number; y: number }[], b: { x: numbe
         continue;
       }
 
-      const normal = { x: -(p2.y - p1.y), y: p2.x - p1.x };
+      const normal = new Point(-(p2.y - p1.y), p2.x - p1.x);
 
       let minA = Infinity;
       let maxA = -Infinity;
-      for (const p of a) {
+      for (const p of poly1) {
         const projected = dotProduct(normal, p);
         if (projected < minA) {
           minA = projected;
@@ -343,7 +290,7 @@ export function doPolygonsIntersect(a: { x: number; y: number }[], b: { x: numbe
 
       let minB = Infinity;
       let maxB = -Infinity;
-      for (const p of b) {
+      for (const p of poly2) {
         const projected = dotProduct(normal, p);
         if (projected < minB) {
           minB = projected;
@@ -359,4 +306,4 @@ export function doPolygonsIntersect(a: { x: number; y: number }[], b: { x: numbe
     }
   }
   return true;
-}
+};

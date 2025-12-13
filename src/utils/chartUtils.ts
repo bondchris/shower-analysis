@@ -1,6 +1,8 @@
 import { ChartConfiguration } from "chart.js";
 import { ChartJSNodeCanvas } from "chartjs-node-canvas";
 
+import { Point } from "../models/point";
+
 export interface LineChartDataset {
   label: string;
   data: number[];
@@ -267,7 +269,7 @@ export async function createBarChart(
           const text = `${pctStr}%`;
           // element.x is the end of the bar for horizontal charts
           // element.y is the vertical center of the bar
-          const props = element.getProps(["x", "y"], true) as { x: number; y: number };
+          const props = element.getProps(["x", "y"], true) as Point;
           const { x, y } = props;
           ctx.fillText(text, x + LABEL_OFFSET, y);
         }

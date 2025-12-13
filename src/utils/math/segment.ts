@@ -1,12 +1,9 @@
+import { Point } from "../../models/point";
 import { crossProduct, dotProduct, magnitudeSquared, subtract } from "./vector";
 
-export const distToSegment = (
-  p: { x: number; y: number },
-  v: { x: number; y: number },
-  w: { x: number; y: number }
-): number => {
+export const distToSegment = (p: Point, v: Point, w: Point): number => {
   // l2 = length squared of segment vw
-  const l2 = magnitudeSquared({ x: v.x - w.x, y: v.y - w.y });
+  const l2 = magnitudeSquared(new Point(v.x - w.x, v.y - w.y));
   const ZERO_LENGTH = 0;
   if (l2 === ZERO_LENGTH) {
     return Math.sqrt(magnitudeSquared(subtract(p, v)));
@@ -26,26 +23,13 @@ export const distToSegment = (
   const projX = v.x + tX;
   const tY = t * (w.y - v.y);
   const projY = v.y + tY;
-  return Math.sqrt(magnitudeSquared({ x: p.x - projX, y: p.y - projY }));
+  return Math.sqrt(magnitudeSquared(new Point(p.x - projX, p.y - projY)));
 };
 
-export const segmentsIntersect = (
-  a: { x: number; y: number },
-  b: { x: number; y: number },
-  c: { x: number; y: number },
-  d: { x: number; y: number }
-): boolean => {
+export const segmentsIntersect = (a: Point, b: Point, c: Point, d: Point): boolean => {
   // Input Validation
-  if (
-    !Number.isFinite(a.x) ||
-    !Number.isFinite(a.y) ||
-    !Number.isFinite(b.x) ||
-    !Number.isFinite(b.y) ||
-    !Number.isFinite(c.x) ||
-    !Number.isFinite(c.y) ||
-    !Number.isFinite(d.x) ||
-    !Number.isFinite(d.y)
-  ) {
+  const points = [a, b, c, d];
+  if (!points.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))) {
     return false;
   }
 

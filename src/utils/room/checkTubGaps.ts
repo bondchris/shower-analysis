@@ -1,3 +1,4 @@
+import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
@@ -21,14 +22,14 @@ export function checkTubGaps(rawScan: RawScan): boolean {
   const MIN_CORNERS = 0;
 
   // 1. Collect Wall Segments (World Space)
-  const roomWalls: { corners: { x: number; y: number }[]; story?: number }[] = [];
+  const roomWalls: { corners: Point[]; story?: number }[] = [];
 
   for (const w of walls) {
     if (w.transform?.length !== TRANSFORM_SIZE) {
       continue;
     }
 
-    const wallCornersWorld: { x: number; y: number }[] = [];
+    const wallCorners: Point[] = [];
     let pCorners = w.polygonCorners ?? [];
     const numCorners = pCorners.length;
 
@@ -44,17 +45,17 @@ export function checkTubGaps(rawScan: RawScan): boolean {
 
     for (const p of pCorners) {
       if (p.length >= MIN_POINT_SIZE) {
-        wallCornersWorld.push(
-          transformPoint({ x: p[PT_X_IDX] ?? DEFAULT_VALUE, y: p[PT_Z_IDX] ?? DEFAULT_VALUE }, w.transform)
+        wallCorners.push(
+          transformPoint(new Point(p[PT_X_IDX] ?? DEFAULT_VALUE, p[PT_Z_IDX] ?? DEFAULT_VALUE), w.transform)
         );
       }
     }
 
     const MIN_WALL_CORNERS = 2;
-    if (wallCornersWorld.length < MIN_WALL_CORNERS) {
+    if (wallCorners.length < MIN_WALL_CORNERS) {
       continue;
     }
-    roomWalls.push({ corners: wallCornersWorld, ...(w.story !== undefined ? { story: w.story } : {}) });
+    roomWalls.push({ corners: wallCorners, ...(w.story !== undefined ? { story: w.story } : {}) });
   }
 
   let tubGapErrorFound = false;
@@ -62,11 +63,12 @@ export function checkTubGaps(rawScan: RawScan): boolean {
   for (const tub of tubs) {
     const halfW = (tub.dimensions[DIM_X] ?? DEFAULT_VALUE) / HALF_DIVISOR;
     const halfD = (tub.dimensions[DIM_Z] ?? DEFAULT_VALUE) / HALF_DIVISOR;
+
     const tubCornersLocal = [
-      { x: -halfW, y: -halfD },
-      { x: halfW, y: -halfD },
-      { x: halfW, y: halfD },
-      { x: -halfW, y: halfD }
+      new Point(-halfW, -halfD),
+      new Point(halfW, -halfD),
+      new Point(halfW, halfD),
+      new Point(-halfW, halfD)
     ];
 
     const tubCornersWorld = tubCornersLocal.map((p) => transformPoint(p, tub.transform));
@@ -81,8 +83,8 @@ export function checkTubGaps(rawScan: RawScan): boolean {
       // 2a. Tub Corners -> Wall Segments
       for (const tc of tubCornersWorld) {
         for (let i = 0; i < wallCornersWorld.length; i++) {
-          const p1 = wallCornersWorld[i] as { x: number; y: number } | undefined;
-          const p2 = wallCornersWorld[(i + NEXT_IDX) % wallCornersWorld.length] as { x: number; y: number } | undefined;
+          const p1 = wallCornersWorld[i];
+          const p2 = wallCornersWorld[(i + NEXT_IDX) % wallCornersWorld.length];
           if (!p1 || !p2) {
             continue;
           }
@@ -97,8 +99,8 @@ export function checkTubGaps(rawScan: RawScan): boolean {
       // 2b. Wall Corners -> Tub Segments
       for (const wc of wallCornersWorld) {
         for (let i = 0; i < tubCornersWorld.length; i++) {
-          const p1 = tubCornersWorld[i] as { x: number; y: number } | undefined;
-          const p2 = tubCornersWorld[(i + NEXT_IDX) % tubCornersWorld.length] as { x: number; y: number } | undefined;
+          const p1 = tubCornersWorld[i];
+          const p2 = tubCornersWorld[(i + NEXT_IDX) % tubCornersWorld.length];
           if (!p1 || !p2) {
             continue;
           }

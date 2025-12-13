@@ -1,3 +1,4 @@
+import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
@@ -18,14 +19,14 @@ export function checkWallGaps(rawScan: RawScan): boolean {
   const NEXT_IDX_ONE = 1;
 
   // 1. Collect Wall Segments (World Space)
-  const roomWalls: { corners: { x: number; y: number }[] }[] = [];
+  const roomWalls: { corners: Point[]; story?: number }[] = [];
 
   for (const w of walls) {
     if (w.transform?.length !== TRANSFORM_SIZE) {
       continue;
     }
 
-    const wallCornersWorld: { x: number; y: number }[] = [];
+    const wallCornersWorld: Point[] = [];
     let pCorners = w.polygonCorners ?? [];
     const numCorners = pCorners.length;
 
@@ -42,7 +43,7 @@ export function checkWallGaps(rawScan: RawScan): boolean {
     for (const p of pCorners) {
       if (p.length >= MIN_POINT_SIZE) {
         wallCornersWorld.push(
-          transformPoint({ x: p[PT_X_IDX] ?? DEFAULT_VALUE, y: p[PT_Z_IDX] ?? DEFAULT_VALUE }, w.transform)
+          transformPoint(new Point(p[PT_X_IDX] ?? DEFAULT_VALUE, p[PT_Z_IDX] ?? DEFAULT_VALUE), w.transform)
         );
       }
     }

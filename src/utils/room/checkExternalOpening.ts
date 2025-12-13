@@ -1,3 +1,4 @@
+import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
@@ -54,9 +55,9 @@ export function checkExternalOpening(rawScan: RawScan): boolean {
       }
 
       const dist = distToSegment(
-        { x: wx, y: wy },
-        { x: p1[X_IDX] ?? DEFAULT_COORD, y: p1[Y_IDX] ?? DEFAULT_COORD },
-        { x: p2[X_IDX] ?? DEFAULT_COORD, y: p2[Y_IDX] ?? DEFAULT_COORD }
+        new Point(wx, wy),
+        new Point(p1[X_IDX] ?? DEFAULT_COORD, p1[Y_IDX] ?? DEFAULT_COORD),
+        new Point(p2[X_IDX] ?? DEFAULT_COORD, p2[Y_IDX] ?? DEFAULT_COORD)
       );
 
       if (dist < PERIMETER_THRESHOLD) {
