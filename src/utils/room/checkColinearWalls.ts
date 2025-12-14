@@ -1,3 +1,5 @@
+import convert from "convert-units";
+
 import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
@@ -10,7 +12,8 @@ export function checkColinearWalls(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
   // Touching/Gap: < 3 inches (0.0762m)
   // Parallel: Dot product > 0.996 (approx 5 degrees)
-  const TOUCH_THRESHOLD = 0.0762;
+  const MAX_GAP_INCHES = 3;
+  const TOUCH_THRESHOLD = convert(MAX_GAP_INCHES).from("in").to("m");
   const PARALLEL_THRESHOLD = 0.996;
   const HALF_DIVISOR = 2;
   const DEFAULT_VALUE = 0;

@@ -112,22 +112,16 @@ export async function createHistogram(
 
   for (const val of data) {
     if (val < min) {
-      const valUnder = buckets[UNDERFLOW_INDEX];
-      if (valUnder !== undefined) {
-        buckets[UNDERFLOW_INDEX] = valUnder + INCREMENT_STEP;
-      }
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      buckets[UNDERFLOW_INDEX]! += INCREMENT_STEP;
     } else if (val >= max) {
       const idxOver = buckets.length - INCREMENT_STEP;
-      const valOver = buckets[idxOver];
-      if (valOver !== undefined) {
-        buckets[idxOver] = valOver + INCREMENT_STEP;
-      }
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      buckets[idxOver]! += INCREMENT_STEP;
     } else {
       const binIdx = Math.floor((val - min) / binSize) + OFFSET;
-      const count = buckets[binIdx];
-      if (count !== undefined) {
-        buckets[binIdx] = count + INCREMENT_STEP;
-      }
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      buckets[binIdx]! += INCREMENT_STEP;
     }
   }
 

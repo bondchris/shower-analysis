@@ -1,10 +1,12 @@
+import convert from "convert-units";
+
 import { checkColinearWalls } from "../../../src/utils/room/checkColinearWalls";
 import { createExternalWall, createMockScan } from "./testHelpers";
 
 describe("checkColinearWalls", () => {
-  const INCH = 0.0254;
+  const INCH = convert(1).from("in").to("m");
 
-  describe("A. Core 'should detect' cases", () => {
+  describe("Core 'should detect' cases", () => {
     it("should return true for end-to-end walls with 0 gap", () => {
       const w1 = createExternalWall("w1", {
         polygonCorners: [
@@ -109,9 +111,9 @@ describe("checkColinearWalls", () => {
     });
   });
 
-  describe("B. Gap threshold boundaries", () => {
+  describe("Gap threshold boundaries", () => {
     it("should return false for gap exactly 3.00 inch", () => {
-      // Threshold is < 0.0762 (3 inches). Exactly 3 should fail.
+      // Threshold is < 0.0762 (3 inches). Exactly 3 should fail (be False).
       const w1 = createExternalWall("w1", {
         polygonCorners: [
           [0, 0],
@@ -146,7 +148,7 @@ describe("checkColinearWalls", () => {
     });
   });
 
-  describe("D. False-positive guards", () => {
+  describe("False-positive guards", () => {
     it("should return false for Parallel but laterally offset (train tracks)", () => {
       const w1 = createExternalWall("w1", {
         polygonCorners: [
@@ -202,7 +204,7 @@ describe("checkColinearWalls", () => {
     });
   });
 
-  describe("E. Directionality (Anti-parallel)", () => {
+  describe("Directionality (Anti-parallel)", () => {
     it("should return true for Anti-parallel (reversed direction) but colinear", () => {
       // Implementation uses Math.abs(dot), so this should match.
       const w1 = createExternalWall("w1", {
@@ -223,7 +225,7 @@ describe("checkColinearWalls", () => {
     });
   });
 
-  describe("F. Story handling", () => {
+  describe("Story handling", () => {
     it("should return false for walls on different stories", () => {
       const w1 = createExternalWall("w1", {
         polygonCorners: [
@@ -245,7 +247,7 @@ describe("checkColinearWalls", () => {
     });
   });
 
-  describe("G. Degenerate/Data robustness", () => {
+  describe("Degenerate/Data robustness", () => {
     it("should handle duplicate walls (same ID/geometry)", () => {
       // If duplicates are passed, they technically are colinear with themselves or each other.
       // The implementation iterates distinct indices (j = i + 1), so distinct objects/indices are compared.

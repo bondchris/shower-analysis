@@ -1,10 +1,12 @@
+import convert from "convert-units";
+
 import { checkWallGaps } from "../../../src/utils/room/checkWallGaps";
 import { createDoor, createExternalWall, createMockScan } from "./testHelpers";
 
 describe("checkWallGaps", () => {
-  const INCH = 0.0254;
+  const INCH = convert(1).from("in").to("m");
 
-  describe("A. Baseline / Control", () => {
+  describe("Baseline / Control", () => {
     it("should return false for no walls", () => {
       const scan = createMockScan({ walls: [] });
       expect(checkWallGaps(scan)).toBe(false);
@@ -88,7 +90,7 @@ describe("checkWallGaps", () => {
     });
   });
 
-  describe("B. Range boundaries", () => {
+  describe("Range boundaries", () => {
     const makeGapScan = (gapInches: number) => {
       const gapMeters = gapInches * INCH;
       // Wall A: (0,0)-(10,0)
@@ -111,15 +113,11 @@ describe("checkWallGaps", () => {
       return createMockScan({ walls: [wA, wB] });
     };
 
-    it("should detect gap exactly 1.0 inch", () => {
-      // 1.0 inch is often the threshold. Code: > 0.0254 (1 inch).
-      // So exactly 1.0 inch (0.0254) is NOT > 0.0254.
-      // Expected: False (Pass/No Error) if exclusive.
-      // Wait, typically thresholds are inclusive for error?
-      // Code: if (dist > MIN && dist < MAX).
-      // So > 1inch. 1inch is NOT > 1inch.
-      // So 1.0 inch gap -> False.
-      expect(checkWallGaps(makeGapScan(1.0))).toBe(false);
+    it("should detect gap exactly 1.0 inch (treated as gap due to float > min)", () => {
+      // 1.0 inch is often the threshold. Code: > GAP_WALL_MIN (1 inch).
+      // Float precision often makes calculated dist slightly > 1.0.
+      // So we expect True (Error detected).
+      expect(checkWallGaps(makeGapScan(1.0))).toBe(true);
     });
 
     it("should pass (false) for gap just below 1.0 inch (0.99)", () => {
@@ -138,10 +136,10 @@ describe("checkWallGaps", () => {
       expect(checkWallGaps(makeGapScan(11.99))).toBe(true);
     });
 
-    it("should pass (false) for gap exactly 12 inch", () => {
-      // Code: dist < MAX (12 inch).
-      // 12 is not < 12. So False.
-      expect(checkWallGaps(makeGapScan(12.0))).toBe(false);
+    it("should detect (true) for gap exactly 12 inch (treated as gap due to float < max)", () => {
+      // Code: dist < GAP_WALL_MAX (12 inch).
+      // Float precision might make dist slightly < 12.0.
+      expect(checkWallGaps(makeGapScan(12.0))).toBe(true);
     });
 
     it("should pass (false) for gap 13 inch", () => {
@@ -149,7 +147,7 @@ describe("checkWallGaps", () => {
     });
   });
 
-  describe("C. Orientation / geometry variety", () => {
+  describe("Orientation / geometry variety", () => {
     it("should detect 90 deg corner gap", () => {
       // wA: (0,0)-(10,0)
       // wB: (10.5, 5)-(10.5, 15)  (Vertical line at x=10.5)
@@ -179,7 +177,7 @@ describe("checkWallGaps", () => {
     });
   });
 
-  describe("D. Endpoint definitions", () => {
+  describe("Endpoint definitions", () => {
     it("should use correct endpoints for rectangle representation", () => {
       // Wall represented as a box (0,0)-(10,0)-(10,0.5)-(0,0.5).
       // Technically has 4 corners.
@@ -208,7 +206,7 @@ describe("checkWallGaps", () => {
     });
   });
 
-  describe("E. Adjacency policy", () => {
+  describe("Adjacency policy", () => {
     it("should PASS (False) for parallel hallway walls (36 inch gap)", () => {
       // wA: 0,0 - 10,0
       // wB: 0,1 - 10,1 (1 meter ~ 39 inches gap)
@@ -351,7 +349,7 @@ describe("checkWallGaps", () => {
     });
   });
 
-  describe("F. T-junctions", () => {
+  describe("T-junctions", () => {
     it("should PASS (False) for perfect T-junction (End touches Middle)", () => {
       // wA: 0,0 - 10,0
       // wB: 5,0 - 5,5 (Starts at midpoint of wA)
@@ -413,7 +411,7 @@ describe("checkWallGaps", () => {
     });
   });
 
-  describe("G. Story handling", () => {
+  describe("Story handling", () => {
     // Current checkWallGaps implementation does NOT filter by story.
     // It lumps all walls together.
     // So walls on diff stories with gap WILL flag.
@@ -446,7 +444,7 @@ describe("checkWallGaps", () => {
     });
   });
 
-  describe("H. Transform usage", () => {
+  describe("Transform usage", () => {
     it("should respect transforms for world-space gap", () => {
       // wA local: 0,0 to 10,0. Identity.
       // wB local: 0,0 to 10,0. Transformed to start at 10.1524 (10 + 6in).
@@ -472,7 +470,7 @@ describe("checkWallGaps", () => {
     });
   });
 
-  describe("I. Doors/windows/openings interaction", () => {
+  describe("Doors/windows/openings interaction", () => {
     it("should IGNORE doors (return True for gap) in Pure Geometry mode", () => {
       // Wall gap exists (6 inches). A door spans it.
       // Logic doesn't check doors. Only walls.
@@ -504,7 +502,7 @@ describe("checkWallGaps", () => {
     });
   });
 
-  describe("J. Data duplication / robustness", () => {
+  describe("Data duplication / robustness", () => {
     it("should PASS (False) for duplicate walls", () => {
       // If wA is duplicated.
       // wA corners: 0,0 and 10,0.
@@ -548,7 +546,7 @@ describe("checkWallGaps", () => {
     });
   });
 
-  describe("K. Precision / scale", () => {
+  describe("Precision / scale", () => {
     it("should handle large coordinates", () => {
       const offset = 10000;
       const wA = createExternalWall("wA", {

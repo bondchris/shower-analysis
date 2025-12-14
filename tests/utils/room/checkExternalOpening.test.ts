@@ -12,7 +12,7 @@ import {
 } from "./testHelpers";
 
 describe("checkExternalOpening", () => {
-  describe("1. Baseline / No external opening", () => {
+  describe("Baseline / No external opening", () => {
     it("should return false for a sealed box with no openings", () => {
       const scan = createMockScan({
         floors: [createFloor()],
@@ -40,7 +40,7 @@ describe("checkExternalOpening", () => {
     });
   });
 
-  describe("2. Positive Detection (Openings only)", () => {
+  describe("Positive Detection (Openings only)", () => {
     it("should ignore single external window (only openings count)", () => {
       const scan = createMockScan({
         floors: [createFloor()],
@@ -87,7 +87,7 @@ describe("checkExternalOpening", () => {
     });
   });
 
-  describe("3. Association Logic", () => {
+  describe("Association Logic", () => {
     it("should ignore opening with null parentIdentifier", () => {
       const scan = createMockScan({
         floors: [createFloor()],
@@ -116,7 +116,7 @@ describe("checkExternalOpening", () => {
     });
   });
 
-  describe("4. Story-based Scenarios", () => {
+  describe("Story-based Scenarios", () => {
     it("should ignore opening on different story if logic enforces it", () => {
       const scan = createMockScan({
         floors: [createFloor(1)],
@@ -128,7 +128,7 @@ describe("checkExternalOpening", () => {
     });
   });
 
-  describe("5. Category / Confidence Variations", () => {
+  describe("Category / Confidence Variations", () => {
     it("should detect opening with empty category if type validation allows it", () => {
       const scan = createMockScan({
         floors: [createFloor()],
@@ -150,7 +150,7 @@ describe("checkExternalOpening", () => {
     });
   });
 
-  describe("6. Geometry Edge Cases", () => {
+  describe("Geometry Edge Cases", () => {
     it("should handle degenerate polygon corners", () => {
       const scan = createMockScan({
         floors: [createFloor()],
@@ -161,7 +161,7 @@ describe("checkExternalOpening", () => {
     });
   });
 
-  describe("7. Junk + Good Opening Combos", () => {
+  describe("Junk + Good Opening Combos", () => {
     it("should return true if one valid external opening exists amidst junk", () => {
       const scan = createMockScan({
         floors: [createFloor()],
@@ -172,7 +172,7 @@ describe("checkExternalOpening", () => {
     });
   });
 
-  describe("8. Weird Linkage", () => {
+  describe("Weird Linkage", () => {
     it("should return false for opening whose parent is itself (not in walls)", () => {
       const scan = createMockScan({
         floors: [createFloor()],

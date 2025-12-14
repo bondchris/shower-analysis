@@ -1,6 +1,8 @@
+import convert from "convert-units";
+
 import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
-import { TRANSFORM_SIZE } from "../math/constants";
+import { EPSILON, TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
 
@@ -9,8 +11,10 @@ export function checkTubGaps(rawScan: RawScan): boolean {
   const tubs = rawScan.objects.filter((o) => o.category.bathtub !== undefined);
   const walls = rawScan.walls;
 
-  const GAP_TUB_MIN = 0.0254; // 1 inch
-  const GAP_TUB_MAX = 0.1524; // 6 inches
+  const ONE_INCH = 1;
+  const SIX_INCHES = 6;
+  const GAP_TUB_MIN = convert(ONE_INCH).from("in").to("m");
+  const GAP_TUB_MAX = convert(SIX_INCHES).from("in").to("m");
   const HALF_DIVISOR = 2;
   const DEFAULT_VALUE = 0;
   const DIM_X = 0;
@@ -114,7 +118,6 @@ export function checkTubGaps(rawScan: RawScan): boolean {
 
       // Logic: if ANY wall is within the Forbidden Zone (1" < gap < 6"), Flag Error.
       // We use inclusive bounds (-epsilon).
-      const EPSILON = 1e-5;
       if (minDist >= GAP_TUB_MIN - EPSILON && minDist <= GAP_TUB_MAX + EPSILON) {
         tubGapErrorFound = true;
         break; // Optimization: One bad gap is enough to fail

@@ -51,7 +51,7 @@ describe("checkDoorBlocking (Refactored)", () => {
     };
   };
 
-  it("1) Core Blocked Geometry", () => {
+  it("Core Blocked Geometry", () => {
     // No doors -> False
     expect(checkDoorBlocking(createMockScan({ doors: [], objects: [createObj("o1")] }))).toBe(false);
 

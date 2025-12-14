@@ -1,3 +1,5 @@
+import convert from "convert-units";
+
 import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
@@ -8,8 +10,10 @@ import { transformPoint } from "../math/transform";
 export function checkWallGaps(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
 
-  const GAP_WALL_MIN = 0.0254; // 1 inch
-  const GAP_WALL_MAX = 0.3048; // 12 inches
+  const ONE_INCH = 1;
+  const TWELVE_INCHES = 12;
+  const GAP_WALL_MIN = convert(ONE_INCH).from("in").to("m");
+  const GAP_WALL_MAX = convert(TWELVE_INCHES).from("in").to("m");
   const HALF_DIVISOR = 2;
   const DEFAULT_VALUE = 0;
   const PT_X_IDX = 0;

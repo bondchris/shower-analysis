@@ -1,6 +1,6 @@
 import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
-import { TRANSFORM_SIZE } from "../math/constants";
+import { EPSILON, TRANSFORM_SIZE } from "../math/constants";
 import { doPolygonsIntersect } from "../math/polygon";
 import { transformPoint } from "../math/transform";
 import { crossProduct, dotProduct, magnitudeSquared, subtract } from "../math/vector";
@@ -319,7 +319,6 @@ function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
       const term1 = (x1 - x2) * (y3 - y4);
       const term2 = (y1 - y2) * (x3 - x4);
       const den = term1 - term2;
-      const EPSILON = 1e-9;
       if (Math.abs(den) < EPSILON) {
         // Parallel. Check for collinear overlap.
         // Area of triangle P1,P2,P3

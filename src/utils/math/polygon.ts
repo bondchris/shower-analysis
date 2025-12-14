@@ -1,5 +1,6 @@
 import { Point } from "../../models/point";
-import { segmentsIntersect } from "./segment";
+import { EPSILON } from "./constants";
+import { doSegmentsIntersect } from "./segment";
 import { crossProduct, dotProduct, magnitudeSquared, subtract } from "./vector";
 
 /**
@@ -15,7 +16,6 @@ import { crossProduct, dotProduct, magnitudeSquared, subtract } from "./vector";
  * 9. No collinear overlapping edges.
  */
 export const checkPolygonIntegrity = (points: Point[]): boolean => {
-  const EPSILON = 1e-9;
   const MAX_COORDINATE = 10000;
   const MIN_EDGE_LENGTH = 0.001; // 1mm
   const MIN_ANGLE_DEG = 5;
@@ -139,7 +139,7 @@ export const checkPolygonIntegrity = (points: Point[]): boolean => {
 };
 
 // Private helpers
-export const hasCollinearOverlaps = (points: Point[]): boolean => {
+const hasCollinearOverlaps = (points: Point[]): boolean => {
   const n = points.length;
   const ADJACENT_OFFSET = 1;
   const NEXT_OFFSET = 1;
@@ -173,8 +173,7 @@ export const hasCollinearOverlaps = (points: Point[]): boolean => {
   return false;
 };
 
-export const areSegmentsCollinearOverlapping = (p1: Point, p2: Point, q1: Point, q2: Point): boolean => {
-  const EPSILON = 1e-9;
+const areSegmentsCollinearOverlapping = (p1: Point, p2: Point, q1: Point, q2: Point): boolean => {
   const vecA = subtract(p2, p1);
   const vecB = subtract(q2, q1);
   const cross = crossProduct(vecA, vecB);
@@ -209,7 +208,7 @@ export const areSegmentsCollinearOverlapping = (p1: Point, p2: Point, q1: Point,
   return overlapEnd - overlapStart > EPSILON;
 };
 
-export const hasSelfIntersection = (points: Point[]): boolean => {
+const hasSelfIntersection = (points: Point[]): boolean => {
   const START_IDX = 0;
   const ADJACENT_OFFSET = 1;
   const NEXT_OFFSET = 1;
@@ -233,7 +232,7 @@ export const hasSelfIntersection = (points: Point[]): boolean => {
         continue;
       }
 
-      if (segmentsIntersect(p1, p2, p3, p4)) {
+      if (doSegmentsIntersect(p1, p2, p3, p4)) {
         return true;
       }
     }
@@ -241,8 +240,7 @@ export const hasSelfIntersection = (points: Point[]): boolean => {
   return false;
 };
 
-export const hasDuplicatePoints = (points: Point[]): boolean => {
-  const EPSILON = 1e-9;
+const hasDuplicatePoints = (points: Point[]): boolean => {
   const EPSILON_SQ = EPSILON * EPSILON;
   const NEXT_OFFSET = 1;
 
@@ -262,6 +260,7 @@ export const hasDuplicatePoints = (points: Point[]): boolean => {
   return false;
 };
 
+// Public API
 export const doPolygonsIntersect = (poly1: Point[], poly2: Point[]): boolean => {
   const polygons = [poly1, poly2];
   for (const polygon of polygons) {

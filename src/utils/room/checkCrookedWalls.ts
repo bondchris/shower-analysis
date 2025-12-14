@@ -1,3 +1,5 @@
+import convert from "convert-units";
+
 import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
@@ -9,17 +11,14 @@ import { subtract } from "../math/vector";
 export function checkCrookedWalls(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
 
-  // const MAT_IDX_M00 = 0; // Keeping if needed for future
-  // const MAT_IDX_M02 = 2; // Unused
-  // const MAT_IDX_M08 = 8; // Unused
-  // const MAT_IDX_M10 = 10; // Zz -- Unused
   const DEFAULT_VALUE = 0;
   const NEXT_IDX = 1;
   const DEG_180 = 180;
   const DEG_360 = 360;
   const RAD_TO_DEG = DEG_180 / Math.PI;
 
-  const DIST_THRESHOLD = 0.0254; // 1 inch
+  const ONE_INCH = 1;
+  const DIST_THRESHOLD = convert(ONE_INCH).from("in").to("m");
   const ANGLE_THRESHOLD = 5.0; // 5 degrees
   const DIM_IDX_X = 0;
 

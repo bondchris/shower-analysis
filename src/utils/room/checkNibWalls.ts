@@ -1,3 +1,5 @@
+import convert from "convert-units";
+
 import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
@@ -7,7 +9,8 @@ import { magnitudeSquared, subtract } from "../math/vector";
 // Helper: Check for Nib Walls (Length < 1ft / 0.3048m)
 export function checkNibWalls(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
-  const NIB_WALL_THRESHOLD = 0.3048;
+  const ONE_FOOT = 1;
+  const NIB_WALL_THRESHOLD = convert(ONE_FOOT).from("ft").to("m");
   const HALF_DIVISOR = 2;
   const DEFAULT_VALUE = 0;
   const PT_X_IDX = 0;

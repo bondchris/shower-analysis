@@ -1,18 +1,67 @@
 import { Point } from "../../../src/models/point";
-import { distToSegment, segmentsIntersect } from "../../../src/utils/math/segment";
+import { distToSegment, doSegmentsIntersect, getSegmentIntersection } from "../../../src/utils/math/segment";
 
 describe("segment utils", () => {
-  describe("segmentsIntersect (Strict)", () => {
+  describe("doSegmentsIntersect (Strict)", () => {
     it("should return true for crossing segments", () => {
-      expect(segmentsIntersect(new Point(-1, 0), new Point(1, 0), new Point(0, -1), new Point(0, 1))).toBe(true);
+      expect(doSegmentsIntersect(new Point(-1, 0), new Point(1, 0), new Point(0, -1), new Point(0, 1))).toBe(true);
     });
 
     it("should return false for non-crossing segments", () => {
-      expect(segmentsIntersect(new Point(0, 0), new Point(1, 0), new Point(0, 1), new Point(1, 1))).toBe(false);
+      expect(doSegmentsIntersect(new Point(0, 0), new Point(1, 0), new Point(0, 1), new Point(1, 1))).toBe(false);
+    });
+  });
+
+  describe("getSegmentIntersection (Strict)", () => {
+    it("should return intersection point for crossing segments", () => {
+      // Intersection at (0,0)
+      const p = getSegmentIntersection(new Point(-1, 0), new Point(1, 0), new Point(0, -1), new Point(0, 1));
+      expect(p).not.toBeNull();
+      if (p) {
+        expect(p.x).toBeCloseTo(0);
+        expect(p.y).toBeCloseTo(0);
+      }
+    });
+
+    it("should return null for non-crossing segments", () => {
+      const p = getSegmentIntersection(new Point(0, 0), new Point(1, 0), new Point(0, 1), new Point(1, 1));
+      expect(p).toBeNull();
+    });
+
+    it("should return intersection point for arbitrary crossing", () => {
+      // Intersection of y=x and y=-x + 2 is at (1,1)
+      const p = getSegmentIntersection(new Point(0, 0), new Point(2, 2), new Point(0, 2), new Point(2, 0));
+      expect(p).not.toBeNull();
+      if (p) {
+        expect(p.x).toBeCloseTo(1);
+        expect(p.y).toBeCloseTo(1);
+      }
+    });
+
+    it("should return null for parallel segments", () => {
+      const p = getSegmentIntersection(new Point(0, 0), new Point(1, 0), new Point(0, 1), new Point(1, 1));
+      expect(p).toBeNull();
+    });
+
+    it("should return null for collinear segments", () => {
+      const p = getSegmentIntersection(new Point(0, 0), new Point(2, 0), new Point(1, 0), new Point(3, 0));
+      expect(p).toBeNull();
+    });
+
+    it("should return null for touching endpoints (strict check)", () => {
+      // T-junction touching at (1,0)
+      const p = getSegmentIntersection(new Point(0, 0), new Point(2, 0), new Point(1, 0), new Point(1, 1));
+      expect(p).toBeNull();
     });
   });
 
   describe("distToSegment", () => {
+    it("should throw error for invalid coordinates", () => {
+      expect(() => distToSegment(new Point(NaN, 0), new Point(0, 0), new Point(10, 0))).toThrow(
+        "Invalid point coordinates"
+      );
+    });
+
     // 1. Perpendicular projection falls on the segment (interior)
     it("should return perpendicular distance when projection falls on segment", () => {
       const a = new Point(0, 0);

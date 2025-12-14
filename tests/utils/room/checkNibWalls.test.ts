@@ -1,13 +1,18 @@
+import convert from "convert-units";
+
 import { checkNibWalls } from "../../../src/utils/room/checkNibWalls";
 import { createExternalWall, createMockScan } from "./testHelpers";
 
 describe("checkNibWalls", () => {
-  describe("A. Baseline", () => {
+  const ONE_FOOT = 1;
+  const THRESHOLD = convert(ONE_FOOT).from("ft").to("m");
+
+  describe("Baseline", () => {
     it("should return false for no walls", () => {
       expect(checkNibWalls(createMockScan({ walls: [] }))).toBe(false);
     });
 
-    it("should return false for single normal wall (> 0.3048m)", () => {
+    it("should return false for single normal wall (> 1 ft)", () => {
       const w = createExternalWall("w1", {
         polygonCorners: [
           [0, 0],
@@ -17,11 +22,11 @@ describe("checkNibWalls", () => {
       expect(checkNibWalls(createMockScan({ walls: [w] }))).toBe(false);
     });
 
-    it("should return true for single nib wall (< 0.3048m)", () => {
+    it("should return true for single nib wall (< 1 ft)", () => {
       const w = createExternalWall("w1", {
         polygonCorners: [
           [0, 0],
-          [0.2, 0] // 0.2 meter < 0.3048m
+          [0.2, 0] // 0.2 meter < threshold
         ]
       });
       expect(checkNibWalls(createMockScan({ walls: [w] }))).toBe(true);
@@ -44,42 +49,42 @@ describe("checkNibWalls", () => {
     });
   });
 
-  describe("B. Thresholds / precision", () => {
-    it("should return true for just under threshold (0.3048 - epsilon)", () => {
+  describe("Thresholds / precision", () => {
+    it("should return true for just under threshold (threshold - epsilon)", () => {
       const w = createExternalWall("w1", {
         polygonCorners: [
           [0, 0],
-          [0.3047, 0]
+          [THRESHOLD - 0.0001, 0]
         ]
       });
       expect(checkNibWalls(createMockScan({ walls: [w] }))).toBe(true);
     });
 
-    it("should return false for exactly threshold (0.3048)", () => {
+    it("should return false for exactly threshold", () => {
       const w = createExternalWall("w1", {
         polygonCorners: [
           [0, 0],
-          [0.3048, 0]
+          [THRESHOLD, 0]
         ]
       });
       expect(checkNibWalls(createMockScan({ walls: [w] }))).toBe(false);
     });
 
-    it("should return false for just over threshold (0.3048 + epsilon)", () => {
+    it("should return false for just over threshold (threshold + epsilon)", () => {
       const w = createExternalWall("w1", {
         polygonCorners: [
           [0, 0],
-          [0.3049, 0]
+          [THRESHOLD + 0.0001, 0]
         ]
       });
       expect(checkNibWalls(createMockScan({ walls: [w] }))).toBe(false);
     });
 
-    it("should return true for floating point artifact (0.30479999999997)", () => {
+    it("should return true for floating point artifact (threshold - tiny epsilon)", () => {
       const w = createExternalWall("w1", {
         polygonCorners: [
           [0, 0],
-          [0.30479999999997, 0]
+          [THRESHOLD - 1e-15, 0]
         ]
       });
       expect(checkNibWalls(createMockScan({ walls: [w] }))).toBe(true);

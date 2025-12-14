@@ -11,7 +11,7 @@ import {
 } from "./testHelpers";
 
 describe("checkIntersections", () => {
-  describe("A. Baseline / Control", () => {
+  describe("Baseline / Control", () => {
     it("should return false for all flags when room is empty", () => {
       const result = checkIntersections(createMockScan({ objects: [], walls: [] }));
       expect(result.hasObjectIntersectionErrors).toBe(false);
@@ -85,7 +85,7 @@ describe("checkIntersections", () => {
     });
   });
 
-  describe("B. Detection Scenarios", () => {
+  describe("Detection Scenarios", () => {
     it("should return false for all flags when no intersections exist (simple separation)", () => {
       const w1 = createExternalWall("w1", {
         transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] // Origin
@@ -156,7 +156,7 @@ describe("checkIntersections", () => {
       expect(result.hasWallObjectIntersectionErrors).toBe(false);
       expect(result.hasWallWallIntersectionErrors).toBe(true);
     });
-    describe("C. Object-Object Scenarios", () => {
+    describe("Object-Object Scenarios", () => {
       it("should detect standard collision (Toilet overlap Bathtub)", () => {
         // Overlapping by 0.5m
         const t1 = createToilet("t1", {
@@ -280,7 +280,7 @@ describe("checkIntersections", () => {
       });
     });
 
-    describe("D. Vanity Exception & Edge Cases", () => {
+    describe("Vanity Exception & Edge Cases", () => {
       it("should ALLOW vanity overlap (Storage ∩ Sink)", () => {
         const store = createStorage("store1");
         const sink = createSink("sink1", {
@@ -375,7 +375,7 @@ describe("checkIntersections", () => {
       });
     });
 
-    describe("E. Wall-Wall Scenarios", () => {
+    describe("Wall-Wall Scenarios", () => {
       // Helper to create straight wall 10 units long on X-axis (0..10)
       const createStraightWall = (id: string, overrides: Partial<WallData> = {}) =>
         createExternalWall(id, {
@@ -487,7 +487,7 @@ describe("checkIntersections", () => {
     });
   });
 
-  describe("F. Object-Wall Scenarios", () => {
+  describe("Object-Wall Scenarios", () => {
     // Helper
     const createStraightWall = (id: string, overrides: Partial<WallData> = {}) =>
       createExternalWall(id, {
@@ -612,7 +612,7 @@ describe("checkIntersections", () => {
     });
   });
 
-  describe("G. Aggregation Scenarios (Flag Independence)", () => {
+  describe("Aggregation Scenarios (Flag Independence)", () => {
     // Helper
     const createStraightWall = (id: string, overrides: Partial<WallData> = {}) =>
       createExternalWall(id, {
@@ -688,7 +688,7 @@ describe("checkIntersections", () => {
     });
   });
 
-  describe("H. Edge Cases (Degenerate & IDs)", () => {
+  describe("Edge Cases (Degenerate & IDs)", () => {
     it("should IGNORE Degenerate Objects (Zero dimensions)", () => {
       // Object 1: Normal
       const o1 = createObject("o1", { transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] });

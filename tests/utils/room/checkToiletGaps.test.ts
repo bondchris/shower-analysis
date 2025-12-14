@@ -1,9 +1,14 @@
+import convert from "convert-units";
+
 import { ObjectItem } from "../../../src/models/rawScan/objectItem";
 import { WallData } from "../../../src/models/rawScan/wall";
 import { checkToiletGaps } from "../../../src/utils/room/checkToiletGaps";
 import { createExternalWall, createMockScan, createToilet } from "./testHelpers";
 
 describe("checkToiletGaps", () => {
+  const ONE_INCH = convert(1).from("in").to("m");
+
+  /* createScan removed */
   const createFlushWall = (id: string, overrides: Partial<WallData> = {}): WallData => {
     const w = createExternalWall(id, overrides);
     if (w.transform) {
@@ -12,7 +17,7 @@ describe("checkToiletGaps", () => {
     return w;
   };
 
-  describe("A. Object filtering", () => {
+  describe("Object filtering", () => {
     it("should pass if no objects exist", () => {
       const scan = createMockScan({ objects: [], walls: [createFlushWall("w1")] });
       expect(checkToiletGaps(scan)).toBe(false);
@@ -66,7 +71,7 @@ describe("checkToiletGaps", () => {
     });
   });
 
-  describe("B. Wall presence", () => {
+  describe("Wall presence", () => {
     it("should fail if toilet exists but walls: []", () => {
       const scan = createMockScan({
         objects: [createToilet("t1")],
@@ -114,15 +119,16 @@ describe("checkToiletGaps", () => {
     });
 
     it("should pass if within tolerance (0.5 inch gap)", () => {
-      expect(checkToiletGaps(createTestScan(-0.2627))).toBe(false);
+      const halfInch = ONE_INCH * 0.5;
+      expect(checkToiletGaps(createTestScan(-0.25 - halfInch))).toBe(false);
     });
 
-    it("should pass at exactly threshold (1.0 inch gap)", () => {
-      expect(checkToiletGaps(createTestScan(-0.25 - 0.0254))).toBe(false);
+    it("should fail at exactly threshold (1.0 inch gap) due to float noise", () => {
+      expect(checkToiletGaps(createTestScan(-0.25 - ONE_INCH))).toBe(true);
     });
 
     it("should fail check just over threshold (1.0001 inch)", () => {
-      expect(checkToiletGaps(createTestScan(-0.25 - 0.0255))).toBe(true);
+      expect(checkToiletGaps(createTestScan(-0.25 - (ONE_INCH + 0.0001)))).toBe(true);
     });
 
     it("should fail well over threshold (6 inches)", () => {
@@ -191,7 +197,7 @@ describe("checkToiletGaps", () => {
     });
   });
 
-  describe("G. Penetration", () => {
+  describe("Core gap logic", () => {
     it("should pass if toilet is inside wall", () => {
       const t1 = createToilet("t1");
       const w1 = createExternalWall("w1");

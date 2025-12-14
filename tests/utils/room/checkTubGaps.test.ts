@@ -1,10 +1,12 @@
+import convert from "convert-units";
+
 import { Point } from "../../../src/models/point";
 import { dotProduct } from "../../../src/utils/math/vector";
 import { checkTubGaps } from "../../../src/utils/room/checkTubGaps";
 import { createDoor, createExternalWall, createMockScan, createTub } from "./testHelpers";
 
 describe("checkTubGaps", () => {
-  const INCH = 0.0254;
+  const INCH = convert(1).from("in").to("m");
 
   const createGapScan = (gapMeters: number) => {
     // Tub default: 1.5, 0.5, 0.7.
@@ -19,7 +21,7 @@ describe("checkTubGaps", () => {
     return createMockScan({ objects: [tub], walls: [wall] });
   };
 
-  describe("A. Core range & thresholds", () => {
+  describe("Core range & thresholds", () => {
     it("should detect 3 inch gap (Happy Path)", () => {
       expect(checkTubGaps(createGapScan(3 * INCH))).toBe(true);
     });
@@ -182,7 +184,7 @@ describe("checkTubGaps", () => {
     });
   });
 
-  describe("D. Filtering", () => {
+  describe("Object / Wall filtering", () => {
     it("should ignore wall with story mismatch", () => {
       const tub = createTub("t1", { story: 1 });
       const w = createExternalWall("w1", { story: 2 });
