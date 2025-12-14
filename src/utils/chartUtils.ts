@@ -19,7 +19,7 @@ const TOP_PADDING = 20;
 
 export interface LineChartDataset {
   label: string;
-  data: number[];
+  data: (number | null)[];
   borderColor: string;
 }
 
@@ -211,6 +211,7 @@ export function buildLineChartConfig(
         data: ds.data,
         fill: false,
         label: ds.label,
+        pointRadius: 0,
         tension: 0.1
       })),
       labels
@@ -432,6 +433,85 @@ export async function createBarChart(
   options: BarChartOptions = {}
 ): Promise<Buffer> {
   const config = buildBarChartConfig(labels, data, { ...options, title });
+  const buffer = await renderChart(config, options.width, options.height);
+  return buffer;
+}
+
+export interface MixedChartDataset {
+  label: string;
+  data: (number | null)[];
+  borderColor: string;
+  backgroundColor?: string;
+  type?: "line" | "bar";
+  yAxisID?: string;
+  fill?: boolean;
+  order?: number;
+}
+
+export interface MixedChartOptions {
+  width?: number;
+  height?: number;
+  title?: string;
+  yLabelLeft?: string;
+  yLabelRight?: string;
+}
+
+export function buildMixedChartConfig(
+  labels: string[],
+  datasets: MixedChartDataset[],
+  options: MixedChartOptions = {}
+): ChartConfiguration {
+  const { title, yLabelLeft, yLabelRight } = options;
+
+  return {
+    data: {
+      datasets: datasets.map((ds) => ({
+        backgroundColor: ds.backgroundColor ?? ds.borderColor,
+        borderColor: ds.borderColor,
+        data: ds.data,
+        fill: ds.fill ?? false,
+        label: ds.label,
+        order: ds.order,
+        pointRadius: 0,
+        tension: 0.1,
+        type: ds.type ?? "line",
+        yAxisID: ds.yAxisID ?? "y"
+      })),
+      labels
+    },
+    options: {
+      plugins: {
+        legend: { position: "top" },
+        title: { display: Boolean(title), text: title }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          display: true,
+          position: "left",
+          title: { display: Boolean(yLabelLeft), text: yLabelLeft }
+        },
+        y1: {
+          beginAtZero: true,
+          display: true,
+          grid: {
+            drawOnChartArea: false // only want the grid lines for one axis to show up
+          },
+          position: "right",
+          title: { display: Boolean(yLabelRight), text: yLabelRight }
+        }
+      }
+    },
+    type: "line" // Base type, datasets can override
+  };
+}
+
+export async function createMixedChart(
+  labels: string[],
+  datasets: MixedChartDataset[],
+  options: MixedChartOptions = {}
+): Promise<Buffer> {
+  const config = buildMixedChartConfig(labels, datasets, options);
   const buffer = await renderChart(config, options.width, options.height);
   return buffer;
 }

@@ -3,8 +3,6 @@ import * as path from "path";
 
 import { CheckedScanDatabase } from "../../models/checkedScanRecord";
 
-
-
 /**
  * Loads the database of "Checked Scans" (previously verified artifacts).
  * Backed by `config/checkedScans.json`.

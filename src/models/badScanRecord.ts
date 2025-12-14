@@ -1,5 +1,3 @@
-
-
 /**
  * Represents a scan explicitly marked as invalid or problematic.
  */

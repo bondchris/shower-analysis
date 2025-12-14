@@ -4,17 +4,17 @@ import * as path from "path";
 
 export interface Artifact {
   id: string;
-  projectId: string;
+  projectId?: string | null;
   scanDate?: string;
   rawScan?: string;
   arData?: string;
   video?: string;
-  pointCloud?: string;
-  slowedArData?: string;
-  slowedVideo?: string;
+  pointCloud?: string | null;
+  slowedArData?: string | null;
+  slowedVideo?: string | null;
   scanNotes?: string | null;
   scanSuccess?: string;
-  initialLayout?: string;
+  initialLayout?: string | null;
   initialVisualization?: string | null;
   showerDetections?: string | null;
 }

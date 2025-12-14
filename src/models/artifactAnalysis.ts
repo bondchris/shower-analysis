@@ -5,7 +5,7 @@ const NO_RESULTS = 0;
  * Represents metadata extracted and computed for a scanned room artifact.
  * Used for analysis, filtering, and reporting on room characteristics.
  */
-export class ArtifactMetadata {
+export class ArtifactAnalysis {
   public path = NOT_SET;
   public filename = NOT_SET;
   public environment = NOT_SET;

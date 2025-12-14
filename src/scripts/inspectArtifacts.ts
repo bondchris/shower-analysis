@@ -6,7 +6,7 @@ import * as path from "path";
 import PDFDocument from "pdfkit";
 
 import { ArData } from "../models/arData/arData";
-import { ArtifactMetadata } from "../models/artifactMetadata";
+import { ArtifactAnalysis } from "../models/artifactAnalysis";
 import { RawScan } from "../models/rawScan/rawScan";
 import * as ChartUtils from "../utils/chartUtils";
 import { checkColinearWalls } from "../utils/room/checkColinearWalls";
@@ -28,7 +28,7 @@ import { checkWallGaps } from "../utils/room/checkWallGaps";
  */
 
 // 1. Video Metadata Extraction
-async function addVideoMetadata(dirPath: string, metadata: ArtifactMetadata): Promise<boolean> {
+async function addVideoMetadata(dirPath: string, metadata: ArtifactAnalysis): Promise<boolean> {
   const filePath = path.join(dirPath, "video.mp4");
   const NUMERATOR_IDX = 0;
   const DENOMINATOR_IDX = 1;
@@ -83,7 +83,7 @@ async function addVideoMetadata(dirPath: string, metadata: ArtifactMetadata): Pr
 }
 
 interface ChartDef {
-  check: (m: ArtifactMetadata) => boolean;
+  check: (m: ArtifactAnalysis) => boolean;
   count: number;
   label: string;
 }
@@ -103,7 +103,7 @@ interface CaptureCharts {
 }
 
 // 2. RawScan Analysis
-function addRawScanMetadata(dirPath: string, metadata: ArtifactMetadata): void {
+function addRawScanMetadata(dirPath: string, metadata: ArtifactAnalysis): void {
   const rawScanPath = path.join(dirPath, "rawScan.json");
   if (fs.existsSync(rawScanPath)) {
     try {
@@ -166,7 +166,7 @@ function addRawScanMetadata(dirPath: string, metadata: ArtifactMetadata): void {
 }
 
 // 3. ArData Analysis
-function addArDataMetadata(dirPath: string, metadata: ArtifactMetadata): void {
+function addArDataMetadata(dirPath: string, metadata: ArtifactAnalysis): void {
   const arDataPath = path.join(dirPath, "arData.json");
   const INITIAL_COUNT = 0;
   const NOT_SET = "";
@@ -264,7 +264,7 @@ function findArtifactDirectories(dir: string): string[] {
   return results;
 }
 
-async function generateCharts(metadataList: ArtifactMetadata[]): Promise<CaptureCharts> {
+async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<CaptureCharts> {
   const INITIAL_COUNT = 0;
   const INCREMENT_STEP = 1;
   const NOT_SET = "";
@@ -376,55 +376,55 @@ async function generateCharts(metadataList: ArtifactMetadata[]): Promise<Capture
 
   // Feature Prevalence
   const featureDefs: ChartDef[] = [
-    { check: (m: ArtifactMetadata) => m.hasNonRectWall, count: INITIAL_COUNT, label: "Non-Rectangular Walls" },
-    { check: (m: ArtifactMetadata) => m.hasCurvedWall, count: INITIAL_COUNT, label: "Curved Walls" },
-    { check: (m: ArtifactMetadata) => m.toiletCount >= MIN_TOILETS, count: INITIAL_COUNT, label: "2+ Toilets" },
-    { check: (m: ArtifactMetadata) => m.tubCount >= MIN_TUBS, count: INITIAL_COUNT, label: "2+ Tubs" },
-    { check: (m: ArtifactMetadata) => m.wallCount < MIN_WALLS, count: INITIAL_COUNT, label: "< 4 Walls" },
+    { check: (m: ArtifactAnalysis) => m.hasNonRectWall, count: INITIAL_COUNT, label: "Non-Rectangular Walls" },
+    { check: (m: ArtifactAnalysis) => m.hasCurvedWall, count: INITIAL_COUNT, label: "Curved Walls" },
+    { check: (m: ArtifactAnalysis) => m.toiletCount >= MIN_TOILETS, count: INITIAL_COUNT, label: "2+ Toilets" },
+    { check: (m: ArtifactAnalysis) => m.tubCount >= MIN_TUBS, count: INITIAL_COUNT, label: "2+ Tubs" },
+    { check: (m: ArtifactAnalysis) => m.wallCount < MIN_WALLS, count: INITIAL_COUNT, label: "< 4 Walls" },
     {
-      check: (m: ArtifactMetadata) => m.sinkCount === INITIAL_COUNT && m.storageCount === INITIAL_COUNT,
+      check: (m: ArtifactAnalysis) => m.sinkCount === INITIAL_COUNT && m.storageCount === INITIAL_COUNT,
       count: INITIAL_COUNT,
       label: "No Vanity"
     },
-    { check: (m: ArtifactMetadata) => m.hasExternalOpening, count: INITIAL_COUNT, label: "External Opening" },
-    { check: (m: ArtifactMetadata) => m.hasSoffit, count: INITIAL_COUNT, label: "Soffit" },
-    { check: (m: ArtifactMetadata) => m.hasNibWalls, count: INITIAL_COUNT, label: "Nib Walls (< 1ft)" },
-    { check: (m: ArtifactMetadata) => m.hasWasherDryer, count: INITIAL_COUNT, label: "Washer/Dryer" },
-    { check: (m: ArtifactMetadata) => m.hasStove, count: INITIAL_COUNT, label: "Stove" },
-    { check: (m: ArtifactMetadata) => m.hasTable, count: INITIAL_COUNT, label: "Table" },
-    { check: (m: ArtifactMetadata) => m.hasChair, count: INITIAL_COUNT, label: "Chair" },
-    { check: (m: ArtifactMetadata) => m.hasBed, count: INITIAL_COUNT, label: "Bed" },
-    { check: (m: ArtifactMetadata) => m.hasSofa, count: INITIAL_COUNT, label: "Sofa" },
-    { check: (m: ArtifactMetadata) => m.hasDishwasher, count: INITIAL_COUNT, label: "Dishwasher" },
-    { check: (m: ArtifactMetadata) => m.hasOven, count: INITIAL_COUNT, label: "Oven" },
-    { check: (m: ArtifactMetadata) => m.hasRefrigerator, count: INITIAL_COUNT, label: "Refrigerator" },
-    { check: (m: ArtifactMetadata) => m.hasStairs, count: INITIAL_COUNT, label: "Stairs" },
-    { check: (m: ArtifactMetadata) => m.hasFireplace, count: INITIAL_COUNT, label: "Fireplace" },
-    { check: (m: ArtifactMetadata) => m.hasTelevision, count: INITIAL_COUNT, label: "Television" }
+    { check: (m: ArtifactAnalysis) => m.hasExternalOpening, count: INITIAL_COUNT, label: "External Opening" },
+    { check: (m: ArtifactAnalysis) => m.hasSoffit, count: INITIAL_COUNT, label: "Soffit" },
+    { check: (m: ArtifactAnalysis) => m.hasNibWalls, count: INITIAL_COUNT, label: "Nib Walls (< 1ft)" },
+    { check: (m: ArtifactAnalysis) => m.hasWasherDryer, count: INITIAL_COUNT, label: "Washer/Dryer" },
+    { check: (m: ArtifactAnalysis) => m.hasStove, count: INITIAL_COUNT, label: "Stove" },
+    { check: (m: ArtifactAnalysis) => m.hasTable, count: INITIAL_COUNT, label: "Table" },
+    { check: (m: ArtifactAnalysis) => m.hasChair, count: INITIAL_COUNT, label: "Chair" },
+    { check: (m: ArtifactAnalysis) => m.hasBed, count: INITIAL_COUNT, label: "Bed" },
+    { check: (m: ArtifactAnalysis) => m.hasSofa, count: INITIAL_COUNT, label: "Sofa" },
+    { check: (m: ArtifactAnalysis) => m.hasDishwasher, count: INITIAL_COUNT, label: "Dishwasher" },
+    { check: (m: ArtifactAnalysis) => m.hasOven, count: INITIAL_COUNT, label: "Oven" },
+    { check: (m: ArtifactAnalysis) => m.hasRefrigerator, count: INITIAL_COUNT, label: "Refrigerator" },
+    { check: (m: ArtifactAnalysis) => m.hasStairs, count: INITIAL_COUNT, label: "Stairs" },
+    { check: (m: ArtifactAnalysis) => m.hasFireplace, count: INITIAL_COUNT, label: "Fireplace" },
+    { check: (m: ArtifactAnalysis) => m.hasTelevision, count: INITIAL_COUNT, label: "Television" }
   ];
 
   const errorDefs: ChartDef[] = [
-    { check: (m: ArtifactMetadata) => m.hasToiletGapErrors, count: INITIAL_COUNT, label: 'Toilet Gap > 1"' },
-    { check: (m: ArtifactMetadata) => m.hasTubGapErrors, count: INITIAL_COUNT, label: 'Tub Gap 1"-6"' },
-    { check: (m: ArtifactMetadata) => m.hasWallGapErrors, count: INITIAL_COUNT, label: 'Wall Gaps 1"-12"' },
-    { check: (m: ArtifactMetadata) => m.hasColinearWallErrors, count: INITIAL_COUNT, label: "Colinear Walls" },
+    { check: (m: ArtifactAnalysis) => m.hasToiletGapErrors, count: INITIAL_COUNT, label: 'Toilet Gap > 1"' },
+    { check: (m: ArtifactAnalysis) => m.hasTubGapErrors, count: INITIAL_COUNT, label: 'Tub Gap 1"-6"' },
+    { check: (m: ArtifactAnalysis) => m.hasWallGapErrors, count: INITIAL_COUNT, label: 'Wall Gaps 1"-12"' },
+    { check: (m: ArtifactAnalysis) => m.hasColinearWallErrors, count: INITIAL_COUNT, label: "Colinear Walls" },
     {
-      check: (m: ArtifactMetadata) => m.hasObjectIntersectionErrors,
+      check: (m: ArtifactAnalysis) => m.hasObjectIntersectionErrors,
       count: INITIAL_COUNT,
       label: "Object Intersections"
     },
     {
-      check: (m: ArtifactMetadata) => m.hasWallObjectIntersectionErrors,
+      check: (m: ArtifactAnalysis) => m.hasWallObjectIntersectionErrors,
       count: INITIAL_COUNT,
       label: "Wall <-> Object Intersections"
     },
     {
-      check: (m: ArtifactMetadata) => m.hasWallWallIntersectionErrors,
+      check: (m: ArtifactAnalysis) => m.hasWallWallIntersectionErrors,
       count: INITIAL_COUNT,
       label: "Wall <-> Wall Intersections"
     },
-    { check: (m: ArtifactMetadata) => m.hasCrookedWallErrors, count: INITIAL_COUNT, label: "Crooked Walls" },
-    { check: (m: ArtifactMetadata) => m.hasDoorBlockingError, count: INITIAL_COUNT, label: "Door Blocked" }
+    { check: (m: ArtifactAnalysis) => m.hasCrookedWallErrors, count: INITIAL_COUNT, label: "Crooked Walls" },
+    { check: (m: ArtifactAnalysis) => m.hasDoorBlockingError, count: INITIAL_COUNT, label: "Door Blocked" }
   ];
 
   for (const m of metadataList) {
@@ -567,12 +567,12 @@ async function main(): Promise<void> {
   console.log(`Found ${artifactDirs.length.toString()} artifact directories.`);
 
   console.log(" extracting metadata...");
-  const metadataList: ArtifactMetadata[] = [];
+  const metadataList: ArtifactAnalysis[] = [];
 
   let processed = INITIAL_COUNT;
 
   for (const dir of artifactDirs) {
-    const metadata = new ArtifactMetadata();
+    const metadata = new ArtifactAnalysis();
     const success = await addVideoMetadata(dir, metadata);
     if (success) {
       addRawScanMetadata(dir, metadata);
