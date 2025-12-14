@@ -12,7 +12,6 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 describe("SpatialService Integration", () => {
   let tempDir = "";
 
-  // eslint-disable-next-line init-declarations
   let service: SpatialService;
 
   beforeEach(() => {
@@ -20,11 +19,9 @@ describe("SpatialService Integration", () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "spatial-test-"));
 
     // 2. Stub process.cwd to point to tempDir
-    // eslint-disable-next-line @typescript-eslint/unbound-method
     jest.spyOn(process, "cwd").mockReturnValue(tempDir);
 
     // 3. Reset axios mocks
-    // eslint-disable-next-line @typescript-eslint/unbound-method
     mockedAxios.get.mockReset();
 
     // 4. Initialize Service
@@ -53,7 +50,6 @@ describe("SpatialService Integration", () => {
   const createMeta = (total: number, envName?: string) => {
     const dir = getCachePath(envName);
     fs.mkdirSync(dir, { recursive: true });
-    // eslint-disable-next-line sort-keys
     fs.writeFileSync(path.join(dir, "meta.json"), JSON.stringify({ date: new Date().toISOString(), total }));
   };
 
@@ -82,9 +78,7 @@ describe("SpatialService Integration", () => {
 
       const res = await service.fetchScanArtifacts(1);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockedAxios.get).toHaveBeenCalledWith(
         expect.stringContaining("/spatial/v1/scan-artifacts?page=1"),
         expect.objectContaining({ timeout: 60000 })
@@ -106,18 +100,15 @@ describe("SpatialService Integration", () => {
       await service.fetchScanArtifacts(1);
 
       // Assert
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
       // Side effect: cacheValid should be set to true internally.
       // We verify this by making a SECOND call and ensuring it DOES NOT hit network.
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       mockedAxios.get.mockClear();
 
       // Arrange cached page for second call so it can be returned
       createPage(2, mockApiResponse(100));
 
       await service.fetchScanArtifacts(2);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockedAxios.get).not.toHaveBeenCalled();
     });
 
@@ -141,7 +132,6 @@ describe("SpatialService Integration", () => {
       mockedAxios.get.mockResolvedValue({ data: mockApiResponse(100) });
       // First call to validate cache
       await service.fetchScanArtifacts(1);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       mockedAxios.get.mockClear();
     });
 
@@ -151,7 +141,6 @@ describe("SpatialService Integration", () => {
 
       const res = await service.fetchScanArtifacts(2);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockedAxios.get).not.toHaveBeenCalled();
       expect(res).toEqual(cachedData);
     });
@@ -163,7 +152,6 @@ describe("SpatialService Integration", () => {
 
       const res = await service.fetchScanArtifacts(3);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
       expect(res).toEqual(liveData);
       // Should write back to cache
@@ -179,7 +167,6 @@ describe("SpatialService Integration", () => {
 
       const res = await service.fetchScanArtifacts(2);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockedAxios.get).toHaveBeenCalledTimes(1);
       expect(res).toEqual(liveData);
       // Should overwrite corrupt file
@@ -213,7 +200,6 @@ describe("SpatialService Integration", () => {
 
       await service.fetchScanArtifacts(3);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockedAxios.get).toHaveBeenCalledWith("https://api.bondxlowes.com/spatial/v1/scan-artifacts?page=3", {
         timeout: 60000
       });

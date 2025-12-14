@@ -2,13 +2,18 @@ import { ChartConfiguration } from "chart.js";
 import { ChartJSNodeCanvas } from "chartjs-node-canvas";
 
 // --- Constants ---
+
+// --- Constants ---
 const DEFAULT_WIDTH = 600;
 const DEFAULT_HEIGHT = 400;
 const CHART_BG_COLOR = "white";
 const INCREMENT_STEP = 1;
 const MAX_TICKS = 20;
-
-/* eslint-disable no-magic-numbers */
+const ZERO = 0;
+const ONE = 1;
+const DEFAULT_DECIMALS = 0;
+const DATASET_INDEX = 0;
+const TOP_PADDING = 20;
 
 // --- Interfaces ---
 
@@ -54,10 +59,10 @@ export interface HistogramResult {
 // --- Pure Helper Functions ---
 
 export function calculateHistogramBins(data: number[], options: HistogramOptions): HistogramResult {
-  const { binSize, decimalPlaces = 0, hideUnderflow, max, min } = options;
+  const { binSize, decimalPlaces = DEFAULT_DECIMALS, hideUnderflow, max, min } = options;
 
   // Validation
-  if (!Number.isFinite(binSize) || binSize <= 0) {
+  if (!Number.isFinite(binSize) || binSize <= ZERO) {
     throw new Error(`Invalid binSize: ${String(binSize)}. Must be > 0.`);
   }
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
@@ -101,16 +106,19 @@ export function calculateHistogramBins(data: number[], options: HistogramOptions
     } // Skip non-finite values
 
     if (val < min) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      buckets[UNDERFLOW_INDEX]! += INCREMENT_STEP;
+      if (buckets[UNDERFLOW_INDEX] !== undefined) {
+        buckets[UNDERFLOW_INDEX] += INCREMENT_STEP;
+      }
     } else if (val >= max) {
       const idxOver = buckets.length - INCREMENT_STEP;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      buckets[idxOver]! += INCREMENT_STEP;
+      if (buckets[idxOver] !== undefined) {
+        buckets[idxOver] += INCREMENT_STEP;
+      }
     } else {
       const binIdx = Math.floor((val - min) / binSize) + OFFSET;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      buckets[binIdx]! += INCREMENT_STEP;
+      if (buckets[binIdx] !== undefined) {
+        buckets[binIdx] += INCREMENT_STEP;
+      }
     }
   }
 
@@ -148,7 +156,7 @@ export function calculateHistogramBinCenter(
     return min - halfBin;
   }
 
-  const originalLength = totalBuckets + (hideUnderflow ? 1 : 0);
+  const originalLength = totalBuckets + (hideUnderflow ? ONE : ZERO);
 
   if (effectiveIndex === originalLength - OFFSET_ADJUST) {
     // Overflow
@@ -228,7 +236,6 @@ export function buildHistogramConfig(data: number[], options: HistogramOptions):
   if (colorByValue) {
     backgroundColors = labels.map((_, i) => {
       const center = calculateHistogramBinCenter(i, min, max, binSize, hideUnderflow, buckets.length);
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return colorByValue(center);
     });
   }
@@ -279,20 +286,18 @@ export function buildBarChartConfig(
   const { horizontal = false, title, totalForPercentages } = options;
 
   const RIGHT_PADDING = 60;
-  const NO_PADDING = 0;
+
   const LABEL_OFFSET = 4;
   const FONT_SIZE_PX = 12;
 
   const customLabelsPlugin = {
     afterDatasetsDraw(chart: import("chart.js").Chart) {
-      if (totalForPercentages === undefined || totalForPercentages <= 0) {
+      if (totalForPercentages === undefined || totalForPercentages <= ZERO) {
         return;
       }
-      const DATASET_INDEX = 0;
 
       const { ctx } = chart;
       const meta = chart.getDatasetMeta(DATASET_INDEX);
-      /* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */
       const datasetData = chart.data.datasets[DATASET_INDEX]?.data as number[];
 
       ctx.save();
@@ -302,13 +307,14 @@ export function buildBarChartConfig(
 
       meta.data.forEach((element, index) => {
         const value = datasetData[index];
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (value !== undefined) {
           const text = formatPercentageLabel(value, totalForPercentages);
 
           // Local type to avoid importing domain models
-          // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-          type XY = { x: number; y: number };
+          interface XY {
+            x: number;
+            y: number;
+          }
           const { x, y } = element.getProps(["x", "y"], true) as XY;
 
           if (horizontal) {
@@ -346,11 +352,9 @@ export function buildBarChartConfig(
       layout: {
         padding: {
           // Only add right padding if horizontal and showing %
-          // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, no-magic-numbers
-          right: horizontal && totalForPercentages ? RIGHT_PADDING : NO_PADDING,
+          right: horizontal && totalForPercentages !== undefined && totalForPercentages > ZERO ? RIGHT_PADDING : ZERO,
           // Maybe add top padding for vertical?
-          // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, no-magic-numbers
-          top: !horizontal && totalForPercentages ? 20 : 0
+          top: !horizontal && totalForPercentages !== undefined && totalForPercentages > ZERO ? TOP_PADDING : ZERO
         }
       },
       plugins: {
@@ -426,8 +430,7 @@ export async function createBarChart(
 // --- Utils ---
 
 export function kelvinToRgb(kelvin: number): string {
-  // eslint-disable-next-line no-magic-numbers
-  if (!Number.isFinite(kelvin) || kelvin <= 0) {
+  if (!Number.isFinite(kelvin) || kelvin <= ZERO) {
     return "rgba(0, 0, 0, 0.8)";
   }
 

@@ -1,5 +1,7 @@
-export interface CheckedScanRecord {
-  id: string;
-  date: string;
-  model: string;
+export interface CheckedScanEntry {
+  cleanedDate?: string;
+  filteredDate?: string;
+  filteredModel?: string;
 }
+
+export type CheckedScanDatabase = Record<string, CheckedScanEntry>;

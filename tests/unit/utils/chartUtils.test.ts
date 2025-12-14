@@ -18,7 +18,6 @@ jest.mock("chartjs-node-canvas");
 const MockChartJSNodeCanvas = ChartJSNodeCanvas as jest.MockedClass<typeof ChartJSNodeCanvas>;
 
 describe("chartUtils", () => {
-  // eslint-disable-next-line init-declarations
   let renderToBufferMock: jest.Mock;
 
   beforeEach(() => {
@@ -75,7 +74,6 @@ describe("chartUtils", () => {
 
     describe("calculateHistogramBinCenter", () => {
       const OPS = { binSize: 2, max: 10, min: 0 };
-      // Original bins: underflow, 0-2, 2-4, 4-6, 6-8, 8-10, overflow (7 total)
 
       it("should return correct center for buckets", () => {
         const totalBuckets = 7;

@@ -15,6 +15,8 @@ module.exports = {
       files: ["tests/**/*.ts", "tests/**/*.js"],
       rules: {
         "@typescript-eslint/ban-ts-comment": "off",
+        "@typescript-eslint/unbound-method": "off",
+        "init-declarations": "off",
         "no-magic-numbers": "off"
       }
     }

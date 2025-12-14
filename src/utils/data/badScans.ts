@@ -1,20 +1,46 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import { BadScanRecord } from "../../models/badScanRecord";
+import { BadScanDatabase, LegacyBadScanRecord } from "../../models/badScanRecord";
 
-export function getBadScans(): BadScanRecord[] {
+export function getBadScans(): BadScanDatabase {
   const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
   try {
     const content = fs.readFileSync(BAD_SCANS_FILE, "utf-8");
-    return JSON.parse(content) as BadScanRecord[];
+    const json: unknown = JSON.parse(content);
+
+    if (Array.isArray(json)) {
+      const database: BadScanDatabase = {};
+      const legacyRecords = json as LegacyBadScanRecord[];
+      for (const record of legacyRecords) {
+        database[record.id] = {
+          date: record.date,
+          environment: record.environment,
+          reason: record.reason
+        };
+      }
+      return database;
+    }
+
+    return json as BadScanDatabase;
   } catch {
-    return [];
+    return {};
   }
 }
 
-export function saveBadScans(records: BadScanRecord[]) {
+export function saveBadScans(database: BadScanDatabase) {
   const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
   const JSON_INDENT = 2;
-  fs.writeFileSync(BAD_SCANS_FILE, JSON.stringify(records, null, JSON_INDENT));
+
+  // deterministic sort
+  const sortedKeys = Object.keys(database).sort();
+  const sortedDatabase: BadScanDatabase = {};
+  for (const key of sortedKeys) {
+    const val = database[key];
+    if (val !== undefined) {
+      sortedDatabase[key] = val;
+    }
+  }
+
+  fs.writeFileSync(BAD_SCANS_FILE, JSON.stringify(sortedDatabase, null, JSON_INDENT));
 }

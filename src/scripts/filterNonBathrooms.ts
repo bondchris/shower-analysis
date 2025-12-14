@@ -31,7 +31,6 @@ function findArtifactDirectories(dir: string): string[] {
 async function processArtifact(
   dir: string,
   service: GeminiService,
-  badScanIds: Set<string>,
   badScans: ReturnType<typeof getBadScans>,
   checkedScanIds: Set<string>,
   checkedScans: ReturnType<typeof getCheckedScans>
@@ -42,7 +41,7 @@ async function processArtifact(
   const artifactId = path.basename(dir);
 
   // Skip if we already know it's bad
-  if (badScanIds.has(artifactId)) {
+  if (artifactId in badScans) {
     return { processed, removed, skipped };
   }
 
@@ -83,13 +82,11 @@ async function processArtifact(
     if (text.includes("NO")) {
       console.log(`  -> ${artifactId}: NOT A BATHROOM. Removing...`);
 
-      badScans.push({
+      badScans[artifactId] ??= {
         date: new Date().toISOString(),
         environment,
-        id: artifactId,
-        reason: `Not a bathroom (Gemini gemini-3-pro-preview)`
-      });
-      badScanIds.add(artifactId);
+        reason: "Not a bathroom (Gemini gemini-3-pro-preview)"
+      };
 
       try {
         fs.rmSync(dir, { force: true, recursive: true });
@@ -99,11 +96,14 @@ async function processArtifact(
       }
     } else {
       console.log(`  -> ${artifactId}: Kept.`);
-      checkedScans.push({
-        date: new Date().toISOString(),
-        id: artifactId,
-        model: "gemini-3-pro-preview"
-      });
+      let entry = checkedScans[artifactId];
+      if (entry === undefined) {
+        entry = {};
+        checkedScans[artifactId] = entry;
+      }
+      entry.filteredDate = new Date().toISOString();
+      entry.filteredModel = "gemini-3-pro-preview";
+
       checkedScanIds.add(artifactId);
     }
 
@@ -125,12 +125,19 @@ async function main() {
   console.log(`Found ${artifactDirs.length.toString()} artifacts.`);
 
   const badScans = getBadScans();
-  const badScanIds = new Set(badScans.map((b) => b.id));
+  // removed badScanIds set because we can lookup directly in badScans map
 
   const checkedScans = getCheckedScans();
-  const checkedScanIds = new Set(checkedScans.map((c) => c.id));
+  // Filter for existing "bathroom" checks
+  // Since it's a map now, we just check properties
+  const checkedScanIds = new Set<string>();
+  for (const [id, entry] of Object.entries(checkedScans)) {
+    if (entry.filteredDate !== undefined && entry.filteredDate !== "") {
+      checkedScanIds.add(id);
+    }
+  }
 
-  console.log(`Loaded ${checkedScans.length.toString()} checked scans.`);
+  console.log(`Loaded ${Object.keys(checkedScans).length.toString()} checked scans.`);
 
   let totalProcessed = 0;
   let totalRemoved = 0;
@@ -148,7 +155,6 @@ async function main() {
           const { processed, removed, skipped } = await processArtifact(
             dir,
             service,
-            badScanIds,
             badScans,
             checkedScanIds,
             checkedScans

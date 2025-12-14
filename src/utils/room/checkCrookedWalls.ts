@@ -1,4 +1,4 @@
-import convert from "convert-units"; // eslint-disable-line no-unused-vars
+import convert from "convert-units";
 
 import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";

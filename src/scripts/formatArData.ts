@@ -36,6 +36,11 @@ function main() {
   let processed = 0;
   for (const file of files) {
     try {
+      const newPath = path.join(path.dirname(file), "arDataFormatted.json");
+      if (fs.existsSync(newPath)) {
+        continue;
+      }
+
       const content = fs.readFileSync(file, "utf-8");
       const json = JSON.parse(content) as ArData;
 
@@ -56,7 +61,6 @@ function main() {
         data: sortedData
       };
 
-      const newPath = path.join(path.dirname(file), "arDataFormatted.json");
       fs.writeFileSync(newPath, JSON.stringify(newJson, null, JSON_INDENT));
       processed++;
 
@@ -68,7 +72,7 @@ function main() {
     }
   }
 
-  console.log(`\nSorted ${processed.toString()} files.`);
+  console.log(`\nSorted ${processed.toString()} files. Skipped ${(files.length - processed).toString()} existing.`);
 }
 
 main();

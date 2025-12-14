@@ -7,6 +7,7 @@ import { promisify } from "util";
 
 import { ENVIRONMENTS } from "../../config/config";
 import { Artifact, SpatialService } from "../services/spatialService";
+import { getBadScans } from "../utils/data/badScans";
 
 const finished = promisify(stream.finished);
 
@@ -24,20 +25,6 @@ interface SyncStats {
   skipped: number;
   failed: number;
   errors: SyncError[];
-}
-
-function getBadScanIds(): Set<string> {
-  try {
-    const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
-    if (fs.existsSync(BAD_SCANS_FILE)) {
-      const content = fs.readFileSync(BAD_SCANS_FILE, "utf-8");
-      const records = JSON.parse(content) as { id: string }[];
-      return new Set(records.map((r) => r.id));
-    }
-  } catch {
-    // ignore
-  }
-  return new Set();
 }
 
 async function downloadFile(url: string, outputPath: string): Promise<boolean> {
@@ -86,12 +73,14 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
   const TIMEOUT_MS = 30000;
   const JSON_INDENT = 2;
 
+  /* eslint-enable no-magic-numbers */
+
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
 
-  const badScanIds = getBadScanIds();
-  console.log(`Loaded ${badScanIds.size.toString()} known bad scans to skip.`);
+  const badScans = getBadScans();
+  console.log(`Loaded ${Object.keys(badScans).length.toString()} known bad scans to skip.`);
 
   const service = new SpatialService(env.domain, env.name);
 
@@ -119,7 +108,7 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
         const artifacts: Artifact[] = res.data;
 
         for (const artifact of artifacts) {
-          if (badScanIds.has(artifact.id)) {
+          if (artifact.id in badScans) {
             stats.skipped++;
             continue;
           }
