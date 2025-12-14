@@ -1,4 +1,6 @@
-import { checkDoorBlocking } from "../../../src/utils/room/checkDoorBlocking";
+import { Door } from "../../../../src/models/rawScan/door";
+import { ObjectItem } from "../../../../src/models/rawScan/objectItem";
+import { checkDoorBlocking } from "../../../../src/utils/room/checkDoorBlocking";
 import { createMockScan } from "./testHelpers";
 
 describe("checkDoorBlocking (Refactored)", () => {
@@ -6,8 +8,8 @@ describe("checkDoorBlocking (Refactored)", () => {
   // Helpers
   const createDoor = (
     id: string,
-    overrides: Partial<import("../../../src/models/rawScan/door").Door> = {}
-  ): import("../../../src/models/rawScan/door").Door => ({
+    overrides: Partial<Door> = {}
+  ): Door => ({
     category: { door: { isOpen: false } },
     completedEdges: [],
     confidence: { high: {} },
@@ -23,8 +25,8 @@ describe("checkDoorBlocking (Refactored)", () => {
 
   const createObj = (
     id: string,
-    overrides: Partial<import("../../../src/models/rawScan/objectItem").ObjectItem> = {}
-  ): import("../../../src/models/rawScan/objectItem").ObjectItem => ({
+    overrides: Partial<ObjectItem> = {}
+  ): ObjectItem => ({
     attributes: {},
     category: { storage: {} },
     confidence: { high: {} },

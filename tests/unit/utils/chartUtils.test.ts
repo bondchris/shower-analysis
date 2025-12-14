@@ -10,7 +10,7 @@ import {
     createLineChart,
     formatPercentageLabel,
     kelvinToRgb
-} from "../../src/utils/chartUtils";
+} from "../../../src/utils/chartUtils";
 
 // Mock chartjs-node-canvas
 jest.mock("chartjs-node-canvas");

@@ -1,4 +1,4 @@
-import { Wall, WallData } from "../../../src/models/rawScan/wall";
+import { Wall, WallData } from "../../../../src/models/rawScan/wall";
 
 describe("Wall", () => {
   describe("hasSoffit", () => {

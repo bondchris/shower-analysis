@@ -1,8 +1,8 @@
 import convert from "convert-units";
 
-import { Point } from "../../../src/models/point";
-import { dotProduct } from "../../../src/utils/math/vector";
-import { checkTubGaps } from "../../../src/utils/room/checkTubGaps";
+import { Point } from "../../../../src/models/point";
+import { dotProduct } from "../../../../src/utils/math/vector";
+import { checkTubGaps } from "../../../../src/utils/room/checkTubGaps";
 import { createDoor, createExternalWall, createMockScan, createTub } from "./testHelpers";
 
 describe("checkTubGaps", () => {

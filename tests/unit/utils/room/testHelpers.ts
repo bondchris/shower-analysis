@@ -1,10 +1,10 @@
-import { Door } from "../../../src/models/rawScan/door";
-import { FloorData } from "../../../src/models/rawScan/floor";
-import { ObjectItem } from "../../../src/models/rawScan/objectItem";
-import { Opening } from "../../../src/models/rawScan/opening";
-import { RawScan, RawScanData } from "../../../src/models/rawScan/rawScan";
-import { WallData } from "../../../src/models/rawScan/wall";
-import { Window } from "../../../src/models/rawScan/window";
+import { Door } from "../../../../src/models/rawScan/door";
+import { FloorData } from "../../../../src/models/rawScan/floor";
+import { ObjectItem } from "../../../../src/models/rawScan/objectItem";
+import { Opening } from "../../../../src/models/rawScan/opening";
+import { RawScan, RawScanData } from "../../../../src/models/rawScan/rawScan";
+import { WallData } from "../../../../src/models/rawScan/wall";
+import { Window } from "../../../../src/models/rawScan/window";
 
 // --- HELPERS ---
 

@@ -1,5 +1,5 @@
-import { Opening } from "../../../src/models/rawScan/opening";
-import { checkExternalOpening } from "../../../src/utils/room/checkExternalOpening";
+import { Opening } from "../../../../src/models/rawScan/opening";
+import { checkExternalOpening } from "../../../../src/utils/room/checkExternalOpening";
 import {
   createDoor,
   createExternalWall,

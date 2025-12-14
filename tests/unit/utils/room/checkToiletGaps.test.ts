@@ -1,8 +1,8 @@
 import convert from "convert-units";
 
-import { ObjectItem } from "../../../src/models/rawScan/objectItem";
-import { WallData } from "../../../src/models/rawScan/wall";
-import { checkToiletGaps } from "../../../src/utils/room/checkToiletGaps";
+import { ObjectItem } from "../../../../src/models/rawScan/objectItem";
+import { WallData } from "../../../../src/models/rawScan/wall";
+import { checkToiletGaps } from "../../../../src/utils/room/checkToiletGaps";
 import { createExternalWall, createMockScan, createToilet } from "./testHelpers";
 
 describe("checkToiletGaps", () => {

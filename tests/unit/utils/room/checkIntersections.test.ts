@@ -1,5 +1,5 @@
-import { WallData } from "../../../src/models/rawScan/wall";
-import { checkIntersections } from "../../../src/utils/room/checkIntersections";
+import { WallData } from "../../../../src/models/rawScan/wall";
+import { checkIntersections } from "../../../../src/utils/room/checkIntersections";
 import {
   createExternalWall,
   createMockScan,

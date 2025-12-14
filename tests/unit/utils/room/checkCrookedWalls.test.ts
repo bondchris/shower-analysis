@@ -1,7 +1,7 @@
 import convert from "convert-units";
 
-import { WallData } from "../../../src/models/rawScan/wall";
-import { checkCrookedWalls } from "../../../src/utils/room/checkCrookedWalls";
+import { WallData } from "../../../../src/models/rawScan/wall";
+import { checkCrookedWalls } from "../../../../src/utils/room/checkCrookedWalls";
 import { createExternalWall, createMockScan } from "./testHelpers";
 
 describe("checkCrookedWalls", () => {

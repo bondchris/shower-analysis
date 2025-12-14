@@ -1,7 +1,7 @@
-import { Point } from "../../../src/models/point";
-import { TRANSFORM_SIZE } from "../../../src/utils/math/constants";
-import { getPosition, transformPoint } from "../../../src/utils/math/transform";
-import { magnitudeSquared } from "../../../src/utils/math/vector";
+import { Point } from "../../../../src/models/point";
+import { TRANSFORM_SIZE } from "../../../../src/utils/math/constants";
+import { getPosition, transformPoint } from "../../../../src/utils/math/transform";
+import { magnitudeSquared } from "../../../../src/utils/math/vector";
 
 describe("transform utils", () => {
   describe("transformPoint", () => {

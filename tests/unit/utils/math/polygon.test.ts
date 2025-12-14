@@ -1,5 +1,5 @@
-import { Point } from "../../../src/models/point";
-import { checkPolygonIntegrity, doPolygonsIntersect } from "../../../src/utils/math/polygon";
+import { Point } from "../../../../src/models/point";
+import { checkPolygonIntegrity, doPolygonsIntersect } from "../../../../src/utils/math/polygon";
 
 describe("polygon utils", () => {
   const p = (x: number, y: number): Point => new Point(x, y);

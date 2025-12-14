@@ -1,4 +1,4 @@
-import { Point } from "../../../src/models/point";
+import { Point } from "../../../../src/models/point";
 import {
   add,
   angleBetween,
@@ -11,7 +11,7 @@ import {
   normalize,
   scale,
   subtract
-} from "../../../src/utils/math/vector";
+} from "../../../../src/utils/math/vector";
 
 describe("vector utils", () => {
   describe("dotProduct", () => {

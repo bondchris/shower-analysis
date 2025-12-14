@@ -7,7 +7,7 @@ import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
 import { TOUCHING_THRESHOLD_METERS } from "./constants";
 
-// Helper: Check for Wall Gaps (> 6")
+// Helper: Check for Wall Gaps (< 1 foot)
 export function checkWallGaps(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
 

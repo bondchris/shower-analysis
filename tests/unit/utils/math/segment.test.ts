@@ -1,5 +1,5 @@
-import { Point } from "../../../src/models/point";
-import { distToSegment, doSegmentsIntersect, getSegmentIntersection } from "../../../src/utils/math/segment";
+import { Point } from "../../../../src/models/point";
+import { distToSegment, doSegmentsIntersect, getSegmentIntersection } from "../../../../src/utils/math/segment";
 
 describe("segment utils", () => {
   describe("doSegmentsIntersect (Strict)", () => {

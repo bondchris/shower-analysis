@@ -1,6 +1,6 @@
 import convert from "convert-units";
 
-import { checkNibWalls } from "../../../src/utils/room/checkNibWalls";
+import { checkNibWalls } from "../../../../src/utils/room/checkNibWalls";
 import { createExternalWall, createMockScan } from "./testHelpers";
 
 describe("checkNibWalls", () => {
