@@ -7,7 +7,13 @@ import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
 import { TOUCHING_THRESHOLD_METERS } from "./constants";
 
-// Helper: Check for Wall Gaps (< 1 foot)
+/**
+ * Checks for unintentional gaps between walls.
+ *
+ * Rule: Walls should either be connected (Distance ~ 0) or clearly separated (> 1 foot).
+ *
+ * Flags an error if two walls are disjoint but closer than 1 foot (but not touching).
+ */
 export function checkWallGaps(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
 

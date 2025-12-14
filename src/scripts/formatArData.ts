@@ -1,6 +1,12 @@
 import * as fs from "fs";
 import * as path from "path";
 
+/**
+ * Script to format and sort `arData.json` files.
+ * - Ensures AR frame data is sorted chronologically by timestamp keys.
+ * - This normalization helps with diffs and consistent processing.
+ */
+
 function findArDataFiles(dir: string): string[] {
   const results: string[] = [];
   if (!fs.existsSync(dir)) {

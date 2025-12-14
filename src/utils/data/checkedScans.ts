@@ -3,44 +3,18 @@ import * as path from "path";
 
 import { CheckedScanDatabase } from "../../models/checkedScanRecord";
 
-// Legacy interface for migration
-interface LegacyCheckedScanRecord {
-  id: string;
-  date: string;
-  model?: string;
-  type?: "bathroom" | "clean";
-}
 
+
+/**
+ * Loads the database of "Checked Scans" (previously verified artifacts).
+ * Backed by `config/checkedScans.json`.
+ * Used to track review progress and filter already-reviewed items.
+ */
 export function getCheckedScans(): CheckedScanDatabase {
   const CHECKED_SCANS_FILE = path.join(process.cwd(), "config", "checkedScans.json");
   try {
     const content = fs.readFileSync(CHECKED_SCANS_FILE, "utf-8");
     const json: unknown = JSON.parse(content);
-
-    if (Array.isArray(json)) {
-      // Migrate legacy array to new object structure
-      const database: CheckedScanDatabase = {};
-      const legacyRecords = json as LegacyCheckedScanRecord[];
-
-      for (const record of legacyRecords) {
-        let entry = database[record.id];
-        if (entry === undefined) {
-          entry = {};
-          database[record.id] = entry;
-        }
-
-        if (record.type === "clean") {
-          entry.cleanedDate = record.date;
-        } else {
-          // Default to 'bathroom' filter check if type is missing or 'bathroom'
-          entry.filteredDate = record.date;
-          if (record.model !== undefined && record.model !== "") {
-            entry.filteredModel = record.model;
-          }
-        }
-      }
-      return database;
-    }
 
     return json as CheckedScanDatabase;
   } catch {

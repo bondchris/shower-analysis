@@ -1,6 +1,10 @@
 const NOT_SET = "";
 const NO_RESULTS = 0;
 
+/**
+ * Represents metadata extracted and computed for a scanned room artifact.
+ * Used for analysis, filtering, and reporting on room characteristics.
+ */
 export class ArtifactMetadata {
   public path = NOT_SET;
   public filename = NOT_SET;
@@ -11,7 +15,7 @@ export class ArtifactMetadata {
   public duration = NO_RESULTS;
   public lensModel = NOT_SET;
   public avgAmbientIntensity = NO_RESULTS;
-  public avgColorTemperature = NO_RESULTS;
+  public avgColorTemperature = NO_RESULTS; // in Kelvin
   public avgIso = NO_RESULTS;
   public avgBrightness = NO_RESULTS;
   public roomAreaSqFt = NO_RESULTS;

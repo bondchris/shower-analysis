@@ -8,6 +8,13 @@ import { ENVIRONMENTS } from "../../config/config";
 import { Artifact, SpatialService } from "../services/spatialService";
 import * as ChartUtils from "../utils/chartUtils";
 
+/**
+ * Script to validate data integrity of artifacts on the server.
+ * - Fetches all artifact metadata from the API.
+ * - Checks for missing required fields (id, projectId, scanDate, etc.).
+ * - Generates a report showing error trends over time and by environment.
+ */
+
 const finished = promisify(stream.finished);
 
 const REQUIRED_FIELDS: (keyof Artifact)[] = ["id", "projectId", "scanDate", "rawScan", "arData", "video"];

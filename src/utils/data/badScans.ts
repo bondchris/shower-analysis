@@ -1,27 +1,17 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import { BadScanDatabase, LegacyBadScanRecord } from "../../models/badScanRecord";
+import { BadScanDatabase } from "../../models/badScanRecord";
 
+/**
+ * Loads the database of "Bad Scans" (manually flagged artifacts to exclude).
+ * Backed by `config/badScans.json`.
+ */
 export function getBadScans(): BadScanDatabase {
   const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
   try {
     const content = fs.readFileSync(BAD_SCANS_FILE, "utf-8");
     const json: unknown = JSON.parse(content);
-
-    if (Array.isArray(json)) {
-      const database: BadScanDatabase = {};
-      const legacyRecords = json as LegacyBadScanRecord[];
-      for (const record of legacyRecords) {
-        database[record.id] = {
-          date: record.date,
-          environment: record.environment,
-          reason: record.reason
-        };
-      }
-      return database;
-    }
-
     return json as BadScanDatabase;
   } catch {
     return {};

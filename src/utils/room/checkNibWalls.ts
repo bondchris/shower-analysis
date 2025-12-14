@@ -6,7 +6,13 @@ import { TRANSFORM_SIZE } from "../math/constants";
 import { transformPoint } from "../math/transform";
 import { magnitudeSquared, subtract } from "../math/vector";
 
-// Helper: Check for Nib Walls (Length < 1ft / 0.3048m)
+/**
+ * Checks for "Nib Walls" (Small stub walls).
+ *
+ * Definition: A standalone wall segment shorter than 1 foot (0.3048m).
+ *
+ * These are often noise artifacts or tiny protrusions that should be merged or ignored.
+ */
 export function checkNibWalls(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
   const ONE_FOOT = 1;

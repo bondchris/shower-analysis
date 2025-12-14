@@ -2,6 +2,11 @@ import { Point } from "../../models/point";
 import { EPSILON } from "./constants";
 import { crossProduct, dotProduct, magnitudeSquared, subtract } from "./vector";
 
+/**
+ * Calculates the shortest distance between a point p and a line segment defined by v and w.
+ * Projects p onto the line vw, clamps the projection to the segment [0, 1],
+ * and finds the distance to that closest point.
+ */
 export const distToSegment = (p: Point, v: Point, w: Point): number => {
   if (
     !Number.isFinite(p.x) ||
@@ -36,7 +41,10 @@ export const distToSegment = (p: Point, v: Point, w: Point): number => {
   return Math.sqrt(magnitudeSquared(subtract(p, projection)));
 };
 
-// Rename to doSegmentsIntersect for clarity
+/**
+ * Checks if two line segments (ab and cd) strictly intersect.
+ * Returns true only if the intersection point lies strictly inside both segments (not endpoints).
+ */
 export const doSegmentsIntersect = (a: Point, b: Point, c: Point, d: Point): boolean => {
   // Input Validation
   const points = [a, b, c, d];

@@ -6,6 +6,14 @@ import { GeminiService } from "../services/geminiService";
 import { getBadScans, saveBadScans } from "../utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../utils/data/checkedScans";
 
+/**
+ * Script to filter out non-bathroom scans using Gemini Vision.
+ * - Iterates through artifacts not yet checked or flagged bad.
+ * - Sends the first frame (or video) to Gemini to ask "Is this a bathroom?".
+ * - If NO, deletes the artifact and adds to `badScans.json`.
+ * - If YES, marks as checked in `checkedScans.json`.
+ */
+
 dotenv.config();
 
 function findArtifactDirectories(dir: string): string[] {

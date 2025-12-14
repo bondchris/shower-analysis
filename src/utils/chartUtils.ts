@@ -58,6 +58,15 @@ export interface HistogramResult {
 
 // --- Pure Helper Functions ---
 
+/**
+ * Calculates histogram bins for a given dataset.
+ *
+ * Logic:
+ * - Generates "Main Bins" of fixed `binSize` between `min` and `max`.
+ * - Adds an "Underflow" bucket for values < `min`.
+ * - Adds an "Overflow" bucket for values >= `max`.
+ * - Validates bin count to prevent memory issues with tiny bin sizes.
+ */
 export function calculateHistogramBins(data: number[], options: HistogramOptions): HistogramResult {
   const { binSize, decimalPlaces = DEFAULT_DECIMALS, hideUnderflow, max, min } = options;
 
@@ -429,6 +438,15 @@ export async function createBarChart(
 
 // --- Utils ---
 
+/**
+ * Approximates an RGB color from a Color Temperature in Kelvin.
+ *
+ * Algorithm adapted from Tanner Helland's method:
+ * http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/
+ *
+ * Valid range is roughly 1000K to 40000K, but this function clamps safely.
+ * Returns an RGBA string with 0.8 opacity.
+ */
 export function kelvinToRgb(kelvin: number): string {
   if (!Number.isFinite(kelvin) || kelvin <= ZERO) {
     return "rgba(0, 0, 0, 0.8)";

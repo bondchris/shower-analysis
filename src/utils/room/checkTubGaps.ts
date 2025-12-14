@@ -7,7 +7,15 @@ import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
 import { TOUCHING_THRESHOLD_METERS } from "./constants";
 
-// Helper: Check for Tub Gaps (1" < gap < 6")
+/**
+ * Checks for "uncleanable gaps" around bathtubs.
+ *
+ * Rule: A tub should be either:
+ * - Flush against the wall (Gap ~ 0)
+ * - Far enough away to clean (Gap > 6 inches)
+ *
+ * This function flags an error if any gap falls within the "Forbidden Zone" (1" < Gap < 6").
+ */
 export function checkTubGaps(rawScan: RawScan): boolean {
   const tubs = rawScan.objects.filter((o) => o.category.bathtub !== undefined);
   const walls = rawScan.walls;

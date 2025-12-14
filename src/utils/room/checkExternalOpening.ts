@@ -3,7 +3,13 @@ import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
 
-// Helper: Check for External Openings (Wall on Floor Perimeter)
+/**
+ * Checks if an opening (Door/Window) is correctly placed on the exterior.
+ *
+ * Logic:
+ * - The opening must be close to the floor polygon's perimeter (< 0.5m).
+ * - "Floating" openings in the middle of the room are flagged as errors.
+ */
 export function checkExternalOpening(rawScan: RawScan): boolean {
   const INITIAL_COUNT = 0;
   if (rawScan.floors.length <= INITIAL_COUNT) {

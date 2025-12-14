@@ -5,6 +5,15 @@ import * as path from "path";
 import { getBadScans, saveBadScans } from "../utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../utils/data/checkedScans";
 
+/**
+ * Script to clean up the data directory.
+ * - Iterates through all artifacts in `data/artifacts`.
+ * - Checks for missing `video.mp4` or invalid video files.
+ * - Checks if video is too short.
+ * - Deletes invalid artifacts to save space and ensure dataset quality.
+ * - Updates `badScans.json` with reasons for deletion.
+ */
+
 async function checkVideo(filePath: string): Promise<boolean> {
   const success = await new Promise<boolean>((resolve) => {
     ffmpeg.ffprobe(filePath, (err) => {

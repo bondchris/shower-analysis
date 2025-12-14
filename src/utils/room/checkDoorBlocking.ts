@@ -4,7 +4,15 @@ import { TRANSFORM_SIZE } from "../math/constants";
 import { doPolygonsIntersect } from "../math/polygon";
 import { transformPoint } from "../math/transform";
 
-// Helper: Check for Door Blocking (Door sweep intersects Object)
+/**
+ * Checks if any object is blocking a door's swing path or entry.
+ *
+ * Logic:
+ * 1. Creates a "Clearance Box" projecting 0.6m (2ft) in front of the door.
+ * 2. Checks for intersection with any object on the same story.
+ * 3. EXCEPTION: "Low Profile" objects (rugs, thresholds) < 5cm height are ignored.
+ * 4. EXCEPTION: Objects attached to the door (via parentIdentifier) are ignored.
+ */
 export function checkDoorBlocking(rawScan: RawScan): boolean {
   const DOOR_CLEARANCE_METERS = 0.6;
   const WIDTH_SHRINK = 0.1; // Shrink width slightly to avoid grazing

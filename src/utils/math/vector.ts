@@ -3,7 +3,8 @@ import { EPSILON } from "./constants";
 
 /**
  * Calculates the dot product of two 2D vectors.
- * Dot Product = (a.x * b.x) + (a.y * b.y)
+ * Returns a scalar value representing the projection of one vector onto another.
+ * Positive if pointing in similar direction, negative if opposite, zero if orthogonal.
  */
 export const dotProduct = (a: Point, b: Point): number => {
   const xTerm = a.x * b.x;
@@ -12,8 +13,8 @@ export const dotProduct = (a: Point, b: Point): number => {
 };
 
 /**
- * Calculates the squared magnitude of a vector.
- * Useful for distance comparisons without square roots.
+ * Calculates the squared magnitude (length squared) of a vector.
+ * Preferred over `magnitude()` for distance comparisons to avoid expensive square root operations.
  * |v|^2 = v . v
  */
 export const magnitudeSquared = (v: Point): number => {
@@ -21,8 +22,9 @@ export const magnitudeSquared = (v: Point): number => {
 };
 
 /**
- * Calculates the cross product of two 2D vectors (z-component).
- * Cross Product = (a.x * b.y) - (a.y * b.x)
+ * Calculates the Z-component of the cross product of two 2D vectors.
+ * Useful for determining winding order, determining if a point is left/right of a line,
+ * or calculating the signed area of a triangle.
  */
 export const crossProduct = (a: Point, b: Point): number => {
   const term1 = a.x * b.y;
@@ -91,6 +93,7 @@ export const equals = (a: Point, b: Point, epsilon: number = EPSILON): boolean =
 
 /**
  * Calculates the angle in radians between two vectors.
+ * Returns a value between 0 and PI.
  * Returns 0 if either vector has zero magnitude.
  */
 export const angleBetween = (v: Point, w: Point): number => {

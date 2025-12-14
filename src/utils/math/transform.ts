@@ -15,6 +15,15 @@ export const getPosition = (transform: number[]): Point => {
   return new Point(transform[X_IDX] ?? DEFAULT_VALUE, transform[Z_IDX] ?? DEFAULT_VALUE);
 };
 
+/**
+ * Transforms a 2D point using a 4x4 matrix, assuming a top-down projection.
+ *
+ * Coordinate Space Mapping:
+ * - Input Point.y is treated as Local Z (RoomPlan depth).
+ * - Output Point.y corresponds to World Z (Floor plan Y).
+ *
+ * This effectively projects the 3D X-Z plane onto a 2D surface.
+ */
 export const transformPoint = (p: Point, m: number[]): Point => {
   // X-Z Plane Transform (Top Down)
   // Note: Input p.y corresponds to Local Z. Output p.y corresponds to World Z.

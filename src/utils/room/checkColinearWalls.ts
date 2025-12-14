@@ -7,7 +7,15 @@ import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
 import { dotProduct, magnitudeSquared, subtract } from "../math/vector";
 
-// Helper: Check for Colinear Walls (Touching and Parallel)
+/**
+ * Checks for walls that are effectively duplicates or overlapping (Collinear).
+ *
+ * Logic:
+ * 1. Walls must be parallel (Dot product > 0.996, ~5 degrees).
+ * 2. Walls must be touching or overlapping (Distance between them < 3 inches).
+ *
+ * This detects double-scanned walls or segmentation errors.
+ */
 export function checkColinearWalls(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
   // Touching/Gap: < 3 inches (0.0762m)

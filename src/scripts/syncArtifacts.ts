@@ -9,6 +9,14 @@ import { ENVIRONMENTS } from "../../config/config";
 import { Artifact, SpatialService } from "../services/spatialService";
 import { getBadScans } from "../utils/data/badScans";
 
+/**
+ * Script to sync artifacts from the Spatial API.
+ * - Downloads artifacts for configured environments.
+ * - Skips artifacts already marked as "Bad Scans".
+ * - Ensures valid synced artifacts have `video.mp4`, `arData.json`, and `rawScan.json`.
+ * - Generates a sync report PDF.
+ */
+
 const finished = promisify(stream.finished);
 
 // Constants

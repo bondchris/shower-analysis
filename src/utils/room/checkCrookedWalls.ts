@@ -8,7 +8,14 @@ import { transformPoint } from "../math/transform";
 import { subtract } from "../math/vector";
 import { TOUCHING_THRESHOLD_METERS } from "./constants";
 
-// Helper: Check for Crooked Walls (Angles not multiple of 90 deg)
+/**
+ * Checks for "Crooked" wall connections.
+ *
+ * Definition: Two walls connected at a shallow angle (<= 5 degrees deviation from straight).
+ *
+ * This typically indicates a scanning error where a single straight wall was broken into
+ * multiple slightly misaligned segments.
+ */
 export function checkCrookedWalls(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
 
@@ -18,7 +25,7 @@ export function checkCrookedWalls(rawScan: RawScan): boolean {
   const DEG_360 = 360;
 
   const DIST_THRESHOLD = TOUCHING_THRESHOLD_METERS;
-  const ANGLE_THRESHOLD = 5.0; // 5 degrees
+  const ANGLE_THRESHOLD = 5.0;
   const DIM_IDX_X = 0;
 
   for (let i = 0; i < walls.length; i++) {

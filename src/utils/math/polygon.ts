@@ -6,16 +6,17 @@ import { doSegmentsIntersect } from "./segment";
 import { crossProduct, dotProduct, magnitudeSquared, subtract } from "./vector";
 
 /**
- * Checks if a polygon is valid:
+ * Checks if a polygon is valid according to geometric and business rules.
+ *
+ * Rules:
  * 1. At least 3 points.
- * 2. Coordinates finite and within bounds (+/- 10,000).
- * 3. No zero-length edges (> 1mm).
- * 4. Angle Sanity: No sharp spikes (< 5°) or flat angles (> 175°).
- * 5. No 3-point collinearity (redundant with angle check but kept for robustness).
- * 6. Implicitly closed (p0 !== p[n-1]).
- * 7. Non-degenerate area (> EPSILON) and Clockwise winding.
- * 8. No self-intersections.
- * 9. No collinear overlapping edges.
+ * 2. Coordinates are finite and within reasonable bounds (+/- 10,000).
+ * 3. No degenerate edges (length < 1mm).
+ * 4. Angle Sanity: Polygons should not have extremely sharp spikes (< 5°) or be effectively flat (> 175°).
+ *    This filters out scanning noise or "sliver" updates.
+ * 5. Implicitly closed (last point != first point).
+ * 6. Non-degenerate area (> EPSILON) and Clockwise winding (negative signed area).
+ * 7. No self-intersections or collinear overlapping edges.
  */
 export const checkPolygonIntegrity = (points: Point[]): boolean => {
   const MAX_COORDINATE = 10000;
@@ -262,6 +263,11 @@ const hasDuplicatePoints = (points: Point[]): boolean => {
 };
 
 // Public API
+/**
+ * Checks if two convex polygons intersect using the Separating Axis Theorem (SAT).
+ * Returns true if an overlap exists on all axes.
+ * Note: Assumes polygons are convex.
+ */
 export const doPolygonsIntersect = (poly1: Point[], poly2: Point[]): boolean => {
   const polygons = [poly1, poly2];
   for (const polygon of polygons) {

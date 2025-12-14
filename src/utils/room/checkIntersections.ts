@@ -5,7 +5,16 @@ import { doPolygonsIntersect } from "../math/polygon";
 import { transformPoint } from "../math/transform";
 import { crossProduct, dotProduct, magnitudeSquared, subtract } from "../math/vector";
 
-// Helper: Check for Object Intersections (Object-Object and Wall-Object)
+/**
+ * Internal helper to check for intersections between objects, and between walls and objects.
+ * Uses a 2-phase approach:
+ * 1. Broad Phase: Axis-Aligned Bounding Box (AABB) overlap check.
+ * 2. Narrow Phase: Separating Axis Theorem (SAT) on inner corners (shrunk by tolerance).
+ *
+ * Special rules:
+ * - Sink and Storage intersections are allowed (often integrated).
+ * - Objects on different stories are ignored.
+ */
 function checkObjectIntersectionsInternal(rawScan: RawScan): {
   hasObjectIntersectionErrors: boolean;
   hasWallObjectIntersectionErrors: boolean;
@@ -226,7 +235,16 @@ function checkObjectIntersectionsInternal(rawScan: RawScan): {
   };
 }
 
-// Helper: Check for Wall-Wall Intersections (Non-End/Corner)
+/**
+ * Internal helper to check for invalid wall-wall intersections.
+ *
+ * Validation Logic:
+ * - Checks for "X" type crossings where walls pass through each other.
+ * - Ignores valid T-junctions or L-corners (endpoint connections).
+ * - Handles collinear overlaps (parallel walls on top of each other).
+ *
+ * Uses standard line-line intersection formulas with numerical tolerance.
+ */
 function checkWallIntersectionsInternal(rawScan: RawScan): boolean {
   const MIN_POLY_POINTS = 0;
   const DEFAULT_VALUE = 0;

@@ -33,6 +33,11 @@ export interface ApiResponse {
   pagination: Pagination;
 }
 
+/**
+ * Service to fetch Scan Artifacts from the Spatial API.
+ * Includes a local filesystem cache to speed up repeated runs and development.
+ * Cache invalidation is based on the total count of items on the server.
+ */
 export class SpatialService {
   private readonly domain: string;
   private readonly envName: string;
@@ -44,6 +49,14 @@ export class SpatialService {
     this.envName = envName;
   }
 
+  /**
+   * Fetches a specific page of scan artifacts.
+   *
+   * Flow:
+   * 1. If cache not yet validated: Fetch fresh data to check "Total" count.
+   * 2. If valid cache exists: Serve from local disk.
+   * 3. Else: Network fetch and update cache.
+   */
   public async fetchScanArtifacts(page: number): Promise<ApiResponse> {
     // If we haven't validated the cache yet, force a network fetch to check freshness
     if (!this.hasValidatedCache) {

@@ -5,7 +5,16 @@ import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
 import { TOUCHING_THRESHOLD_METERS } from "./constants";
 
-// Helper: Check for Toilet Gaps (> 1 inch from wall)
+/**
+ * Checks if toilets are positioned correctly against a wall.
+ *
+ * Rule: The back of the toilet must be within a small threshold (approx touching) of a wall.
+ *
+ * Algorithm:
+ * 1. Identify the "back" of the toilet (Assumes Local -Z axis).
+ * 2. Measure distance from this back point to all compatible wall segments.
+ * 3. If closest wall is > threshold (e.g., 2cm), flag as an error.
+ */
 export function checkToiletGaps(rawScan: RawScan): boolean {
   const toilets = rawScan.objects.filter((o) => o.category.toilet !== undefined);
   const walls = rawScan.walls;

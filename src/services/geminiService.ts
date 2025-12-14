@@ -3,6 +3,10 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
+/**
+ * Service wrapper for Google's Gemini Generative AI.
+ * Handles authentication and simplified content generation calls.
+ */
 export class GeminiService {
   private static readonly DEFAULT_MODEL = "gemini-3-pro-preview";
   private readonly genAI: GoogleGenerativeAI;
@@ -17,6 +21,11 @@ export class GeminiService {
     this.model = this.genAI.getGenerativeModel({ model: modelName });
   }
 
+  /**
+   * Generates text content based on a prompt and optional image parts.
+   * @param prompt Text prompt.
+   * @param imageParts Optional array of base64 image data.
+   */
   public async generateContent(
     prompt: string,
     imageParts?: { inlineData: { data: string; mimeType: string } }[]

@@ -19,6 +19,14 @@ import { checkToiletGaps } from "../utils/room/checkToiletGaps";
 import { checkTubGaps } from "../utils/room/checkTubGaps";
 import { checkWallGaps } from "../utils/room/checkWallGaps";
 
+/**
+ * Script to analyze local artifacts and generate a PDF report.
+ * - Extracts metadata (resolution, duration, room features).
+ * - Runs all room utility checks (intersections, gaps, etc.).
+ * - Generates charts (histograms, bar charts) for data distribution.
+ * - Outputs `reports/data-analysis.pdf`.
+ */
+
 // 1. Video Metadata Extraction
 async function addVideoMetadata(dirPath: string, metadata: ArtifactMetadata): Promise<boolean> {
   const filePath = path.join(dirPath, "video.mp4");
