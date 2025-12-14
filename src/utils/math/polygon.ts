@@ -1,4 +1,5 @@
 import convert from "convert-units";
+
 import { Point } from "../../models/point";
 import { EPSILON } from "./constants";
 import { doSegmentsIntersect } from "./segment";

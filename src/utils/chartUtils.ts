@@ -8,6 +8,8 @@ const CHART_BG_COLOR = "white";
 const INCREMENT_STEP = 1;
 const MAX_TICKS = 20;
 
+/* eslint-disable no-magic-numbers */
+
 // --- Interfaces ---
 
 export interface LineChartDataset {
@@ -56,20 +58,22 @@ export function calculateHistogramBins(data: number[], options: HistogramOptions
 
   // Validation
   if (!Number.isFinite(binSize) || binSize <= 0) {
-    throw new Error(`Invalid binSize: ${binSize}. Must be > 0.`);
+    throw new Error(`Invalid binSize: ${String(binSize)}. Must be > 0.`);
   }
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
-    throw new Error(`Invalid min/max: ${min}/${max}. Must be finite.`);
+    throw new Error(`Invalid min/max: ${String(min)}/${String(max)}. Must be finite.`);
   }
   if (max <= min) {
-    throw new Error(`Invalid range: max (${max}) must be > min (${min}).`);
+    throw new Error(`Invalid range: max (${String(max)}) must be > min (${String(min)}).`);
   }
 
   const MAX_BINS = 50000;
   const numMainBins = Math.ceil((max - min) / binSize);
 
   if (numMainBins > MAX_BINS) {
-    throw new Error(`Bucket count ${numMainBins} exceeds safety limit of ${MAX_BINS}. Increase binSize or reduce range.`);
+    throw new Error(
+      `Bucket count ${String(numMainBins)} exceeds safety limit of ${String(MAX_BINS)}. Increase binSize or reduce range.`
+    );
   }
 
   const INITIAL_COUNT = 0;
@@ -92,7 +96,9 @@ export function calculateHistogramBins(data: number[], options: HistogramOptions
   labels.push(`>= ${max.toFixed(decimalPlaces)}`);
 
   for (const val of data) {
-    if (!Number.isFinite(val)) continue; // Skip non-finite values
+    if (!Number.isFinite(val)) {
+      continue;
+    } // Skip non-finite values
 
     if (val < min) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -174,24 +180,23 @@ export function buildLineChartConfig(
   options: LineChartOptions = {}
 ): ChartConfiguration {
   // Validation
-  if (datasets.some(ds => ds.data.length !== labels.length)) {
+  if (datasets.some((ds) => ds.data.length !== labels.length)) {
     throw new Error("Dataset data length mismatch with labels length.");
   }
 
   const { title = "Data Errors Over Time", yLabel = "Error Count" } = options;
 
   return {
-    type: "line",
     data: {
-      labels,
       datasets: datasets.map((ds) => ({
-        label: ds.label,
-        data: ds.data,
-        borderColor: ds.borderColor,
         backgroundColor: ds.borderColor,
+        borderColor: ds.borderColor,
+        data: ds.data,
         fill: false,
+        label: ds.label,
         tension: 0.1
-      }))
+      })),
+      labels
     },
     options: {
       plugins: {
@@ -205,23 +210,13 @@ export function buildLineChartConfig(
           title: { display: true, text: yLabel }
         }
       }
-    }
+    },
+    type: "line"
   };
 }
 
-export function buildHistogramConfig(
-  data: number[],
-  options: HistogramOptions
-): ChartConfiguration {
-  const {
-    binSize,
-    min,
-    max,
-    colorByValue,
-    hideUnderflow,
-    title,
-    xLabel
-  } = options;
+export function buildHistogramConfig(data: number[], options: HistogramOptions): ChartConfiguration {
+  const { binSize, min, max, colorByValue, hideUnderflow, title, xLabel } = options;
 
   const { buckets, labels } = calculateHistogramBins(data, options);
 
@@ -232,47 +227,42 @@ export function buildHistogramConfig(
 
   if (colorByValue) {
     backgroundColors = labels.map((_, i) => {
-      const center = calculateHistogramBinCenter(
-        i,
-        min,
-        max,
-        binSize,
-        hideUnderflow,
-        buckets.length
-      );
+      const center = calculateHistogramBinCenter(i, min, max, binSize, hideUnderflow, buckets.length);
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return colorByValue(center);
     });
   }
 
   return {
-    type: "bar",
     data: {
-      labels,
-      datasets: [{
-        label: xLabel ?? "Count",
-        data: buckets,
-        backgroundColor: backgroundColors,
-        borderColor: borderColor,
-        borderWidth: INCREMENT_STEP,
-      }]
+      datasets: [
+        {
+          backgroundColor: backgroundColors,
+          borderColor: borderColor,
+          borderWidth: INCREMENT_STEP,
+          data: buckets,
+          label: xLabel ?? "Count"
+        }
+      ],
+      labels
     },
     options: {
       plugins: {
         legend: { position: "top" },
-        title: { display: !!title, text: title }
+        title: { display: Boolean(title), text: title }
       },
       scales: {
         x: {
           ticks: { autoSkip: true, maxTicksLimit: MAX_TICKS },
-          title: { display: !!xLabel, text: xLabel }
+          title: { display: Boolean(xLabel), text: xLabel }
         },
         y: {
           beginAtZero: true,
           title: { display: true, text: "Count" }
         }
       }
-    }
+    },
+    type: "bar"
   };
 }
 
@@ -283,14 +273,10 @@ export function buildBarChartConfig(
 ): ChartConfiguration {
   // Validation
   if (labels.length !== data.length) {
-    throw new Error(`Labels length (${labels.length}) does not match data length (${data.length}).`);
+    throw new Error(`Labels length (${String(labels.length)}) does not match data length (${String(data.length)}).`);
   }
 
-  const {
-    horizontal = false,
-    title,
-    totalForPercentages
-  } = options;
+  const { horizontal = false, title, totalForPercentages } = options;
 
   const RIGHT_PADDING = 60;
   const NO_PADDING = 0;
@@ -298,18 +284,19 @@ export function buildBarChartConfig(
   const FONT_SIZE_PX = 12;
 
   const customLabelsPlugin = {
-    id: "customLabels",
     afterDatasetsDraw(chart: import("chart.js").Chart) {
       if (totalForPercentages === undefined || totalForPercentages <= 0) {
         return;
       }
+      const DATASET_INDEX = 0;
 
       const { ctx } = chart;
-      const meta = chart.getDatasetMeta(0);
-      const datasetData = chart.data.datasets[0]?.data as number[];
+      const meta = chart.getDatasetMeta(DATASET_INDEX);
+      /* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */
+      const datasetData = chart.data.datasets[DATASET_INDEX]?.data as number[];
 
       ctx.save();
-      ctx.font = `bold ${FONT_SIZE_PX}px sans-serif`;
+      ctx.font = `bold ${String(FONT_SIZE_PX)}px sans-serif`;
       ctx.fillStyle = "black";
       ctx.textBaseline = "middle";
 
@@ -320,6 +307,7 @@ export function buildBarChartConfig(
           const text = formatPercentageLabel(value, totalForPercentages);
 
           // Local type to avoid importing domain models
+          // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
           type XY = { x: number; y: number };
           const { x, y } = element.getProps(["x", "y"], true) as XY;
 
@@ -336,41 +324,46 @@ export function buildBarChartConfig(
         }
       });
       ctx.restore();
-    }
+    },
+    id: "customLabels"
   };
 
   return {
-    type: "bar",
     data: {
-      labels,
-      datasets: [{
-        label: "Count",
-        data: data,
-        backgroundColor: "rgba(75, 192, 192, 0.5)",
-        borderColor: "rgba(75, 192, 192, 1)",
-        borderWidth: 1
-      }]
+      datasets: [
+        {
+          backgroundColor: "rgba(75, 192, 192, 0.5)",
+          borderColor: "rgba(75, 192, 192, 1)",
+          borderWidth: 1,
+          data: data,
+          label: "Count"
+        }
+      ],
+      labels
     },
     options: {
       indexAxis: horizontal ? "y" : "x",
       layout: {
         padding: {
           // Only add right padding if horizontal and showing %
-          right: (horizontal && totalForPercentages) ? RIGHT_PADDING : NO_PADDING,
+          // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, no-magic-numbers
+          right: horizontal && totalForPercentages ? RIGHT_PADDING : NO_PADDING,
           // Maybe add top padding for vertical?
-          top: (!horizontal && totalForPercentages) ? 20 : 0
+          // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, no-magic-numbers
+          top: !horizontal && totalForPercentages ? 20 : 0
         }
       },
       plugins: {
         legend: { position: "top" },
-        title: { display: !!title, text: title }
+        title: { display: Boolean(title), text: title }
       },
       scales: {
         x: { beginAtZero: true, ticks: { precision: 0 } },
         y: { beginAtZero: true, ticks: { autoSkip: false } }
-      },
+      }
     },
-    plugins: [customLabelsPlugin]
+    plugins: [customLabelsPlugin],
+    type: "bar"
   };
 }
 
@@ -387,12 +380,13 @@ async function renderChart(
   height: number = DEFAULT_HEIGHT
 ): Promise<Buffer> {
   const chartJSNodeCanvas = new ChartJSNodeCanvas({
-    width,
-    height,
     backgroundColour: CHART_BG_COLOR,
-    chartCallback
+    chartCallback,
+    height,
+    width
   });
-  return chartJSNodeCanvas.renderToBuffer(config);
+  const buffer = await chartJSNodeCanvas.renderToBuffer(config);
+  return buffer;
 }
 
 // --- Exported Creators ---
@@ -403,7 +397,8 @@ export async function createLineChart(
   options: LineChartOptions = {}
 ): Promise<Buffer> {
   const config = buildLineChartConfig(labels, datasets, options);
-  return renderChart(config, options.width, options.height);
+  const buffer = await renderChart(config, options.width, options.height);
+  return buffer;
 }
 
 export async function createHistogram(
@@ -413,7 +408,8 @@ export async function createHistogram(
   options: HistogramOptions
 ): Promise<Buffer> {
   const config = buildHistogramConfig(data, { ...options, title, xLabel: label });
-  return renderChart(config, options.width, options.height);
+  const buffer = await renderChart(config, options.width, options.height);
+  return buffer;
 }
 
 export async function createBarChart(
@@ -423,12 +419,14 @@ export async function createBarChart(
   options: BarChartOptions = {}
 ): Promise<Buffer> {
   const config = buildBarChartConfig(labels, data, { ...options, title });
-  return renderChart(config, options.width, options.height);
+  const buffer = await renderChart(config, options.width, options.height);
+  return buffer;
 }
 
 // --- Utils ---
 
 export function kelvinToRgb(kelvin: number): string {
+  // eslint-disable-next-line no-magic-numbers
   if (!Number.isFinite(kelvin) || kelvin <= 0) {
     return "rgba(0, 0, 0, 0.8)";
   }

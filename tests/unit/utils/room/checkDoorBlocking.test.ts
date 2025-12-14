@@ -6,10 +6,7 @@ import { createMockScan } from "./testHelpers";
 describe("checkDoorBlocking (Refactored)", () => {
   // Helpers
   // Helpers
-  const createDoor = (
-    id: string,
-    overrides: Partial<Door> = {}
-  ): Door => ({
+  const createDoor = (id: string, overrides: Partial<Door> = {}): Door => ({
     category: { door: { isOpen: false } },
     completedEdges: [],
     confidence: { high: {} },
@@ -23,10 +20,7 @@ describe("checkDoorBlocking (Refactored)", () => {
     ...overrides
   });
 
-  const createObj = (
-    id: string,
-    overrides: Partial<ObjectItem> = {}
-  ): ObjectItem => ({
+  const createObj = (id: string, overrides: Partial<ObjectItem> = {}): ObjectItem => ({
     attributes: {},
     category: { storage: {} },
     confidence: { high: {} },

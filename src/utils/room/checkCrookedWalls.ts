@@ -1,4 +1,5 @@
 import convert from "convert-units"; // eslint-disable-line no-unused-vars
+
 import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
@@ -67,7 +68,11 @@ export function checkCrookedWalls(rawScan: RawScan): boolean {
         const v2 = subtract(p2End, p2Start);
         const angle2 = Math.atan2(v2.y, v2.x);
 
-        let angleDiff = Math.abs(convert(angle1 - angle2).from("rad").to("deg"));
+        let angleDiff = Math.abs(
+          convert(angle1 - angle2)
+            .from("rad")
+            .to("deg")
+        );
         // Normalize to [0, 180] deviation from parallel
         // If angleDiff is 360 -> 0.
         // If 180 -> 180.
