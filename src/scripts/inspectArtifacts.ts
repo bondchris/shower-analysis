@@ -1,3 +1,4 @@
+import convert from "convert-units";
 import ffmpeg from "fluent-ffmpeg";
 import * as fs from "fs";
 import { sumBy } from "lodash";
@@ -101,8 +102,7 @@ function addRawScanMetadata(dirPath: string, metadata: ArtifactMetadata): void {
       const rawContent = fs.readFileSync(rawScanPath, "utf-8");
       const rawScan = new RawScan(JSON.parse(rawContent));
 
-      const SQ_M_TO_SQ_FT = 10.7639;
-      metadata.roomAreaSqFt = sumBy(rawScan.floors, "area") * SQ_M_TO_SQ_FT;
+      metadata.roomAreaSqFt = convert(sumBy(rawScan.floors, "area")).from("m2").to("ft2");
 
       metadata.wallCount = rawScan.walls.length;
 

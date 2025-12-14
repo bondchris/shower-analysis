@@ -5,15 +5,15 @@ import { RawScan } from "../../models/rawScan/rawScan";
 import { EPSILON, TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
+import { TOUCHING_THRESHOLD_METERS } from "./constants";
 
 // Helper: Check for Tub Gaps (1" < gap < 6")
 export function checkTubGaps(rawScan: RawScan): boolean {
   const tubs = rawScan.objects.filter((o) => o.category.bathtub !== undefined);
   const walls = rawScan.walls;
 
-  const ONE_INCH = 1;
   const SIX_INCHES = 6;
-  const GAP_TUB_MIN = convert(ONE_INCH).from("in").to("m");
+  const GAP_TUB_MIN = TOUCHING_THRESHOLD_METERS;
   const GAP_TUB_MAX = convert(SIX_INCHES).from("in").to("m");
   const HALF_DIVISOR = 2;
   const DEFAULT_VALUE = 0;

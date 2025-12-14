@@ -1,10 +1,9 @@
-import convert from "convert-units";
-
 import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
+import { TOUCHING_THRESHOLD_METERS } from "./constants";
 
 // Helper: Check for Toilet Gaps (> 1 inch from wall)
 export function checkToiletGaps(rawScan: RawScan): boolean {
@@ -14,8 +13,7 @@ export function checkToiletGaps(rawScan: RawScan): boolean {
   const MIN_DIMENSIONS = 3;
   const Z_DIM_IDX = 2; // Dimensions[2] is Depth (Z) in local space
   const HALF_DIVISOR = 2;
-  const ONE_INCH = 1;
-  const GAP_THRESHOLD_METERS = convert(ONE_INCH).from("in").to("m");
+  const GAP_THRESHOLD_METERS = TOUCHING_THRESHOLD_METERS;
   const DEFAULT_VALUE = 0;
   const PT_X_IDX = 0;
   const PT_Z_IDX = 1;

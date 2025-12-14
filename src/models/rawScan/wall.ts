@@ -1,3 +1,4 @@
+import convert from "convert-units";
 import { Surface, SurfaceData } from "./surface";
 
 export interface WallCategory {
@@ -21,7 +22,6 @@ export class Wall extends Surface {
     const MIN_POLY_CORNERS = 3;
     const DEFAULT_COORD = 0;
     const ANGLE_NORMALIZER_ZERO = 0;
-    const SEMI_CIRCLE_DEG = 180;
     const FULL_CIRCLE_DEG = 360;
     const SOFFIT_MIN_ANGLE = 260;
     const SOFFIT_MAX_ANGLE = 280;
@@ -29,7 +29,6 @@ export class Wall extends Surface {
     const Y_IDX = 1;
     const OFFSET_PREV = 1;
     const OFFSET_NEXT = 1;
-    const RAD_TO_DEG = SEMI_CIRCLE_DEG / Math.PI;
 
     if (!corners || corners.length < MIN_POLY_CORNERS) {
       return false;
@@ -63,7 +62,7 @@ export class Wall extends Surface {
       // Assuming CCW winding for "inside" to be left?
       // Or just difference between angles?
       // Standard approach: (angle2 - angle1)
-      let angleDiff = (angle2 - angle1) * RAD_TO_DEG;
+      let angleDiff = convert(angle2 - angle1).from("rad").to("deg");
 
       // Normalize to [0, 360)
       if (angleDiff < ANGLE_NORMALIZER_ZERO) {

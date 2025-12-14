@@ -1,11 +1,11 @@
-import convert from "convert-units";
-
+import convert from "convert-units"; // eslint-disable-line no-unused-vars
 import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
 import { subtract } from "../math/vector";
+import { TOUCHING_THRESHOLD_METERS } from "./constants";
 
 // Helper: Check for Crooked Walls (Angles not multiple of 90 deg)
 export function checkCrookedWalls(rawScan: RawScan): boolean {
@@ -15,10 +15,8 @@ export function checkCrookedWalls(rawScan: RawScan): boolean {
   const NEXT_IDX = 1;
   const DEG_180 = 180;
   const DEG_360 = 360;
-  const RAD_TO_DEG = DEG_180 / Math.PI;
 
-  const ONE_INCH = 1;
-  const DIST_THRESHOLD = convert(ONE_INCH).from("in").to("m");
+  const DIST_THRESHOLD = TOUCHING_THRESHOLD_METERS;
   const ANGLE_THRESHOLD = 5.0; // 5 degrees
   const DIM_IDX_X = 0;
 
@@ -69,7 +67,7 @@ export function checkCrookedWalls(rawScan: RawScan): boolean {
         const v2 = subtract(p2End, p2Start);
         const angle2 = Math.atan2(v2.y, v2.x);
 
-        let angleDiff = Math.abs((angle1 - angle2) * RAD_TO_DEG);
+        let angleDiff = Math.abs(convert(angle1 - angle2).from("rad").to("deg"));
         // Normalize to [0, 180] deviation from parallel
         // If angleDiff is 360 -> 0.
         // If 180 -> 180.

@@ -1,3 +1,4 @@
+import convert from "convert-units";
 import { Point } from "../../models/point";
 import { EPSILON } from "./constants";
 import { doSegmentsIntersect } from "./segment";
@@ -25,7 +26,6 @@ export const checkPolygonIntegrity = (points: Point[]): boolean => {
   const NEXT_OFFSET_2 = 2;
   const CLAMP_MAX = 1;
   const CLAMP_MIN = -1;
-  const RAD_TO_DEG = 180;
   const START_IDX = 0;
   const LAST_OFFSET = 1;
   const MIN_VERTICES = 3;
@@ -93,7 +93,7 @@ export const checkPolygonIntegrity = (points: Point[]): boolean => {
     }
 
     const angleRad = Math.acos(cosTheta);
-    const angleDeg = angleRad * (RAD_TO_DEG / Math.PI);
+    const angleDeg = convert(angleRad).from("rad").to("deg");
 
     if (angleDeg < MIN_ANGLE_DEG || angleDeg > MAX_ANGLE_DEG) {
       return false;

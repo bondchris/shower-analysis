@@ -5,14 +5,14 @@ import { RawScan } from "../../models/rawScan/rawScan";
 import { TRANSFORM_SIZE } from "../math/constants";
 import { distToSegment } from "../math/segment";
 import { transformPoint } from "../math/transform";
+import { TOUCHING_THRESHOLD_METERS } from "./constants";
 
 // Helper: Check for Wall Gaps (> 6")
 export function checkWallGaps(rawScan: RawScan): boolean {
   const walls = rawScan.walls;
 
-  const ONE_INCH = 1;
   const TWELVE_INCHES = 12;
-  const GAP_WALL_MIN = convert(ONE_INCH).from("in").to("m");
+  const GAP_WALL_MIN = TOUCHING_THRESHOLD_METERS;
   const GAP_WALL_MAX = convert(TWELVE_INCHES).from("in").to("m");
   const HALF_DIVISOR = 2;
   const DEFAULT_VALUE = 0;
