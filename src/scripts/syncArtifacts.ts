@@ -1,12 +1,12 @@
 import * as fs from "fs";
 import * as path from "path";
-import PDFDocument from "pdfkit";
 
 import { ENVIRONMENTS } from "../../config/config";
 import { BadScanDatabase } from "../models/badScanRecord";
 import { Artifact, SpatialService } from "../services/spatialService";
 import { getBadScans } from "../utils/data/badScans";
 import { logger } from "../utils/logger";
+import { createPdfDocument, drawTable, writePdfHeader } from "../utils/pdfUtils";
 import { createProgressBar } from "../utils/progress";
 import { downloadFile, downloadJsonFile } from "../utils/sync/downloadHelpers";
 
@@ -285,72 +285,37 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
 }
 
 export async function generateSyncReport(allStats: SyncStats[]) {
-  const doc = new PDFDocument();
-  const reportsDir = path.join(process.cwd(), "reports");
-  if (!fs.existsSync(reportsDir)) {
-    fs.mkdirSync(reportsDir, { recursive: true });
-  }
+  const { doc, reportPath, waitForWrite } = createPdfDocument("sync-report.pdf");
 
-  const reportPath = path.join(reportsDir, "sync-report.pdf");
-  const writeStream = fs.createWriteStream(reportPath);
-  doc.pipe(writeStream);
-
-  const PDF_SPACING = 2;
-  const PDF_SPACING_SMALL = 0.5;
-  const PDF_MARGIN = 50;
-  const PDF_HEADER_SIZE = 20;
-  const PDF_SUBHEADER_SIZE = 16;
-  const PDF_BODY_SIZE = 12;
-  const COL_WIDTH_LG = 150;
-  const COL_WIDTH_SM = 80;
-  const DEFAULT_WIDTH = ZERO;
-  const ZERO_FAILURES = ZERO;
-
-  // Title
-  doc.fontSize(PDF_HEADER_SIZE).text("Sync Report", { align: "center" });
-  doc.fontSize(PDF_BODY_SIZE).text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
-  doc.moveDown(PDF_SPACING);
+  writePdfHeader(doc, "Sync Report");
 
   // Summary Table
-  const tableTop = doc.y;
+  const COL_WIDTH_LG = 150;
+  const COL_WIDTH_SM = 80;
   const colWidths = [COL_WIDTH_LG, COL_WIDTH_SM, COL_WIDTH_SM, COL_WIDTH_SM, COL_WIDTH_SM];
   const headers = ["Environment", "Found", "New", "Skipped", "Failed"];
-  let currentX = PDF_MARGIN;
 
-  // Header Row
-  doc.font("Helvetica-Bold");
-  headers.forEach((header, i) => {
-    doc.text(header, currentX, tableTop, { align: "left", width: colWidths[i] ?? DEFAULT_WIDTH });
-    currentX += colWidths[i] ?? DEFAULT_WIDTH;
-  });
+  const tableData = allStats.map((stats) => [
+    stats.env,
+    stats.found.toString(),
+    stats.new.toString(),
+    stats.skipped.toString(),
+    stats.failed.toString()
+  ]);
+
+  drawTable(doc, { colWidths, data: tableData, headers });
+
   doc.moveDown();
-  doc.font("Helvetica");
-
-  // Data Rows
-  allStats.forEach((stats) => {
-    let rowX = PDF_MARGIN;
-    const rowY = doc.y;
-    const data = [
-      stats.env,
-      stats.found.toString(),
-      stats.new.toString(),
-      stats.skipped.toString(),
-      stats.failed.toString()
-    ];
-    data.forEach((text, i) => {
-      doc.text(text, rowX, rowY, { align: "left", width: colWidths[i] ?? DEFAULT_WIDTH });
-      rowX += colWidths[i] ?? DEFAULT_WIDTH;
-    });
-    doc.moveDown();
-  });
-
-  doc.moveDown(PDF_SPACING);
 
   // Failures Section
-  // Filter by errors length, not just failed count
+  const ZERO_FAILURES = 0;
+  const PDF_SUBHEADER_SIZE = 16;
+  const PDF_BODY_SIZE = 12;
+  const PDF_SPACING_SMALL = 0.5;
+
   const failedStats = allStats.filter((s) => s.errors.length > ZERO_FAILURES);
   if (failedStats.length > ZERO_FAILURES) {
-    doc.x = PDF_MARGIN; // Reset X to margin
+    doc.x = 50; // Reset X
     doc.font("Helvetica-Bold").fontSize(PDF_SUBHEADER_SIZE).text("Sync Failures");
     doc.moveDown();
     doc.font("Helvetica").fontSize(PDF_BODY_SIZE);
@@ -381,16 +346,12 @@ export async function generateSyncReport(allStats: SyncStats[]) {
       }
     });
   } else {
-    doc.x = PDF_MARGIN;
+    doc.x = 50;
     doc.text("No failures occurred during sync.");
   }
 
   doc.end();
-
-  await new Promise<void>((resolve, reject) => {
-    writeStream.on("finish", resolve);
-    writeStream.on("error", reject);
-  });
+  await waitForWrite();
 
   logger.info(`Sync report generated at: ${reportPath}`);
 }

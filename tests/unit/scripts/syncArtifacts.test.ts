@@ -121,6 +121,7 @@ describe("syncArtifacts", () => {
       moveDown: jest.Mock;
       pipe: jest.Mock;
       text: jest.Mock;
+      page: { height: number };
       x: number;
       y: number;
     };
@@ -131,6 +132,7 @@ describe("syncArtifacts", () => {
         font: jest.fn().mockReturnThis(),
         fontSize: jest.fn().mockReturnThis(),
         moveDown: jest.fn().mockReturnThis(),
+        page: { height: 1000 },
         pipe: jest.fn(),
         text: jest.fn().mockReturnThis(),
         x: 0,

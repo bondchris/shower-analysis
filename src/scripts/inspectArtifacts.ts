@@ -3,13 +3,13 @@ import ffmpeg from "fluent-ffmpeg";
 import * as fs from "fs";
 import { sumBy } from "lodash";
 import * as path from "path";
-import PDFDocument from "pdfkit";
 
 import { ArData } from "../models/arData/arData";
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
 import { RawScan } from "../models/rawScan/rawScan";
 import * as ChartUtils from "../utils/chartUtils";
 import { logger } from "../utils/logger";
+import { createPdfDocument, writePdfHeader } from "../utils/pdfUtils";
 import { createProgressBar } from "../utils/progress";
 import { checkColinearWalls } from "../utils/room/checkColinearWalls";
 import { checkCrookedWalls } from "../utils/room/checkCrookedWalls";
@@ -470,17 +470,19 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   return charts;
 }
 
-function generatePdfReport(charts: CaptureCharts, avgDuration: number, videoCount: number, reportPath: string): void {
+async function generatePdfReport(
+  charts: CaptureCharts,
+  avgDuration: number,
+  videoCount: number,
+  reportPath: string
+): Promise<void> {
   const SPACING_SMALL = 10;
-  const MARGIN = 50;
   const CHART_SPACING = 30;
-  const PDF_TITLE_SIZE = 24;
   const PDF_SUBTITLE_SIZE = 18;
   const PDF_BODY_SIZE = 12;
 
   logger.info("Generating PDF...");
-  const doc = new PDFDocument({ margin: MARGIN });
-  doc.pipe(fs.createWriteStream(reportPath));
+  const { doc, waitForWrite } = createPdfDocument("data-analysis.pdf");
 
   // Layout Constants
   const Y_START = 130;
@@ -495,7 +497,7 @@ function generatePdfReport(charts: CaptureCharts, avgDuration: number, videoCoun
   // --- Page 1: Summary ---
   const DECIMAL_PLACES = 1;
   const summaryText = `Avg Duration: ${avgDuration.toFixed(DECIMAL_PLACES)}s | Videos: ${videoCount.toString()}`;
-  doc.fontSize(PDF_TITLE_SIZE).text("Artifact Data Analysis", { align: "center" });
+  writePdfHeader(doc, "Artifact Data Analysis");
   doc.fontSize(PDF_BODY_SIZE).text(summaryText, { align: "center" });
   doc.moveDown(SPACING_SMALL);
 
@@ -555,12 +557,12 @@ function generatePdfReport(charts: CaptureCharts, avgDuration: number, videoCoun
   doc.image(charts.features, LEFT_X, Y_START, { height: FEATURE_PDF_HEIGHT, width: FULL_W });
 
   doc.end();
+  await waitForWrite();
   logger.info(`Report generated at: ${reportPath}`);
 }
 
 async function main(): Promise<void> {
   const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
-  const REPORT_PATH = path.join(process.cwd(), "reports", "data-analysis.pdf");
   const INITIAL_COUNT = 0;
 
   logger.info("Finding artifacts...");
@@ -612,7 +614,7 @@ async function main(): Promise<void> {
   const charts = await generateCharts(metadataList);
 
   // PDF Generation
-  generatePdfReport(charts, avgDuration, metadataList.length, REPORT_PATH);
+  await generatePdfReport(charts, avgDuration, metadataList.length, "data-analysis.pdf");
 }
 
 main().catch((err: unknown) => logger.error(err));

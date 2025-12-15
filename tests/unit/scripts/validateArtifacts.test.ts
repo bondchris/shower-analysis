@@ -59,7 +59,11 @@ jest.mock("pdfkit", () => {
 
 // FS Mock
 jest.mock("fs", () => ({
-  createWriteStream: jest.fn().mockReturnValue({}),
+  createWriteStream: jest.fn().mockReturnValue({
+    on: jest.fn().mockImplementation((_e: string, cb: () => void) => {
+      cb();
+    })
+  }),
   existsSync: jest.fn().mockReturnValue(true),
   mkdirSync: jest.fn()
 }));

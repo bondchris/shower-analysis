@@ -1,14 +1,10 @@
 import { LegendItem } from "chart.js";
-import * as fs from "fs";
-import * as path from "path";
-import PDFDocument from "pdfkit";
-import * as stream from "stream";
-import { promisify } from "util";
 
 import { ENVIRONMENTS } from "../../config/config";
 import { Artifact, SpatialService } from "../services/spatialService";
 import * as ChartUtils from "../utils/chartUtils";
 import { logger } from "../utils/logger";
+import { createPdfDocument, writePdfHeader } from "../utils/pdfUtils";
 import { createProgressBar } from "../utils/progress";
 
 /**
@@ -18,8 +14,6 @@ import { createProgressBar } from "../utils/progress";
  * - Dynamically tracks and reports presence counts for ALL properties found in artifacts.
  * - Generates a report showing error and warning trends over time and by environment.
  */
-
-const finished = promisify(stream.finished);
 
 const getValidDateKey = (scanDate: unknown): string | null => {
   const DATE_PART_INDEX = 0;
@@ -224,21 +218,10 @@ export async function validateEnvironment(env: { domain: string; name: string })
 }
 
 export async function generateReport(allStats: EnvStats[]) {
-  const doc = new PDFDocument();
-  const reportsDir = path.join(process.cwd(), "reports");
-  if (!fs.existsSync(reportsDir)) {
-    fs.mkdirSync(reportsDir, { recursive: true });
-  }
-
-  const reportPath = path.join(reportsDir, "validation-report.pdf");
-  const writeStream = fs.createWriteStream(reportPath);
-  doc.pipe(writeStream);
+  const { doc, reportPath, waitForWrite } = createPdfDocument("validation-report.pdf");
 
   // PDF Layout Constants
-  const PDF_SPACING = 2;
   const PDF_MARGIN = 50;
-  const PDF_HEADER_SIZE = 20;
-  const PDF_BODY_SIZE = 12;
   const CHART_WIDTH = 600;
   const CENTER_DIVISOR = 2;
   const MIN_DATA_POINTS = 0;
@@ -266,19 +249,15 @@ export async function generateReport(allStats: EnvStats[]) {
   const NO_STATS = 0;
 
   if (allStats.length === NO_STATS) {
-    doc.fontSize(PDF_HEADER_SIZE).text("Validation Report", { align: "center" });
-    doc.fontSize(PDF_BODY_SIZE).text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
-    doc.moveDown(PDF_SPACING);
+    writePdfHeader(doc, "Validation Report");
     doc.text("No environments / no data.", { align: "center" });
     doc.end();
-    await finished(writeStream);
+    await waitForWrite();
     return;
   }
 
   // Title
-  doc.fontSize(PDF_HEADER_SIZE).text("Validation Report", { align: "center" });
-  doc.fontSize(PDF_BODY_SIZE).text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
-  doc.moveDown(PDF_SPACING);
+  writePdfHeader(doc, "Validation Report");
   const tableTop = doc.y;
 
   // New Transposed Table Layout
@@ -496,7 +475,7 @@ export async function generateReport(allStats: EnvStats[]) {
     }
   }
 
-  doc.moveDown(PDF_SPACING);
+  doc.moveDown();
 
   // Generate Graphs
   const allDates = new Set<string>();
@@ -740,8 +719,8 @@ export async function generateReport(allStats: EnvStats[]) {
   }
 
   doc.end();
-  await finished(writeStream);
-  logger.info(`\nReport generated at: ${reportPath}`);
+  await waitForWrite();
+  logger.info(`Report generated at: ${reportPath}`);
 }
 
 async function main() {
