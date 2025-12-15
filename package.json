@@ -12,10 +12,16 @@
     "format-ar-data": "ts-node src/scripts/formatArData.ts",
     "sync": "ts-node src/scripts/syncArtifacts.ts",
     "validate": "ts-node src/scripts/validateArtifacts.ts",
-    "lint": "eslint . --ext .ts,.tsx,.js,.cjs && npm run lint:md",
+    "lint": "npm run lint:ts && npm run lint:md && npm run lint:sh && ./scripts/check-eslint-disable.sh && npm run check-format",
+    "lint:ts": "eslint . --ext .ts,.tsx,.js,.cjs",
+    "lint:sh": "npx shellcheck scripts/*.sh",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.cjs --fix && markdownlint . --fix",
     "lint:md": "markdownlint .",
-    "format": "prettier --write .",
+    "format": "npm run format:ts && npm run format:md && npm run format:json && npm run format:sh",
+    "format:ts": "prettier --write \"**/*.{ts,tsx,js,cjs}\"",
+    "format:md": "prettier --write \"**/*.md\"",
+    "format:json": "prettier --write \"**/*.json\"",
+    "format:sh": "prettier --write \"scripts/*.sh\"",
     "check-format": "prettier --check ."
   },
   "repository": {
@@ -58,6 +64,9 @@
     "jest": "^30.2.0",
     "markdownlint-cli": "^0.46.0",
     "prettier": "^3.7.4",
+    "prettier-plugin-sh": "^0.18.0",
+    "shellcheck": "^4.1.0",
+    "shfmt": "^0.0.1",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2"
   }

@@ -16,51 +16,95 @@ import { getCheckedScans, saveCheckedScans } from "../utils/data/checkedScans";
 
 dotenv.config();
 
-function findArtifactDirectories(dir: string): string[] {
+export const MODEL_NAME = "gemini-3-pro-preview";
+
+export interface FilterOptions {
+  concurrency?: number;
+  dryRun?: boolean;
+}
+
+export interface FilterStats {
+  errors: number;
+  processed: number;
+  removed: number;
+  skipped: number;
+  skippedAmbiguous: number;
+  skippedCached: number;
+}
+
+export function findArtifactDirectories(dir: string): string[] {
   const results: string[] = [];
   if (!fs.existsSync(dir)) {
     return [];
   }
-  const list = fs.readdirSync(dir);
-  for (const file of list) {
-    const fullPath = path.join(dir, file);
-    const stat = fs.statSync(fullPath);
-    if (stat.isDirectory()) {
-      if (fs.existsSync(path.join(fullPath, "meta.json"))) {
-        results.push(fullPath);
-      } else {
-        results.push(...findArtifactDirectories(fullPath));
+
+  try {
+    const list = fs.readdirSync(dir, { withFileTypes: true });
+    for (const ent of list) {
+      if (ent.isDirectory()) {
+        const fullPath = path.join(dir, ent.name);
+        // Optimization: Check for meta.json directly instead of recursing blindly
+        if (fs.existsSync(path.join(fullPath, "meta.json"))) {
+          results.push(fullPath);
+        } else {
+          results.push(...findArtifactDirectories(fullPath));
+        }
       }
     }
+  } catch (err) {
+    console.error(`Error scanning directory ${dir}: ${String(err)}`);
   }
+
   return results;
 }
 
-async function processArtifact(
+export async function processArtifact(
   dir: string,
   service: GeminiService,
   badScans: ReturnType<typeof getBadScans>,
   checkedScanIds: Set<string>,
-  checkedScans: ReturnType<typeof getCheckedScans>
-): Promise<{ processed: number; removed: number; skipped: number }> {
-  let processed = 0;
-  let removed = 0;
-  const skipped = 0;
+  checkedScans: ReturnType<typeof getCheckedScans>,
+  options: FilterOptions = {}
+): Promise<FilterStats> {
+  const stats: FilterStats = {
+    errors: 0,
+    processed: 0,
+    removed: 0,
+    skipped: 0,
+    skippedAmbiguous: 0,
+    skippedCached: 0
+  };
+
   const artifactId = path.basename(dir);
+  const dryRun = options.dryRun ?? false;
 
-  // Skip if we already know it's bad
+  // 1. Skip checks
   if (artifactId in badScans) {
-    return { processed, removed, skipped };
+    stats.skippedCached++;
+    return stats;
   }
-
-  // Skip if we already checked it and it was good
   if (checkedScanIds.has(artifactId)) {
-    return { processed, removed, skipped: 1 };
+    stats.skippedCached++;
+    return stats;
   }
 
   const videoPath = path.join(dir, "video.mp4");
   if (!fs.existsSync(videoPath)) {
-    return { processed, removed, skipped };
+    stats.skipped++; // Missing video
+    return stats;
+  }
+
+  // 2. Safety Validation
+  // Ensure we are inside data/artifacts (rudimentary check, can be improved)
+  if (!dir.includes("data/artifacts") && !dryRun) {
+    console.error(`SAFETY: Skipping deletion of unsafe path: ${dir}`);
+    stats.errors++;
+    return stats;
+  }
+  if (!fs.existsSync(path.join(dir, "meta.json"))) {
+    console.error(`SAFETY: Skipping deletion of artifact without meta.json: ${dir}`);
+    stats.errors++;
+    return stats;
   }
 
   const parentDir = path.dirname(dir);
@@ -72,7 +116,8 @@ async function processArtifact(
     const videoBuffer = fs.readFileSync(videoPath);
     const prompt = "Is this video showing a bathroom? Reply YES or NO.";
 
-    const text = (
+    let text = "";
+    text = (
       await service.generateContent(prompt, [
         {
           inlineData: {
@@ -87,57 +132,78 @@ async function processArtifact(
 
     console.log(`  -> ${artifactId}: Gemini says: ${text}`);
 
-    if (text.includes("NO")) {
+    // Strict Parsing
+    // Remove punctuation to handle "NO." or "YES!"
+    const normalized = text.replace(/[^\w\s]/g, " ");
+    const hasYes = /\bYES\b/.test(normalized);
+    const hasNo = /\bNO\b/.test(normalized);
+
+    if (hasNo && !hasYes) {
       console.log(`  -> ${artifactId}: NOT A BATHROOM. Removing...`);
 
-      badScans[artifactId] ??= {
-        date: new Date().toISOString(),
-        environment,
-        reason: "Not a bathroom (Gemini gemini-3-pro-preview)"
-      };
+      if (!dryRun) {
+        // Only mark BAD if we actually delete it successfully
+        try {
+          fs.rmSync(dir, { force: true, recursive: true });
 
-      try {
-        fs.rmSync(dir, { force: true, recursive: true });
-        removed++;
-      } catch (e) {
-        console.error(`  -> ${artifactId}: Failed to delete: ${String(e)}`);
+          // Successful delete -> record bad scan
+          badScans[artifactId] = {
+            date: new Date().toISOString(),
+            environment,
+            reason: `Not a bathroom (Gemini ${MODEL_NAME})`
+          };
+          stats.removed++;
+        } catch (e) {
+          console.error(`  -> ${artifactId}: Failed to delete: ${String(e)}`);
+          stats.errors++;
+        }
+      } else {
+        console.log(`  -> ${artifactId}: [DRY RUN] Would remove.`);
+        stats.removed++;
+      }
+    } else if (hasYes && !hasNo) {
+      console.log(`  -> ${artifactId}: Kept.`);
+      if (!dryRun) {
+        let entry = checkedScans[artifactId];
+        if (entry === undefined) {
+          entry = {};
+          checkedScans[artifactId] = entry;
+        }
+        entry.filteredDate = new Date().toISOString();
+        entry.filteredModel = MODEL_NAME;
+        checkedScanIds.add(artifactId);
       }
     } else {
-      console.log(`  -> ${artifactId}: Kept.`);
-      let entry = checkedScans[artifactId];
-      if (entry === undefined) {
-        entry = {};
-        checkedScans[artifactId] = entry;
-      }
-      entry.filteredDate = new Date().toISOString();
-      entry.filteredModel = "gemini-3-pro-preview";
-
-      checkedScanIds.add(artifactId);
+      console.log(`  -> ${artifactId}: AMBIGUOUS response ("${text}"). Skipping.`);
+      stats.skippedAmbiguous++;
     }
 
-    processed++;
+    stats.processed++;
   } catch (err) {
     console.error(`  -> ${artifactId}: Error processing video: ${String(err)}`);
+    stats.errors++;
   }
 
-  return { processed, removed, skipped };
+  return stats;
 }
 
-async function main() {
-  const CONCURRENCY = 16;
+export async function main() {
   const service = new GeminiService();
 
+  // Configuration
+  const CONCURRENCY = Number(process.env["BATHROOM_FILTER_CONCURRENCY"] ?? "5");
+  const DRY_RUN = process.env["DRY_RUN"] === "1" || process.env["DRY_RUN"] === "true";
+
   const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
+
+  console.log(`Starting Filter. Concurrency: ${CONCURRENCY.toString()}, Dry Run: ${String(DRY_RUN)}`);
 
   const artifactDirs = findArtifactDirectories(DATA_DIR);
   console.log(`Found ${artifactDirs.length.toString()} artifacts.`);
 
   const badScans = getBadScans();
-  // removed badScanIds set because we can lookup directly in badScans map
-
   const checkedScans = getCheckedScans();
-  // Filter for existing "bathroom" checks
-  // Since it's a map now, we just check properties
+
   const checkedScanIds = new Set<string>();
   for (const [id, entry] of Object.entries(checkedScans)) {
     if (entry.filteredDate !== undefined && entry.filteredDate !== "") {
@@ -147,40 +213,72 @@ async function main() {
 
   console.log(`Loaded ${Object.keys(checkedScans).length.toString()} checked scans.`);
 
-  let totalProcessed = 0;
-  let totalRemoved = 0;
-  let totalSkipped = 0;
+  const globalStats: FilterStats = {
+    errors: 0,
+    processed: 0,
+    removed: 0,
+    skipped: 0,
+    skippedAmbiguous: 0,
+    skippedCached: 0
+  };
 
   // Process in chunks/queue
   const queue = [...artifactDirs];
-  const QUEUE_EMPTY = 0;
+  const ZERO = 0;
+  const QUEUE_EMPTY = ZERO;
+
+  // Periodic Save Config
+  const SAVE_INTERVAL = 50;
+  let processedSinceLastSave = ZERO;
+
+  // Save helper
+  const saveDB = () => {
+    if (!DRY_RUN) {
+      saveBadScans(badScans);
+      saveCheckedScans(checkedScans);
+      console.log("  [Checkpoint] DB Saved.");
+    }
+  };
+
   const workers = Array(CONCURRENCY)
     .fill(null)
     .map(async () => {
       while (queue.length > QUEUE_EMPTY) {
         const dir = queue.shift();
         if (dir !== undefined) {
-          const { processed, removed, skipped } = await processArtifact(
-            dir,
-            service,
-            badScans,
-            checkedScanIds,
-            checkedScans
-          );
-          totalProcessed += processed;
-          totalRemoved += removed;
-          totalSkipped += skipped;
+          const stats = await processArtifact(dir, service, badScans, checkedScanIds, checkedScans, {
+            dryRun: DRY_RUN
+          });
+
+          // Accumulate stats (not thread-safe strictly but JS is single threaded event loop so OK)
+          globalStats.processed += stats.processed;
+          globalStats.removed += stats.removed;
+          globalStats.skipped += stats.skipped;
+          globalStats.skippedCached += stats.skippedCached;
+          globalStats.skippedAmbiguous += stats.skippedAmbiguous;
+          globalStats.errors += stats.errors;
+
+          processedSinceLastSave++;
+          if (processedSinceLastSave >= SAVE_INTERVAL) {
+            processedSinceLastSave = ZERO;
+            saveDB();
+          }
         }
       }
     });
 
   await Promise.all(workers);
 
-  saveBadScans(badScans);
-  saveCheckedScans(checkedScans);
-  console.log(
-    `\nScan complete. Processed ${totalProcessed.toString()}. Removed ${totalRemoved.toString()}. Skipped ${totalSkipped.toString()} (Cached).`
-  );
+  saveDB(); // Final save
+
+  console.log("\nScan complete.");
+  console.log(`Processed: ${globalStats.processed.toString()}`);
+  console.log(`Removed: ${globalStats.removed.toString()}`);
+  console.log(`Skipped (Cached): ${globalStats.skippedCached.toString()}`);
+  console.log(`Skipped (Ambiguous): ${globalStats.skippedAmbiguous.toString()}`);
+  console.log(`Errors: ${globalStats.errors.toString()}`);
 }
 
-main().catch(console.error);
+if (require.main === module) {
+  main().catch(console.error);
+}

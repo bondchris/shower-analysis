@@ -56,8 +56,8 @@ export async function probeVideo(
         return;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const raw = (metadata as unknown as FfprobeData | undefined)?.format?.duration;
+      const data = metadata as FfprobeData | undefined;
+      const raw = data?.format?.duration;
       // Explicitly check for number, finite, and non-negative
       const duration = typeof raw === "number" && Number.isFinite(raw) && raw >= ZERO ? raw : defDuration;
 
@@ -190,12 +190,6 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
       }
 
       // 2. Previously marked bad (cleanup)
-      // Check if existing reason is "stronger"? Here we just honor the check.
-      // If file exists but is marked bad, we re-verify?
-      // User requested "overwrite reason if stronger".
-      // Let's proceed to check validity even if marked bad, to update reason if needed.
-      // But if we delete, we delete.
-
       const { ok, duration } = await probeVideo(videoPath, ffprobeImpl);
 
       if (!ok) {
@@ -213,9 +207,6 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
 
     if (reason !== null) {
       // It is bad.
-      // Update DB
-      // Only update if not present or if we want to overwrite?
-      // Logic: overwrite.
       badScans[artifactId] = {
         date: now().toISOString(),
         environment,
@@ -225,14 +216,6 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
       if (!DRY_RUN) {
         try {
           if (QUARANTINE_DIR !== undefined && QUARANTINE_DIR !== "") {
-            // Ensure dest exists
-            // No mkdirSync in picked fsImpl, strictly speaking, assuming quarantine dir exists or handled outside?
-            // Using fsImpl doesn't include mkdirSync in Pick provided in interface above...
-            // Let's assume QUARANTINE_DIR is prepared or we fallback to fs for mkdir if strictly real usage?
-            // For tests we might need to mock mkdir if we add it to interface.
-            // Interface updated to include basic ops. But mkdir not in list.
-            // Let's assume quarantineDir exists or user ensures.
-
             const destName = `${environment}-${artifactId}`;
             const destPath = path.join(QUARANTINE_DIR, destName);
             fsImpl.renameSync(artifactDir, destPath);
@@ -245,10 +228,8 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
           }
 
           // If it was in checked scans, remove it?
-          // Not typically done, but if it went bad, invalidating cache is wise.
           if (checkedScans[artifactId]) {
-            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-            delete checkedScans[artifactId];
+            Reflect.deleteProperty(checkedScans, artifactId);
           }
         } catch (e) {
           const msg = String(e);
@@ -256,10 +237,6 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
           stats.failedDeletes.push(artifactId);
         }
       }
-      // If Dry Run, count as "would remove" (but keeping separate stat might be confusing, reuse removedCount?)
-      // Usually dry run users want to see "Would remove: X".
-      // If we increment removedCount, log says "Removed: X".
-      // Let's trust stats reflect action taken (0 if dry run).
     } else if (!DRY_RUN) {
       // Clean
       let entry = checkedScans[artifactId];

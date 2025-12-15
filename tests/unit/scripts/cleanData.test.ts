@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import ffmpeg from "fluent-ffmpeg";
 import * as fs from "fs";
 import * as os from "os";
@@ -180,7 +179,7 @@ describe("cleanData", () => {
       });
 
       expect(mockBadScans["artifact_env"]).toBeDefined();
-      expect(mockBadScans["artifact_env"]!.environment).toBe("production");
+      expect(mockBadScans["artifact_env"]?.environment).toBe("production");
     });
 
     it("handles missing video", async () => {
@@ -196,7 +195,7 @@ describe("cleanData", () => {
       });
 
       expect(mockBadScans["artifact_missing"]).toBeDefined();
-      expect(mockBadScans["artifact_missing"]!.reason).toBe("Missing video.mp4");
+      expect(mockBadScans["artifact_missing"]?.reason).toBe("Missing video.mp4");
       expect(fs.existsSync(artifactDir)).toBe(false);
       expect(stats.removedCount).toBe(1);
     });
@@ -219,7 +218,7 @@ describe("cleanData", () => {
         logger: mockLogger
       });
 
-      expect(mockBadScans["artifact_invalid"]!.reason).toBe("Invalid video (ffmpeg probe failed)");
+      expect(mockBadScans["artifact_invalid"]?.reason).toBe("Invalid video (ffmpeg probe failed)");
       expect(stats.removedCount).toBe(1);
     });
 
@@ -242,7 +241,7 @@ describe("cleanData", () => {
         minDuration: 10
       });
 
-      expect(mockBadScans["artifact_short"]!.reason).toContain("Video too short");
+      expect(mockBadScans["artifact_short"]?.reason).toContain("Video too short");
       expect(stats.removedCount).toBe(1);
     });
 

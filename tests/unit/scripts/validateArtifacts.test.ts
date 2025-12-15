@@ -1,5 +1,6 @@
 /* eslint-disable simple-import-sort/imports, sort-imports */
 import * as fs from "fs";
+
 import {
   EnvStats,
   applyArtifactToStats,
