@@ -4,7 +4,7 @@ import * as path from "path";
 import { BadScanDatabase } from "../../models/badScanRecord";
 
 /**
- * Loads the database of "Bad Scans" (manually flagged artifacts to exclude).
+ * Loads the database of "Bad Scans" (previously flagged artifacts to exclude).
  * Backed by `config/badScans.json`.
  */
 export function getBadScans(): BadScanDatabase {

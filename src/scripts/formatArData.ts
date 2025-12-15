@@ -7,7 +7,7 @@ import * as path from "path";
  * - This normalization helps with diffs and consistent processing.
  */
 
-function findArDataFiles(dir: string): string[] {
+export function findArDataFiles(dir: string): string[] {
   const results: string[] = [];
   if (!fs.existsSync(dir)) {
     return [];
@@ -15,31 +15,62 @@ function findArDataFiles(dir: string): string[] {
   const list = fs.readdirSync(dir);
   for (const file of list) {
     const fullPath = path.join(dir, file);
-    const stat = fs.statSync(fullPath);
-    if (stat.isDirectory()) {
-      results.push(...findArDataFiles(fullPath));
-    } else if (file === "arData.json") {
-      results.push(fullPath);
+    try {
+      const stat = fs.statSync(fullPath);
+      if (stat.isDirectory()) {
+        results.push(...findArDataFiles(fullPath));
+      } else if (file === "arData.json") {
+        results.push(fullPath);
+      }
+    } catch {
+      // Ignore files we can't read
+      console.warn(`Skipping unreadable path: ${fullPath}`);
     }
   }
   return results;
 }
 
-interface ArData {
+export interface ArData {
+  [key: string]: unknown; // Allow other properties
   data?: Record<string, unknown>;
 }
 
-function main() {
-  const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
+export function sortArData(json: ArData): ArData {
+  if (!json.data) {
+    return json;
+  }
+
+  // Sort keys: numeric ascending
+  const sortedKeys = Object.keys(json.data).sort((a, b) => parseFloat(a) - parseFloat(b));
+  const sortedData: Record<string, unknown> = {};
+  for (const key of sortedKeys) {
+    sortedData[key] = json.data[key];
+  }
+
+  return {
+    ...json,
+    data: sortedData
+  };
+}
+
+export interface RunStats {
+  processed: number;
+  found: number;
+  skipped: number;
+}
+
+export async function run(dataDir?: string): Promise<RunStats> {
+  await Promise.resolve(); // Ensure async behavior
+  const DATA_DIR = dataDir ?? path.join(process.cwd(), "data", "artifacts");
   const JSON_INDENT = 2;
   const UPDATE_INTERVAL = 10;
   const INITIAL_COUNT = 0;
 
-  console.log("Finding arData.json files...");
+  console.log(`Finding arData.json files in ${DATA_DIR}...`);
   const files = findArDataFiles(DATA_DIR);
   console.log(`Found ${files.length.toString()} files.`);
 
-  let processed = 0;
+  let processed = INITIAL_COUNT;
   for (const file of files) {
     try {
       const newPath = path.join(path.dirname(file), "arDataFormatted.json");
@@ -48,24 +79,23 @@ function main() {
       }
 
       const content = fs.readFileSync(file, "utf-8");
-      const json = JSON.parse(content) as ArData;
-
-      if (json.data === undefined) {
-        // Skip valid check or warn? assuming valid structure if it parses
+      let json: ArData = {};
+      try {
+        json = JSON.parse(content) as ArData;
+      } catch {
+        console.error(`Failed to parse JSON in ${file}`);
         continue;
       }
 
-      // Sort keys
-      const sortedKeys = Object.keys(json.data).sort((a, b) => parseFloat(a) - parseFloat(b));
-      const sortedData: Record<string, unknown> = {};
-      for (const key of sortedKeys) {
-        sortedData[key] = json.data[key];
-      }
+      const newJson = sortArData(json);
 
-      const newJson = {
-        ...json,
-        data: sortedData
-      };
+      // Skip if no data or unchanged logic?
+      // User requirement: "Skips files where JSON parses but data is missing" -> sortArData returns orig.
+      // But if orig has no data, we shouldn't execute write?
+      // Original code check: `if (json.data === undefined) continue;`
+      if (json.data === undefined) {
+        continue;
+      }
 
       fs.writeFileSync(newPath, JSON.stringify(newJson, null, JSON_INDENT));
       processed++;
@@ -79,6 +109,9 @@ function main() {
   }
 
   console.log(`\nSorted ${processed.toString()} files. Skipped ${(files.length - processed).toString()} existing.`);
+  return { found: files.length, processed, skipped: files.length - processed };
 }
 
-main();
+if (require.main === module) {
+  run().catch(console.error);
+}
