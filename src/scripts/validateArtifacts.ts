@@ -1,3 +1,4 @@
+import { LegendItem } from "chart.js";
 import * as fs from "fs";
 import * as path from "path";
 import PDFDocument from "pdfkit";
@@ -18,10 +19,20 @@ import * as ChartUtils from "../utils/chartUtils";
 
 const finished = promisify(stream.finished);
 
-const REQUIRED_FIELDS: (keyof Artifact)[] = ["id", "scanDate", "rawScan", "arData", "video"];
-const WARNING_FIELDS: (keyof Artifact)[] = ["projectId"];
+const getValidDateKey = (scanDate: unknown): string | null => {
+  const DATE_PART_INDEX = 0;
 
-interface EnvStats {
+  if (typeof scanDate !== "string") {
+    return null;
+  }
+  const date = scanDate.split("T")[DATE_PART_INDEX];
+  if (date === undefined || date === "" || date.startsWith("0001")) {
+    return null;
+  }
+  return date;
+};
+
+export interface EnvStats {
   artifactsWithIssues: number;
   artifactsWithWarnings: number;
   errorsByDate: Record<string, number>;
@@ -30,22 +41,87 @@ interface EnvStats {
   totalScansByDate: Record<string, number>;
   missingCounts: Record<string, number>;
   warningCounts: Record<string, number>;
-  propertyCounts: Record<string, number>;
-  name: string;
   processed: number;
   totalArtifacts: number;
+  propertyCounts: Record<string, number>;
+  name: string;
+  pageErrors: Record<number, string>;
 }
 
-async function validateEnvironment(env: { domain: string; name: string }): Promise<EnvStats> {
-  const PAGE_START = 1;
+export function applyArtifactToStats(stats: EnvStats, item: Artifact): void {
+  const REQUIRED_FIELDS: (keyof Artifact)[] = ["id", "scanDate", "rawScan", "arData", "video"];
+  const WARNING_FIELDS: (keyof Artifact)[] = ["projectId"];
   const INITIAL_ERROR_COUNT = 0;
   const ERROR_INCREMENT = 1;
   const NO_MISSING_FIELDS = 0;
-  const DATE_PART_INDEX = 0;
+
+  stats.processed++;
+  const missingFields = REQUIRED_FIELDS.filter((field) => item[field] === undefined || item[field] === null);
+  const issues: string[] = [...missingFields];
+
+  // Check for invalid date
+  if (typeof item.scanDate === "string" && item.scanDate.startsWith("0001")) {
+    issues.push("scanDate (invalid)");
+  }
+
+  const missingWarnings = WARNING_FIELDS.filter((field) => item[field] === undefined || item[field] === null);
+
+  // Track property presence dynamically
+  for (const key in item) {
+    if (Object.prototype.hasOwnProperty.call(item, key)) {
+      const val = (item as unknown as Record<string, unknown>)[key];
+      if (val !== undefined && val !== null) {
+        stats.propertyCounts[key] = (stats.propertyCounts[key] ?? INITIAL_ERROR_COUNT) + ERROR_INCREMENT;
+      }
+    }
+  }
+
+  if (issues.length > NO_MISSING_FIELDS) {
+    stats.artifactsWithIssues++;
+    for (const issue of issues) {
+      stats.missingCounts[issue] = (stats.missingCounts[issue] ?? INITIAL_ERROR_COUNT) + ERROR_INCREMENT;
+    }
+
+    // Track error by date
+    const date = getValidDateKey(item.scanDate);
+    if (date !== null) {
+      const currentCount = stats.errorsByDate[date] ?? INITIAL_ERROR_COUNT;
+      stats.errorsByDate[date] = currentCount + ERROR_INCREMENT;
+    }
+  }
+
+  if (missingWarnings.length > NO_MISSING_FIELDS) {
+    stats.artifactsWithWarnings++;
+    for (const field of missingWarnings) {
+      stats.warningCounts[field] = (stats.warningCounts[field] ?? INITIAL_ERROR_COUNT) + ERROR_INCREMENT;
+    }
+
+    // Track warning by date
+    const date = getValidDateKey(item.scanDate);
+    if (date !== null) {
+      const currentCount = stats.warningsByDate[date] ?? INITIAL_ERROR_COUNT;
+      stats.warningsByDate[date] = currentCount + ERROR_INCREMENT;
+    }
+  }
+
+  // Track success percentages
+  const date = getValidDateKey(item.scanDate);
+  if (date !== null) {
+    const currentTotal = stats.totalScansByDate[date] ?? INITIAL_ERROR_COUNT;
+    stats.totalScansByDate[date] = currentTotal + ERROR_INCREMENT;
+
+    if (issues.length === NO_MISSING_FIELDS) {
+      const currentClean = stats.cleanScansByDate[date] ?? INITIAL_ERROR_COUNT;
+      stats.cleanScansByDate[date] = currentClean + ERROR_INCREMENT;
+    }
+  }
+}
+
+export async function validateEnvironment(env: { domain: string; name: string }): Promise<EnvStats> {
+  const PAGE_START = 1;
   const NO_PAGES_LEFT = 0;
-  const NOT_FOUND = -1;
-  const PROMISE_REMOVE_COUNT = 1;
   const CONCURRENCY_LIMIT = 5;
+  const NO_ITEMS = 0;
 
   console.log(`\nStarting validation for: ${env.name} (${env.domain})`);
   const stats: EnvStats = {
@@ -55,6 +131,7 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
     errorsByDate: {},
     missingCounts: {},
     name: env.name,
+    pageErrors: {},
     processed: 0,
     propertyCounts: {},
     totalArtifacts: 0,
@@ -73,9 +150,22 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
 
     console.log(`Total artifacts to process: ${stats.totalArtifacts.toString()} (Pages: ${lastPage.toString()})`);
 
-    const pages = Array.from({ length: lastPage }, (_, i) => i + PAGE_START);
+    // Process initial page artifacts immediately
+    for (const item of initialRes.data) {
+      applyArtifactToStats(stats, item);
+    }
 
-    const activePromises: Promise<void>[] = [];
+    // Determine remaining pages to fetch
+    const NEXT_PAGE_OFFSET = 1;
+    const startPage = PAGE_START + NEXT_PAGE_OFFSET;
+    const NO_PAGES = 0;
+    const pagesRemaining = lastPage - PAGE_START;
+    const pages = Array.from(
+      { length: pagesRemaining > NO_PAGES ? pagesRemaining : NO_PAGES },
+      (_, i) => i + startPage
+    );
+
+    const activePromises = new Set<Promise<void>>();
     let completed = 0;
     const totalToProcess = pages.length;
 
@@ -84,98 +174,37 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
         const res = await service.fetchScanArtifacts(pageNum);
 
         for (const item of res.data) {
-          stats.processed++;
-          const missingFields = REQUIRED_FIELDS.filter((field) => item[field] === undefined || item[field] === null);
-          const issues: string[] = [...missingFields];
-
-          // Check for invalid date
-          if (typeof item.scanDate === "string" && item.scanDate.startsWith("0001")) {
-            issues.push("scanDate (invalid)");
-          }
-
-          const missingWarnings = WARNING_FIELDS.filter((field) => item[field] === undefined || item[field] === null);
-
-          // Track property presence dynamically
-          for (const key in item) {
-            if (Object.prototype.hasOwnProperty.call(item, key)) {
-              const val = (item as unknown as Record<string, unknown>)[key];
-              if (val !== undefined && val !== null) {
-                stats.propertyCounts[key] = (stats.propertyCounts[key] ?? INITIAL_ERROR_COUNT) + ERROR_INCREMENT;
-              }
-            }
-          }
-
-          if (issues.length > NO_MISSING_FIELDS) {
-            stats.artifactsWithIssues++;
-            for (const issue of issues) {
-              stats.missingCounts[issue] = (stats.missingCounts[issue] ?? INITIAL_ERROR_COUNT) + ERROR_INCREMENT;
-            }
-
-            // Track error by date
-            if (typeof item.scanDate === "string") {
-              const date = item.scanDate.split("T")[DATE_PART_INDEX]; // YYYY-MM-DD
-              if (date !== undefined && !date.startsWith("0001")) {
-                const currentCount = stats.errorsByDate[date] ?? INITIAL_ERROR_COUNT;
-                stats.errorsByDate[date] = currentCount + ERROR_INCREMENT;
-              }
-            }
-          }
-
-          if (missingWarnings.length > NO_MISSING_FIELDS) {
-            stats.artifactsWithWarnings++;
-            for (const field of missingWarnings) {
-              stats.warningCounts[field] = (stats.warningCounts[field] ?? INITIAL_ERROR_COUNT) + ERROR_INCREMENT;
-            }
-
-            // Track warning by date
-            if (typeof item.scanDate === "string") {
-              const date = item.scanDate.split("T")[DATE_PART_INDEX]; // YYYY-MM-DD
-              if (date !== undefined && !date.startsWith("0001")) {
-                const currentCount = stats.warningsByDate[date] ?? INITIAL_ERROR_COUNT;
-                stats.warningsByDate[date] = currentCount + ERROR_INCREMENT;
-              }
-            }
-          }
-
-          // Track success percentages
-          if (typeof item.scanDate === "string") {
-            const date = item.scanDate.split("T")[DATE_PART_INDEX]; // YYYY-MM-DD
-            if (date !== undefined && !date.startsWith("0001")) {
-              const currentTotal = stats.totalScansByDate[date] ?? INITIAL_ERROR_COUNT;
-              stats.totalScansByDate[date] = currentTotal + ERROR_INCREMENT;
-
-              if (issues.length === NO_MISSING_FIELDS) {
-                const currentClean = stats.cleanScansByDate[date] ?? INITIAL_ERROR_COUNT;
-                stats.cleanScansByDate[date] = currentClean + ERROR_INCREMENT;
-              }
-            }
-          }
+          applyArtifactToStats(stats, item);
         }
       } catch (e) {
         console.error(`\nError fetching page ${pageNum.toString()}:`, e instanceof Error ? e.message : e);
+        stats.pageErrors[pageNum] = e instanceof Error ? e.message : String(e);
       } finally {
         completed++;
-        process.stdout.write(`\rProcessed pages ${completed.toString()}/${totalToProcess.toString()}...`);
+        if (totalToProcess > NO_ITEMS) {
+          process.stdout.write(`\rProcessed pages ${completed.toString()}/${totalToProcess.toString()}...`);
+        }
       }
     };
 
     while (pages.length > NO_PAGES_LEFT) {
-      if (activePromises.length < CONCURRENCY_LIMIT) {
+      while (activePromises.size < CONCURRENCY_LIMIT && pages.length > NO_PAGES_LEFT) {
         const pageNum = pages.shift();
         if (pageNum !== undefined) {
-          const p = processPage(pageNum).then(() => {
-            const idx = activePromises.indexOf(p);
-            if (idx !== NOT_FOUND) {
-              activePromises.splice(idx, PROMISE_REMOVE_COUNT).forEach(() => {
-                /** no-op */
-              });
-            }
-          });
-
-          activePromises.push(p);
+          const promise = processPage(pageNum);
+          activePromises.add(promise);
+          // Remove from set when done
+          promise
+            .finally(() => {
+              activePromises.delete(promise);
+            })
+            .catch(() => {
+              /* no-op */
+            });
         }
-      } else {
-        // Wait for at least one to finish
+      }
+
+      if (activePromises.size > NO_ITEMS && pages.length > NO_PAGES_LEFT) {
         await Promise.race(activePromises);
       }
     }
@@ -191,7 +220,7 @@ async function validateEnvironment(env: { domain: string; name: string }): Promi
   return stats;
 }
 
-async function generateReport(allStats: EnvStats[]) {
+export async function generateReport(allStats: EnvStats[]) {
   const doc = new PDFDocument();
   const reportsDir = path.join(process.cwd(), "reports");
   if (!fs.existsSync(reportsDir)) {
@@ -204,125 +233,225 @@ async function generateReport(allStats: EnvStats[]) {
 
   // PDF Layout Constants
   const PDF_SPACING = 2;
-  const DEFAULT_WIDTH = 0;
   const PDF_MARGIN = 50;
   const PDF_HEADER_SIZE = 20;
   const PDF_BODY_SIZE = 12;
-  const COL_WIDTH_LG = 110;
-  const COL_WIDTH_SM = 70;
-  const PDF_MAX_WIDTH = 500;
-  const COL_SMALL_COUNT = 4;
-  const PAGE_ALIGN_LEFT = 0;
   const CHART_WIDTH = 600;
   const CENTER_DIVISOR = 2;
-  const MIN_PARTS = 0;
-  const COL_IDX_ERRORS = 2;
-  const COL_IDX_WARNINGS = 3;
-  const COL_IDX_MISSING = 4;
   const MIN_DATA_POINTS = 0;
-
   const INITIAL_ERROR_COUNT = 0;
-  const NO_MISSING_FIELDS = 0;
+  const HEADER_FONT_SIZE = 10;
+  const ROW_FONT_SIZE = 10;
+  const HALF = 2;
+  const PERCENTAGE_SCALE = 100;
+  const MAX_PERCENTAGE = 100;
+  const SEPARATOR_WIDTH = 0.5;
+  const SEPARATOR_OFFSET = 5;
+  const OFFSET_ONE = 1;
+  const CHART_BAR_HEIGHT = 15;
+  const MIN_CHART_HEIGHT = 300;
+  const CHART_PADDING = 20;
+  const HEADER_FOOTER_SPACE = 60;
+  const DAY_OFFSET = 1;
+  const DECIMAL_PLACES_AVG = 1;
+  const VERTICAL_TEXT_OFFSET = 10;
+  const STROKE_WIDTH_NORMAL = 1;
 
-  const colSmallTotal = COL_WIDTH_SM * COL_SMALL_COUNT;
-  const COL_MISSING_PROP_WIDTH = PDF_MAX_WIDTH - (COL_WIDTH_LG + colSmallTotal);
+  const MARGIN_SIDES = 2;
+  const CHART_BORDER_WIDTH_NORMAL = 1.5;
+
+  const NO_STATS = 0;
+
+  if (allStats.length === NO_STATS) {
+    doc.fontSize(PDF_HEADER_SIZE).text("Validation Report", { align: "center" });
+    doc.fontSize(PDF_BODY_SIZE).text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
+    doc.moveDown(PDF_SPACING);
+    doc.text("No environments / no data.", { align: "center" });
+    doc.end();
+    await finished(writeStream);
+    return;
+  }
 
   // Title
   doc.fontSize(PDF_HEADER_SIZE).text("Validation Report", { align: "center" });
   doc.fontSize(PDF_BODY_SIZE).text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
   doc.moveDown(PDF_SPACING);
   const tableTop = doc.y;
-  const colWidths = [COL_WIDTH_LG, COL_WIDTH_SM, COL_WIDTH_SM, COL_WIDTH_SM, COL_WIDTH_SM, COL_MISSING_PROP_WIDTH];
-  const headers = ["Environment", "Total", "Processed", "Errors", "Warnings", "Missing Properties"];
-  let currentX = PDF_MARGIN;
 
+  // New Transposed Table Layout
+  const METRIC_COL_WIDTH = 120;
+  const START_X = PDF_MARGIN;
+  const margins = PDF_MARGIN * MARGIN_SIDES;
+  const availableWidth = doc.page.width - margins - METRIC_COL_WIDTH;
+  const envColWidth = availableWidth / allStats.length;
+  const ROW_HEIGHT = 20;
+
+  const envHeaders = allStats.map((s) => s.name);
+
+  // Draw Header
   doc.font("Helvetica-Bold");
-  headers.forEach((header, i) => {
-    doc.text(header, currentX, tableTop, { align: "left", width: colWidths[i] ?? DEFAULT_WIDTH });
-    currentX += colWidths[i] ?? DEFAULT_WIDTH;
+  doc.fontSize(HEADER_FONT_SIZE); // Reduce font size for headers to prevent wrapping
+  let currentX = START_X;
+  // Leave first cell blank as requested
+  currentX += METRIC_COL_WIDTH;
+
+  // Helper to truncate text to fit width
+  const truncateText = (text: string, maxWidth: number): string => {
+    const ROLLBACK_CHAR = 1;
+    const ELLIPSIS = "...";
+    if (doc.widthOfString(text) <= maxWidth) {
+      return text;
+    }
+    let truncated = text;
+    const START_INDEX = 0;
+    while (doc.widthOfString(truncated + ELLIPSIS) > maxWidth && truncated.length > START_INDEX) {
+      truncated = truncated.slice(START_INDEX, -ROLLBACK_CHAR);
+    }
+    return truncated + ELLIPSIS;
+  };
+
+  envHeaders.forEach((header) => {
+    const displayText = truncateText(header, envColWidth);
+    doc.text(displayText, currentX, tableTop, { align: "center", width: envColWidth });
+    currentX += envColWidth;
   });
+  const ensureSpace = (height: number) => {
+    if (doc.y + height > doc.page.height - PDF_MARGIN) {
+      doc.addPage();
+    }
+  };
+
   doc.moveDown();
   doc.font("Helvetica");
+  doc.fontSize(ROW_FONT_SIZE);
 
-  // Data Rows
-  allStats.forEach((stats) => {
-    let missingPropsStr = "";
-    const errorFields = Object.keys(stats.missingCounts).sort();
-    const warningFields = Object.keys(stats.warningCounts).sort();
-    const parts: string[] = [];
+  // Define Metrics to Display
+  const REQUIRED_FIELDS: (keyof Artifact)[] = ["id", "scanDate", "rawScan", "arData", "video"];
+  const IGNORED_METRIC_FIELDS = ["id", "scanDate"];
 
-    if (stats.artifactsWithIssues > NO_MISSING_FIELDS) {
-      errorFields.forEach((field) => {
-        parts.push(`${field}: ${(stats.missingCounts[field] ?? INITIAL_ERROR_COUNT).toString()}`);
-      });
+  const dynamicMetrics = REQUIRED_FIELDS.filter((f) => !IGNORED_METRIC_FIELDS.includes(f)).map((field) => ({
+    backgroundColor: "#FFF5F5",
+    color: "gray",
+    getValue: (s: EnvStats) => [{ text: (s.missingCounts[field] ?? INITIAL_ERROR_COUNT).toString() }],
+    label: `Missing ${field}`
+  }));
+
+  const metrics = [
+    {
+      backgroundColor: "#F0F8FF",
+      getValue: (s: EnvStats) => {
+        const percentage =
+          s.totalArtifacts > INITIAL_ERROR_COUNT
+            ? Math.min(MAX_PERCENTAGE, Math.round((s.processed / s.totalArtifacts) * PERCENTAGE_SCALE))
+            : INITIAL_ERROR_COUNT;
+        return [
+          { color: "black", text: s.processed.toString() },
+          { color: "gray", text: ` (${percentage.toString()}%)` }
+        ];
+      },
+      isBold: true,
+      label: "Processed Artifacts"
+    },
+    {
+      backgroundColor: "#FFEBEB",
+      getValue: (s: EnvStats) => [{ text: s.artifactsWithIssues.toString() }],
+      isBold: true,
+      label: "Total Errors"
+    },
+    ...dynamicMetrics,
+    {
+      backgroundColor: "#FFF5F5",
+      color: "gray",
+      getValue: (s: EnvStats) => [{ text: (s.missingCounts["scanDate (invalid)"] ?? INITIAL_ERROR_COUNT).toString() }],
+      label: "Invalid Date"
+    },
+    {
+      backgroundColor: "#FFF8E1",
+      getValue: (s: EnvStats) => [{ text: s.artifactsWithWarnings.toString() }],
+      isBold: true,
+      label: "Total Warnings"
+    },
+    {
+      backgroundColor: "#FFFFF0",
+      color: "gray",
+      getValue: (s: EnvStats) => [{ text: (s.warningCounts["projectId"] ?? INITIAL_ERROR_COUNT).toString() }],
+      label: "Missing ProjectId"
     }
+  ];
 
-    if (stats.artifactsWithWarnings > NO_MISSING_FIELDS) {
-      warningFields.forEach((field) => {
-        parts.push(`${field}: ${(stats.warningCounts[field] ?? INITIAL_ERROR_COUNT).toString()}`);
-      });
-    }
-
-    if (parts.length > MIN_PARTS) {
-      missingPropsStr = parts.join("\n");
-    } else {
-      missingPropsStr = "None";
-    }
-
+  // Draw Data Rows
+  metrics.forEach((metric) => {
     const rowY = doc.y;
-    let maxY = rowY;
 
-    // We adjust missing properties column width to take up remainder
-    const colMissingOffset = COL_WIDTH_SM * COL_IDX_MISSING;
-    const propColWidth = PDF_MAX_WIDTH - (COL_WIDTH_LG + colMissingOffset);
+    // Draw row background (highlight bold metrics or custom)
+    const m = metric as { backgroundColor?: string; isBold?: boolean };
+    const rowColor = m.backgroundColor ?? (m.isBold === true ? "#F5F5F5" : "white");
 
-    // Manual layout for this specific table structure
-    doc.text(stats.name, PDF_MARGIN, rowY, { width: COL_WIDTH_LG });
-    if (doc.y > maxY) {
-      maxY = doc.y;
+    if (rowColor !== "white") {
+      doc.save();
+      const envsWidth = envColWidth * allStats.length;
+      const tableWidth = METRIC_COL_WIDTH + envsWidth;
+      doc.fillColor(rowColor).rect(START_X, rowY, tableWidth, ROW_HEIGHT).fill();
+      doc.restore();
     }
 
-    doc.text(stats.totalArtifacts.toString(), PDF_MARGIN + COL_WIDTH_LG, rowY, { width: COL_WIDTH_SM });
-    if (doc.y > maxY) {
-      maxY = doc.y;
-    }
+    let currentXRow = START_X;
+    const verticalOffset = (ROW_HEIGHT - VERTICAL_TEXT_OFFSET) / HALF;
+    const textY = rowY + verticalOffset; // Vertically center text
 
-    doc.text(stats.processed.toString(), PDF_MARGIN + COL_WIDTH_LG + COL_WIDTH_SM, rowY, { width: COL_WIDTH_SM });
-    if (doc.y > maxY) {
-      maxY = doc.y;
-    }
+    // Draw Label
+    doc.fillColor("black"); // Reset color for label
+    doc.font(m.isBold === true ? "Helvetica-Bold" : "Helvetica");
+    doc.text(metric.label, currentXRow, textY, { align: "left", width: METRIC_COL_WIDTH });
+    currentXRow += METRIC_COL_WIDTH;
 
-    const colErrorsOffset = COL_WIDTH_SM * COL_IDX_ERRORS;
-    doc.text(stats.artifactsWithIssues.toString(), PDF_MARGIN + COL_WIDTH_LG + colErrorsOffset, rowY, {
-      width: COL_WIDTH_SM
+    // Draw Values for each Env
+    doc.font("Helvetica");
+    allStats.forEach((stats) => {
+      const parts = metric.getValue(stats);
+      // Calculate total width to center manually
+      const totalWidth = parts.reduce((sum, p) => sum + doc.widthOfString(p.text), INITIAL_ERROR_COUNT);
+      const centerOffset = (envColWidth - totalWidth) / HALF;
+      let drawX = currentXRow + centerOffset;
+
+      parts.forEach((part) => {
+        const p = part as { text: string; color?: string };
+        const partColor = p.color ?? (metric as { color?: string }).color ?? "black";
+        doc.fillColor(partColor);
+        doc.text(p.text, drawX, textY, { continued: false });
+        drawX += doc.widthOfString(p.text);
+      });
+
+      currentXRow += envColWidth;
     });
-    if (doc.y > maxY) {
-      maxY = doc.y;
-    }
 
-    const colWarningsOffset = COL_WIDTH_SM * COL_IDX_WARNINGS;
-    doc.text(stats.artifactsWithWarnings.toString(), PDF_MARGIN + COL_WIDTH_LG + colWarningsOffset, rowY, {
-      width: COL_WIDTH_SM
-    });
-    if (doc.y > maxY) {
-      maxY = doc.y;
-    }
-
-    doc.text(missingPropsStr, PDF_MARGIN + COL_WIDTH_LG + colMissingOffset, rowY, {
-      width: propColWidth
-    });
-    if (doc.y > maxY) {
-      maxY = doc.y;
-    }
-
-    doc.y = maxY;
-    doc.moveDown();
+    // Advance to next row
+    doc.y = rowY + ROW_HEIGHT;
   });
+  doc.fillColor("black"); // Reset final color
 
-  doc.moveDown(PDF_SPACING);
+  const tableBottom = doc.y;
 
-  // Property Presence Chart
-  doc.addPage();
+  // Draw Vertical Column Separators
+  doc.lineWidth(SEPARATOR_WIDTH).strokeColor("#E0E0E0");
+  let sepX = START_X + METRIC_COL_WIDTH;
+
+  // Separator after Metric Column
+  doc
+    .moveTo(sepX, tableTop - SEPARATOR_OFFSET)
+    .lineTo(sepX, tableBottom)
+    .stroke();
+
+  // Separators between Environment Columns
+  for (let i = 0; i < allStats.length - OFFSET_ONE; i++) {
+    sepX += envColWidth;
+    doc
+      .moveTo(sepX, tableTop - SEPARATOR_OFFSET)
+      .lineTo(sepX, tableBottom)
+      .stroke();
+  }
+
+  doc.strokeColor("black").lineWidth(STROKE_WIDTH_NORMAL); // Reset styles
 
   // Aggregate counts across all environments
   const consolidatedCounts: Record<string, number> = {};
@@ -344,19 +473,21 @@ async function generateReport(allStats: EnvStats[]) {
 
   if (chartLabels.length > MIN_DATA_POINTS) {
     try {
-      const CHART_HEIGHT = 400;
+      // Use constants defined above
+      const contentHeight = chartLabels.length * CHART_BAR_HEIGHT;
+      const dynamicHeight = Math.max(MIN_CHART_HEIGHT, contentHeight + HEADER_FOOTER_SPACE);
+
       const propertyChartBuffer = await ChartUtils.createBarChart(
         chartLabels,
         chartData,
         "Property Presence (All Environments)",
-        { height: CHART_HEIGHT, horizontal: true, totalForPercentages: grandTotal, width: CHART_WIDTH }
+        { height: dynamicHeight, horizontal: true, totalForPercentages: grandTotal, width: CHART_WIDTH }
       );
 
-      doc
-        .fontSize(PDF_HEADER_SIZE)
-        .text("Property Presence", PAGE_ALIGN_LEFT, doc.y, { align: "center", width: doc.page.width });
       doc.moveDown();
+      ensureSpace(dynamicHeight);
       doc.image(propertyChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
+      doc.y += dynamicHeight + CHART_PADDING;
     } catch (e) {
       console.error("Failed to generate property chart:", e);
     }
@@ -380,74 +511,140 @@ async function generateReport(allStats: EnvStats[]) {
 
   if (allDates.size > MIN_DATA_POINTS) {
     const sortedDates = Array.from(allDates).sort();
+    const DEFAULT_SCANS_COUNT = 0;
 
-    // Error Chart
-    const errorDatasets = allStats.map((s, i) => {
-      const colors = ["red", "blue", "green", "orange", "purple"];
-      const color = colors[i % colors.length] ?? "black";
-      const data = sortedDates.map((d) => {
-        const total = s.totalScansByDate[d] ?? INITIAL_ERROR_COUNT;
-        if (total === INITIAL_ERROR_COUNT) {
-          return null;
-        }
-        return s.errorsByDate[d] ?? INITIAL_ERROR_COUNT;
+    // Calculate Volume-based Sort Order (Largest -> Smallest)
+    const envTotalVolume = new Map<string, number>();
+    allStats.forEach((stats) => {
+      let total = 0;
+      sortedDates.forEach((date) => {
+        total += stats.totalScansByDate[date] ?? DEFAULT_SCANS_COUNT;
       });
-      return {
-        borderColor: color,
-        data,
-        label: s.name
-      };
+      envTotalVolume.set(stats.name, total);
+    });
+
+    const orderedStats = [...allStats].sort(
+      (a, b) =>
+        (envTotalVolume.get(a.name) ?? DEFAULT_SCANS_COUNT) - (envTotalVolume.get(b.name) ?? DEFAULT_SCANS_COUNT)
+    );
+
+    // Environment colors (Shared across all charts)
+    const envColors: Record<string, string> = {
+      "Bond Demo": "rgba(127, 24, 127, 1)",
+      "Bond Production": "rgba(0, 100, 0, 1)",
+      "Lowe's Production": "rgba(1, 33, 105, 1)",
+      "Lowe's Staging": "rgba(0, 117, 206, 1)"
+    };
+    const DEFAULT_COLOR = "rgba(0, 0, 0, 1)";
+
+    // --- 1. Aggregated Scan Volume Chart ---
+    // Calculate data first
+    const aggregatedScansByDate: Record<string, number> = {};
+    allStats.forEach((stats) => {
+      Object.entries(stats.totalScansByDate).forEach(([date, count]) => {
+        aggregatedScansByDate[date] = (aggregatedScansByDate[date] ?? INITIAL_ERROR_COUNT) + count;
+      });
+    });
+
+    let cumulative = 0;
+    const cumulativeData: number[] = [];
+    const dailyData: number[] = []; // Cumulative Average
+    // Use constants defined above
+
+    sortedDates.forEach((date, index) => {
+      const dailyCount = aggregatedScansByDate[date] ?? INITIAL_ERROR_COUNT;
+      cumulative += dailyCount;
+      cumulativeData.push(cumulative);
+
+      const daysPassed = index + DAY_OFFSET;
+
+      const average = Number((cumulative / daysPassed).toFixed(DECIMAL_PLACES_AVG));
+      dailyData.push(average);
+    });
+
+    // Environment colors definition moved to top of scope
+    const BASE_LAYER_ORDER = 100;
+
+    const volumeDatasets: ChartUtils.MixedChartDataset[] = [
+      {
+        backgroundColor: "rgba(220, 220, 220, 0.5)",
+        borderColor: "black",
+        borderWidth: 2,
+        data: cumulativeData,
+        fill: true,
+        label: "Total Cumulative Scans",
+        order: 200, // Ensure Total is always at the Bottom/Back (High Order = Back)
+        type: "line",
+        yAxisID: "y"
+      }
+    ];
+
+    // Add individual environment lines
+    // Push in Reverse Order (Large -> Small) so Large draws First (Back) and Small draws Last (Front)
+    [...orderedStats].reverse().forEach((stats, i) => {
+      let envCumulative = 0;
+      const envData: number[] = [];
+      sortedDates.forEach((date) => {
+        const dailyCount = stats.totalScansByDate[date] ?? INITIAL_ERROR_COUNT;
+        envCumulative += dailyCount;
+        envData.push(envCumulative);
+      });
+
+      const borderColor = envColors[stats.name] ?? DEFAULT_COLOR;
+      const backgroundColor = borderColor;
+
+      volumeDatasets.push({
+        backgroundColor,
+        borderColor,
+        borderWidth: 1.5,
+        data: envData,
+        fill: true,
+        label: stats.name,
+        order: BASE_LAYER_ORDER - i, // Large (i=0) -> 100 (Back). Small (i=N) -> 100-N (Front).
+        type: "line",
+        yAxisID: "y"
+      });
+    });
+
+    // Add Average line last
+    volumeDatasets.push({
+      borderColor: "rgba(255, 99, 132, 1)", // Red
+      borderWidth: 1.5,
+      data: dailyData,
+      fill: false,
+      label: "Cumulative Avg Scans/Day",
+      type: "line",
+      yAxisID: "y1"
     });
 
     try {
-      const errorChartBuffer = await ChartUtils.createLineChart(sortedDates, errorDatasets);
-      doc.addPage();
-      doc
-        .fontSize(PDF_HEADER_SIZE)
-        .text("Error Trends", PAGE_ALIGN_LEFT, doc.y, { align: "center", width: doc.page.width });
+      const volumeChartBuffer = await ChartUtils.createMixedChart(sortedDates, volumeDatasets, {
+        legendSort: (a: LegendItem, b: LegendItem) => {
+          // Force "Cumulative Avg Scans/Day" to the end (Far Right)
+          // Sort is Descending (High -> Low).
+          // assign -1 to Avg so it is smaller than everything else (indices 0+).
+          const LEGEND_SORT_LAST = -1;
+          const DEFAULT_INDEX = 0;
+          const getVal = (item: LegendItem): number => {
+            return item.text === "Cumulative Avg Scans/Day" ? LEGEND_SORT_LAST : (item.datasetIndex ?? DEFAULT_INDEX);
+          };
+          return getVal(b) - getVal(a);
+        },
+        title: "Scan Volume (All Environments)",
+        yLabelLeft: "Total Scans (Cumulative)",
+        yLabelRight: "Avg Scans / Day"
+      });
+      ensureSpace(MIN_CHART_HEIGHT + CHART_PADDING);
       doc.moveDown();
-      doc.image(errorChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
+      doc.image(volumeChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
+      doc.y += 320; // 300 height + 20 padding
     } catch (e) {
-      console.error("Failed to generate code error chart:", e);
+      console.error("Failed to generate aggregated volume chart:", e);
     }
 
-    // Warning Chart
-    const warningDatasets = allStats.map((s, i) => {
-      const colors = ["red", "blue", "green", "orange", "purple"];
-      const color = colors[i % colors.length] ?? "black";
-      const data = sortedDates.map((d) => {
-        const total = s.totalScansByDate[d] ?? INITIAL_ERROR_COUNT;
-        if (total === INITIAL_ERROR_COUNT) {
-          return null;
-        }
-        return s.warningsByDate[d] ?? INITIAL_ERROR_COUNT;
-      });
-      return {
-        borderColor: color,
-        data,
-        label: s.name
-      };
-    });
-
-    try {
-      const warningChartBuffer = await ChartUtils.createLineChart(sortedDates, warningDatasets, {
-        title: "Warnings Over Time",
-        yLabel: "Warning Count"
-      });
-      doc.addPage();
-      doc
-        .fontSize(PDF_HEADER_SIZE)
-        .text("Warning Trends", PAGE_ALIGN_LEFT, doc.y, { align: "center", width: doc.page.width });
-      doc.moveDown();
-      doc.image(warningChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
-    } catch (e) {
-      console.error("Failed to generate warning chart:", e);
-    }
-
-    // Success Percentage Chart
-    const successDatasets = allStats.map((s, i) => {
-      const colors = ["red", "blue", "green", "orange", "purple"];
-      const color = colors[i % colors.length] ?? "black";
+    // --- 2. Scan Success Percentage Chart ---
+    const successDatasets = orderedStats.map((s) => {
+      const color = envColors[s.name] ?? DEFAULT_COLOR;
       const data = sortedDates.map((d) => {
         const PERCENTAGE_BASE = 100;
         const ZERO = 0;
@@ -460,6 +657,7 @@ async function generateReport(allStats: EnvStats[]) {
       });
       return {
         borderColor: color,
+        borderWidth: CHART_BORDER_WIDTH_NORMAL,
         data,
         label: s.name
       };
@@ -470,76 +668,71 @@ async function generateReport(allStats: EnvStats[]) {
         title: "Scan Success Percentage Over Time",
         yLabel: "Success %"
       });
-      doc.addPage();
-      doc
-        .fontSize(PDF_HEADER_SIZE)
-        .text("Success Trends", PAGE_ALIGN_LEFT, doc.y, { align: "center", width: doc.page.width });
+      ensureSpace(MIN_CHART_HEIGHT);
       doc.moveDown();
       doc.image(successChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
+      doc.y += MIN_CHART_HEIGHT + CHART_PADDING;
     } catch (e) {
       console.error("Failed to generate success chart:", e);
     }
 
-    // Aggregated Scan Volume Chart
-    const aggregatedScansByDate: Record<string, number> = {};
-    allStats.forEach((stats) => {
-      Object.entries(stats.totalScansByDate).forEach(([date, count]) => {
-        aggregatedScansByDate[date] = (aggregatedScansByDate[date] ?? INITIAL_ERROR_COUNT) + count;
+    // --- 3. Error Chart ---
+    const errorDatasets = orderedStats.map((s) => {
+      const color = envColors[s.name] ?? DEFAULT_COLOR;
+      const data = sortedDates.map((d) => {
+        const total = s.totalScansByDate[d] ?? INITIAL_ERROR_COUNT;
+        if (total === INITIAL_ERROR_COUNT) {
+          return null;
+        }
+        return s.errorsByDate[d] ?? INITIAL_ERROR_COUNT;
       });
+      return {
+        borderColor: color,
+        borderWidth: 1.5,
+        data,
+        label: s.name
+      };
     });
-
-    let cumulative = 0;
-    const cumulativeData: number[] = [];
-    const dailyData: number[] = []; // Now Cumulative Average
-    const DAY_OFFSET = 1;
-
-    sortedDates.forEach((date, index) => {
-      const dailyCount = aggregatedScansByDate[date] ?? INITIAL_ERROR_COUNT;
-      cumulative += dailyCount;
-      cumulativeData.push(cumulative);
-
-      const daysPassed = index + DAY_OFFSET;
-      const DECIMAL_PLACES = 1;
-      const average = Number((cumulative / daysPassed).toFixed(DECIMAL_PLACES));
-      dailyData.push(average);
-    });
-
-    const volumeDatasets: ChartUtils.MixedChartDataset[] = [
-      {
-        backgroundColor: "rgba(54, 162, 235, 0.2)",
-        borderColor: "rgba(54, 162, 235, 1)", // Blue
-        data: cumulativeData,
-        fill: true,
-        label: "Cumulative Scans",
-        order: 2,
-        type: "line",
-        yAxisID: "y"
-      },
-      {
-        borderColor: "rgba(255, 99, 132, 1)", // Red
-        data: dailyData,
-        fill: false,
-        label: "Cumulative Avg Scans/Day",
-        order: 1,
-        type: "line",
-        yAxisID: "y1"
-      }
-    ];
 
     try {
-      const volumeChartBuffer = await ChartUtils.createMixedChart(sortedDates, volumeDatasets, {
-        title: "Scan Volume (All Environments)",
-        yLabelLeft: "Total Scans (Cumulative)",
-        yLabelRight: "Avg Scans / Day"
-      });
-      doc.addPage();
-      doc
-        .fontSize(PDF_HEADER_SIZE)
-        .text("Scan Volume - Aggregated", PAGE_ALIGN_LEFT, doc.y, { align: "center", width: doc.page.width });
+      const errorChartBuffer = await ChartUtils.createLineChart(sortedDates, errorDatasets);
+      ensureSpace(MIN_CHART_HEIGHT + CHART_PADDING);
       doc.moveDown();
-      doc.image(volumeChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
+      doc.image(errorChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
+      doc.y += 320; // 300 height + 20 padding
     } catch (e) {
-      console.error("Failed to generate aggregated volume chart:", e);
+      console.error("Failed to generate code error chart:", e);
+    }
+
+    // --- 4. Warning Chart ---
+    const warningDatasets = orderedStats.map((s) => {
+      const color = envColors[s.name] ?? DEFAULT_COLOR;
+      const data = sortedDates.map((d) => {
+        const total = s.totalScansByDate[d] ?? INITIAL_ERROR_COUNT;
+        if (total === INITIAL_ERROR_COUNT) {
+          return null;
+        }
+        return s.warningsByDate[d] ?? INITIAL_ERROR_COUNT;
+      });
+      return {
+        borderColor: color,
+        borderWidth: 1.5,
+        data,
+        label: s.name
+      };
+    });
+
+    try {
+      const warningChartBuffer = await ChartUtils.createLineChart(sortedDates, warningDatasets, {
+        title: "Warnings Over Time",
+        yLabel: "Warning Count"
+      });
+      ensureSpace(MIN_CHART_HEIGHT);
+      doc.moveDown();
+      doc.image(warningChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
+      doc.y += MIN_CHART_HEIGHT + CHART_PADDING;
+    } catch (e) {
+      console.error("Failed to generate warning chart:", e);
     }
   }
 
@@ -557,4 +750,6 @@ async function main() {
   await generateReport(allStats);
 }
 
-main().catch(console.error);
+if (require.main === module) {
+  main().catch(console.error);
+}

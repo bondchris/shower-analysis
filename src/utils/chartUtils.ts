@@ -1,11 +1,11 @@
-import { ChartConfiguration } from "chart.js";
+import { ChartConfiguration, ChartData, LegendItem } from "chart.js";
 import { ChartJSNodeCanvas } from "chartjs-node-canvas";
 
 // --- Constants ---
 
 // --- Constants ---
 const DEFAULT_WIDTH = 600;
-const DEFAULT_HEIGHT = 400;
+const DEFAULT_HEIGHT = 300;
 const CHART_BG_COLOR = "white";
 const INCREMENT_STEP = 1;
 const MAX_TICKS = 20;
@@ -21,6 +21,7 @@ export interface LineChartDataset {
   label: string;
   data: (number | null)[];
   borderColor: string;
+  borderWidth?: number;
 }
 
 export interface LineChartOptions {
@@ -208,6 +209,7 @@ export function buildLineChartConfig(
       datasets: datasets.map((ds) => ({
         backgroundColor: ds.borderColor,
         borderColor: ds.borderColor,
+        borderWidth: ds.borderWidth,
         data: ds.data,
         fill: false,
         label: ds.label,
@@ -218,8 +220,8 @@ export function buildLineChartConfig(
     },
     options: {
       plugins: {
-        legend: { position: "top" },
-        title: { display: true, text: title }
+        legend: { position: "bottom" },
+        title: { color: "black", display: true, font: { size: 24, weight: "bold" }, text: title }
       },
       scales: {
         y: {
@@ -265,8 +267,8 @@ export function buildHistogramConfig(data: number[], options: HistogramOptions):
     },
     options: {
       plugins: {
-        legend: { position: "top" },
-        title: { display: Boolean(title), text: title }
+        legend: { position: "bottom" },
+        title: { color: "black", display: Boolean(title), font: { size: 24, weight: "bold" }, text: title }
       },
       scales: {
         x: {
@@ -368,8 +370,8 @@ export function buildBarChartConfig(
         }
       },
       plugins: {
-        legend: { position: "top" },
-        title: { display: Boolean(title), text: title }
+        legend: { position: "bottom" },
+        title: { color: "black", display: Boolean(title), font: { size: 24, weight: "bold" }, text: title }
       },
       scales: {
         x: { beginAtZero: true, ticks: { precision: 0 } },
@@ -393,11 +395,19 @@ async function renderChart(
   width: number = DEFAULT_WIDTH,
   height: number = DEFAULT_HEIGHT
 ): Promise<Buffer> {
+  const RETINA_SCALE = 2;
+  const canvasWidth = width * RETINA_SCALE;
+  const canvasHeight = height * RETINA_SCALE;
+
+  // Ensure devicePixelRatio is set for correct font scaling
+  config.options ??= {};
+  config.options.devicePixelRatio = RETINA_SCALE;
+
   const chartJSNodeCanvas = new ChartJSNodeCanvas({
     backgroundColour: CHART_BG_COLOR,
     chartCallback,
-    height,
-    width
+    height: canvasHeight,
+    width: canvasWidth
   });
   const buffer = await chartJSNodeCanvas.renderToBuffer(config);
   return buffer;
@@ -441,6 +451,7 @@ export interface MixedChartDataset {
   label: string;
   data: (number | null)[];
   borderColor: string;
+  borderWidth?: number;
   backgroundColor?: string;
   type?: "line" | "bar";
   yAxisID?: string;
@@ -454,6 +465,7 @@ export interface MixedChartOptions {
   title?: string;
   yLabelLeft?: string;
   yLabelRight?: string;
+  legendSort?: (a: LegendItem, b: LegendItem, data: ChartData) => number;
 }
 
 export function buildMixedChartConfig(
@@ -461,13 +473,14 @@ export function buildMixedChartConfig(
   datasets: MixedChartDataset[],
   options: MixedChartOptions = {}
 ): ChartConfiguration {
-  const { title, yLabelLeft, yLabelRight } = options;
+  const { title, yLabelLeft, yLabelRight, legendSort } = options;
 
   return {
     data: {
       datasets: datasets.map((ds) => ({
         backgroundColor: ds.backgroundColor ?? ds.borderColor,
         borderColor: ds.borderColor,
+        borderWidth: ds.borderWidth,
         data: ds.data,
         fill: ds.fill ?? false,
         label: ds.label,
@@ -481,8 +494,11 @@ export function buildMixedChartConfig(
     },
     options: {
       plugins: {
-        legend: { position: "top" },
-        title: { display: Boolean(title), text: title }
+        legend: {
+          labels: legendSort ? { sort: legendSort } : {},
+          position: "bottom"
+        },
+        title: { color: "black", display: Boolean(title), font: { size: 24, weight: "bold" }, text: title }
       },
       scales: {
         y: {
