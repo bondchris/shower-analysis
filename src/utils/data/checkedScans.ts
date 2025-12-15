@@ -5,11 +5,11 @@ import { CheckedScanDatabase } from "../../models/checkedScanRecord";
 
 /**
  * Loads the database of "Checked Scans" (previously verified artifacts).
- * Backed by `config/checkedScans.json`.
+ * Backed by `config/checkedScans.json` by default.
  * Used to track review progress and filter already-reviewed items.
  */
-export function getCheckedScans(): CheckedScanDatabase {
-  const CHECKED_SCANS_FILE = path.join(process.cwd(), "config", "checkedScans.json");
+export function getCheckedScans(filePath?: string): CheckedScanDatabase {
+  const CHECKED_SCANS_FILE = filePath ?? path.join(process.cwd(), "config", "checkedScans.json");
   try {
     const content = fs.readFileSync(CHECKED_SCANS_FILE, "utf-8");
     const json: unknown = JSON.parse(content);
@@ -20,8 +20,8 @@ export function getCheckedScans(): CheckedScanDatabase {
   }
 }
 
-export function saveCheckedScans(database: CheckedScanDatabase) {
-  const CHECKED_SCANS_FILE = path.join(process.cwd(), "config", "checkedScans.json");
+export function saveCheckedScans(database: CheckedScanDatabase, filePath?: string) {
+  const CHECKED_SCANS_FILE = filePath ?? path.join(process.cwd(), "config", "checkedScans.json");
   const JSON_INDENT = 2;
   // Use a sorted version of keys for deterministic output if possible, but JSON.stringify doesn't guarantee order.
   // For better diffs, we could sort keys.

@@ -5,10 +5,10 @@ import { BadScanDatabase } from "../../models/badScanRecord";
 
 /**
  * Loads the database of "Bad Scans" (previously flagged artifacts to exclude).
- * Backed by `config/badScans.json`.
+ * Backed by `config/badScans.json` by default.
  */
-export function getBadScans(): BadScanDatabase {
-  const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
+export function getBadScans(filePath?: string): BadScanDatabase {
+  const BAD_SCANS_FILE = filePath ?? path.join(process.cwd(), "config", "badScans.json");
   try {
     const content = fs.readFileSync(BAD_SCANS_FILE, "utf-8");
     const json: unknown = JSON.parse(content);
@@ -18,8 +18,8 @@ export function getBadScans(): BadScanDatabase {
   }
 }
 
-export function saveBadScans(database: BadScanDatabase) {
-  const BAD_SCANS_FILE = path.join(process.cwd(), "config", "badScans.json");
+export function saveBadScans(database: BadScanDatabase, filePath?: string) {
+  const BAD_SCANS_FILE = filePath ?? path.join(process.cwd(), "config", "badScans.json");
   const JSON_INDENT = 2;
 
   // deterministic sort
