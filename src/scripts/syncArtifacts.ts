@@ -1,13 +1,12 @@
-import axios, { HttpStatusCode } from "axios";
 import * as fs from "fs";
 import * as path from "path";
 import PDFDocument from "pdfkit";
-import * as stream from "stream";
-import { promisify } from "util";
 
 import { ENVIRONMENTS } from "../../config/config";
+import { BadScanDatabase } from "../models/badScanRecord";
 import { Artifact, SpatialService } from "../services/spatialService";
 import { getBadScans } from "../utils/data/badScans";
+import { downloadFile, downloadJsonFile } from "../utils/sync/downloadHelpers";
 
 /**
  * Script to sync artifacts from the Spatial API.
@@ -17,16 +16,69 @@ import { getBadScans } from "../utils/data/badScans";
  * - Generates a sync report PDF.
  */
 
-const finished = promisify(stream.finished);
+// --- Concurrency Helper ---
+
+const INITIAL_ACTIVE = 0;
+
+function pLimit(concurrency: number) {
+  const queue: (() => void)[] = [];
+  let active = INITIAL_ACTIVE;
+
+  const next = () => {
+    active--;
+    if (queue.length > INITIAL_ACTIVE) {
+      const job = queue.shift();
+      if (job) {
+        job();
+      }
+    }
+  };
+
+  const run = async <T>(fn: () => Promise<T>): Promise<T> => {
+    const res = await new Promise<T>((resolve, reject) => {
+      const runTask = async () => {
+        active++;
+        try {
+          const result = await fn();
+          resolve(result);
+        } catch (e) {
+          reject(e instanceof Error ? e : new Error(String(e)));
+        } finally {
+          next();
+        }
+      };
+
+      if (active < concurrency) {
+        runTask().catch((err: unknown) => {
+          console.error("pLimit task failed (unexpected):", err);
+        });
+      } else {
+        // Wrap async task in void function to satisfy generic queue type and no-misused-promises
+        queue.push(() => {
+          runTask().catch((err: unknown) => {
+            console.error("pLimit task failed (queue):", err);
+          });
+        });
+      }
+    });
+    return res;
+  };
+
+  return run;
+}
 
 // Constants
+
+const ZERO = 0;
+const START_PAGE = 1;
+const JSON_INDENT = 2;
 
 interface SyncError {
   id: string;
   reason: string;
 }
 
-interface SyncStats {
+export interface SyncStats {
   env: string;
   found: number;
   new: number;
@@ -35,34 +87,98 @@ interface SyncStats {
   errors: SyncError[];
 }
 
-async function downloadFile(url: string, outputPath: string): Promise<boolean> {
-  const TIMEOUT_MS = 30000;
-  if (fs.existsSync(outputPath)) {
-    return true; // Skip if exists
-  }
-  const writer = fs.createWriteStream(outputPath);
-  try {
-    const response = await axios.get<stream.Readable>(url, {
-      responseType: "stream",
-      timeout: TIMEOUT_MS
-    });
-    response.data.pipe(writer);
-    await finished(writer);
-    return true;
-  } catch (error: unknown) {
-    writer.close();
-    if (fs.existsSync(outputPath)) {
-      fs.unlinkSync(outputPath); // Delete partial file
-    }
-    // Enhance error message for context
-    if (axios.isAxiosError(error) && error.response?.status === HttpStatusCode.Forbidden) {
-      return false;
-    }
-    return false;
-  }
+interface ArtifactResult {
+  new: number;
+  skipped: number;
+  failed: number;
+  errors: SyncError[];
 }
 
-async function syncEnvironment(env: { domain: string; name: string }): Promise<SyncStats> {
+// Extracted Artifact Processor
+async function processArtifact(
+  artifact: Artifact,
+  dataDir: string,
+  badScans: BadScanDatabase
+): Promise<ArtifactResult> {
+  const result: ArtifactResult = {
+    errors: [],
+    failed: 0,
+    new: 0,
+    skipped: 0
+  };
+
+  // Hardened check for badScans
+  if (Object.prototype.hasOwnProperty.call(badScans, artifact.id)) {
+    result.skipped = 1;
+    return result;
+  }
+
+  const { video, rawScan, arData } = artifact;
+
+  const hasAllFiles =
+    typeof video === "string" &&
+    video.length > ZERO &&
+    typeof rawScan === "string" &&
+    rawScan.length > ZERO &&
+    typeof arData === "string" &&
+    arData.length > ZERO;
+
+  if (hasAllFiles) {
+    // Sanitize ID for path safety
+    const safeId = artifact.id.replace(/[^a-z0-9_-]/gi, "_");
+    const artifactDir = path.join(dataDir, safeId);
+    const exists = fs.existsSync(artifactDir);
+
+    if (!exists) {
+      fs.mkdirSync(artifactDir, { recursive: true });
+    }
+
+    // Save meta.json
+    fs.writeFileSync(path.join(artifactDir, "meta.json"), JSON.stringify(artifact, null, JSON_INDENT));
+
+    // Download files
+    const downloadResults = await Promise.all([
+      downloadFile(video, path.join(artifactDir, "video.mp4"), "Video").then((err) => {
+        if (err !== null) {
+          result.errors.push({ id: artifact.id, reason: err });
+        }
+        return err === null;
+      }),
+      downloadJsonFile(rawScan, path.join(artifactDir, "rawScan.json"), "rawScan").then((err) => {
+        if (err !== null) {
+          result.errors.push({ id: artifact.id, reason: err });
+        }
+        return err === null;
+      }),
+      downloadJsonFile(arData, path.join(artifactDir, "arData.json"), "arData").then((err) => {
+        if (err !== null) {
+          result.errors.push({ id: artifact.id, reason: err });
+        }
+        return err === null;
+      })
+    ]);
+
+    const artifactFailed = downloadResults.some((r) => !r);
+
+    if (artifactFailed) {
+      result.failed = 1;
+      try {
+        fs.rmSync(artifactDir, { force: true, recursive: true });
+      } catch (e) {
+        console.error(`Failed to delete incomplete artifact ${artifact.id}:`, e);
+      }
+    } else {
+      if (!exists) {
+        result.new = 1;
+      }
+      process.stdout.write(".");
+    }
+  }
+
+  return result;
+}
+
+export async function syncEnvironment(env: { domain: string; name: string }): Promise<SyncStats> {
   console.log(`\nStarting sync for: ${env.name}`);
   const dataDir = path.join(process.cwd(), "data", "artifacts", env.name.replace(/[^a-z0-9]/gi, "_").toLowerCase());
 
@@ -75,13 +191,12 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
     skipped: 0
   };
 
-  const NOT_FOUND = -1;
-  const PROMISE_REMOVE_COUNT = 1;
-  const CONCURRENCY_LIMIT = 5;
-  const TIMEOUT_MS = 30000;
-  const JSON_INDENT = 2;
+  // Limits
+  const PAGE_CONCURRENCY = 5;
+  const ARTIFACT_CONCURRENCY = 20;
 
-  /* eslint-enable no-magic-numbers */
+  const limitPage = pLimit(PAGE_CONCURRENCY);
+  const limitArtifact = pLimit(ARTIFACT_CONCURRENCY);
 
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
@@ -93,9 +208,9 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
   const service = new SpatialService(env.domain, env.name);
 
   // Get initial page to determine total pages
-  const page = 1;
+  const initialPage = START_PAGE;
   try {
-    const initialRes = await service.fetchScanArtifacts(page);
+    const initialRes = await service.fetchScanArtifacts(initialPage);
     const totalArtifacts = initialRes.pagination.total;
     const lastPage = initialRes.pagination.lastPage;
 
@@ -103,94 +218,42 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
 
     console.log(`Found ${totalArtifacts.toString()} total artifacts. (Pages: ${lastPage.toString()})`);
 
-    const pages = Array.from({ length: lastPage }, (_, i) => i + page);
-
-    const activePromises: Promise<void>[] = [];
-    let completed = 0;
+    const pages = Array.from({ length: lastPage }, (_, i) => i + initialPage);
+    let completed = ZERO;
     const totalPages = pages.length;
 
-    const processPage = async (pageNum: number) => {
+    const processPageTask = async (pageNum: number) => {
       try {
         const res = await service.fetchScanArtifacts(pageNum);
-
         const artifacts: Artifact[] = res.data;
 
-        for (const artifact of artifacts) {
-          if (artifact.id in badScans) {
-            stats.skipped++;
-            continue;
-          }
+        // Queue all artifacts for processing and wait for results
+        const pageResults = await Promise.all(
+          artifacts.map(async (a) => {
+            const r = await limitArtifact(async () => {
+              const pa = await processArtifact(a, dataDir, badScans);
+              return pa;
+            });
+            return r;
+          })
+        );
 
-          // Filter: must have all 3 files
-          if (
-            typeof artifact.video === "string" &&
-            typeof artifact.rawScan === "string" &&
-            typeof artifact.arData === "string"
-          ) {
-            const artifactDir = path.join(dataDir, artifact.id);
-            const exists = fs.existsSync(artifactDir);
+        // Aggregate results safely (page level aggregation is single threaded in `processPageTask` scope)
+        // Note: processPageTask itself is concurrent with other pages, so we shouldn't mutate `stats` directly?
+        // Wait, multiple `processPageTask` run concurrently. `stats` IS shared.
+        // But `stats.errors.push` is array push (safe in JS).
+        // `stats.failed +=` is safe (no preemption).
+        // The issue is ordering.
+        // To be safer, we can return `pageResults` from `processPageTask` and aggregate at top level?
+        // But `processPageTask` is void return in current design.
+        // I will aggregate here for now (user: "safe in Node... non-deterministic").
+        // Given I deduplicate errors later, it is mostly fine.
 
-            if (!exists) {
-              fs.mkdirSync(artifactDir, { recursive: true });
-            }
-
-            // Save meta.json
-            fs.writeFileSync(path.join(artifactDir, "meta.json"), JSON.stringify(artifact, null, JSON_INDENT));
-
-            // Download files
-            const downloadJsonFile = async (url: string, outputPath: string): Promise<boolean> => {
-              if (fs.existsSync(outputPath)) {
-                return true;
-              }
-              try {
-                const response = await axios.get(url, { responseType: "json", timeout: TIMEOUT_MS });
-                fs.writeFileSync(outputPath, JSON.stringify(response.data, null, JSON_INDENT));
-                return true;
-              } catch {
-                if (fs.existsSync(outputPath)) {
-                  fs.unlinkSync(outputPath);
-                }
-                return false;
-              }
-            };
-
-            const results = await Promise.all([
-              downloadFile(artifact.video, path.join(artifactDir, "video.mp4")).then((success) => {
-                if (!success) {
-                  stats.errors.push({ id: artifact.id, reason: "Video download failed" });
-                }
-                return success;
-              }),
-              downloadJsonFile(artifact.rawScan, path.join(artifactDir, "rawScan.json")).then((success) => {
-                if (!success) {
-                  stats.errors.push({ id: artifact.id, reason: "rawScan download failed" });
-                }
-                return success;
-              }),
-              downloadJsonFile(artifact.arData, path.join(artifactDir, "arData.json")).then((success) => {
-                if (!success) {
-                  stats.errors.push({ id: artifact.id, reason: "arData download failed" });
-                }
-                return success;
-              })
-            ]);
-
-            const artifactFailed = results.some((r) => !r);
-
-            if (artifactFailed) {
-              stats.failed++;
-              try {
-                fs.rmSync(artifactDir, { force: true, recursive: true });
-              } catch (e) {
-                console.error(`Failed to delete incomplete artifact ${artifact.id}:`, e);
-              }
-            } else {
-              if (!exists) {
-                stats.new++;
-              }
-              process.stdout.write(".");
-            }
-          }
+        for (const r of pageResults) {
+          stats.new += r.new;
+          stats.skipped += r.skipped;
+          stats.failed += r.failed;
+          stats.errors.push(...r.errors);
         }
       } catch (e) {
         console.error(`Error fetching page ${pageNum.toString()}:`, e);
@@ -200,28 +263,15 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
       }
     };
 
-    const NO_PAGES_LEFT = 0;
+    // Run all pages with concurrency limit
+    await Promise.all(
+      pages.map(async (pageNum) => {
+        await limitPage(async () => {
+          await processPageTask(pageNum);
+        });
+      })
+    );
 
-    while (pages.length > NO_PAGES_LEFT) {
-      if (activePromises.length < CONCURRENCY_LIMIT) {
-        const pageNum = pages.shift();
-        if (pageNum !== undefined) {
-          const p = processPage(pageNum).then(() => {
-            const idx = activePromises.indexOf(p);
-            if (idx !== NOT_FOUND) {
-              activePromises.splice(idx, PROMISE_REMOVE_COUNT).forEach(() => {
-                /** no-op */
-              });
-            }
-          });
-          activePromises.push(p);
-        }
-      } else {
-        await Promise.race(activePromises);
-      }
-    }
-
-    await Promise.all(activePromises);
     console.log(`\n${env.name} complete.`);
   } catch (e) {
     console.error(`Failed to sync ${env.name}:`, e);
@@ -230,7 +280,7 @@ async function syncEnvironment(env: { domain: string; name: string }): Promise<S
   return stats;
 }
 
-async function generateSyncReport(allStats: SyncStats[]) {
+export async function generateSyncReport(allStats: SyncStats[]) {
   const doc = new PDFDocument();
   const reportsDir = path.join(process.cwd(), "reports");
   if (!fs.existsSync(reportsDir)) {
@@ -249,8 +299,8 @@ async function generateSyncReport(allStats: SyncStats[]) {
   const PDF_BODY_SIZE = 12;
   const COL_WIDTH_LG = 150;
   const COL_WIDTH_SM = 80;
-  const DEFAULT_WIDTH = 0;
-  const ZERO_FAILURES = 0;
+  const DEFAULT_WIDTH = ZERO;
+  const ZERO_FAILURES = ZERO;
 
   // Title
   doc.fontSize(PDF_HEADER_SIZE).text("Sync Report", { align: "center" });
@@ -293,7 +343,8 @@ async function generateSyncReport(allStats: SyncStats[]) {
   doc.moveDown(PDF_SPACING);
 
   // Failures Section
-  const failedStats = allStats.filter((s) => s.failed > ZERO_FAILURES);
+  // Filter by errors length, not just failed count
+  const failedStats = allStats.filter((s) => s.errors.length > ZERO_FAILURES);
   if (failedStats.length > ZERO_FAILURES) {
     doc.x = PDF_MARGIN; // Reset X to margin
     doc.font("Helvetica-Bold").fontSize(PDF_SUBHEADER_SIZE).text("Sync Failures");
@@ -304,9 +355,22 @@ async function generateSyncReport(allStats: SyncStats[]) {
       if (stats.errors.length > ZERO_FAILURES) {
         doc.font("Helvetica-Bold").text(`Environment: ${stats.env}`);
         doc.font("Helvetica");
+
+        // Group errors by ID and deduplicate reasons
+        const errorsById = new Map<string, Set<string>>();
         stats.errors.forEach((err) => {
-          doc.text(`- ID: ${err.id}`);
-          doc.text(`  Reason: ${err.reason}`);
+          if (!errorsById.has(err.id)) {
+            errorsById.set(err.id, new Set());
+          }
+          errorsById.get(err.id)?.add(err.reason);
+        });
+
+        // Print grouped errors
+        errorsById.forEach((reasons, id) => {
+          doc.text(`- ID: ${id}`);
+          reasons.forEach((reason) => {
+            doc.text(`  ${reason}`);
+          });
           doc.moveDown(PDF_SPACING_SMALL);
         });
         doc.moveDown();
@@ -327,7 +391,7 @@ async function generateSyncReport(allStats: SyncStats[]) {
   console.log(`\nSync report generated at: ${reportPath}`);
 }
 
-async function main() {
+export async function main() {
   const allStats: SyncStats[] = [];
   for (const env of ENVIRONMENTS) {
     const stats = await syncEnvironment(env);
@@ -336,4 +400,6 @@ async function main() {
   await generateSyncReport(allStats);
 }
 
-main().catch(console.error);
+if (require.main === module) {
+  main().catch(console.error);
+}

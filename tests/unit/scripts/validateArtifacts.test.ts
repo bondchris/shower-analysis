@@ -1,9 +1,8 @@
-/* eslint-disable sort-imports */
+/* eslint-disable simple-import-sort/imports, sort-imports */
 import * as fs from "fs";
-
 import {
-  applyArtifactToStats,
   EnvStats,
+  applyArtifactToStats,
   generateReport,
   validateEnvironment
 } from "../../../src/scripts/validateArtifacts";
@@ -72,20 +71,17 @@ jest.mock("../../../src/utils/chartUtils", () => ({
 }));
 
 // Stream Mock to handle 'finished'
-jest.mock("stream", () => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const actual = jest.requireActual("stream");
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  return {
-    ...actual,
-    finished: (_s: unknown, cb: () => void) => {
+jest.mock("stream", (): typeof import("stream") => {
+  const actual = jest.requireActual<typeof import("stream")>("stream");
+  return Object.assign({}, actual, {
+    finished: ((_s: unknown, cb: () => void) => {
       // invokes callback immediately to simulate stream finish
       cb();
       return () => {
         // no-op cleanup
       };
-    }
-  };
+    }) as unknown as typeof import("stream").finished
+  }) as unknown as typeof import("stream");
 });
 
 describe("validateArtifacts script", () => {
@@ -114,15 +110,16 @@ describe("validateArtifacts script", () => {
       };
     });
 
-    const createArtifact = (overrides: Partial<Artifact> = {}): Artifact => ({
-      arData: "s3://ar",
-      id: "test-id",
-      projectId: "test-project",
-      rawScan: "s3://raw",
-      scanDate: "2025-12-14T10:00:00Z",
-      video: "s3://video",
-      ...overrides
-    });
+    const createArtifact = (overrides: Partial<Artifact> = {}): Artifact =>
+      ({
+        arData: "s3://ar",
+        id: "test-id",
+        projectId: "test-project",
+        rawScan: "s3://raw",
+        scanDate: "2025-12-14T10:00:00Z",
+        video: "s3://video",
+        ...overrides
+      }) as unknown as Artifact;
 
     it("should count a valid artifact as processed and successful", () => {
       const artifact = createArtifact();
@@ -135,8 +132,7 @@ describe("validateArtifacts script", () => {
     });
 
     it("should detect missing required fields", () => {
-      // @ts-ignore
-      const artifact = createArtifact({ id: undefined });
+      const artifact = createArtifact({ id: undefined } as unknown as Partial<Artifact>);
       applyArtifactToStats(stats, artifact);
 
       expect(stats.artifactsWithIssues).toBe(1);
@@ -155,8 +151,7 @@ describe("validateArtifacts script", () => {
     });
 
     it("should detect missing warnings (projectId)", () => {
-      // @ts-ignore
-      const artifact = createArtifact({ projectId: undefined });
+      const artifact = createArtifact({ projectId: undefined } as unknown as Partial<Artifact>);
       applyArtifactToStats(stats, artifact);
 
       expect(stats.artifactsWithWarnings).toBe(1);
@@ -165,10 +160,9 @@ describe("validateArtifacts script", () => {
 
     it("should track dynamic properties", () => {
       const artifact = createArtifact({
-        // @ts-ignore
         extraField: "some value",
         pointCloud: "s3://pc"
-      });
+      } as unknown as Partial<Artifact>);
       applyArtifactToStats(stats, artifact);
 
       expect(stats.propertyCounts["id"]).toBe(1);
