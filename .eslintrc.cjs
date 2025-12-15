@@ -62,6 +62,7 @@ module.exports = {
     "no-alert": "error",
     "no-bitwise": "error",
     "no-confusing-arrow": "error",
+    "no-console": "error",
     "no-div-regex": "error",
     "no-duplicate-imports": "error",
     "no-eval": "error",

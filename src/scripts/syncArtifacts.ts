@@ -6,6 +6,8 @@ import { ENVIRONMENTS } from "../../config/config";
 import { BadScanDatabase } from "../models/badScanRecord";
 import { Artifact, SpatialService } from "../services/spatialService";
 import { getBadScans } from "../utils/data/badScans";
+import { logger } from "../utils/logger";
+import { createProgressBar } from "../utils/progress";
 import { downloadFile, downloadJsonFile } from "../utils/sync/downloadHelpers";
 
 /**
@@ -50,13 +52,13 @@ function pLimit(concurrency: number) {
 
       if (active < concurrency) {
         runTask().catch((err: unknown) => {
-          console.error("pLimit task failed (unexpected):", err);
+          logger.error(`pLimit task failed (unexpected): ${String(err)}`);
         });
       } else {
         // Wrap async task in void function to satisfy generic queue type and no-misused-promises
         queue.push(() => {
           runTask().catch((err: unknown) => {
-            console.error("pLimit task failed (queue):", err);
+            logger.error(`pLimit task failed (queue): ${String(err)}`);
           });
         });
       }
@@ -72,6 +74,8 @@ function pLimit(concurrency: number) {
 const ZERO = 0;
 const START_PAGE = 1;
 const JSON_INDENT = 2;
+const EXIT_SUCCESS = 0;
+const EXIT_FAILURE = 1;
 
 interface SyncError {
   id: string;
@@ -165,13 +169,10 @@ async function processArtifact(
       try {
         fs.rmSync(artifactDir, { force: true, recursive: true });
       } catch (e) {
-        console.error(`Failed to delete incomplete artifact ${artifact.id}:`, e);
+        logger.error(`Failed to delete incomplete artifact ${artifact.id}: ${String(e)}`);
       }
-    } else {
-      if (!exists) {
-        result.new = 1;
-      }
-      process.stdout.write(".");
+    } else if (!exists) {
+      result.new = 1;
     }
   }
 
@@ -179,7 +180,7 @@ async function processArtifact(
 }
 
 export async function syncEnvironment(env: { domain: string; name: string }): Promise<SyncStats> {
-  console.log(`\nStarting sync for: ${env.name}`);
+  logger.info(`Starting sync for: ${env.name}`);
   const dataDir = path.join(process.cwd(), "data", "artifacts", env.name.replace(/[^a-z0-9]/gi, "_").toLowerCase());
 
   const stats: SyncStats = {
@@ -203,7 +204,7 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
   }
 
   const badScans = getBadScans();
-  console.log(`Loaded ${Object.keys(badScans).length.toString()} known bad scans to skip.`);
+  logger.info(`Loaded ${Object.keys(badScans).length.toString()} known bad scans to skip.`);
 
   const service = new SpatialService(env.domain, env.name);
 
@@ -216,11 +217,14 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
 
     stats.found = totalArtifacts;
 
-    console.log(`Found ${totalArtifacts.toString()} total artifacts. (Pages: ${lastPage.toString()})`);
+    logger.info(`Found ${totalArtifacts.toString()} total artifacts. (Pages: ${lastPage.toString()})`);
 
     const pages = Array.from({ length: lastPage }, (_, i) => i + initialPage);
-    let completed = ZERO;
     const totalPages = pages.length;
+
+    const bar = createProgressBar("Syncing |{bar}| {percentage}% | {value}/{total} Pages | ETA: {eta}s");
+    const INITIAL_PROGRESS = 0;
+    bar.start(totalPages, INITIAL_PROGRESS);
 
     const processPageTask = async (pageNum: number) => {
       try {
@@ -256,10 +260,9 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
           stats.errors.push(...r.errors);
         }
       } catch (e) {
-        console.error(`Error fetching page ${pageNum.toString()}:`, e);
+        logger.error(`Error fetching page ${pageNum.toString()}: ${String(e)}`);
       } finally {
-        completed++;
-        process.stdout.write(`\rProcessed pages ${completed.toString()}/${totalPages.toString()}...`);
+        bar.increment();
       }
     };
 
@@ -271,10 +274,11 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
         });
       })
     );
+    bar.stop();
 
-    console.log(`\n${env.name} complete.`);
+    logger.info(`${env.name} complete.`);
   } catch (e) {
-    console.error(`Failed to sync ${env.name}:`, e);
+    logger.error(`Failed to sync ${env.name}: ${String(e)}`);
   }
 
   return stats;
@@ -388,7 +392,7 @@ export async function generateSyncReport(allStats: SyncStats[]) {
     writeStream.on("error", reject);
   });
 
-  console.log(`\nSync report generated at: ${reportPath}`);
+  logger.info(`Sync report generated at: ${reportPath}`);
 }
 
 export async function main() {
@@ -401,5 +405,10 @@ export async function main() {
 }
 
 if (require.main === module) {
-  main().catch(console.error);
+  main()
+    .then(() => process.exit(EXIT_SUCCESS))
+    .catch((err: unknown) => {
+      logger.error(err);
+      process.exit(EXIT_FAILURE);
+    });
 }

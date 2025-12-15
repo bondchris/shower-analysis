@@ -2,6 +2,8 @@ import axios from "axios";
 import * as fs from "fs";
 import * as path from "path";
 
+import { logger } from "../utils/logger";
+
 export interface Artifact {
   id: string;
   projectId?: string | null;
@@ -86,9 +88,9 @@ export class SpatialService {
     this.hasValidatedCache = true;
 
     if (this.cacheValid) {
-      console.log("Cache is valid. Using cached pages.");
+      logger.info("Cache is valid. Using cached pages.");
     } else {
-      console.log("Cache is invalid or missing. Fetching fresh data.");
+      logger.info("Cache is invalid or missing. Fetching fresh data.");
       this.saveCacheMeta(serverTotal);
     }
 

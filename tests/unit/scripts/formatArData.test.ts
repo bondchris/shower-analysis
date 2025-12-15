@@ -4,6 +4,27 @@ import * as path from "path";
 
 import { ArData, findArDataFiles, run, sortArData } from "../../../src/scripts/formatArData";
 
+// Logger Mock
+jest.mock("../../../src/utils/logger", () => ({
+  logger: {
+    debug: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn()
+  }
+}));
+import { logger } from "../../../src/utils/logger";
+
+// Progress Mock
+jest.mock("../../../src/utils/progress", () => ({
+  createProgressBar: jest.fn().mockReturnValue({
+    increment: jest.fn(),
+    start: jest.fn(),
+    stop: jest.fn(),
+    update: jest.fn()
+  })
+}));
+
 describe("formatArData", () => {
   // --- Unit Tests: findArDataFiles ---
   describe("findArDataFiles", () => {
@@ -116,10 +137,13 @@ describe("formatArData", () => {
 
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "run-test-"));
+      jest.clearAllMocks();
+      /*
       // Mock stdout to prevent clutter
       jest.spyOn(process.stdout, "write").mockImplementation(() => true);
       jest.spyOn(console, "log").mockImplementation(() => undefined);
       jest.spyOn(console, "error").mockImplementation(() => undefined);
+      */
     });
 
     afterEach(() => {
@@ -187,7 +211,7 @@ describe("formatArData", () => {
 
       expect(stats.processed).toBe(0);
       expect(stats.found).toBe(1);
-      expect(console.error).toHaveBeenCalledWith(expect.stringContaining("Failed to parse JSON"));
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Failed to parse JSON"));
     });
   });
 });

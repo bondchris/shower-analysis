@@ -4,6 +4,7 @@ import * as path from "path";
 
 import { getBadScans, saveBadScans } from "../utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../utils/data/checkedScans";
+import { logger } from "../utils/logger";
 
 /**
  * Script to clean up the data directory.
@@ -108,7 +109,7 @@ export function findArtifactDirectories(
 export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
   const fsImpl = opts?.fs ?? fs;
   const ffprobeImpl = opts?.ffprobe ?? ffmpeg.ffprobe;
-  const logger = opts?.logger ?? console.log;
+  const log = opts?.logger ?? ((msg: string) => logger.info(msg));
   const now = opts?.now ?? (() => new Date());
 
   const DATA_DIR = opts?.dataDir ?? path.join(process.cwd(), "data", "artifacts");
@@ -124,16 +125,16 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
   const DRY_RUN = opts?.dryRun ?? false;
   const QUARANTINE_DIR = opts?.quarantineDir;
 
-  logger("Starting data cleaning...");
+  log("Starting data cleaning...");
   if (DRY_RUN) {
-    logger("  [DRY RUN] No changes will be made.");
+    log("  [DRY RUN] No changes will be made.");
   }
   if (QUARANTINE_DIR !== undefined && QUARANTINE_DIR !== "") {
-    logger(`  [QUARANTINE] Moving bad artifacts to: ${QUARANTINE_DIR}`);
+    log(`  [QUARANTINE] Moving bad artifacts to: ${QUARANTINE_DIR}`);
   }
 
   const artifactDirs = findArtifactDirectories(DATA_DIR, fsImpl);
-  logger(`Found ${artifactDirs.length.toString()} directories to check.`);
+  log(`Found ${artifactDirs.length.toString()} directories to check.`);
 
   // Load dbs
   const badScans = getBadScans(BAD_SCANS_FILE);
@@ -185,7 +186,7 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
     const reason = await (async (): Promise<string | null> => {
       // 1. Missing Video
       if (!fsImpl.existsSync(videoPath)) {
-        logger(`[${artifactId}] Missing video.mp4`);
+        log(`[${artifactId}] Missing video.mp4`);
         return "Missing video.mp4";
       }
 
@@ -193,12 +194,12 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
       const { ok, duration } = await probeVideo(videoPath, ffprobeImpl);
 
       if (!ok) {
-        logger(`[${artifactId}] Invalid video (ffmpeg probe failed).`);
+        log(`[${artifactId}] Invalid video (ffmpeg probe failed).`);
         return "Invalid video (ffmpeg probe failed)";
       }
 
       if (duration < MIN_DURATION) {
-        logger(`[${artifactId}] Video too short (${duration.toFixed(DECIMAL_PLACES)}s).`);
+        log(`[${artifactId}] Video too short (${duration.toFixed(DECIMAL_PLACES)}s).`);
         return `Video too short (${duration.toFixed(DECIMAL_PLACES)}s)`;
       }
 
@@ -220,11 +221,11 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
             const destPath = path.join(QUARANTINE_DIR, destName);
             fsImpl.renameSync(artifactDir, destPath);
             stats.quarantinedCount++;
-            logger("  -> Quarantined folder.");
+            log("  -> Quarantined folder.");
           } else {
             fsImpl.rmSync(artifactDir, { force: true, recursive: true });
             stats.removedCount++;
-            logger("  -> Deleted folder.");
+            log("  -> Deleted folder.");
           }
 
           // If it was in checked scans, remove it?
@@ -233,7 +234,7 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
           }
         } catch (e) {
           const msg = String(e);
-          logger(`  -> Failed to remove/move folder: ${msg}`);
+          log(`  -> Failed to remove/move folder: ${msg}`);
           stats.failedDeletes.push(artifactId);
         }
       }
@@ -253,13 +254,13 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
     saveCheckedScans(checkedScans, CHECKED_SCANS_FILE);
   }
 
-  logger(
-    `\nClean complete. Removed: ${stats.removedCount.toString()}. Quarantined: ${stats.quarantinedCount.toString()}. Skipped (Cached): ${stats.skippedCleanCount.toString()}. Failed Deletes: ${stats.failedDeletes.length.toString()}.`
+  log(
+    `Clean complete. Removed: ${stats.removedCount.toString()}. Quarantined: ${stats.quarantinedCount.toString()}. Skipped (Cached): ${stats.skippedCleanCount.toString()}. Failed Deletes: ${stats.failedDeletes.length.toString()}.`
   );
 
   return stats;
 }
 
 if (require.main === module) {
-  main().catch(console.error);
+  main().catch((err: unknown) => logger.error(err));
 }

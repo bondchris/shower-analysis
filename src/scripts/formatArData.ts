@@ -1,6 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
 
+import { logger } from "../utils/logger";
+import { createProgressBar } from "../utils/progress";
+
 /**
  * Script to format and sort `arData.json` files.
  * - Ensures AR frame data is sorted chronologically by timestamp keys.
@@ -24,7 +27,7 @@ export function findArDataFiles(dir: string): string[] {
       }
     } catch {
       // Ignore files we can't read
-      console.warn(`Skipping unreadable path: ${fullPath}`);
+      logger.warn(`Skipping unreadable path: ${fullPath}`);
     }
   }
   return results;
@@ -63,18 +66,21 @@ export async function run(dataDir?: string): Promise<RunStats> {
   await Promise.resolve(); // Ensure async behavior
   const DATA_DIR = dataDir ?? path.join(process.cwd(), "data", "artifacts");
   const JSON_INDENT = 2;
-  const UPDATE_INTERVAL = 10;
-  const INITIAL_COUNT = 0;
 
-  console.log(`Finding arData.json files in ${DATA_DIR}...`);
+  logger.info(`Finding arData.json files in ${DATA_DIR}...`);
   const files = findArDataFiles(DATA_DIR);
-  console.log(`Found ${files.length.toString()} files.`);
+  logger.info(`Found ${files.length.toString()} arData.json files.`);
 
-  let processed = INITIAL_COUNT;
+  const bar = createProgressBar("Formatting |{bar}| {percentage}% | {value}/{total} Files");
+  const INITIAL_PROGRESS = 0;
+  bar.start(files.length, INITIAL_PROGRESS);
+
+  let processed = 0;
   for (const file of files) {
     try {
       const newPath = path.join(path.dirname(file), "arDataFormatted.json");
       if (fs.existsSync(newPath)) {
+        bar.increment();
         continue;
       }
 
@@ -83,7 +89,7 @@ export async function run(dataDir?: string): Promise<RunStats> {
       try {
         json = JSON.parse(content) as ArData;
       } catch {
-        console.error(`Failed to parse JSON in ${file}`);
+        logger.error(`Failed to parse JSON in ${file}`);
         continue;
       }
 
@@ -99,19 +105,19 @@ export async function run(dataDir?: string): Promise<RunStats> {
 
       fs.writeFileSync(newPath, JSON.stringify(newJson, null, JSON_INDENT));
       processed++;
-
-      if (processed % UPDATE_INTERVAL === INITIAL_COUNT) {
-        process.stdout.write(".");
-      }
+      bar.increment();
     } catch (e) {
-      console.error(`\nFailed to process ${file}:`, e);
+      // bar.stop(); // Optional: stop on error or just log
+      logger.error(`Failed to process ${file}: ${String(e)}`);
     }
   }
 
-  console.log(`\nSorted ${processed.toString()} files. Skipped ${(files.length - processed).toString()} existing.`);
+  bar.stop();
+
+  logger.info(`Sorted ${processed.toString()} files. Skipped ${(files.length - processed).toString()} existing.`);
   return { found: files.length, processed, skipped: files.length - processed };
 }
 
 if (require.main === module) {
-  run().catch(console.error);
+  run().catch((err: unknown) => logger.error(err));
 }

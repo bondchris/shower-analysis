@@ -9,6 +9,8 @@ import { ArData } from "../models/arData/arData";
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
 import { RawScan } from "../models/rawScan/rawScan";
 import * as ChartUtils from "../utils/chartUtils";
+import { logger } from "../utils/logger";
+import { createProgressBar } from "../utils/progress";
 import { checkColinearWalls } from "../utils/room/checkColinearWalls";
 import { checkCrookedWalls } from "../utils/room/checkCrookedWalls";
 import { checkDoorBlocking } from "../utils/room/checkDoorBlocking";
@@ -476,7 +478,7 @@ function generatePdfReport(charts: CaptureCharts, avgDuration: number, videoCoun
   const PDF_SUBTITLE_SIZE = 18;
   const PDF_BODY_SIZE = 12;
 
-  console.log("Generating PDF...");
+  logger.info("Generating PDF...");
   const doc = new PDFDocument({ margin: MARGIN });
   doc.pipe(fs.createWriteStream(reportPath));
 
@@ -553,23 +555,24 @@ function generatePdfReport(charts: CaptureCharts, avgDuration: number, videoCoun
   doc.image(charts.features, LEFT_X, Y_START, { height: FEATURE_PDF_HEIGHT, width: FULL_W });
 
   doc.end();
-  console.log(`Report generated at: ${reportPath}`);
+  logger.info(`Report generated at: ${reportPath}`);
 }
 
 async function main(): Promise<void> {
   const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
   const REPORT_PATH = path.join(process.cwd(), "reports", "data-analysis.pdf");
   const INITIAL_COUNT = 0;
-  const PROGRESS_UPDATE_INTERVAL = 10;
 
-  console.log("Finding artifacts...");
+  logger.info("Finding artifacts...");
   const artifactDirs = findArtifactDirectories(DATA_DIR);
-  console.log(`Found ${artifactDirs.length.toString()} artifact directories.`);
+  logger.info(`Found ${artifactDirs.length.toString()} artifact directories.`);
 
-  console.log(" extracting metadata...");
+  logger.info(" extracting metadata...");
   const metadataList: ArtifactAnalysis[] = [];
 
-  let processed = INITIAL_COUNT;
+  const bar = createProgressBar("Extracting |{bar}| {percentage}% | {value}/{total} Artifacts | ETA: {eta}s");
+  const INITIAL_PROGRESS = 0;
+  bar.start(artifactDirs.length, INITIAL_PROGRESS);
 
   for (const dir of artifactDirs) {
     const metadata = new ArtifactAnalysis();
@@ -579,17 +582,21 @@ async function main(): Promise<void> {
       addArDataMetadata(dir, metadata);
 
       metadataList.push(metadata);
-      if (processed % PROGRESS_UPDATE_INTERVAL === INITIAL_COUNT) {
-        process.stdout.write(".");
-      }
-      processed++;
     }
-  }
+    if (success) {
+      addRawScanMetadata(dir, metadata);
+      addArDataMetadata(dir, metadata);
 
-  console.log("\nMetadata extraction complete.\n");
+      metadataList.push(metadata);
+    }
+    bar.increment();
+  }
+  bar.stop();
+
+  logger.info("Metadata extraction complete.");
 
   if (metadataList.length === INITIAL_COUNT) {
-    console.log("No metadata available to report.");
+    logger.info("No metadata available to report.");
     return;
   }
 
@@ -601,11 +608,11 @@ async function main(): Promise<void> {
       : INITIAL_COUNT;
 
   // Charts
-  console.log("Generating charts...");
+  logger.info("Generating charts...");
   const charts = await generateCharts(metadataList);
 
   // PDF Generation
   generatePdfReport(charts, avgDuration, metadataList.length, REPORT_PATH);
 }
 
-main().catch(console.error);
+main().catch((err: unknown) => logger.error(err));

@@ -13,6 +13,16 @@ jest.mock("../../../src/services/geminiService");
 jest.mock("../../../src/utils/data/badScans");
 jest.mock("../../../src/utils/data/checkedScans");
 
+// Progress Mock
+jest.mock("../../../src/utils/progress", () => ({
+  createProgressBar: jest.fn().mockReturnValue({
+    increment: jest.fn(),
+    start: jest.fn(),
+    stop: jest.fn(),
+    update: jest.fn()
+  })
+}));
+
 // Types for mocks
 type MockGeminiService = jest.Mocked<GeminiService>;
 type BadScansMap = BadScanDatabase;

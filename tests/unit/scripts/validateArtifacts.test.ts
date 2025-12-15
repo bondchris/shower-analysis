@@ -71,6 +71,27 @@ jest.mock("../../../src/utils/chartUtils", () => ({
   createMixedChart: jest.fn().mockResolvedValue(Buffer.from("chart"))
 }));
 
+// Logger Mock
+jest.mock("../../../src/utils/logger", () => ({
+  logger: {
+    debug: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn()
+  }
+}));
+import { logger } from "../../../src/utils/logger";
+
+// Progress Mock
+jest.mock("../../../src/utils/progress", () => ({
+  createProgressBar: jest.fn().mockReturnValue({
+    increment: jest.fn(),
+    start: jest.fn(),
+    stop: jest.fn(),
+    update: jest.fn()
+  })
+}));
+
 // Stream Mock to handle 'finished'
 jest.mock("stream", (): typeof import("stream") => {
   const actual = jest.requireActual<typeof import("stream")>("stream");
@@ -184,16 +205,21 @@ describe("validateArtifacts script", () => {
           pagination: { lastPage: 2, total: 2 }
         });
 
+      /*
       jest.spyOn(console, "log").mockImplementation(() => {
         // no-op
       });
+      */
 
       const stats = await validateEnvironment({ domain: "test.com", name: "Test Env" });
 
       expect(stats.name).toBe("Test Env");
       expect(stats.totalArtifacts).toBe(2);
       expect(stats.processed).toBe(2);
+      expect(stats.totalArtifacts).toBe(2);
+      expect(stats.processed).toBe(2);
       expect(mockFetchScanArtifacts).toHaveBeenCalledTimes(2);
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("Starting validation"));
     });
 
     it("should handle fetch errors gracefully", async () => {
@@ -204,17 +230,20 @@ describe("validateArtifacts script", () => {
         })
         .mockRejectedValueOnce(new Error("Network Error"));
 
+      /*
       jest.spyOn(console, "error").mockImplementation(() => {
         // no-op
       });
       jest.spyOn(console, "log").mockImplementation(() => {
         // no-op
       });
+      */
 
       const stats = await validateEnvironment({ domain: "test.com", name: "Test Env" });
 
       expect(stats.processed).toBe(1);
       expect(stats.totalArtifacts).toBe(2);
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Error fetching page"));
     });
   });
 
@@ -236,9 +265,11 @@ describe("validateArtifacts script", () => {
         warningsByDate: { "2025-01-01": 1 }
       };
 
+      /*
       jest.spyOn(console, "log").mockImplementation(() => {
         // no-op
       });
+      */
 
       await generateReport([stats]);
 

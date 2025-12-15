@@ -2,12 +2,12 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { BadScanDatabase } from "../../../src/models/badScanRecord";
-import { CheckedScanDatabase } from "../../../src/models/checkedScanRecord";
-import { findArtifactDirectories, processArtifact } from "../../../src/scripts/filterNonBathrooms";
-import { GeminiService } from "../../../src/services/geminiService";
-import { getBadScans } from "../../../src/utils/data/badScans";
-import { getCheckedScans } from "../../../src/utils/data/checkedScans";
+import { BadScanDatabase } from "../../src/models/badScanRecord";
+import { CheckedScanDatabase } from "../../src/models/checkedScanRecord";
+import { findArtifactDirectories, processArtifact } from "../../src/scripts/filterNonBathrooms";
+import { GeminiService } from "../../src/services/geminiService";
+import { getBadScans } from "../../src/utils/data/badScans";
+import { getCheckedScans } from "../../src/utils/data/checkedScans";
 
 // Mock dependencies (but NOT fs)
 jest.mock("../../../src/services/geminiService");

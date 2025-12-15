@@ -16,6 +16,16 @@ jest.mock("../../../config/config", () => ({
 }));
 jest.mock("../../../src/utils/sync/downloadHelpers");
 
+// Progress Mock
+jest.mock("../../../src/utils/progress", () => ({
+  createProgressBar: jest.fn().mockReturnValue({
+    increment: jest.fn(),
+    start: jest.fn(),
+    stop: jest.fn(),
+    update: jest.fn()
+  })
+}));
+
 // Types
 const mockFs = fs as unknown as jest.Mocked<typeof fs>;
 const MockSpatialService = SpatialService as unknown as jest.MockedClass<typeof SpatialService>;

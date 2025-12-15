@@ -8,6 +8,8 @@ import { promisify } from "util";
 import { ENVIRONMENTS } from "../../config/config";
 import { Artifact, SpatialService } from "../services/spatialService";
 import * as ChartUtils from "../utils/chartUtils";
+import { logger } from "../utils/logger";
+import { createProgressBar } from "../utils/progress";
 
 /**
  * Script to validate data integrity of artifacts on the server.
@@ -123,7 +125,7 @@ export async function validateEnvironment(env: { domain: string; name: string })
   const CONCURRENCY_LIMIT = 5;
   const NO_ITEMS = 0;
 
-  console.log(`\nStarting validation for: ${env.name} (${env.domain})`);
+  logger.info(`Starting validation for: ${env.name} (${env.domain})`);
   const stats: EnvStats = {
     artifactsWithIssues: 0,
     artifactsWithWarnings: 0,
@@ -148,7 +150,7 @@ export async function validateEnvironment(env: { domain: string; name: string })
     stats.totalArtifacts = pagination.total;
     const lastPage = pagination.lastPage;
 
-    console.log(`Total artifacts to process: ${stats.totalArtifacts.toString()} (Pages: ${lastPage.toString()})`);
+    logger.info(`Total artifacts to process: ${stats.totalArtifacts.toString()} (Pages: ${lastPage.toString()})`);
 
     // Process initial page artifacts immediately
     for (const item of initialRes.data) {
@@ -166,8 +168,11 @@ export async function validateEnvironment(env: { domain: string; name: string })
     );
 
     const activePromises = new Set<Promise<void>>();
-    let completed = 0;
     const totalToProcess = pages.length;
+
+    const bar = createProgressBar("Validation |{bar}| {percentage}% | {value}/{total} Pages | ETA: {eta}s");
+    const INITIAL_PROGRESS = 0;
+    bar.start(totalToProcess, INITIAL_PROGRESS);
 
     const processPage = async (pageNum: number) => {
       try {
@@ -177,13 +182,10 @@ export async function validateEnvironment(env: { domain: string; name: string })
           applyArtifactToStats(stats, item);
         }
       } catch (e) {
-        console.error(`\nError fetching page ${pageNum.toString()}:`, e instanceof Error ? e.message : e);
+        logger.error(`Error fetching page ${pageNum.toString()}: ${e instanceof Error ? e.message : String(e)}`);
         stats.pageErrors[pageNum] = e instanceof Error ? e.message : String(e);
       } finally {
-        completed++;
-        if (totalToProcess > NO_ITEMS) {
-          process.stdout.write(`\rProcessed pages ${completed.toString()}/${totalToProcess.toString()}...`);
-        }
+        bar.increment();
       }
     };
 
@@ -211,10 +213,11 @@ export async function validateEnvironment(env: { domain: string; name: string })
 
     // Wait for remaining
     await Promise.all(activePromises);
+    bar.stop();
 
-    console.log(`\n${env.name} complete.`);
+    logger.info(`${env.name} complete.`);
   } catch (error) {
-    console.error(`\nFailed to fetch from ${env.name}:`, error instanceof Error ? error.message : error);
+    logger.error(`Failed to fetch from ${env.name}: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   return stats;
@@ -489,7 +492,7 @@ export async function generateReport(allStats: EnvStats[]) {
       doc.image(propertyChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
       doc.y += dynamicHeight + CHART_PADDING;
     } catch (e) {
-      console.error("Failed to generate property chart:", e);
+      logger.error(`Failed to generate property chart: ${String(e)}`);
     }
   }
 
@@ -639,7 +642,7 @@ export async function generateReport(allStats: EnvStats[]) {
       doc.image(volumeChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
       doc.y += 320; // 300 height + 20 padding
     } catch (e) {
-      console.error("Failed to generate aggregated volume chart:", e);
+      logger.error(`Failed to generate aggregated volume chart: ${String(e)}`);
     }
 
     // --- 2. Scan Success Percentage Chart ---
@@ -673,7 +676,7 @@ export async function generateReport(allStats: EnvStats[]) {
       doc.image(successChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
       doc.y += MIN_CHART_HEIGHT + CHART_PADDING;
     } catch (e) {
-      console.error("Failed to generate success chart:", e);
+      logger.error(`Failed to generate success chart: ${String(e)}`);
     }
 
     // --- 3. Error Chart ---
@@ -701,7 +704,7 @@ export async function generateReport(allStats: EnvStats[]) {
       doc.image(errorChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
       doc.y += 320; // 300 height + 20 padding
     } catch (e) {
-      console.error("Failed to generate code error chart:", e);
+      logger.error(`Failed to generate code error chart: ${String(e)}`);
     }
 
     // --- 4. Warning Chart ---
@@ -732,13 +735,13 @@ export async function generateReport(allStats: EnvStats[]) {
       doc.image(warningChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
       doc.y += MIN_CHART_HEIGHT + CHART_PADDING;
     } catch (e) {
-      console.error("Failed to generate warning chart:", e);
+      logger.error(`Failed to generate warning chart: ${String(e)}`);
     }
   }
 
   doc.end();
   await finished(writeStream);
-  console.log(`\nReport generated at: ${reportPath}`);
+  logger.info(`\nReport generated at: ${reportPath}`);
 }
 
 async function main() {
@@ -751,5 +754,5 @@ async function main() {
 }
 
 if (require.main === module) {
-  main().catch(console.error);
+  main().catch((err: unknown) => logger.error(err));
 }

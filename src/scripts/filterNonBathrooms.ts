@@ -5,6 +5,8 @@ import * as path from "path";
 import { GeminiService } from "../services/geminiService";
 import { getBadScans, saveBadScans } from "../utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../utils/data/checkedScans";
+import { logger } from "../utils/logger";
+import { createProgressBar } from "../utils/progress";
 
 /**
  * Script to filter out non-bathroom scans using Gemini Vision.
@@ -52,7 +54,7 @@ export function findArtifactDirectories(dir: string): string[] {
       }
     }
   } catch (err) {
-    console.error(`Error scanning directory ${dir}: ${String(err)}`);
+    logger.error(`Error scanning directory ${dir}: ${String(err)}`);
   }
 
   return results;
@@ -97,12 +99,12 @@ export async function processArtifact(
   // 2. Safety Validation
   // Ensure we are inside data/artifacts (rudimentary check, can be improved)
   if (!dir.includes("data/artifacts") && !dryRun) {
-    console.error(`SAFETY: Skipping deletion of unsafe path: ${dir}`);
+    logger.error(`SAFETY: Skipping deletion of unsafe path: ${dir}`);
     stats.errors++;
     return stats;
   }
   if (!fs.existsSync(path.join(dir, "meta.json"))) {
-    console.error(`SAFETY: Skipping deletion of artifact without meta.json: ${dir}`);
+    logger.error(`SAFETY: Skipping deletion of artifact without meta.json: ${dir}`);
     stats.errors++;
     return stats;
   }
@@ -110,7 +112,7 @@ export async function processArtifact(
   const parentDir = path.dirname(dir);
   const environment = path.basename(parentDir);
 
-  console.log(`Checking ${artifactId} [${environment}]...`);
+  // logger.info(`Checking ${artifactId} [${environment}]...`);
 
   try {
     const videoBuffer = fs.readFileSync(videoPath);
@@ -130,7 +132,7 @@ export async function processArtifact(
       .trim()
       .toUpperCase();
 
-    console.log(`  -> ${artifactId}: Gemini says: ${text}`);
+    // logger.info(`  -> ${artifactId}: Gemini says: ${text}`);
 
     // Strict Parsing
     // Remove punctuation to handle "NO." or "YES!"
@@ -139,7 +141,7 @@ export async function processArtifact(
     const hasNo = /\bNO\b/.test(normalized);
 
     if (hasNo && !hasYes) {
-      console.log(`  -> ${artifactId}: NOT A BATHROOM. Removing...`);
+      logger.info(`  -> ${artifactId}: NOT A BATHROOM. Removing...`);
 
       if (!dryRun) {
         // Only mark BAD if we actually delete it successfully
@@ -154,15 +156,15 @@ export async function processArtifact(
           };
           stats.removed++;
         } catch (e) {
-          console.error(`  -> ${artifactId}: Failed to delete: ${String(e)}`);
+          logger.error(`  -> ${artifactId}: Failed to delete: ${String(e)}`);
           stats.errors++;
         }
       } else {
-        console.log(`  -> ${artifactId}: [DRY RUN] Would remove.`);
+        logger.info(`  -> ${artifactId}: [DRY RUN] Would remove.`);
         stats.removed++;
       }
     } else if (hasYes && !hasNo) {
-      console.log(`  -> ${artifactId}: Kept.`);
+      logger.info(`  -> ${artifactId}: Kept.`);
       if (!dryRun) {
         let entry = checkedScans[artifactId];
         if (entry === undefined) {
@@ -174,13 +176,13 @@ export async function processArtifact(
         checkedScanIds.add(artifactId);
       }
     } else {
-      console.log(`  -> ${artifactId}: AMBIGUOUS response ("${text}"). Skipping.`);
+      logger.info(`  -> ${artifactId}: AMBIGUOUS response ("${text}"). Skipping.`);
       stats.skippedAmbiguous++;
     }
 
     stats.processed++;
   } catch (err) {
-    console.error(`  -> ${artifactId}: Error processing video: ${String(err)}`);
+    logger.error(`  -> ${artifactId}: Error processing video: ${String(err)}`);
     stats.errors++;
   }
 
@@ -196,10 +198,10 @@ export async function main() {
 
   const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
 
-  console.log(`Starting Filter. Concurrency: ${CONCURRENCY.toString()}, Dry Run: ${String(DRY_RUN)}`);
+  logger.info(`Starting Filter. Concurrency: ${CONCURRENCY.toString()}, Dry Run: ${String(DRY_RUN)}`);
 
   const artifactDirs = findArtifactDirectories(DATA_DIR);
-  console.log(`Found ${artifactDirs.length.toString()} artifacts.`);
+  logger.info(`Found ${artifactDirs.length.toString()} artifacts.`);
 
   const badScans = getBadScans();
   const checkedScans = getCheckedScans();
@@ -211,7 +213,7 @@ export async function main() {
     }
   }
 
-  console.log(`Loaded ${Object.keys(checkedScans).length.toString()} checked scans.`);
+  logger.info(`Loaded ${Object.keys(checkedScans).length.toString()} checked scans.`);
 
   const globalStats: FilterStats = {
     errors: 0,
@@ -236,9 +238,13 @@ export async function main() {
     if (!DRY_RUN) {
       saveBadScans(badScans);
       saveCheckedScans(checkedScans);
-      console.log("  [Checkpoint] DB Saved.");
+      // logger.info("  [Checkpoint] DB Saved.");
     }
   };
+
+  const bar = createProgressBar("Filtering |{bar}| {percentage}% | {value}/{total} Artifacts | ETA: {eta}s");
+  const INITIAL_PROGRESS = 0;
+  bar.start(queue.length, INITIAL_PROGRESS);
 
   const workers = Array(CONCURRENCY)
     .fill(null)
@@ -263,22 +269,24 @@ export async function main() {
             processedSinceLastSave = ZERO;
             saveDB();
           }
+          bar.increment();
         }
       }
     });
 
   await Promise.all(workers);
+  bar.stop();
 
   saveDB(); // Final save
 
-  console.log("\nScan complete.");
-  console.log(`Processed: ${globalStats.processed.toString()}`);
-  console.log(`Removed: ${globalStats.removed.toString()}`);
-  console.log(`Skipped (Cached): ${globalStats.skippedCached.toString()}`);
-  console.log(`Skipped (Ambiguous): ${globalStats.skippedAmbiguous.toString()}`);
-  console.log(`Errors: ${globalStats.errors.toString()}`);
+  logger.info("Scan complete.");
+  logger.info(`Processed: ${globalStats.processed.toString()}`);
+  logger.info(`Removed: ${globalStats.removed.toString()}`);
+  logger.info(`Skipped (Cached): ${globalStats.skippedCached.toString()}`);
+  logger.info(`Skipped (Ambiguous): ${globalStats.skippedAmbiguous.toString()}`);
+  logger.info(`Errors: ${globalStats.errors.toString()}`);
 }
 
 if (require.main === module) {
-  main().catch(console.error);
+  main().catch((err: unknown) => logger.error(err));
 }
