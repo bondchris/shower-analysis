@@ -26,7 +26,15 @@
     "jsx": "react",
     "types": ["vitest/globals"]
   },
-  "include": ["src/**/*", "config/**/*", ".eslintrc.cjs", "tests/**/*", "tailwind.config.js", "vitest.config.ts"],
+  "include": [
+    "src/**/*",
+    "config/**/*",
+    "eslint.config.mjs",
+    "eslint-local-rules.js",
+    "tests/**/*",
+    "tailwind.config.js",
+    "vitest.config.ts"
+  ],
   "ts-node": {
     "transpileOnly": true
   }
