@@ -5,8 +5,11 @@ module.exports = {
   },
   extends: [
     "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react/jsx-runtime",
     "plugin:@typescript-eslint/strict-type-checked",
     "plugin:@typescript-eslint/stylistic-type-checked",
+
     "prettier"
   ],
   ignorePatterns: ["jest.config.js"],
@@ -28,7 +31,7 @@ module.exports = {
     sourceType: "module",
     tsconfigRootDir: __dirname
   },
-  plugins: ["@typescript-eslint", "simple-import-sort", "local-rules"],
+  plugins: ["@typescript-eslint", "react", "simple-import-sort", "local-rules"],
   root: true,
   rules: {
     "@typescript-eslint/member-ordering": "error",
@@ -117,5 +120,10 @@ module.exports = {
     "sort-vars": "error",
     "space-infix-ops": "error",
     "wrap-iife": "error"
+  },
+  settings: {
+    react: {
+      version: "detect"
+    }
   }
 };
