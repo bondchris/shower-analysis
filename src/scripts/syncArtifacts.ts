@@ -264,6 +264,16 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
       })
     );
     bar.stop();
+
+    // Calculate failure stats
+    const knownFailuresDb = getSyncFailures();
+    stats.errors.forEach((err) => {
+      if (Object.prototype.hasOwnProperty.call(knownFailuresDb, err.id)) {
+        stats.knownFailures++;
+      } else {
+        stats.newFailures++;
+      }
+    });
   } catch (e) {
     logger.error(`Failed to sync ${env.name}: ${String(e)}`);
   }

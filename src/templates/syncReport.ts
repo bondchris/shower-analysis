@@ -50,12 +50,12 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
   ];
 
   const rowClasses: Record<number, string> = {
-    0: "bg-info", // Found
-    1: "bg-success", // New
-    2: "bg-error", // Failed
-    3: "bg-error-light", // New Failures (lighter red)
-    4: "bg-error-light", // Known Failures (lighter red, same as New Failures)
-    5: "bg-warning" // Skipped
+    0: "bg-sky-100 font-semibold text-sky-800 print:print-color-adjust-exact", // Found
+    1: "bg-green-100 font-semibold text-green-800 print:print-color-adjust-exact", // New
+    2: "bg-red-100 font-semibold text-red-800 print:print-color-adjust-exact", // Failed
+    3: "bg-red-50 text-red-800 print:print-color-adjust-exact", // New Failures (lighter red)
+    4: "bg-red-50 text-red-800 print:print-color-adjust-exact", // Known Failures (lighter red)
+    5: "bg-yellow-100 font-semibold text-yellow-800 print:print-color-adjust-exact" // Skipped
   };
 
   sections.push({

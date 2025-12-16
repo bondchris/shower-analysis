@@ -54,7 +54,8 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
   });
   processedRow.push(`<span style="font-weight:normal;color:#6b7280">${totalProcessed.toString()}</span>`);
   tableData.push(processedRow);
-  rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-info";
+  rowClasses[tableData.length - LAST_ELEMENT_OFFSET] =
+    "bg-sky-100 font-semibold text-sky-800 print:print-color-adjust-exact";
 
   // 2. Total Errors Row
   const totalErrorsRow = ["Total Errors"];
@@ -63,7 +64,8 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
   });
   totalErrorsRow.push(`<span style="font-weight:normal;color:#6b7280">${totalErrors.toString()}</span>`);
   tableData.push(totalErrorsRow);
-  rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-error";
+  rowClasses[tableData.length - LAST_ELEMENT_OFFSET] =
+    "bg-red-100 font-semibold text-red-800 print:print-color-adjust-exact";
 
   // 3. Error Detail Rows
   // Collect all unique error keys across all environments
@@ -83,7 +85,7 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
       });
       row.push(`<span style="font-weight:normal;color:#6b7280">${rowTotal.toString()}</span>`);
       tableData.push(row);
-      rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-error-light";
+      rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-red-50 text-red-800 print:print-color-adjust-exact";
     });
 
   // 4. Total Warnings Row
@@ -93,7 +95,8 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
   });
   totalWarningsRow.push(`<span style="font-weight:normal;color:#6b7280">${totalWarnings.toString()}</span>`);
   tableData.push(totalWarningsRow);
-  rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-warning";
+  rowClasses[tableData.length - LAST_ELEMENT_OFFSET] =
+    "bg-yellow-100 font-semibold text-yellow-800 print:print-color-adjust-exact";
 
   // 5. Warning Detail Rows
   const allWarningKeys = new Set<string>();
@@ -112,7 +115,8 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
       });
       row.push(`<span style="font-weight:normal;color:#6b7280">${rowTotal.toString()}</span>`);
       tableData.push(row);
-      rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-warning-light";
+      rowClasses[tableData.length - LAST_ELEMENT_OFFSET] =
+        "bg-yellow-50 text-yellow-800 print:print-color-adjust-exact";
     });
 
   sections.push({

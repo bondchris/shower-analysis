@@ -16,11 +16,20 @@ export const Section: React.FC<SectionProps> = ({ section }) => {
   const HeaderTag = `h${String(validLevel)}` as React.ElementType;
   const showTitle = section.title !== undefined && section.title.length > MIN_TITLE_LEN;
 
-  const wrapperClass = ["chart", "summary", "chart-row"].includes(section.type) ? "avoid-page-break" : "";
+  const wrapperClass = ["chart", "summary", "chart-row"].includes(section.type) ? "break-inside-avoid" : "";
+
+  const headerClasses: Record<number, string> = {
+    1: "text-2xl font-bold text-center mb-2 text-gray-900", // Mostly handled by ReportShell but good fallback
+    2: "text-lg font-semibold mt-8 mb-4 border-b border-gray-200 pb-2 text-gray-700 break-after-avoid",
+    3: "text-sm font-semibold mt-5 mb-2 text-gray-600 break-after-avoid",
+    4: "text-[13px] font-semibold mt-4 mb-2 text-gray-600 break-after-avoid",
+    5: "text-sm font-semibold mb-2 text-gray-700 text-center",
+    6: "text-xs font-semibold mb-1 text-gray-500"
+  };
 
   return (
     <div className={wrapperClass}>
-      {showTitle && <HeaderTag>{section.title}</HeaderTag>}
+      {showTitle && <HeaderTag className={headerClasses[validLevel]}>{section.title}</HeaderTag>}
       <SectionContent section={section} />
     </div>
   );
@@ -49,15 +58,19 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
       return (
         <div>
           {(section.data as string[]).map((item, i) => (
-            <div key={i} className="list-item" dangerouslySetInnerHTML={{ __html: item }} />
+            <div
+              key={i}
+              className="mb-1 pl-4 relative text-xs before:content-['•'] before:absolute before:left-0 before:text-gray-400"
+              dangerouslySetInnerHTML={{ __html: item }}
+            />
           ))}
         </div>
       );
 
     case "chart":
       return (
-        <div className="chart-container">
-          <img src={section.data as string} alt="Chart" />
+        <div className="mb-8 flex w-full justify-center break-inside-avoid">
+          <img src={section.data as string} alt="Chart" className="max-h-[600px] max-w-full" />
         </div>
       );
 
@@ -66,11 +79,13 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
         return null;
       }
       return (
-        <div className="chart-row-container">
+        <div className="mb-8 flex justify-between gap-5 break-inside-avoid">
           {(section.data as { title?: string; data: string }[]).map((chart, i) => (
-            <div key={i} className="chart-item">
-              {chart.title !== undefined && <h5>{chart.title}</h5>}
-              <img src={chart.data} alt={chart.title ?? "Chart"} />
+            <div key={i} className="flex-1 text-center">
+              {chart.title !== undefined && (
+                <h5 className="mb-2 text-center text-sm font-semibold text-gray-700">{chart.title}</h5>
+              )}
+              <img src={chart.data} alt={chart.title ?? "Chart"} className="h-auto max-w-full" />
             </div>
           ))}
         </div>

@@ -25,7 +25,7 @@
     "rootDir": ".",
     "jsx": "react"
   },
-  "include": ["src/**/*", "config/**/*", ".eslintrc.cjs", "tests/**/*"],
+  "include": ["src/**/*", "config/**/*", ".eslintrc.cjs", "tests/**/*", "tailwind.config.js"],
   "ts-node": {
     "transpileOnly": true
   }
