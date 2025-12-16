@@ -22,7 +22,8 @@
     "useUnknownInCatchVariables": true,
     "allowJs": true,
     "outDir": "./dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "jsx": "react"
   },
   "include": ["src/**/*", "config/**/*", ".eslintrc.cjs", "tests/**/*"],
   "ts-node": {

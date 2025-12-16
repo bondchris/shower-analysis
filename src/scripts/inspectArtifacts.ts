@@ -71,7 +71,6 @@ async function addVideoMetadata(dirPath: string, metadata: ArtifactAnalysis): Pr
       const environment = parts[parts.length - PATH_OFFSET_ENVIRONMENT] ?? "unknown";
 
       // Populate valid metadata
-      // Populate valid metadata
       metadata.duration = meta.format.duration ?? DEFAULT_VALUE;
       metadata.environment = environment;
       metadata.filename = path.basename(path.dirname(filePath));

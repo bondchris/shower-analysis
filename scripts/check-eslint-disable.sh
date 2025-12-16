@@ -35,8 +35,8 @@ if [ "$FOUND_ANY" = true ]; then
     grep -vE '^\s*($|#)' "$WHITELIST_FILE" > "$CLEAN_WHITELIST"
 
     if [ -s "$CLEAN_WHITELIST" ]; then
-        grep -vFf "$CLEAN_WHITELIST" "$MATCHES_FILE" > "${MATCHES_FILE}.filtered"
-        mv "${MATCHES_FILE}.filtered" "$MATCHES_FILE"
+      grep -vFf "$CLEAN_WHITELIST" "$MATCHES_FILE" > "${MATCHES_FILE}.filtered"
+      mv "${MATCHES_FILE}.filtered" "$MATCHES_FILE"
     fi
     rm "$CLEAN_WHITELIST"
 
