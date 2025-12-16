@@ -1,61 +1,33 @@
-/* eslint-disable simple-import-sort/imports, sort-imports */
-import * as fs from "fs";
-
 import {
   EnvStats,
   applyArtifactToStats,
   generateReport,
   validateEnvironment
 } from "../../../src/scripts/validateArtifacts";
-import { Artifact } from "../../../src/services/spatialService";
+import { Artifact, SpatialService } from "../../../src/services/spatialService";
+import { generatePdfReport } from "../../../src/utils/reportGenerator";
 
-// --- Mocks ---
+jest.mock("../../../src/utils/reportGenerator", () => ({
+  generatePdfReport: jest.fn()
+}));
+const mockGeneratePdfReport = generatePdfReport as unknown as jest.Mock;
 const mockFetchScanArtifacts = jest.fn();
-jest.mock("../../../src/services/spatialService", () => {
+
+// Configure SpatialService mock
+(SpatialService as unknown as jest.Mock).mockImplementation(() => {
   return {
-    SpatialService: jest.fn().mockImplementation(() => {
-      return {
-        fetchScanArtifacts: mockFetchScanArtifacts
-      };
-    })
+    fetchScanArtifacts: mockFetchScanArtifacts
   };
 });
+jest.mock("../../../src/services/spatialService");
+jest.mock("../../../config/config", () => ({ ENVIRONMENTS: [{ domain: "test.com", name: "test-env" }] }));
 
-// PDFKit Mock
-const mockPipe = jest.fn();
-const mockText = jest.fn().mockReturnThis();
-const mockFontSize = jest.fn().mockReturnThis();
-const mockMoveDown = jest.fn().mockReturnThis();
-const mockImage = jest.fn().mockReturnThis();
-const mockAddPage = jest.fn().mockReturnThis();
-const mockFont = jest.fn().mockReturnThis();
-const mockEnd = jest.fn();
-
-jest.mock("pdfkit", () => {
-  return jest.fn().mockImplementation(() => ({
-    addPage: mockAddPage,
-    end: mockEnd,
-    fill: jest.fn().mockReturnThis(),
-    fillColor: jest.fn().mockReturnThis(),
-    font: mockFont,
-    fontSize: mockFontSize,
-    image: mockImage,
-    lineTo: jest.fn().mockReturnThis(),
-    lineWidth: jest.fn().mockReturnThis(),
-    moveDown: mockMoveDown,
-    moveTo: jest.fn().mockReturnThis(),
-    page: { height: 800, width: 600 },
-    pipe: mockPipe,
-    rect: jest.fn().mockReturnThis(),
-    restore: jest.fn().mockReturnThis(),
-    save: jest.fn().mockReturnThis(),
-    stroke: jest.fn().mockReturnThis(),
-    strokeColor: jest.fn().mockReturnThis(),
-    text: mockText,
-    widthOfString: jest.fn().mockImplementation((str: string) => str.length * 5),
-    y: 100
-  }));
-});
+// ChartUtils Mock
+jest.mock("../../../src/utils/chartUtils", () => ({
+  createBarChart: jest.fn().mockResolvedValue(Buffer.from("chart")),
+  createLineChart: jest.fn().mockResolvedValue(Buffer.from("chart")),
+  createMixedChart: jest.fn().mockResolvedValue(Buffer.from("chart"))
+}));
 
 // FS Mock
 jest.mock("fs", () => ({
@@ -269,62 +241,40 @@ describe("validateArtifacts script", () => {
         warningsByDate: { "2025-01-01": 1 }
       };
 
-      /*
-      jest.spyOn(console, "log").mockImplementation(() => {
-        // no-op
-      });
-      */
-
       await generateReport([stats]);
 
-      expect(fs.createWriteStream).toHaveBeenCalledWith(expect.stringContaining("validation-report.pdf"));
-      expect(mockText).toHaveBeenCalledWith("Validation Report", expect.anything());
-
-      // Check for chart pages
-      expect(mockAddPage).toHaveBeenCalled();
-      expect(mockImage).toHaveBeenCalled();
-      expect(mockEnd).toHaveBeenCalled();
+      const calls = mockGeneratePdfReport.mock.calls as unknown[][];
+      const reportData = calls[0]?.[0] as { title: string; sections: unknown[] };
+      expect(reportData.title).toBe("Validation Report");
+      expect(reportData.sections).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            options: expect.objectContaining({
+              headers: expect.arrayContaining(["", "Env 1"]) as unknown,
+              rowClasses: expect.any(Object) as unknown
+            }) as unknown,
+            type: "table"
+          }),
+          expect.objectContaining({ title: "Property Presence", type: "chart" }),
+          expect.objectContaining({ title: "Scan Volume (All Environments)", type: "chart" }),
+          expect.objectContaining({ title: "Scan Success Percentage Over Time", type: "chart" }),
+          expect.objectContaining({ title: "Errors Over Time", type: "chart" }),
+          expect.objectContaining({ title: "Warnings Over Time", type: "chart" })
+        ])
+      );
+      expect(mockGeneratePdfReport).toHaveBeenCalledTimes(1);
     });
 
     it("should handle empty data gracefully", async () => {
       await generateReport([]);
 
-      expect(mockText).toHaveBeenCalledWith("Validation Report", expect.anything());
-      expect(mockText).toHaveBeenCalledWith("No environments / no data.", expect.anything());
-      expect(mockEnd).toHaveBeenCalled();
-    });
-
-    it("should truncate long headers to fit column width", async () => {
-      const longName = "Very Long Environment Name That Will Definitely Truncate";
-      const stats = {
-        artifactsWithIssues: 0,
-        artifactsWithWarnings: 0,
-        cleanScansByDate: {},
-        errorsByDate: {},
-        missingCounts: {},
-        name: longName,
-        pageErrors: {},
-        processed: 0,
-        propertyCounts: {},
-        totalArtifacts: 0,
-        totalScansByDate: {},
-        warningCounts: {},
-        warningsByDate: {}
-      };
-
-      // Pass many environments to force narrow columns
-      const manyStats = Array(10).fill(stats) as EnvStats[];
-      await generateReport(manyStats);
-
-      // Verify that the long name was not drawn fully
-      expect(mockText).not.toHaveBeenCalledWith(longName, expect.anything());
-      // Verify that a truncated version ending in "..." was drawn
-      expect(mockText).toHaveBeenCalledWith(
-        expect.stringMatching(/.*\.\.\.$/),
-        expect.anything(),
-        expect.anything(),
-        expect.anything()
+      const calls = mockGeneratePdfReport.mock.calls as unknown[][];
+      const reportData = calls[0]?.[0] as { title: string; sections: unknown[] };
+      expect(reportData.title).toBe("Validation Report");
+      expect(reportData.sections).toEqual(
+        expect.arrayContaining([{ data: "No environments / no data.", type: "text" }])
       );
+      expect(mockGeneratePdfReport).toHaveBeenCalledTimes(1);
     });
   });
 });

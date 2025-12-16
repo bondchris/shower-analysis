@@ -1,16 +1,17 @@
+import * as fs from "fs";
+import * as path from "path";
+
 import convert from "convert-units";
 import ffmpeg from "fluent-ffmpeg";
-import * as fs from "fs";
 import { sumBy } from "lodash";
-import * as path from "path";
 
 import { ArData } from "../models/arData/arData";
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
 import { RawScan } from "../models/rawScan/rawScan";
 import * as ChartUtils from "../utils/chartUtils";
 import { logger } from "../utils/logger";
-import { createPdfDocument, writePdfHeader } from "../utils/pdfUtils";
 import { createProgressBar } from "../utils/progress";
+import { ReportSection, generatePdfReport } from "../utils/reportGenerator";
 import { checkColinearWalls } from "../utils/room/checkColinearWalls";
 import { checkCrookedWalls } from "../utils/room/checkCrookedWalls";
 import { checkDoorBlocking } from "../utils/room/checkDoorBlocking";
@@ -292,7 +293,7 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   // Sort by count descending
   const lensLabels = Object.keys(lensMap).sort((a, b) => (lensMap[b] ?? INITIAL_COUNT) - (lensMap[a] ?? INITIAL_COUNT));
   const lensCounts = lensLabels.map((l) => lensMap[l] ?? INITIAL_COUNT);
-  charts.lens = await ChartUtils.createBarChart(lensLabels, lensCounts, "Lens Model Distribution", {
+  charts.lens = await ChartUtils.createBarChart(lensLabels, lensCounts, "", {
     height: DURATION_CHART_HEIGHT,
     horizontal: true,
     width: DURATION_CHART_WIDTH
@@ -307,7 +308,7 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   const durations = metadataList.map((m) => m.duration);
 
   // Duration: min 10, max 120, bin 10
-  charts.duration = await ChartUtils.createHistogram(durations, "Seconds", "Duration", {
+  charts.duration = await ChartUtils.createHistogram(durations, "Seconds", "", {
     binSize: 10,
     height: DURATION_CHART_HEIGHT,
     hideUnderflow: true,
@@ -317,14 +318,14 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   });
 
   // Ambient: 980-1040, bin 5
-  charts.ambient = await ChartUtils.createHistogram(intensityVals, "Lumens", "Ambient Intensity", {
+  charts.ambient = await ChartUtils.createHistogram(intensityVals, "Lumens", "", {
     binSize: 5,
     max: 1040,
     min: 980
   });
 
   // Temp: 4000-6000, bin 250
-  charts.temperature = await ChartUtils.createHistogram(tempVals, "Kelvin", "Color Temperature", {
+  charts.temperature = await ChartUtils.createHistogram(tempVals, "Kelvin", "", {
     binSize: 250,
     colorByValue: ChartUtils.kelvinToRgb,
     max: 6000,
@@ -332,7 +333,7 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   });
 
   // ISO: 0-800, bin 50
-  charts.iso = await ChartUtils.createHistogram(isoVals, "ISO", "ISO Speed", {
+  charts.iso = await ChartUtils.createHistogram(isoVals, "ISO", "", {
     binSize: 50,
     hideUnderflow: true,
     max: 800,
@@ -340,7 +341,7 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   });
 
   // Brightness: 0-6, bin 1
-  charts.brightness = await ChartUtils.createHistogram(briVals, "Value (EV)", "Brightness Value", {
+  charts.brightness = await ChartUtils.createHistogram(briVals, "Value (EV)", "", {
     binSize: 1,
     decimalPlaces: 1,
     max: 6,
@@ -348,7 +349,7 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   });
 
   // Room Area: 0-150, bin 10
-  charts.area = await ChartUtils.createHistogram(areaVals, "Sq Ft", "Room Area", {
+  charts.area = await ChartUtils.createHistogram(areaVals, "Sq Ft", "", {
     binSize: 10,
     height: DURATION_CHART_HEIGHT,
     hideUnderflow: true,
@@ -365,7 +366,7 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   });
   const fpsLabels = Object.keys(fpsDistribution).sort((a, b) => parseFloat(a) - parseFloat(b));
   const fpsCounts = fpsLabels.map((l) => fpsDistribution[l] ?? INITIAL_COUNT);
-  charts.fps = await ChartUtils.createBarChart(fpsLabels, fpsCounts, "Framerate");
+  charts.fps = await ChartUtils.createBarChart(fpsLabels, fpsCounts, "");
 
   const resolutions = metadataList.map((m) => `${m.width.toString()}x${m.height.toString()}`);
   const resDistribution: Record<string, number> = {};
@@ -374,7 +375,7 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   });
   const resLabels = Object.keys(resDistribution).sort();
   const resCounts = resLabels.map((l) => resDistribution[l] ?? INITIAL_COUNT);
-  charts.resolution = await ChartUtils.createBarChart(resLabels, resCounts, "Resolution");
+  charts.resolution = await ChartUtils.createBarChart(resLabels, resCounts, "");
 
   // Feature Prevalence
   const featureDefs: ChartDef[] = [
@@ -446,7 +447,7 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   charts.features = await ChartUtils.createBarChart(
     featureDefs.map((d) => d.label),
     featureDefs.map((d) => d.count),
-    "Feature Prevalence",
+    "",
     {
       height: FEATURE_CHART_HEIGHT,
       horizontal: true,
@@ -458,7 +459,7 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   charts.errors = await ChartUtils.createBarChart(
     errorDefs.map((d) => d.label),
     errorDefs.map((d) => d.count),
-    "Capture Errors",
+    "",
     {
       height: 320,
       horizontal: true,
@@ -470,94 +471,111 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   return charts;
 }
 
-async function generatePdfReport(
+async function createInspectionReport(
   charts: CaptureCharts,
   avgDuration: number,
   videoCount: number,
   reportPath: string
 ): Promise<void> {
-  const SPACING_SMALL = 10;
-  const CHART_SPACING = 30;
-  const PDF_SUBTITLE_SIZE = 18;
-  const PDF_BODY_SIZE = 12;
-
   logger.info("Generating PDF...");
-  const { doc, waitForWrite } = createPdfDocument("data-analysis.pdf");
+  const sections: ReportSection[] = [];
 
-  // Layout Constants
-  const Y_START = 130;
-  const H = 160;
-  const W = 250;
-  const GAP_Y = 200;
-  const FULL_W = 510;
-  const LEFT_X = 50;
-  const TEXT_PADDING = 15;
-  const RIGHT_X = LEFT_X + W + CHART_SPACING;
+  // Metadata
+  const DECIMAL_PLACES_AVG = 1;
+  const subtitle = `Avg Duration: ${avgDuration.toFixed(DECIMAL_PLACES_AVG)}s | Artifacts: ${videoCount.toString()}`;
 
-  // --- Page 1: Summary ---
-  const DECIMAL_PLACES = 1;
-  const summaryText = `Avg Duration: ${avgDuration.toFixed(DECIMAL_PLACES)}s | Videos: ${videoCount.toString()}`;
-  writePdfHeader(doc, "Artifact Data Analysis");
-  doc.fontSize(PDF_BODY_SIZE).text(summaryText, { align: "center" });
-  doc.moveDown(SPACING_SMALL);
+  // Charts
+  const chartSections: ReportSection[] = [];
 
-  // Row 1: Duration (Full Width)
-  doc.image(charts.duration, LEFT_X, Y_START, { height: H, width: FULL_W });
-  doc.text("Duration", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: FULL_W });
-
-  // Row 2: Lens Model (Full Width, Horizontal)
-  const Y_ROW2 = Y_START + GAP_Y;
-  doc.image(charts.lens, LEFT_X, Y_ROW2, { height: H, width: FULL_W });
-  doc.text("Lens Model", LEFT_X, Y_ROW2 + H + TEXT_PADDING, { align: "center", width: FULL_W });
-
-  // Row 3: Framerate (Left) & Resolution (Right)
-  const Y_ROW3 = Y_ROW2 + GAP_Y;
-  doc.image(charts.fps, LEFT_X, Y_ROW3, { height: H, width: W });
-  doc.text("Framerate", LEFT_X, Y_ROW3 + H + TEXT_PADDING, { align: "center", width: W });
-
-  doc.image(charts.resolution, RIGHT_X, Y_ROW3, { height: H, width: W });
-  doc.text("Resolution", RIGHT_X, Y_ROW3 + H + TEXT_PADDING, { align: "center", width: W });
-
-  // --- Page 2: Lighting ---
-  doc.addPage();
-  doc.fontSize(PDF_SUBTITLE_SIZE).text("Lighting & Exposure", { align: "center" });
-
-  // Row 1: Ambient (Left) & Temp (Right)
-  doc.image(charts.ambient, LEFT_X, Y_START, { height: H, width: W });
-  doc.text("Ambient Intensity", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: W });
-
-  doc.image(charts.temperature, RIGHT_X, Y_START, { height: H, width: W });
-  doc.text("Color Temperature", RIGHT_X, Y_START + H + TEXT_PADDING, { align: "center", width: W });
-
-  // Row 2: ISO (Left) & Brightness (Right)
-  doc.image(charts.iso, LEFT_X, Y_ROW2, { height: H, width: W });
-  doc.text("ISO Speed", LEFT_X, Y_ROW2 + H + TEXT_PADDING, { align: "center", width: W });
-
-  doc.image(charts.brightness, RIGHT_X, Y_ROW2, { height: H, width: W });
-  doc.text("Brightness Value", RIGHT_X, Y_ROW2 + H + TEXT_PADDING, { align: "center", width: W });
-
-  // --- Page 3: Room Analysis ---
-  doc.addPage();
-  doc.fontSize(PDF_SUBTITLE_SIZE).text("Room Analysis", { align: "center" });
-
-  doc.image(charts.area, LEFT_X, Y_START, { height: H, width: FULL_W });
-  doc.text("Room Area (Sq Ft)", LEFT_X, Y_START + H + TEXT_PADDING, { align: "center", width: FULL_W });
-
-  doc.image(charts.errors, LEFT_X, Y_START + GAP_Y, { height: H, width: FULL_W });
-  doc.text("Capture Errors", LEFT_X, Y_START + GAP_Y + H + TEXT_PADDING, {
-    align: "center",
-    width: FULL_W
+  // Duration
+  chartSections.push({
+    data: `data:image/png;base64,${charts.duration.toString("base64")}`,
+    title: "Duration",
+    type: "chart"
   });
 
-  // --- Page 4: Feature Prevalence ---
-  doc.addPage();
-  doc.fontSize(PDF_SUBTITLE_SIZE).text("Feature Prevalence", { align: "center" });
+  // Lens Model
+  chartSections.push({
+    data: `data:image/png;base64,${charts.lens.toString("base64")}`,
+    title: "Lens Model",
+    type: "chart"
+  });
 
-  const FEATURE_PDF_HEIGHT = 600;
-  doc.image(charts.features, LEFT_X, Y_START, { height: FEATURE_PDF_HEIGHT, width: FULL_W });
+  // Framerate & Resolution Side-by-Side
+  chartSections.push({
+    data: [
+      {
+        data: `data:image/png;base64,${charts.fps.toString("base64")}`,
+        title: "Framerate"
+      },
+      {
+        data: `data:image/png;base64,${charts.resolution.toString("base64")}`,
+        title: "Resolution"
+      }
+    ],
+    type: "chart-row"
+  });
 
-  doc.end();
-  await waitForWrite();
+  // Ambient Intensity & Color Temperature Side-by-Side
+  chartSections.push({
+    data: [
+      {
+        data: `data:image/png;base64,${charts.ambient.toString("base64")}`,
+        title: "Ambient Intensity"
+      },
+      {
+        data: `data:image/png;base64,${charts.temperature.toString("base64")}`,
+        title: "Color Temperature"
+      }
+    ],
+    type: "chart-row"
+  });
+
+  // ISO Speed & Brightness Value Side-by-Side
+  chartSections.push({
+    data: [
+      {
+        data: `data:image/png;base64,${charts.iso.toString("base64")}`,
+        title: "ISO Speed"
+      },
+      {
+        data: `data:image/png;base64,${charts.brightness.toString("base64")}`,
+        title: "Brightness Value"
+      }
+    ],
+    type: "chart-row"
+  });
+
+  // Room Area
+  chartSections.push({
+    data: `data:image/png;base64,${charts.area.toString("base64")}`,
+    title: "Room Area (Sq Ft)",
+    type: "chart"
+  });
+
+  // Capture Errors
+  chartSections.push({
+    data: `data:image/png;base64,${charts.errors.toString("base64")}`,
+    title: "Capture Errors",
+    type: "chart"
+  });
+
+  // Feature Prevalence
+  chartSections.push({
+    data: `data:image/png;base64,${charts.features.toString("base64")}`,
+    title: "Feature Prevalence",
+    type: "chart"
+  });
+
+  await generatePdfReport(
+    {
+      sections: [...sections, ...chartSections],
+      subtitle,
+      title: "Artifact Data Analysis"
+    },
+    reportPath
+  );
+
   logger.info(`Report generated at: ${reportPath}`);
 }
 
@@ -614,7 +632,9 @@ async function main(): Promise<void> {
   const charts = await generateCharts(metadataList);
 
   // PDF Generation
-  await generatePdfReport(charts, avgDuration, metadataList.length, "data-analysis.pdf");
+  const videoCount = metadataList.length;
+  const REPORT_FILE = "data-analysis.pdf";
+  await createInspectionReport(charts, avgDuration, videoCount, REPORT_FILE);
 }
 
 main().catch((err: unknown) => logger.error(err));

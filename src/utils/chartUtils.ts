@@ -202,7 +202,7 @@ export function buildLineChartConfig(
     throw new Error("Dataset data length mismatch with labels length.");
   }
 
-  const { title = "Data Errors Over Time", yLabel = "Error Count" } = options;
+  const { title, yLabel = "Error Count" } = options;
 
   return {
     data: {
@@ -221,7 +221,7 @@ export function buildLineChartConfig(
     options: {
       plugins: {
         legend: { position: "bottom" },
-        title: { color: "black", display: true, font: { size: 24, weight: "bold" }, text: title }
+        title: { color: "black", display: Boolean(title), font: { size: 24, weight: "bold" }, text: title }
       },
       scales: {
         y: {

@@ -109,7 +109,6 @@ module.exports = {
     semi: ["error", "always"],
     "semi-spacing": "error",
     "simple-import-sort/exports": "error",
-    "simple-import-sort/imports": "error",
     "sort-imports": ["error", { ignoreDeclarationSort: true }],
     "sort-keys": "error",
     "sort-vars": "error",

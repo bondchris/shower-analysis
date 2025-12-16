@@ -1,11 +1,16 @@
 import { LegendItem } from "chart.js";
+import { sumBy } from "lodash";
 
 import { ENVIRONMENTS } from "../../config/config";
 import { Artifact, SpatialService } from "../services/spatialService";
 import * as ChartUtils from "../utils/chartUtils";
 import { logger } from "../utils/logger";
-import { createPdfDocument, writePdfHeader } from "../utils/pdfUtils";
 import { createProgressBar } from "../utils/progress";
+import { ReportSection, generatePdfReport } from "../utils/reportGenerator";
+
+const CHART_BAR_HEIGHT = 15;
+const MIN_CHART_HEIGHT = 300;
+const HEADER_FOOTER_SPACE = 60;
 
 /**
  * Script to validate data integrity of artifacts on the server.
@@ -218,228 +223,128 @@ export async function validateEnvironment(env: { domain: string; name: string })
 }
 
 export async function generateReport(allStats: EnvStats[]) {
-  const { doc, reportPath, waitForWrite } = createPdfDocument("validation-report.pdf");
-
-  // PDF Layout Constants
-  const PDF_MARGIN = 50;
-  const CHART_WIDTH = 600;
-  const CENTER_DIVISOR = 2;
-  const MIN_DATA_POINTS = 0;
   const INITIAL_ERROR_COUNT = 0;
-  const HEADER_FONT_SIZE = 10;
-  const ROW_FONT_SIZE = 10;
-  const HALF = 2;
-  const PERCENTAGE_SCALE = 100;
-  const MAX_PERCENTAGE = 100;
-  const SEPARATOR_WIDTH = 0.5;
-  const SEPARATOR_OFFSET = 5;
-  const OFFSET_ONE = 1;
-  const CHART_BAR_HEIGHT = 15;
-  const MIN_CHART_HEIGHT = 300;
-  const CHART_PADDING = 20;
-  const HEADER_FOOTER_SPACE = 60;
-  const DAY_OFFSET = 1;
-  const DECIMAL_PLACES_AVG = 1;
-  const VERTICAL_TEXT_OFFSET = 10;
-  const STROKE_WIDTH_NORMAL = 1;
-
-  const MARGIN_SIDES = 2;
-  const CHART_BORDER_WIDTH_NORMAL = 1.5;
-
+  const ZERO = 0;
+  const PERCENTAGE_BASE = 100;
+  const MIN_DATA_POINTS = 0;
   const NO_STATS = 0;
+  const DECIMAL_PLACES = 1;
+  const LAST_ELEMENT_OFFSET = 1;
+
+  const grandTotal = sumBy(allStats, "totalArtifacts");
 
   if (allStats.length === NO_STATS) {
-    writePdfHeader(doc, "Validation Report");
-    doc.text("No environments / no data.", { align: "center" });
-    doc.end();
-    await waitForWrite();
+    await generatePdfReport(
+      {
+        sections: [{ data: "No environments / no data.", type: "text" }],
+        title: "Validation Report"
+      },
+      "validation-report.pdf"
+    );
     return;
   }
 
-  // Title
-  writePdfHeader(doc, "Validation Report");
-  const tableTop = doc.y;
+  const sections: ReportSection[] = [];
 
-  // New Transposed Table Layout
-  const METRIC_COL_WIDTH = 120;
-  const START_X = PDF_MARGIN;
-  const margins = PDF_MARGIN * MARGIN_SIDES;
-  const availableWidth = doc.page.width - margins - METRIC_COL_WIDTH;
-  const envColWidth = availableWidth / allStats.length;
-  const ROW_HEIGHT = 20;
+  // Standardized Table Logic (Exploded Rows for Errors & Warnings)
+  // Columns: [Label, ...Environment Names, All]
+  const totalProcessed = sumBy(allStats, "processed");
+  const totalErrors = sumBy(allStats, "artifactsWithIssues");
+  const totalWarnings = sumBy(allStats, "artifactsWithWarnings");
 
-  const envHeaders = allStats.map((s) => s.name);
+  const headers = ["", ...allStats.map((s) => s.name), "Total"];
+  const tableData: string[][] = [];
+  const rowClasses: Record<number, string> = {};
 
-  // Draw Header
-  doc.font("Helvetica-Bold");
-  doc.fontSize(HEADER_FONT_SIZE); // Reduce font size for headers to prevent wrapping
-  let currentX = START_X;
-  // Leave first cell blank as requested
-  currentX += METRIC_COL_WIDTH;
-
-  // Helper to truncate text to fit width
-  const truncateText = (text: string, maxWidth: number): string => {
-    const ROLLBACK_CHAR = 1;
-    const ELLIPSIS = "...";
-    if (doc.widthOfString(text) <= maxWidth) {
-      return text;
+  // 1. Processed Row
+  const processedRow = ["Processed Artifacts"];
+  allStats.forEach((stat) => {
+    const total = stat.totalArtifacts; // Use stat.totalArtifacts as the total for this environment
+    if (total > ZERO) {
+      const percentage = ((stat.processed / total) * PERCENTAGE_BASE).toFixed(DECIMAL_PLACES);
+      // De-emphasize the percentage visually
+      processedRow.push(
+        `${stat.processed.toString()} <span style="font-weight:normal;color:#6b7280;font-size:0.9em">(${percentage}%)</span>`
+      );
+    } else {
+      processedRow.push("0 (0.0%)");
     }
-    let truncated = text;
-    const START_INDEX = 0;
-    while (doc.widthOfString(truncated + ELLIPSIS) > maxWidth && truncated.length > START_INDEX) {
-      truncated = truncated.slice(START_INDEX, -ROLLBACK_CHAR);
-    }
-    return truncated + ELLIPSIS;
-  };
-
-  envHeaders.forEach((header) => {
-    const displayText = truncateText(header, envColWidth);
-    doc.text(displayText, currentX, tableTop, { align: "center", width: envColWidth });
-    currentX += envColWidth;
   });
-  const ensureSpace = (height: number) => {
-    if (doc.y + height > doc.page.height - PDF_MARGIN) {
-      doc.addPage();
-    }
-  };
+  processedRow.push(`<span style="font-weight:normal;color:#6b7280">${totalProcessed.toString()}</span>`);
+  tableData.push(processedRow);
+  rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-info";
 
-  doc.moveDown();
-  doc.font("Helvetica");
-  doc.fontSize(ROW_FONT_SIZE);
+  // 2. Total Errors Row
+  const totalErrorsRow = ["Total Errors"];
+  allStats.forEach((stat) => {
+    totalErrorsRow.push(String(stat.artifactsWithIssues));
+  });
+  totalErrorsRow.push(`<span style="font-weight:normal;color:#6b7280">${totalErrors.toString()}</span>`);
+  tableData.push(totalErrorsRow);
+  rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-error";
 
-  // Define Metrics to Display
-  const REQUIRED_FIELDS: (keyof Artifact)[] = ["id", "scanDate", "rawScan", "arData", "video"];
-  const IGNORED_METRIC_FIELDS = ["id", "scanDate"];
-
-  const dynamicMetrics = REQUIRED_FIELDS.filter((f) => !IGNORED_METRIC_FIELDS.includes(f)).map((field) => ({
-    backgroundColor: "#FFF5F5",
-    color: "gray",
-    getValue: (s: EnvStats) => [{ text: (s.missingCounts[field] ?? INITIAL_ERROR_COUNT).toString() }],
-    label: `Missing ${field}`
-  }));
-
-  const metrics = [
-    {
-      backgroundColor: "#F0F8FF",
-      getValue: (s: EnvStats) => {
-        const percentage =
-          s.totalArtifacts > INITIAL_ERROR_COUNT
-            ? Math.min(MAX_PERCENTAGE, Math.round((s.processed / s.totalArtifacts) * PERCENTAGE_SCALE))
-            : INITIAL_ERROR_COUNT;
-        return [
-          { color: "black", text: s.processed.toString() },
-          { color: "gray", text: ` (${percentage.toString()}%)` }
-        ];
-      },
-      isBold: true,
-      label: "Processed Artifacts"
-    },
-    {
-      backgroundColor: "#FFEBEB",
-      getValue: (s: EnvStats) => [{ text: s.artifactsWithIssues.toString() }],
-      isBold: true,
-      label: "Total Errors"
-    },
-    ...dynamicMetrics,
-    {
-      backgroundColor: "#FFF5F5",
-      color: "gray",
-      getValue: (s: EnvStats) => [{ text: (s.missingCounts["scanDate (invalid)"] ?? INITIAL_ERROR_COUNT).toString() }],
-      label: "Invalid Date"
-    },
-    {
-      backgroundColor: "#FFF8E1",
-      getValue: (s: EnvStats) => [{ text: s.artifactsWithWarnings.toString() }],
-      isBold: true,
-      label: "Total Warnings"
-    },
-    {
-      backgroundColor: "#FFFFF0",
-      color: "gray",
-      getValue: (s: EnvStats) => [{ text: (s.warningCounts["projectId"] ?? INITIAL_ERROR_COUNT).toString() }],
-      label: "Missing ProjectId"
-    }
-  ];
-
-  // Draw Data Rows
-  metrics.forEach((metric) => {
-    const rowY = doc.y;
-
-    // Draw row background (highlight bold metrics or custom)
-    const m = metric as { backgroundColor?: string; isBold?: boolean };
-    const rowColor = m.backgroundColor ?? (m.isBold === true ? "#F5F5F5" : "white");
-
-    if (rowColor !== "white") {
-      doc.save();
-      const envsWidth = envColWidth * allStats.length;
-      const tableWidth = METRIC_COL_WIDTH + envsWidth;
-      doc.fillColor(rowColor).rect(START_X, rowY, tableWidth, ROW_HEIGHT).fill();
-      doc.restore();
-    }
-
-    let currentXRow = START_X;
-    const verticalOffset = (ROW_HEIGHT - VERTICAL_TEXT_OFFSET) / HALF;
-    const textY = rowY + verticalOffset; // Vertically center text
-
-    // Draw Label
-    doc.fillColor("black"); // Reset color for label
-    doc.font(m.isBold === true ? "Helvetica-Bold" : "Helvetica");
-    doc.text(metric.label, currentXRow, textY, { align: "left", width: METRIC_COL_WIDTH });
-    currentXRow += METRIC_COL_WIDTH;
-
-    // Draw Values for each Env
-    doc.font("Helvetica");
-    allStats.forEach((stats) => {
-      const parts = metric.getValue(stats);
-      // Calculate total width to center manually
-      const totalWidth = parts.reduce((sum, p) => sum + doc.widthOfString(p.text), INITIAL_ERROR_COUNT);
-      const centerOffset = (envColWidth - totalWidth) / HALF;
-      let drawX = currentXRow + centerOffset;
-
-      parts.forEach((part) => {
-        const p = part as { text: string; color?: string };
-        const partColor = p.color ?? (metric as { color?: string }).color ?? "black";
-        doc.fillColor(partColor);
-        doc.text(p.text, drawX, textY, { continued: false });
-        drawX += doc.widthOfString(p.text);
+  // 3. Error Detail Rows
+  // Collect all unique error keys across all environments
+  const allErrorKeys = new Set<string>();
+  allStats.forEach((stat) => {
+    Object.keys(stat.missingCounts).forEach((k) => allErrorKeys.add(k));
+  });
+  Array.from(allErrorKeys)
+    .sort()
+    .forEach((key) => {
+      const row = [key]; // e.g. "Missing rawScan"
+      let rowTotal = 0;
+      allStats.forEach((stat) => {
+        const count = stat.missingCounts[key] ?? INITIAL_ERROR_COUNT;
+        row.push(String(count));
+        rowTotal += count;
       });
-
-      currentXRow += envColWidth;
+      row.push(`<span style="font-weight:normal;color:#6b7280">${rowTotal.toString()}</span>`);
+      tableData.push(row);
+      rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-error-light";
     });
 
-    // Advance to next row
-    doc.y = rowY + ROW_HEIGHT;
+  // 4. Total Warnings Row
+  const totalWarningsRow = ["Total Warnings"];
+  allStats.forEach((stat) => {
+    totalWarningsRow.push(String(stat.artifactsWithWarnings));
   });
-  doc.fillColor("black"); // Reset final color
+  totalWarningsRow.push(`<span style="font-weight:normal;color:#6b7280">${totalWarnings.toString()}</span>`);
+  tableData.push(totalWarningsRow);
+  rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-warning";
 
-  const tableBottom = doc.y;
+  // 5. Warning Detail Rows
+  const allWarningKeys = new Set<string>();
+  allStats.forEach((stat) => {
+    Object.keys(stat.warningCounts).forEach((k) => allWarningKeys.add(k));
+  });
+  Array.from(allWarningKeys)
+    .sort()
+    .forEach((key) => {
+      const row = [key]; // e.g. "Missing ProjectId"
+      let rowTotal = 0;
+      allStats.forEach((stat) => {
+        const count = stat.warningCounts[key] ?? INITIAL_ERROR_COUNT;
+        row.push(String(count));
+        rowTotal += count;
+      });
+      row.push(`<span style="font-weight:normal;color:#6b7280">${rowTotal.toString()}</span>`);
+      tableData.push(row);
+      rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-warning-light";
+    });
 
-  // Draw Vertical Column Separators
-  doc.lineWidth(SEPARATOR_WIDTH).strokeColor("#E0E0E0");
-  let sepX = START_X + METRIC_COL_WIDTH;
+  sections.push({
+    data: tableData,
+    options: { headers, rowClasses },
+    type: "table"
+  });
 
-  // Separator after Metric Column
-  doc
-    .moveTo(sepX, tableTop - SEPARATOR_OFFSET)
-    .lineTo(sepX, tableBottom)
-    .stroke();
+  // Convert charts to base64 for HTML embedding
+  const charts: ReportSection[] = [];
 
-  // Separators between Environment Columns
-  for (let i = 0; i < allStats.length - OFFSET_ONE; i++) {
-    sepX += envColWidth;
-    doc
-      .moveTo(sepX, tableTop - SEPARATOR_OFFSET)
-      .lineTo(sepX, tableBottom)
-      .stroke();
-  }
-
-  doc.strokeColor("black").lineWidth(STROKE_WIDTH_NORMAL); // Reset styles
-
-  // Aggregate counts across all environments
+  // Aggregate counts across all environments for property chart
   const consolidatedCounts: Record<string, number> = {};
-  let grandTotal = 0;
   allStats.forEach((stats) => {
-    grandTotal += stats.totalArtifacts;
     Object.entries(stats.propertyCounts).forEach(([key, count]) => {
       consolidatedCounts[key] = (consolidatedCounts[key] ?? INITIAL_ERROR_COUNT) + count;
     });
@@ -450,32 +355,29 @@ export async function generateReport(allStats: EnvStats[]) {
     .sort(([, a], [, b]) => b - a)
     .filter(([, count]) => count > INITIAL_ERROR_COUNT);
 
-  const chartLabels = sortedProps.map(([k]) => k);
-  const chartData = sortedProps.map(([, v]) => v);
-
-  if (chartLabels.length > MIN_DATA_POINTS) {
+  if (sortedProps.length > MIN_DATA_POINTS) {
     try {
-      // Use constants defined above
+      const chartLabels = sortedProps.map(([k]) => k);
+      const chartData = sortedProps.map(([, v]) => v);
+
       const contentHeight = chartLabels.length * CHART_BAR_HEIGHT;
       const dynamicHeight = Math.max(MIN_CHART_HEIGHT, contentHeight + HEADER_FOOTER_SPACE);
 
-      const propertyChartBuffer = await ChartUtils.createBarChart(
-        chartLabels,
-        chartData,
-        "Property Presence (All Environments)",
-        { height: dynamicHeight, horizontal: true, totalForPercentages: grandTotal, width: CHART_WIDTH }
-      );
-
-      doc.moveDown();
-      ensureSpace(dynamicHeight);
-      doc.image(propertyChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
-      doc.y += dynamicHeight + CHART_PADDING;
+      const propertyChartBuffer = await ChartUtils.createBarChart(chartLabels, chartData, "", {
+        height: dynamicHeight,
+        horizontal: true,
+        totalForPercentages: grandTotal,
+        width: 600
+      });
+      charts.push({
+        data: `data:image/png;base64,${propertyChartBuffer.toString("base64")}`,
+        title: "Property Presence",
+        type: "chart"
+      });
     } catch (e) {
       logger.error(`Failed to generate property chart: ${String(e)}`);
     }
   }
-
-  doc.moveDown();
 
   // Generate Graphs
   const allDates = new Set<string>();
@@ -494,6 +396,9 @@ export async function generateReport(allStats: EnvStats[]) {
   if (allDates.size > MIN_DATA_POINTS) {
     const sortedDates = Array.from(allDates).sort();
     const DEFAULT_SCANS_COUNT = 0;
+    const DAY_OFFSET = 1;
+    const DECIMAL_PLACES_AVG = 1;
+    const CHART_BORDER_WIDTH_NORMAL = 1.5;
 
     // Calculate Volume-based Sort Order (Largest -> Smallest)
     const envTotalVolume = new Map<string, number>();
@@ -531,7 +436,6 @@ export async function generateReport(allStats: EnvStats[]) {
     let cumulative = 0;
     const cumulativeData: number[] = [];
     const dailyData: number[] = []; // Cumulative Average
-    // Use constants defined above
 
     sortedDates.forEach((date, index) => {
       const dailyCount = aggregatedScansByDate[date] ?? INITIAL_ERROR_COUNT;
@@ -544,7 +448,6 @@ export async function generateReport(allStats: EnvStats[]) {
       dailyData.push(average);
     });
 
-    // Environment colors definition moved to top of scope
     const BASE_LAYER_ORDER = 100;
 
     const volumeDatasets: ChartUtils.MixedChartDataset[] = [
@@ -612,14 +515,15 @@ export async function generateReport(allStats: EnvStats[]) {
           };
           return getVal(b) - getVal(a);
         },
-        title: "Scan Volume (All Environments)",
+        title: "",
         yLabelLeft: "Total Scans (Cumulative)",
         yLabelRight: "Avg Scans / Day"
       });
-      ensureSpace(MIN_CHART_HEIGHT + CHART_PADDING);
-      doc.moveDown();
-      doc.image(volumeChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
-      doc.y += 320; // 300 height + 20 padding
+      charts.push({
+        data: `data:image/png;base64,${volumeChartBuffer.toString("base64")}`,
+        title: "Scan Volume (All Environments)",
+        type: "chart"
+      });
     } catch (e) {
       logger.error(`Failed to generate aggregated volume chart: ${String(e)}`);
     }
@@ -647,13 +551,14 @@ export async function generateReport(allStats: EnvStats[]) {
 
     try {
       const successChartBuffer = await ChartUtils.createLineChart(sortedDates, successDatasets, {
-        title: "Scan Success Percentage Over Time",
+        title: "",
         yLabel: "Success %"
       });
-      ensureSpace(MIN_CHART_HEIGHT);
-      doc.moveDown();
-      doc.image(successChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
-      doc.y += MIN_CHART_HEIGHT + CHART_PADDING;
+      charts.push({
+        data: `data:image/png;base64,${successChartBuffer.toString("base64")}`,
+        title: "Scan Success Percentage Over Time",
+        type: "chart"
+      });
     } catch (e) {
       logger.error(`Failed to generate success chart: ${String(e)}`);
     }
@@ -677,11 +582,15 @@ export async function generateReport(allStats: EnvStats[]) {
     });
 
     try {
-      const errorChartBuffer = await ChartUtils.createLineChart(sortedDates, errorDatasets);
-      ensureSpace(MIN_CHART_HEIGHT + CHART_PADDING);
-      doc.moveDown();
-      doc.image(errorChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
-      doc.y += 320; // 300 height + 20 padding
+      const errorChartBuffer = await ChartUtils.createLineChart(sortedDates, errorDatasets, {
+        title: "",
+        yLabel: "Error Count"
+      });
+      charts.push({
+        data: `data:image/png;base64,${errorChartBuffer.toString("base64")}`,
+        title: "Errors Over Time",
+        type: "chart"
+      });
     } catch (e) {
       logger.error(`Failed to generate code error chart: ${String(e)}`);
     }
@@ -706,21 +615,29 @@ export async function generateReport(allStats: EnvStats[]) {
 
     try {
       const warningChartBuffer = await ChartUtils.createLineChart(sortedDates, warningDatasets, {
-        title: "Warnings Over Time",
+        title: "",
         yLabel: "Warning Count"
       });
-      ensureSpace(MIN_CHART_HEIGHT);
-      doc.moveDown();
-      doc.image(warningChartBuffer, (doc.page.width - CHART_WIDTH) / CENTER_DIVISOR, doc.y, { width: CHART_WIDTH });
-      doc.y += MIN_CHART_HEIGHT + CHART_PADDING;
+      charts.push({
+        data: `data:image/png;base64,${warningChartBuffer.toString("base64")}`,
+        title: "Warnings Over Time",
+        type: "chart"
+      });
     } catch (e) {
       logger.error(`Failed to generate warning chart: ${String(e)}`);
     }
   }
 
-  doc.end();
-  await waitForWrite();
-  logger.info(`Report generated at: ${reportPath}`);
+  // Generate Final PDF
+  await generatePdfReport(
+    {
+      sections: [...sections, ...charts],
+      title: "Validation Report"
+    },
+    "validation-report.pdf"
+  );
+
+  logger.info(`Report generated at: reports/validation-report.pdf`);
 }
 
 async function main() {

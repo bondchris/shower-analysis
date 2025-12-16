@@ -6,8 +6,8 @@ import { BadScanDatabase } from "../models/badScanRecord";
 import { Artifact, SpatialService } from "../services/spatialService";
 import { getBadScans } from "../utils/data/badScans";
 import { logger } from "../utils/logger";
-import { createPdfDocument, drawTable, writePdfHeader } from "../utils/pdfUtils";
 import { createProgressBar } from "../utils/progress";
+import { ReportSection, generatePdfReport } from "../utils/reportGenerator";
 import { downloadFile, downloadJsonFile } from "../utils/sync/downloadHelpers";
 
 /**
@@ -77,6 +77,8 @@ const JSON_INDENT = 2;
 const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;
 
+import { SyncFailureDatabase, getSyncFailures, saveSyncFailures } from "../utils/data/syncFailures";
+
 interface SyncError {
   id: string;
   reason: string;
@@ -86,9 +88,12 @@ export interface SyncStats {
   env: string;
   found: number;
   new: number;
-  skipped: number;
   failed: number;
+  skipped: number;
+  newFailures: number;
+  knownFailures: number;
   errors: SyncError[];
+  processedIds: Set<string>;
 }
 
 interface ArtifactResult {
@@ -142,21 +147,27 @@ async function processArtifact(
 
     // Download files
     const downloadResults = await Promise.all([
-      downloadFile(video, path.join(artifactDir, "video.mp4"), "Video").then((err) => {
+      downloadFile(video, path.join(artifactDir, "video.mp4"), "video").then((err) => {
         if (err !== null) {
-          result.errors.push({ id: artifact.id, reason: err });
+          const reason = typeof err === "string" ? err : "video download failed (unknown error)";
+          if (typeof err !== "string") {
+            logger.warn(`Undefined error returned for video download: ${artifact.id}`);
+          }
+          result.errors.push({ id: artifact.id, reason });
         }
         return err === null;
       }),
       downloadJsonFile(rawScan, path.join(artifactDir, "rawScan.json"), "rawScan").then((err) => {
         if (err !== null) {
-          result.errors.push({ id: artifact.id, reason: err });
+          const reason = typeof err === "string" ? err : "rawScan download failed (unknown error)";
+          result.errors.push({ id: artifact.id, reason });
         }
         return err === null;
       }),
       downloadJsonFile(arData, path.join(artifactDir, "arData.json"), "arData").then((err) => {
         if (err !== null) {
-          result.errors.push({ id: artifact.id, reason: err });
+          const reason = typeof err === "string" ? err : "arData download failed (unknown error)";
+          result.errors.push({ id: artifact.id, reason });
         }
         return err === null;
       })
@@ -188,7 +199,10 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
     errors: [],
     failed: 0,
     found: 0,
+    knownFailures: 0,
     new: 0,
+    newFailures: 0,
+    processedIds: new Set<string>(),
     skipped: 0
   };
 
@@ -275,8 +289,6 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
       })
     );
     bar.stop();
-
-    logger.info(`${env.name} complete.`);
   } catch (e) {
     logger.error(`Failed to sync ${env.name}: ${String(e)}`);
   }
@@ -284,85 +296,223 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
   return stats;
 }
 
-export async function generateSyncReport(allStats: SyncStats[]) {
-  const { doc, reportPath, waitForWrite } = createPdfDocument("sync-report.pdf");
-
-  writePdfHeader(doc, "Sync Report");
+export async function generateSyncReport(allStats: SyncStats[], knownFailures: SyncFailureDatabase) {
+  const sections: ReportSection[] = [];
 
   // Summary Table
-  const COL_WIDTH_LG = 150;
-  const COL_WIDTH_SM = 80;
-  const colWidths = [COL_WIDTH_LG, COL_WIDTH_SM, COL_WIDTH_SM, COL_WIDTH_SM, COL_WIDTH_SM];
-  const headers = ["Environment", "Found", "New", "Skipped", "Failed"];
+  // Calculate Totals
+  const totalFound = allStats.reduce((sum, s) => sum + s.found, ZERO);
+  const totalNew = allStats.reduce((sum, s) => sum + s.new, ZERO);
+  const totalFailed = allStats.reduce((sum, s) => sum + s.failed, ZERO);
+  const totalSkipped = allStats.reduce((sum, s) => sum + s.skipped, ZERO);
+  const totalKnownFailures = allStats.reduce((sum, s) => sum + s.knownFailures, ZERO);
+  const totalNewFailures = allStats.reduce((sum, s) => sum + s.newFailures, ZERO);
 
-  const tableData = allStats.map((stats) => [
-    stats.env,
-    stats.found.toString(),
-    stats.new.toString(),
-    stats.skipped.toString(),
-    stats.failed.toString()
-  ]);
+  const headers = ["", ...allStats.map((s) => s.env), "Total"];
+  const tableData: string[][] = [
+    [
+      "Found",
+      ...allStats.map((s) => s.found.toString()),
+      `<span style="font-weight:normal;color:#6b7280">${totalFound.toString()}</span>`
+    ],
+    [
+      "New",
+      ...allStats.map((s) => s.new.toString()),
+      `<span style="font-weight:normal;color:#6b7280">${totalNew.toString()}</span>`
+    ],
+    [
+      "Failed",
+      ...allStats.map((s) => s.failed.toString()),
+      `<span style="font-weight:normal;color:#6b7280">${totalFailed.toString()}</span>`
+    ],
+    [
+      "New Failures",
+      ...allStats.map((s) => s.newFailures.toString()),
+      `<span style="font-weight:normal;color:#6b7280">${totalNewFailures.toString()}</span>`
+    ],
+    [
+      "Known Failures",
+      ...allStats.map((s) => s.knownFailures.toString()),
+      `<span style="font-weight:normal;color:#6b7280">${totalKnownFailures.toString()}</span>`
+    ],
+    [
+      "Skipped",
+      ...allStats.map((s) => s.skipped.toString()),
+      `<span style="font-weight:normal;color:#6b7280">${totalSkipped.toString()}</span>`
+    ]
+  ];
 
-  drawTable(doc, { colWidths, data: tableData, headers });
+  const rowClasses: Record<number, string> = {
+    0: "bg-info", // Found
+    1: "bg-success", // New
+    2: "bg-error", // Failed
+    3: "bg-error-light", // New Failures (lighter red)
+    4: "bg-error-light", // Known Failures (lighter red, same as New Failures)
+    5: "bg-warning" // Skipped
+  };
 
-  doc.moveDown();
+  sections.push({
+    data: tableData,
+    options: { headers, rowClasses },
+    title: "Sync Summary",
+    type: "table"
+  });
 
   // Failures Section
   const ZERO_FAILURES = 0;
-  const PDF_SUBHEADER_SIZE = 16;
-  const PDF_BODY_SIZE = 12;
-  const PDF_SPACING_SMALL = 0.5;
-
   const failedStats = allStats.filter((s) => s.errors.length > ZERO_FAILURES);
+
   if (failedStats.length > ZERO_FAILURES) {
-    doc.x = 50; // Reset X
-    doc.font("Helvetica-Bold").fontSize(PDF_SUBHEADER_SIZE).text("Sync Failures");
-    doc.moveDown();
-    doc.font("Helvetica").fontSize(PDF_BODY_SIZE);
+    sections.push({ title: "Sync Failures", type: "header" });
 
     failedStats.forEach((stats) => {
       if (stats.errors.length > ZERO_FAILURES) {
-        doc.font("Helvetica-Bold").text(`Environment: ${stats.env}`);
-        doc.font("Helvetica");
+        // Classify errors
+        const newErrors: SyncError[] = [];
+        const knownErrors: SyncError[] = [];
 
-        // Group errors by ID and deduplicate reasons
-        const errorsById = new Map<string, Set<string>>();
         stats.errors.forEach((err) => {
-          if (!errorsById.has(err.id)) {
-            errorsById.set(err.id, new Set());
+          if (Object.prototype.hasOwnProperty.call(knownFailures, err.id)) {
+            knownErrors.push(err);
+          } else {
+            newErrors.push(err);
           }
-          errorsById.get(err.id)?.add(err.reason);
         });
 
-        // Print grouped errors
-        errorsById.forEach((reasons, id) => {
-          doc.text(`- ID: ${id}`);
-          reasons.forEach((reason) => {
-            doc.text(`  ${reason}`);
+        // Helper to render error list
+        const renderErrorList = (errors: SyncError[], title: string) => {
+          if (errors.length === ZERO_FAILURES) {
+            return;
+          }
+
+          // Group errors by ID and deduplicate reasons
+          const errorsById = new Map<string, Set<string>>();
+          errors.forEach((err) => {
+            if (!errorsById.has(err.id)) {
+              errorsById.set(err.id, new Set());
+            }
+            errorsById.get(err.id)?.add(err.reason);
           });
-          doc.moveDown(PDF_SPACING_SMALL);
-        });
-        doc.moveDown();
+
+          // Print grouped errors
+          const errorLines: string[] = [];
+          errorsById.forEach((reasons, id) => {
+            const currentArtifactErrors: string[] = [];
+
+            // Group failures logic
+            const groupedFailures = new Map<string, string[]>(); // status -> types[]
+            const miscFailures: string[] = [];
+
+            reasons.forEach((reason) => {
+              const regex = /^(.+) download failed \((.+)\)$/;
+              const match = regex.exec(reason);
+              if (match !== null) {
+                const MATCH_TYPE_INDEX = 1;
+                const MATCH_STATUS_INDEX = 2;
+                const type = match[MATCH_TYPE_INDEX];
+                const status = match[MATCH_STATUS_INDEX];
+                if (type !== undefined && status !== undefined) {
+                  if (!groupedFailures.has(status)) {
+                    groupedFailures.set(status, []);
+                  }
+                  groupedFailures.get(status)?.push(type);
+                }
+              } else {
+                miscFailures.push(reason);
+              }
+            });
+
+            // Collect grouped failures
+            groupedFailures.forEach((types, status) => {
+              const sortedTypes = types.sort();
+              let typeStr = "";
+              const ONE_ITEM = 1;
+              const TWO_ITEMS = 2;
+              const FIRST_ITEM = 0;
+              const SECOND_ITEM = 1;
+
+              if (sortedTypes.length === ONE_ITEM) {
+                typeStr = sortedTypes[FIRST_ITEM] ?? "";
+              } else if (sortedTypes.length === TWO_ITEMS) {
+                typeStr = `${sortedTypes[FIRST_ITEM] ?? ""} and ${sortedTypes[SECOND_ITEM] ?? ""}`;
+              } else {
+                const last = sortedTypes.pop();
+                typeStr = `${sortedTypes.join(", ")}, and ${String(last)}`;
+              }
+              currentArtifactErrors.push(`Download failed (${status}) for ${typeStr}`);
+            });
+
+            // Collect misc failures
+            miscFailures.forEach((reason) => {
+              currentArtifactErrors.push(reason);
+            });
+
+            // Print to errorLines based on count
+            const SINGLE_FAILURE = 1;
+            const FIRST_ERROR = 0;
+            const monoId = `<span class="font-mono">${id}</span>`;
+            if (currentArtifactErrors.length === SINGLE_FAILURE) {
+              errorLines.push(`${monoId} - ${currentArtifactErrors[FIRST_ERROR] ?? ""}`);
+            } else {
+              errorLines.push(monoId);
+              currentArtifactErrors.forEach((err) => {
+                errorLines.push(`  - ${err}`);
+              });
+            }
+          });
+
+          sections.push({
+            data: errorLines,
+            level: 4,
+            title: title,
+            type: "list"
+          });
+        };
+
+        if (newErrors.length > ZERO_FAILURES || knownErrors.length > ZERO_FAILURES) {
+          sections.push({ level: 3, title: `Environment: ${stats.env}`, type: "header" });
+          renderErrorList(newErrors, "New Failures");
+          renderErrorList(knownErrors, "Known Failures");
+        }
       }
     });
   } else {
-    doc.x = 50;
-    doc.text("No failures occurred during sync.");
+    sections.push({
+      data: "No failures occurred during sync.",
+      type: "text"
+    });
   }
 
-  doc.end();
-  await waitForWrite();
-
-  logger.info(`Sync report generated at: ${reportPath}`);
+  await generatePdfReport(
+    {
+      sections,
+      title: "Sync Report"
+    },
+    "sync-report.pdf"
+  );
 }
 
 export async function main() {
+  const knownFailures = getSyncFailures();
+  const currentFailures: SyncFailureDatabase = {};
+
   const allStats: SyncStats[] = [];
   for (const env of ENVIRONMENTS) {
     const stats = await syncEnvironment(env);
     allStats.push(stats);
+
+    // Record current failures
+    for (const error of stats.errors) {
+      currentFailures[error.id] = {
+        date: new Date().toISOString(),
+        environment: env.name,
+        reason: error.reason
+      };
+    }
   }
-  await generateSyncReport(allStats);
+
+  await generateSyncReport(allStats, knownFailures);
+  saveSyncFailures(currentFailures);
 }
 
 if (require.main === module) {

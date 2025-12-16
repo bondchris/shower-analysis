@@ -1,16 +1,24 @@
 import * as fs from "fs";
-import PDFDocument from "pdfkit";
 
 import { generateSyncReport, main, syncEnvironment } from "../../../src/scripts/syncArtifacts";
 import { Artifact, SpatialService } from "../../../src/services/spatialService";
 import { getBadScans } from "../../../src/utils/data/badScans";
+import { getSyncFailures } from "../../../src/utils/data/syncFailures";
+import { generatePdfReport } from "../../../src/utils/reportGenerator";
+
+jest.mock("../../../src/utils/reportGenerator", () => ({
+  generatePdfReport: jest.fn()
+}));
 import { downloadFile, downloadJsonFile } from "../../../src/utils/sync/downloadHelpers";
 
 // Mocks
 jest.mock("fs");
-jest.mock("pdfkit");
 jest.mock("../../../src/services/spatialService");
 jest.mock("../../../src/utils/data/badScans");
+jest.mock("../../../src/utils/data/syncFailures", () => ({
+  getSyncFailures: jest.fn(),
+  saveSyncFailures: jest.fn()
+}));
 jest.mock("../../../config/config", () => ({
   ENVIRONMENTS: [{ domain: "test.com", name: "test-env" }]
 }));
@@ -30,7 +38,8 @@ jest.mock("../../../src/utils/progress", () => ({
 const mockFs = fs as unknown as jest.Mocked<typeof fs>;
 const MockSpatialService = SpatialService as unknown as jest.MockedClass<typeof SpatialService>;
 const mockGetBadScans = getBadScans as unknown as jest.MockedFunction<typeof getBadScans>;
-const MockPDFDocument = PDFDocument as unknown as jest.MockedClass<typeof PDFDocument>;
+const mockGetSyncFailures = getSyncFailures as unknown as jest.MockedFunction<typeof getSyncFailures>;
+const mockGeneratePdfReport = generatePdfReport as unknown as jest.Mock;
 const mockDownloadFile = downloadFile as unknown as jest.Mock;
 const mockDownloadJsonFile = downloadJsonFile as unknown as jest.Mock;
 
@@ -38,6 +47,7 @@ describe("syncArtifacts", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetBadScans.mockReturnValue({});
+    mockGetSyncFailures.mockReturnValue({});
   });
 
   describe("syncEnvironment", () => {
@@ -73,7 +83,7 @@ describe("syncArtifacts", () => {
       expect(stats.found).toBe(1);
       expect(stats.new).toBe(1);
       expect(stats.failed).toBe(0);
-      expect(mockDownloadFile).toHaveBeenCalledWith(artifact.video, expect.stringContaining("video.mp4"), "Video");
+      expect(mockDownloadFile).toHaveBeenCalledWith(artifact.video, expect.stringContaining("video.mp4"), "video");
       expect(mockDownloadJsonFile).toHaveBeenCalledWith(
         artifact.rawScan,
         expect.stringContaining("rawScan.json"),
@@ -114,44 +124,28 @@ describe("syncArtifacts", () => {
   });
 
   describe("generateSyncReport", () => {
-    let mockDoc: {
-      end: jest.Mock;
-      font: jest.Mock;
-      fontSize: jest.Mock;
-      moveDown: jest.Mock;
-      pipe: jest.Mock;
-      text: jest.Mock;
-      page: { height: number };
-      x: number;
-      y: number;
-    };
-
-    beforeEach(() => {
-      mockDoc = {
-        end: jest.fn(),
-        font: jest.fn().mockReturnThis(),
-        fontSize: jest.fn().mockReturnThis(),
-        moveDown: jest.fn().mockReturnThis(),
-        page: { height: 1000 },
-        pipe: jest.fn(),
-        text: jest.fn().mockReturnThis(),
-        x: 0,
-        y: 0
-      };
-      MockPDFDocument.mockImplementation(() => mockDoc as unknown as InstanceType<typeof PDFDocument>);
-      mockFs.createWriteStream.mockReturnValue({
-        on: (evt: string, cb: (e?: unknown) => void) => {
-          if (evt === "finish") {
-            cb();
-          }
-        }
-      } as unknown as fs.WriteStream);
-    });
-
     it("generates report with no failures", async () => {
-      const stats = [{ env: "test", errors: [], failed: 0, found: 10, new: 5, skipped: 0 }];
-      await generateSyncReport(stats);
-      expect(mockDoc.text).toHaveBeenCalledWith("No failures occurred during sync.");
+      const stats = [
+        {
+          env: "test",
+          errors: [],
+          failed: 0,
+          found: 10,
+          knownFailures: 0,
+          new: 5,
+          newFailures: 0,
+          processedIds: new Set<string>(),
+          skipped: 0
+        }
+      ];
+      await generateSyncReport(stats, {});
+      const calls = mockGeneratePdfReport.mock.calls as unknown[][];
+      const reportData = calls[0]?.[0] as { title: string; sections: unknown[] };
+      expect(reportData.title).toBe("Sync Report");
+      expect(reportData.sections).toEqual(
+        expect.arrayContaining([{ data: "No failures occurred during sync.", type: "text" }])
+      );
+      expect(mockGeneratePdfReport).toHaveBeenCalledTimes(1);
     });
 
     it("generates report with grouped failures", async () => {
@@ -164,15 +158,22 @@ describe("syncArtifacts", () => {
           ],
           failed: 1,
           found: 1,
+          knownFailures: 0,
           new: 0,
+          newFailures: 0,
+          processedIds: new Set<string>(),
           skipped: 0
         }
       ];
-      await generateSyncReport(stats);
+      await generateSyncReport(stats, {});
 
-      expect(mockDoc.text).toHaveBeenCalledWith(expect.stringContaining("- ID: 123"));
-      expect(mockDoc.text).toHaveBeenCalledWith(expect.stringContaining("Video failed"));
-      expect(mockDoc.text).toHaveBeenCalledWith(expect.stringContaining("JSON failed"));
+      const calls = mockGeneratePdfReport.mock.calls as unknown[][];
+      const reportData = calls[0]?.[0] as { title: string; sections: unknown[] };
+      expect(reportData.title).toBe("Sync Report");
+      expect(reportData.sections).toEqual(
+        expect.arrayContaining([expect.objectContaining({ title: "Sync Failures", type: "header" })])
+      );
+      expect(mockGeneratePdfReport).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -180,7 +181,9 @@ describe("syncArtifacts", () => {
     it("runs happy path integration", async () => {
       await main();
       expect(MockSpatialService).toHaveBeenCalled();
-      expect(mockFs.createWriteStream).toHaveBeenCalledWith(expect.stringContaining("sync-report.pdf"));
+      // generatePdfReport is called inside generateSyncReport which is called in main
+      // We can check if generatePdfReport was called
+      expect(mockGeneratePdfReport).toHaveBeenCalled();
     });
   });
 });
