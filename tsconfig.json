@@ -23,9 +23,10 @@
     "allowJs": true,
     "outDir": "./dist",
     "rootDir": ".",
-    "jsx": "react"
+    "jsx": "react",
+    "types": ["vitest/globals"]
   },
-  "include": ["src/**/*", "config/**/*", ".eslintrc.cjs", "tests/**/*", "tailwind.config.js"],
+  "include": ["src/**/*", "config/**/*", ".eslintrc.cjs", "tests/**/*", "tailwind.config.js", "vitest.config.ts"],
   "ts-node": {
     "transpileOnly": true
   }

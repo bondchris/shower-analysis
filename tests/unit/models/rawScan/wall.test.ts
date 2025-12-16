@@ -3,22 +3,19 @@ import { Wall, WallData } from "../../../../src/models/rawScan/wall";
 describe("Wall", () => {
   describe("hasSoffit", () => {
     it("should return false for null corners", () => {
-      // @ts-ignore - simulating invalid data
       const wall = new Wall({ category: {} } as WallData);
-      // @ts-ignore - access private/protected if necessary, or assume property is exposed
-      wall.polygonCorners = null;
+
+      wall.polygonCorners = null as unknown as number[][];
       expect(wall.hasSoffit).toBe(false);
     });
 
     it("should return false for empty corners", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       wall.polygonCorners = [];
       expect(wall.hasSoffit).toBe(false);
     });
 
     it("should return false for less than 3 corners", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       wall.polygonCorners = [
         [0, 0, 0],
@@ -28,7 +25,6 @@ describe("Wall", () => {
     });
 
     it("should return false for a simple rectangle (no re-entrant corners)", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       // Simple 10x10 square
       wall.polygonCorners = [
@@ -41,7 +37,6 @@ describe("Wall", () => {
     });
 
     it("should return true for a U-shape or notch simulating a soffit (approx 270 deg interior angle)", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       // Shape with a "notch" top-right corner
       // 0,10 ----- 5,10
@@ -76,7 +71,6 @@ describe("Wall", () => {
     });
 
     it("should return true for a soffit in TOP-LEFT (L-shape missing top-left quadrant)", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       // 0,0 -> 0,5 -> 5,5 -> 5,10 -> 10,10 -> 10,0 -> 0,0
       wall.polygonCorners = [
@@ -91,7 +85,6 @@ describe("Wall", () => {
     });
 
     it("should return true for a soffit in BOTTOM-LEFT (L-shape missing bottom-left quadrant)", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       // Start 5,0 -> 5,5 -> 0,5 -> 0,10 -> 10,10 -> 10,0 -> 5,0
       // Or from 10,0
@@ -107,7 +100,6 @@ describe("Wall", () => {
     });
 
     it("should return true for a soffit in BOTTOM-RIGHT (L-shape missing bottom-right quadrant)", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       // 0,0 -> 0,10 -> 10,10 -> 10,5 -> 5,5 -> 5,0 -> 0,0
       wall.polygonCorners = [
@@ -122,7 +114,6 @@ describe("Wall", () => {
     });
 
     it("should return true for MULTIPLE soffits (Top-Right AND Bottom-Left notches)", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       // 10x10 base, notches at Top-Right and Bottom-Left
       // Start Bottom-Left area (with notch)
@@ -157,7 +148,6 @@ describe("Wall", () => {
     });
 
     it("should return true for a Soffit with SLANTED segments (tolerance check)", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       // Standard soffit at Top-Right, but the incoming wall is slanted.
       // Standard: (0,10) -> (5,10) -> (5,5) -> (10,5) -> (10,0) -> (0,0)
@@ -194,7 +184,6 @@ describe("Wall", () => {
     });
 
     it("should return false for a Chamfered corner (45 degree cut, convex)", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       // 10x10 square with Top-Right corner chamfered by 2 units.
       // (0,0) -> (0,10) -> (8,10) -> (10,8) -> (10,0) -> (0,0)
@@ -216,7 +205,6 @@ describe("Wall", () => {
     });
 
     it("should return false for a Slanted Top (Shed/Monopitch roof, trapezoid)", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       // 10 wide, 10 high on left, 8 high on right.
       // (0,0) -> (0,10) -> (10,8) -> (10,0) -> (0,0)
@@ -236,7 +224,6 @@ describe("Wall", () => {
     });
 
     it("should return true for Double Recess on same side (Two notches on top edge)", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       // 10x10. Top edge has two notches.
       // (0,10) -> (2,10) -> (2,8) -> (3,8) -> (3,10) -> (7,10) -> (7,8) -> (8,8) -> (8,10) -> (10,10) -> (10,0) -> (0,0)
@@ -271,7 +258,6 @@ describe("Wall", () => {
     });
 
     it("should return false for Collinear points on top edge (redundant vertices)", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       // 10x10 square but with extra points on the top edge.
       // (0,10) -> (5,10) -> (10,10).
@@ -288,7 +274,6 @@ describe("Wall", () => {
     });
 
     it("should return false for a convex polygon", () => {
-      // @ts-ignore
       const wall = new Wall({ category: {} } as WallData);
       // Triangle CW
       wall.polygonCorners = [

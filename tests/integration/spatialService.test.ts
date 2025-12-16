@@ -1,36 +1,50 @@
 import axios from "axios";
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
+import fs from "fs";
+import path from "path";
+import { Mocked, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiResponse, Artifact, SpatialService } from "../../src/services/spatialService";
 
-// Mock axios
-jest.mock("axios");
-const mockedAxios = axios as jest.Mocked<typeof axios>;
+vi.mock("axios");
+const mockedAxios = axios as Mocked<typeof axios>;
 
 describe("SpatialService Integration", () => {
-  let tempDir = "";
+  const tempDir = path.join(__dirname, "temp-spatial-test");
 
-  let service: SpatialService;
+  class TestSpatialService extends SpatialService {
+    protected override getCacheDir(): string {
+      const sanitized = this.envName.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+      return path.join(tempDir, "data", "api_cache", sanitized);
+    }
+  }
+
+  let service: TestSpatialService;
+
+  beforeAll(() => {
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    // No need to spy on process.cwd() anymore
+  });
 
   beforeEach(() => {
-    // 1. Setup Temp Dir
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "spatial-test-"));
+    // 1. Setup Temp Dir (already done in beforeAll, but ensure it's clean for each test)
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { force: true, recursive: true });
+    }
+    fs.mkdirSync(tempDir, { recursive: true });
 
-    // 2. Stub process.cwd to point to tempDir
-    jest.spyOn(process, "cwd").mockReturnValue(tempDir);
-
-    // 3. Reset axios mocks
+    // 2. Reset axios mocks
     mockedAxios.get.mockReset();
 
-    // 4. Initialize Service
-    service = new SpatialService("bondxlowes.com", "TestEnv");
+    // 3. Initialize Service
+    service = new TestSpatialService("bondxlowes.com", "TestEnv");
   });
 
   afterEach(() => {
     // Cleanup
-    jest.restoreAllMocks(); // Restores process.cwd
+    vi.restoreAllMocks(); // Mock process.cwd() to verify relative path resolution
+    vi.spyOn(process, "cwd").mockReturnValue(tempDir);
     try {
       if (fs.existsSync(tempDir)) {
         fs.rmSync(tempDir, { force: true, recursive: true });
@@ -56,7 +70,7 @@ describe("SpatialService Integration", () => {
   const createPage = (page: number, data: ApiResponse, envName?: string) => {
     const dir = getCachePath(envName);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, `page_${page.toString()}.json`), JSON.stringify(data));
+    fs.writeFileSync(path.join(dir, "page_" + page.toString() + ".json"), JSON.stringify(data));
   };
 
   const mockApiResponse = (total: number, items: Artifact[] = []): ApiResponse => ({
@@ -179,7 +193,7 @@ describe("SpatialService Integration", () => {
   describe("C. File / Path Sanitization", () => {
     it("should sanitize env name for folder", async () => {
       const dirtyEnv = "Prod/Lowes GAMMA!!";
-      const sanitaryService = new SpatialService("domain.com", dirtyEnv);
+      const sanitaryService = new TestSpatialService("domain.com", dirtyEnv);
       const responseData = mockApiResponse(10);
       mockedAxios.get.mockResolvedValue({ data: responseData });
 

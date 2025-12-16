@@ -194,7 +194,6 @@ describe("transform utils", () => {
     });
 
     // 5. Specific Matrix Patterns
-    // 5. Specific Matrix Patterns
     describe("5. Specific Matrix Patterns", () => {
       it("should handle Shear transformation", () => {
         // x' = x + 2z
@@ -432,7 +431,6 @@ describe("transform utils", () => {
         // So strict equality check should pass if Point stores whatever is passed.
         // However, Typescript might complain if new Point expects numbers.
         // Tests use `as unknown as number` so it compiles.
-        // Tests use `as unknown as number` so it compiles.
         expect(getPosition(t)).toEqual(new Point("hello" as unknown as number, true as unknown as number));
       });
 
@@ -440,7 +438,6 @@ describe("transform utils", () => {
         const t = new Array(TRANSFORM_SIZE).fill(0) as number[];
         t[12] = undefined as unknown as number;
         t[14] = "100" as unknown as number;
-        // undefined -> 0, "100" -> "100"
         // undefined -> 0, "100" -> "100"
         expect(getPosition(t)).toEqual(new Point(0, "100" as unknown as number));
       });

@@ -2,29 +2,30 @@ import * as fs from "fs";
 
 import { BadScanDatabase } from "../../../src/models/badScanRecord";
 import { CheckedScanDatabase } from "../../../src/models/checkedScanRecord";
+import { Mock, Mocked, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { processArtifact } from "../../../src/scripts/filterNonBathrooms";
 import { GeminiService } from "../../../src/services/geminiService";
 import { getBadScans } from "../../../src/utils/data/badScans";
 import { getCheckedScans } from "../../../src/utils/data/checkedScans";
 
 // Mock dependencies
-jest.mock("fs");
-jest.mock("../../../src/services/geminiService");
-jest.mock("../../../src/utils/data/badScans");
-jest.mock("../../../src/utils/data/checkedScans");
-
-// Progress Mock
-jest.mock("../../../src/utils/progress", () => ({
-  createProgressBar: jest.fn().mockReturnValue({
-    increment: jest.fn(),
-    start: jest.fn(),
-    stop: jest.fn(),
-    update: jest.fn()
+vi.mock("fs");
+vi.mock("../../../src/services/geminiService");
+vi.mock("../../../src/utils/data/badScans");
+vi.mock("../../../src/utils/data/checkedScans");
+vi.mock("../../../src/utils/logger");
+vi.mock("../../../src/utils/progress", () => ({
+  createProgressBar: vi.fn().mockReturnValue({
+    increment: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    update: vi.fn()
   })
 }));
 
 // Types for mocks
-type MockGeminiService = jest.Mocked<GeminiService>;
+type MockGeminiService = Mocked<GeminiService>;
 type BadScansMap = BadScanDatabase;
 type CheckedScansMap = CheckedScanDatabase;
 
@@ -35,24 +36,24 @@ describe("filterNonBathrooms Unit", () => {
   let checkedScanIds: Set<string>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockService = new GeminiService() as MockGeminiService;
     mockBadScans = {};
     mockCheckedScans = {};
     checkedScanIds = new Set<string>();
 
-    (getBadScans as jest.Mock).mockReturnValue(mockBadScans);
-    (getCheckedScans as jest.Mock).mockReturnValue(mockCheckedScans);
+    (getBadScans as Mock).mockReturnValue(mockBadScans);
+    (getCheckedScans as Mock).mockReturnValue(mockCheckedScans);
   });
 
   describe("processArtifact Logic", () => {
     const MOCK_DIR = "/mock/data/artifacts/env/artifact1";
 
     beforeEach(() => {
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(Buffer.from("video"));
-      (fs.rmSync as jest.Mock).mockReturnValue(undefined);
+      (fs.existsSync as Mock).mockReturnValue(true);
+      (fs.readFileSync as Mock).mockReturnValue(Buffer.from("video"));
+      (fs.rmSync as Mock).mockReturnValue(undefined);
     });
 
     it("skips if artifact is already in badScans", async () => {
@@ -78,7 +79,7 @@ describe("filterNonBathrooms Unit", () => {
     });
 
     it("skips if video does not exist", async () => {
-      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      (fs.existsSync as Mock).mockReturnValue(false);
 
       const result = await processArtifact(MOCK_DIR, mockService, mockBadScans, checkedScanIds, mockCheckedScans);
 
@@ -154,7 +155,7 @@ describe("filterNonBathrooms Unit", () => {
 
     it("handles rmSync failure gracefully", async () => {
       mockService.generateContent.mockResolvedValue("NO");
-      (fs.rmSync as jest.Mock).mockImplementation(() => {
+      (fs.rmSync as Mock).mockImplementation(() => {
         throw new Error("Delete Fail");
       });
 

@@ -1,6 +1,7 @@
 import * as fs from "fs";
-import * as os from "os";
 import * as path from "path";
+
+import { Mock, Mocked, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BadScanDatabase } from "../../src/models/badScanRecord";
 import { CheckedScanDatabase } from "../../src/models/checkedScanRecord";
@@ -9,45 +10,61 @@ import { GeminiService } from "../../src/services/geminiService";
 import { getBadScans } from "../../src/utils/data/badScans";
 import { getCheckedScans } from "../../src/utils/data/checkedScans";
 
-// Mock dependencies (but NOT fs)
-jest.mock("../../src/services/geminiService");
-jest.mock("../../src/utils/data/badScans");
-jest.mock("../../src/utils/data/checkedScans");
+vi.mock("../../src/services/geminiService");
+vi.mock("../../src/utils/data/badScans");
+vi.mock("../../src/utils/data/checkedScans");
+
+// Mock logger
+vi.mock("../../src/utils/logger", () => ({
+  logger: {
+    debug: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn()
+  }
+}));
 
 // Types for mocks
-type MockGeminiService = jest.Mocked<GeminiService>;
-type BadScansMap = BadScanDatabase;
-type CheckedScansMap = CheckedScanDatabase;
+type MockGeminiService = Mocked<GeminiService>;
 
 describe("filterNonBathrooms Integration", () => {
-  let mockService: MockGeminiService;
-  let mockBadScans: BadScansMap;
-  let mockCheckedScans: CheckedScansMap;
-  let checkedScanIds: Set<string>;
-
-  let tmpDir: string;
-  let artifactsRoot: string;
+  let mockGeminiService: MockGeminiService;
+  const mockArtifactsDir = path.join(__dirname, "data/artifacts/temp-artifacts");
+  // Ensure parent directories exist
+  const dataDir = path.join(__dirname, "data");
+  const artifactsDir = path.join(dataDir, "artifacts");
+  let mockBadScans: BadScanDatabase;
+  let mockCheckedScans: CheckedScanDatabase;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    // Clean up
+    if (fs.existsSync(mockArtifactsDir)) {
+      fs.rmSync(mockArtifactsDir, { force: true, recursive: true });
+    }
+    // Setup nested structure to pass safety check
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir);
+    }
+    if (!fs.existsSync(artifactsDir)) {
+      fs.mkdirSync(artifactsDir);
+    }
+    fs.mkdirSync(mockArtifactsDir, { recursive: true });
 
-    mockService = new GeminiService() as MockGeminiService;
+    // Reset mocks
+    vi.clearAllMocks();
+    mockGeminiService = new GeminiService("test-key") as MockGeminiService; // Re-initialize mockGeminiService
+    mockGeminiService.generateContent.mockResolvedValue("NO");
     mockBadScans = {};
     mockCheckedScans = {};
-    checkedScanIds = new Set<string>();
-
-    (getBadScans as jest.Mock).mockReturnValue(mockBadScans);
-    (getCheckedScans as jest.Mock).mockReturnValue(mockCheckedScans);
-
-    // Setup temp dir
-    // Setup temp dir with expected structure
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "filter-integration-"));
-    artifactsRoot = path.join(tmpDir, "data", "artifacts");
-    fs.mkdirSync(artifactsRoot, { recursive: true });
+    (getBadScans as Mock).mockReturnValue(mockBadScans);
+    (getCheckedScans as Mock).mockReturnValue(mockCheckedScans);
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { force: true, recursive: true });
+    if (fs.existsSync(mockArtifactsDir)) {
+      fs.rmSync(mockArtifactsDir, { force: true, recursive: true });
+    }
+    // Cleanup parents if empty? No, unnecessary for temp test
   });
 
   it("findArtifactDirectories finds nested artifacts with meta.json", () => {
@@ -60,33 +77,34 @@ describe("filterNonBathrooms Integration", () => {
     //       art2/ meta.json
     //   ignored/ (no meta)
 
-    const env1 = path.join(artifactsRoot, "env1");
+    const env1 = path.join(mockArtifactsDir, "env1");
     const art1 = path.join(env1, "art1");
     fs.mkdirSync(art1, { recursive: true });
     fs.writeFileSync(path.join(art1, "meta.json"), "{}");
 
-    const env2 = path.join(artifactsRoot, "env2");
+    const env2 = path.join(mockArtifactsDir, "env2");
     const art2 = path.join(env2, "nested", "art2");
     fs.mkdirSync(art2, { recursive: true });
     fs.writeFileSync(path.join(art2, "meta.json"), "{}");
 
-    fs.mkdirSync(path.join(artifactsRoot, "ignored"));
+    fs.mkdirSync(path.join(mockArtifactsDir, "ignored"));
 
-    const results = findArtifactDirectories(artifactsRoot);
+    const results = findArtifactDirectories(mockArtifactsDir);
     expect(results).toHaveLength(2);
     expect(results).toContain(art1);
     expect(results).toContain(art2);
   });
 
   it("processArtifact actually deletes directory on NO (using real Gemini mock)", async () => {
-    const artDir = path.join(artifactsRoot, "art_delete");
+    const artDir = path.join(mockArtifactsDir, "art_delete");
     fs.mkdirSync(artDir);
     fs.writeFileSync(path.join(artDir, "meta.json"), "{}");
     fs.writeFileSync(path.join(artDir, "video.mp4"), "fake video content");
 
-    mockService.generateContent.mockResolvedValue("NO");
+    mockGeminiService.generateContent.mockResolvedValue("NO");
+    const checkedScanIds = new Set<string>();
 
-    const result = await processArtifact(artDir, mockService, mockBadScans, checkedScanIds, mockCheckedScans);
+    const result = await processArtifact(artDir, mockGeminiService, mockBadScans, checkedScanIds, mockCheckedScans);
 
     expect(result.removed).toBe(1);
     expect(fs.existsSync(artDir)).toBe(false); // Real deletion check
@@ -94,14 +112,15 @@ describe("filterNonBathrooms Integration", () => {
   });
 
   it("processArtifact keeps directory on YES", async () => {
-    const artDir = path.join(artifactsRoot, "art_keep");
+    const artDir = path.join(mockArtifactsDir, "art_keep");
     fs.mkdirSync(artDir);
     fs.writeFileSync(path.join(artDir, "meta.json"), "{}");
     fs.writeFileSync(path.join(artDir, "video.mp4"), "fake video content");
 
-    mockService.generateContent.mockResolvedValue("YES");
+    mockGeminiService.generateContent.mockResolvedValue("YES");
+    const checkedScanIds = new Set<string>();
 
-    const result = await processArtifact(artDir, mockService, mockBadScans, checkedScanIds, mockCheckedScans);
+    const result = await processArtifact(artDir, mockGeminiService, mockBadScans, checkedScanIds, mockCheckedScans);
 
     expect(result.removed).toBe(0);
     expect(fs.existsSync(artDir)).toBe(true);

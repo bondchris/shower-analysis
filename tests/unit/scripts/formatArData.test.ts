@@ -1,31 +1,44 @@
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ArData, findArDataFiles, run, sortArData } from "../../../src/scripts/formatArData";
-
-// Logger Mock
-jest.mock("../../../src/utils/logger", () => ({
-  logger: {
-    debug: jest.fn(),
-    error: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn()
-  }
-}));
 import { logger } from "../../../src/utils/logger";
 
-// Progress Mock
-jest.mock("../../../src/utils/progress", () => ({
-  createProgressBar: jest.fn().mockReturnValue({
-    increment: jest.fn(),
-    start: jest.fn(),
-    stop: jest.fn(),
-    update: jest.fn()
+// Mock dependencies
+vi.mock("../../../src/utils/logger", () => ({
+  logger: {
+    debug: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn()
+  }
+}));
+
+// Mock progress bar
+vi.mock("../../../src/utils/progress", () => ({
+  createProgressBar: vi.fn().mockReturnValue({
+    start: vi.fn(),
+    stop: vi.fn(),
+    update: vi.fn()
   })
 }));
 
 describe("formatArData", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Mock process.exit to avoid exiting test runner
+    vi.spyOn(process, "exit").mockImplementation(
+      (() => undefined) as unknown as (code?: number | string | null) => never
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   // --- Unit Tests: findArDataFiles ---
   describe("findArDataFiles", () => {
     let tmpDir: string;
@@ -136,18 +149,16 @@ describe("formatArData", () => {
     let tmpDir: string;
 
     beforeEach(() => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "run-test-"));
-      jest.clearAllMocks();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "format-ar-data-test-"));
+      vi.clearAllMocks();
       /*
       // Mock stdout to prevent clutter
-      jest.spyOn(process.stdout, "write").mockImplementation(() => true);
-      jest.spyOn(console, "log").mockImplementation(() => undefined);
-      jest.spyOn(console, "error").mockImplementation(() => undefined);
+      vi.spyOn(process.stdout, "write").mockImplementation(() => true);
       */
     });
 
     afterEach(() => {
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
       try {
         fs.rmSync(tmpDir, { force: true, recursive: true });
       } catch {

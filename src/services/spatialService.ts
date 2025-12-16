@@ -41,8 +41,8 @@ export interface ApiResponse {
  * Cache invalidation is based on the total count of items on the server.
  */
 export class SpatialService {
+  protected readonly envName: string;
   private readonly domain: string;
-  private readonly envName: string;
   private cacheValid = false;
   private hasValidatedCache = false;
 
@@ -79,6 +79,11 @@ export class SpatialService {
     return res;
   }
 
+  protected getCacheDir(): string {
+    const CACHE_DIR = path.join(process.cwd(), "data", "api_cache");
+    return path.join(CACHE_DIR, this.envName.replace(/[^a-z0-9]/gi, "_").toLowerCase());
+  }
+
   private async fetchAndValidate(page: number): Promise<ApiResponse> {
     const res = await this.networkFetch(page);
     const serverTotal = res.pagination.total;
@@ -104,11 +109,6 @@ export class SpatialService {
     const url = `https://api.${this.domain}/spatial/v1/scan-artifacts?page=${page.toString()}`;
     const res = await axios.get<ApiResponse>(url, { timeout: TIMEOUT_MS });
     return res.data;
-  }
-
-  private getCacheDir(): string {
-    const CACHE_DIR = path.join(process.cwd(), "data", "api_cache");
-    return path.join(CACHE_DIR, this.envName.replace(/[^a-z0-9]/gi, "_").toLowerCase());
   }
 
   private getCacheMeta(): { total: number } | null {

@@ -1,51 +1,60 @@
-import * as fs from "fs";
+import fs from "fs";
+import { Mock, Mocked, MockedClass, MockedFunction, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { generateSyncReport, main, syncEnvironment } from "../../../src/scripts/syncArtifacts";
 import { Artifact, SpatialService } from "../../../src/services/spatialService";
 import { getBadScans } from "../../../src/utils/data/badScans";
 import { getSyncFailures } from "../../../src/utils/data/syncFailures";
 import { generatePdfReport } from "../../../src/utils/reportGenerator";
-
-jest.mock("../../../src/utils/reportGenerator", () => ({
-  generatePdfReport: jest.fn()
-}));
 import { downloadFile, downloadJsonFile } from "../../../src/utils/sync/downloadHelpers";
 
-// Mocks
-jest.mock("fs");
-jest.mock("../../../src/services/spatialService");
-jest.mock("../../../src/utils/data/badScans");
-jest.mock("../../../src/utils/data/syncFailures", () => ({
-  getSyncFailures: jest.fn(),
-  saveSyncFailures: jest.fn()
+vi.mock("../../../src/utils/reportGenerator", () => ({
+  generatePdfReport: vi.fn()
 }));
-jest.mock("../../../config/config", () => ({
+
+// Mock logger to suppress output during tests
+vi.mock("../../../src/utils/logger", () => ({
+  logger: {
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn()
+  }
+}));
+
+vi.mock("fs");
+vi.mock("../../../src/services/spatialService");
+vi.mock("../../../src/utils/data/badScans");
+vi.mock("../../../src/utils/data/syncFailures", () => ({
+  getSyncFailures: vi.fn(),
+  saveSyncFailures: vi.fn()
+}));
+
+vi.mock("../../../config/config", () => ({
   ENVIRONMENTS: [{ domain: "test.com", name: "test-env" }]
 }));
-jest.mock("../../../src/utils/sync/downloadHelpers");
+vi.mock("../../../src/utils/sync/downloadHelpers");
 
-// Progress Mock
-jest.mock("../../../src/utils/progress", () => ({
-  createProgressBar: jest.fn().mockReturnValue({
-    increment: jest.fn(),
-    start: jest.fn(),
-    stop: jest.fn(),
-    update: jest.fn()
+// Mock cli-progress
+vi.mock("../../../src/utils/progress", () => ({
+  createProgressBar: vi.fn().mockReturnValue({
+    increment: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    update: vi.fn()
   })
 }));
 
-// Types
-const mockFs = fs as unknown as jest.Mocked<typeof fs>;
-const MockSpatialService = SpatialService as unknown as jest.MockedClass<typeof SpatialService>;
-const mockGetBadScans = getBadScans as unknown as jest.MockedFunction<typeof getBadScans>;
-const mockGetSyncFailures = getSyncFailures as unknown as jest.MockedFunction<typeof getSyncFailures>;
-const mockGeneratePdfReport = generatePdfReport as unknown as jest.Mock;
-const mockDownloadFile = downloadFile as unknown as jest.Mock;
-const mockDownloadJsonFile = downloadJsonFile as unknown as jest.Mock;
+const mockFs = fs as unknown as Mocked<typeof fs>;
+const MockSpatialService = SpatialService as unknown as MockedClass<typeof SpatialService>;
+const mockGetBadScans = getBadScans as unknown as MockedFunction<typeof getBadScans>;
+const mockGetSyncFailures = getSyncFailures as unknown as MockedFunction<typeof getSyncFailures>;
+const mockGeneratePdfReport = generatePdfReport as unknown as Mock;
+const mockDownloadFile = downloadFile as unknown as Mock;
+const mockDownloadJsonFile = downloadJsonFile as unknown as Mock;
 
 describe("syncArtifacts", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockGetBadScans.mockReturnValue({});
     mockGetSyncFailures.mockReturnValue({});
   });
@@ -70,8 +79,10 @@ describe("syncArtifacts", () => {
       mockDownloadJsonFile.mockResolvedValue(null);
 
       mockFs.createWriteStream.mockReturnValue({
-        close: jest.fn(),
-        on: jest.fn()
+        close: vi.fn(),
+        end: vi.fn(),
+        on: vi.fn(),
+        write: vi.fn()
       } as unknown as fs.WriteStream);
       // We mock rmSync to ensure it doesn't fail
       mockFs.rmSync.mockImplementation(() => undefined);

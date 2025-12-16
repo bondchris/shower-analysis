@@ -1,4 +1,5 @@
 import { ChartJSNodeCanvas } from "chartjs-node-canvas";
+import { Mock, MockedClass, vi } from "vitest";
 
 import {
   buildBarChartConfig,
@@ -13,17 +14,17 @@ import {
 } from "../../../src/utils/chartUtils";
 
 // Mock chartjs-node-canvas
-jest.mock("chartjs-node-canvas");
+vi.mock("chartjs-node-canvas");
 
-const MockChartJSNodeCanvas = ChartJSNodeCanvas as jest.MockedClass<typeof ChartJSNodeCanvas>;
+const MockChartJSNodeCanvas = ChartJSNodeCanvas as unknown as MockedClass<typeof ChartJSNodeCanvas>;
 
 describe("chartUtils", () => {
-  let renderToBufferMock: jest.Mock;
+  let renderToBufferMock: Mock;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    renderToBufferMock = jest.fn().mockResolvedValue(Buffer.from("ok"));
-    MockChartJSNodeCanvas.mockImplementation(() => {
+    vi.clearAllMocks();
+    renderToBufferMock = vi.fn().mockResolvedValue(Buffer.from("ok"));
+    MockChartJSNodeCanvas.mockImplementation(function MockCanvas() {
       return {
         renderToBuffer: renderToBufferMock
       } as unknown as ChartJSNodeCanvas;
@@ -104,7 +105,7 @@ describe("chartUtils", () => {
       });
       it("should handle invalid inputs gracefully", () => {
         expect(kelvinToRgb(-100)).toBe("rgba(0, 0, 0, 0.8)");
-        // @ts-ignore
+        // @ts-expect-error
         expect(kelvinToRgb("foo")).toBe("rgba(0, 0, 0, 0.8)");
       });
     });

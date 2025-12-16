@@ -1,16 +1,25 @@
 import ffmpeg from "fluent-ffmpeg";
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
+import fs from "fs";
+import path from "path";
+import { Mock, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import os from "os";
 import { findArtifactDirectories, main, probeVideo } from "../../../src/scripts/cleanData";
 import { getBadScans, saveBadScans } from "../../../src/utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../../../src/utils/data/checkedScans";
 
-// Mock dependencies
-jest.mock("fluent-ffmpeg");
-jest.mock("../../../src/utils/data/badScans");
-jest.mock("../../../src/utils/data/checkedScans");
+vi.mock("fluent-ffmpeg");
+vi.mock("../../../src/utils/data/badScans");
+vi.mock("../../../src/utils/data/checkedScans");
+
+// Mock logger
+vi.mock("../../../src/utils/logger", () => ({
+  logger: {
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn()
+  }
+}));
 
 interface BadScanEntry {
   date?: string;
@@ -27,12 +36,31 @@ type CheckedScansMap = Record<string, CheckedScanEntry>;
 type FfprobeCallback = (err: unknown, data?: { format?: { duration?: number | string } }) => void;
 
 describe("cleanData", () => {
+  // Ffmpeg mock
+  let mockFfmpeg: Mock;
+  interface MockFfmpegCommand {
+    ffprobe: Mock;
+  }
+  let mockFfmpegCommand: MockFfmpegCommand;
+
+  beforeEach(() => {
+    mockFfmpeg = vi.fn();
+    (ffmpeg as unknown as Mock).mockImplementation(mockFfmpeg);
+
+    mockFfmpegCommand = {
+      ffprobe: vi.fn()
+    };
+    mockFfmpeg.mockReturnValue(mockFfmpegCommand);
+
+    vi.clearAllMocks();
+  });
+
   // --- Helpers Tests ---
   describe("probeVideo", () => {
-    let mockFfmpeg: jest.Mock;
+    let mockFfmpeg: Mock;
 
     beforeEach(() => {
-      mockFfmpeg = jest.fn();
+      mockFfmpeg = vi.fn();
     });
 
     it("returns ok:true and duration when valid", async () => {
@@ -107,8 +135,8 @@ describe("cleanData", () => {
     let checkedScansFile: string;
     let mockBadScans: BadScansMap;
     let mockCheckedScans: CheckedScansMap;
-    let mockLogger: jest.Mock;
-    let mockFfmpeg: jest.Mock;
+    let mockLogger: Mock;
+    let mockFfmpeg: Mock;
 
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "clean-main-"));
@@ -120,15 +148,15 @@ describe("cleanData", () => {
       mockBadScans = {};
       mockCheckedScans = {};
 
-      (getBadScans as jest.Mock).mockReturnValue(mockBadScans);
-      (getCheckedScans as jest.Mock).mockReturnValue(mockCheckedScans);
+      (getBadScans as Mock).mockReturnValue(mockBadScans);
+      (getCheckedScans as Mock).mockReturnValue(mockCheckedScans);
 
-      mockLogger = jest.fn();
-      mockFfmpeg = jest.fn();
+      mockLogger = vi.fn();
+      mockFfmpeg = vi.fn();
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       fs.rmSync(tmpDir, { force: true, recursive: true });
     });
 

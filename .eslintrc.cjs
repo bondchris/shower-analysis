@@ -28,10 +28,11 @@ module.exports = {
     sourceType: "module",
     tsconfigRootDir: __dirname
   },
-  plugins: ["@typescript-eslint", "simple-import-sort"],
+  plugins: ["@typescript-eslint", "simple-import-sort", "local-rules"],
   root: true,
   rules: {
     "@typescript-eslint/member-ordering": "error",
+
     "@typescript-eslint/no-empty-function": "error",
     "@typescript-eslint/no-implied-eval": "error",
     "@typescript-eslint/no-unused-expressions": "error",
@@ -59,6 +60,8 @@ module.exports = {
     "guard-for-in": "error",
     "init-declarations": "error",
     "linebreak-style": ["error", "unix"],
+    "local-rules/no-commented-out-code": "error",
+    "local-rules/no-duplicate-comments": "error",
     "no-alert": "error",
     "no-bitwise": "error",
     "no-confusing-arrow": "error",

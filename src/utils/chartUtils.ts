@@ -2,8 +2,6 @@ import { ChartConfiguration, ChartData, LegendItem } from "chart.js";
 import { ChartJSNodeCanvas } from "chartjs-node-canvas";
 
 // --- Constants ---
-
-// --- Constants ---
 const DEFAULT_WIDTH = 600;
 const DEFAULT_HEIGHT = 300;
 const CHART_BG_COLOR = "white";

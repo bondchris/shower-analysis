@@ -7,7 +7,6 @@ import { createExternalWall, createMockScan } from "./testHelpers";
 describe("checkCrookedWalls", () => {
   const ONE_INCH = convert(1).from("in").to("m");
   // Helper to create simple linear walls
-  // Helper to create simple linear walls
   const createWall = (id: string, overrides: Partial<WallData> = {}): WallData =>
     createExternalWall(id, {
       dimensions: [10, 3, 0.2], // 10m long
@@ -61,7 +60,6 @@ describe("checkCrookedWalls", () => {
     // W2 collinear (0 deg), varying distance from W1 end (10,0).
     // Gap needs to be checked.
     // 0.5 inches = 0.0127m. tx = 10 + 0.0127.
-    // 0.5 inches = 0.0127m. tx = 10 + 0.0127.
     const w2Inside = createWall("w2", { transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10.0127, 0, 0, 1] });
     expect(checkCrookedWalls(createMockScan({ walls: [w1, w2Inside] }))).toBe(true);
 
@@ -81,8 +79,6 @@ describe("checkCrookedWalls", () => {
   it("Angle Threshold", () => {
     const w1 = createWall("w1");
 
-    // Connected (0 distance gap)
-    // 0 deg (Collinear) -> True
     // Connected (0 distance gap)
     // 0 deg (Collinear) -> True
     const w2Zero = createRotated("w2", 0, 10, 0);

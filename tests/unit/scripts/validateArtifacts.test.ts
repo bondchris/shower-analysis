@@ -1,86 +1,61 @@
-import { EnvStats } from "../../../src/models/envStats";
+import { Mock, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyArtifactToStats, generateReport, validateEnvironment } from "../../../src/scripts/validateArtifacts";
 import { Artifact, SpatialService } from "../../../src/services/spatialService";
-import { generatePdfReport } from "../../../src/utils/reportGenerator";
-
-jest.mock("../../../src/utils/reportGenerator", () => ({
-  generatePdfReport: jest.fn()
-}));
-const mockGeneratePdfReport = generatePdfReport as unknown as jest.Mock;
-const mockFetchScanArtifacts = jest.fn();
-
-// Configure SpatialService mock
-(SpatialService as unknown as jest.Mock).mockImplementation(() => {
-  return {
-    fetchScanArtifacts: mockFetchScanArtifacts
-  };
-});
-jest.mock("../../../src/services/spatialService");
-jest.mock("../../../config/config", () => ({ ENVIRONMENTS: [{ domain: "test.com", name: "test-env" }] }));
-
+import { EnvStats } from "../../../src/models/envStats";
 // ChartUtils Mock
-jest.mock("../../../src/utils/chartUtils", () => ({
-  createBarChart: jest.fn().mockResolvedValue(Buffer.from("chart")),
-  createLineChart: jest.fn().mockResolvedValue(Buffer.from("chart")),
-  createMixedChart: jest.fn().mockResolvedValue(Buffer.from("chart"))
-}));
-
-// FS Mock
-jest.mock("fs", () => ({
-  createWriteStream: jest.fn().mockReturnValue({
-    on: jest.fn().mockImplementation((_e: string, cb: () => void) => {
-      cb();
-    })
-  }),
-  existsSync: jest.fn().mockReturnValue(true),
-  mkdirSync: jest.fn()
-}));
-
-// ChartUtils Mock
-jest.mock("../../../src/utils/chartUtils", () => ({
-  createBarChart: jest.fn().mockResolvedValue(Buffer.from("chart")),
-  createLineChart: jest.fn().mockResolvedValue(Buffer.from("chart")),
-  createMixedChart: jest.fn().mockResolvedValue(Buffer.from("chart"))
+vi.mock("../../../src/utils/chartUtils", () => ({
+  createBarChart: vi.fn().mockResolvedValue(Buffer.from("chart")),
+  createLineChart: vi.fn().mockResolvedValue(Buffer.from("chart")),
+  createMixedChart: vi.fn().mockResolvedValue(Buffer.from("chart"))
 }));
 
 // Logger Mock
-jest.mock("../../../src/utils/logger", () => ({
+vi.mock("../../../src/utils/logger", () => ({
   logger: {
-    debug: jest.fn(),
-    error: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn()
+    debug: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn()
   }
 }));
 import { logger } from "../../../src/utils/logger";
 
 // Progress Mock
-jest.mock("../../../src/utils/progress", () => ({
-  createProgressBar: jest.fn().mockReturnValue({
-    increment: jest.fn(),
-    start: jest.fn(),
-    stop: jest.fn(),
-    update: jest.fn()
+vi.mock("../../../src/utils/progress", () => ({
+  createProgressBar: vi.fn().mockReturnValue({
+    increment: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    update: vi.fn()
   })
 }));
 
-// Stream Mock to handle 'finished'
-jest.mock("stream", (): typeof import("stream") => {
-  const actual = jest.requireActual<typeof import("stream")>("stream");
-  return Object.assign({}, actual, {
+// Stream Mock
+vi.mock("stream", async () => {
+  const actual = await vi.importActual<typeof import("stream")>("stream");
+  return {
+    ...(actual as unknown as Record<string, unknown>),
     finished: ((_s: unknown, cb: () => void) => {
-      // invokes callback immediately to simulate stream finish
       cb();
-      return () => {
-        // no-op cleanup
-      };
+      return () => undefined;
     }) as unknown as typeof import("stream").finished
-  }) as unknown as typeof import("stream");
+  };
 });
+
+// Mock SpatialService and reportGenerator
+vi.mock("../../../src/services/spatialService");
+vi.mock("../../../src/utils/reportGenerator");
+
+import { generatePdfReport } from "../../../src/utils/reportGenerator";
+const mockGeneratePdfReport = generatePdfReport as unknown as Mock;
+
+const mockFetchScanArtifacts = vi.fn();
+
+SpatialService.prototype.fetchScanArtifacts = mockFetchScanArtifacts;
 
 describe("validateArtifacts script", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("applyArtifactToStats", () => {
@@ -177,12 +152,6 @@ describe("validateArtifacts script", () => {
           pagination: { lastPage: 2, total: 2 }
         });
 
-      /*
-      jest.spyOn(console, "log").mockImplementation(() => {
-        // no-op
-      });
-      */
-
       const stats = await validateEnvironment({ domain: "test.com", name: "Test Env" });
 
       expect(stats.name).toBe("Test Env");
@@ -201,15 +170,6 @@ describe("validateArtifacts script", () => {
           pagination: { lastPage: 2, total: 2 }
         })
         .mockRejectedValueOnce(new Error("Network Error"));
-
-      /*
-      jest.spyOn(console, "error").mockImplementation(() => {
-        // no-op
-      });
-      jest.spyOn(console, "log").mockImplementation(() => {
-        // no-op
-      });
-      */
 
       const stats = await validateEnvironment({ domain: "test.com", name: "Test Env" });
 

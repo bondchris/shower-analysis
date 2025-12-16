@@ -1,23 +1,24 @@
 import axios, { AxiosError, AxiosResponse } from "axios";
-import * as fs from "fs";
+import fs from "fs";
 import * as path from "path";
 import { pipeline } from "stream/promises";
+import { Mock, Mocked } from "vitest";
 
 import { downloadFile, downloadJsonFile } from "../../../../src/utils/sync/downloadHelpers";
 
-jest.mock("axios");
-jest.mock("fs");
-jest.mock("stream/promises", () => ({
-  pipeline: jest.fn().mockResolvedValue(undefined)
+vi.mock("axios");
+vi.mock("fs");
+vi.mock("stream/promises", () => ({
+  pipeline: vi.fn().mockResolvedValue(undefined)
 }));
 
-const mockAxios = axios as jest.Mocked<typeof axios>;
-const mockFs = fs as jest.Mocked<typeof fs>;
-const mockPipeline = pipeline as jest.Mock;
+const mockAxios = axios as Mocked<typeof axios>;
+const mockFs = fs as Mocked<typeof fs>;
+const mockPipeline = pipeline as Mock;
 
 describe("downloadHelpers", () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
+  afterEach(() => {
+    vi.resetAllMocks();
   });
 
   describe("downloadFile", () => {
