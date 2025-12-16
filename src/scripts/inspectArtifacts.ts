@@ -5,13 +5,14 @@ import convert from "convert-units";
 import ffmpeg from "fluent-ffmpeg";
 import { sumBy } from "lodash";
 
+import { CaptureCharts, buildDataAnalysisReport } from "../templates/dataAnalysisReport";
 import { ArData } from "../models/arData/arData";
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
 import { RawScan } from "../models/rawScan/rawScan";
 import * as ChartUtils from "../utils/chartUtils";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
-import { ReportSection, generatePdfReport } from "../utils/reportGenerator";
+import { generatePdfReport } from "../utils/reportGenerator";
 import { checkColinearWalls } from "../utils/room/checkColinearWalls";
 import { checkCrookedWalls } from "../utils/room/checkCrookedWalls";
 import { checkDoorBlocking } from "../utils/room/checkDoorBlocking";
@@ -85,24 +86,11 @@ async function addVideoMetadata(dirPath: string, metadata: ArtifactAnalysis): Pr
   return result;
 }
 
+// Helper interface for local chart data preparation
 interface ChartDef {
   check: (m: ArtifactAnalysis) => boolean;
   count: number;
   label: string;
-}
-
-interface CaptureCharts {
-  ambient: Buffer;
-  area: Buffer;
-  brightness: Buffer;
-  duration: Buffer;
-  errors: Buffer;
-  features: Buffer;
-  fps: Buffer;
-  iso: Buffer;
-  lens: Buffer;
-  resolution: Buffer;
-  temperature: Buffer;
 }
 
 // 2. RawScan Analysis
@@ -268,20 +256,30 @@ function findArtifactDirectories(dir: string): string[] {
 }
 
 async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<CaptureCharts> {
-  const INITIAL_COUNT = 0;
+  const charts: Partial<CaptureCharts> = {};
+  const DURATION_CHART_WIDTH = 800;
+  const DURATION_CHART_HEIGHT = 400;
+  const FEATURE_CHART_HEIGHT = 600;
+  const NOT_SET = "not_set";
   const INCREMENT_STEP = 1;
-  const NOT_SET = "";
+  const INITIAL_COUNT = 0;
   const NO_RESULTS = 0;
-  // Chart Params
-  const DURATION_CHART_WIDTH = 1020;
-  const DURATION_CHART_HEIGHT = 320;
 
   // Histogram Constants
   const MIN_TOILETS = 2;
   const MIN_TUBS = 2;
   const MIN_WALLS = 4;
 
-  const charts = {} as CaptureCharts;
+  // Duration
+  const durations = metadataList.map((m) => m.duration);
+  charts.duration = await ChartUtils.createHistogram(durations, "Seconds", "", {
+    binSize: 10,
+    height: DURATION_CHART_HEIGHT,
+    hideUnderflow: true,
+    max: 120,
+    min: 10,
+    width: DURATION_CHART_WIDTH
+  });
 
   // Lens Models
   const lensMap: Record<string, number> = {};
@@ -299,53 +297,75 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
     width: DURATION_CHART_WIDTH
   });
 
+  // Framerate
+  const fpsMap: Record<string, number> = {};
+  for (const m of metadataList) {
+    const fps = Math.round(m.fps).toString();
+    fpsMap[fps] = (fpsMap[fps] ?? INITIAL_COUNT) + INCREMENT_STEP;
+  }
+  const fpsLabels = Object.keys(fpsMap).sort((a, b) => parseFloat(a) - parseFloat(b));
+  const fpsCounts = fpsLabels.map((l) => fpsMap[l] ?? INITIAL_COUNT);
+  charts.fps = await ChartUtils.createBarChart(fpsLabels, fpsCounts, "", {
+    height: DURATION_CHART_HEIGHT,
+    width: DURATION_CHART_WIDTH
+  });
+
+  // Resolution
+  const resMap: Record<string, number> = {};
+  for (const m of metadataList) {
+    const res = `${m.width.toString()}x${m.height.toString()}`;
+    resMap[res] = (resMap[res] ?? INITIAL_COUNT) + INCREMENT_STEP;
+  }
+  const resLabels = Object.keys(resMap).sort();
+  const resCounts = resLabels.map((l) => resMap[l] ?? INITIAL_COUNT);
+  charts.resolution = await ChartUtils.createBarChart(resLabels, resCounts, "", {
+    height: DURATION_CHART_HEIGHT,
+    width: DURATION_CHART_WIDTH
+  });
+
   // Lighting & Exposure Data
   const intensityVals = metadataList.map((m) => m.avgAmbientIntensity).filter((v) => v > NO_RESULTS);
   const tempVals = metadataList.map((m) => m.avgColorTemperature).filter((v) => v > NO_RESULTS);
   const isoVals = metadataList.map((m) => m.avgIso).filter((v) => v > NO_RESULTS);
   const briVals = metadataList.map((m) => m.avgBrightness).filter((v) => v !== NO_RESULTS);
   const areaVals = metadataList.map((m) => m.roomAreaSqFt).filter((v) => v > NO_RESULTS);
-  const durations = metadataList.map((m) => m.duration);
-
-  // Duration: min 10, max 120, bin 10
-  charts.duration = await ChartUtils.createHistogram(durations, "Seconds", "", {
-    binSize: 10,
-    height: DURATION_CHART_HEIGHT,
-    hideUnderflow: true,
-    max: 120,
-    min: 10,
-    width: DURATION_CHART_WIDTH
-  });
 
   // Ambient: 980-1040, bin 5
   charts.ambient = await ChartUtils.createHistogram(intensityVals, "Lumens", "", {
     binSize: 5,
+    height: DURATION_CHART_HEIGHT,
     max: 1040,
-    min: 980
+    min: 980,
+    width: DURATION_CHART_WIDTH
   });
 
   // Temp: 4000-6000, bin 250
   charts.temperature = await ChartUtils.createHistogram(tempVals, "Kelvin", "", {
     binSize: 250,
     colorByValue: ChartUtils.kelvinToRgb,
+    height: DURATION_CHART_HEIGHT,
     max: 6000,
-    min: 4000
+    min: 4000,
+    width: DURATION_CHART_WIDTH
   });
 
   // ISO: 0-800, bin 50
   charts.iso = await ChartUtils.createHistogram(isoVals, "ISO", "", {
     binSize: 50,
-    hideUnderflow: true,
+    height: DURATION_CHART_HEIGHT,
     max: 800,
-    min: 0
+    min: 0,
+    width: DURATION_CHART_WIDTH
   });
 
   // Brightness: 0-6, bin 1
   charts.brightness = await ChartUtils.createHistogram(briVals, "Value (EV)", "", {
     binSize: 1,
     decimalPlaces: 1,
+    height: DURATION_CHART_HEIGHT,
     max: 6,
-    min: 0
+    min: 0,
+    width: DURATION_CHART_WIDTH
   });
 
   // Room Area: 0-150, bin 10
@@ -358,26 +378,31 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
     width: DURATION_CHART_WIDTH
   });
 
-  // Existing FPS/Res logic
-  const framerates = metadataList.map((m) => Math.round(m.fps));
-  const fpsDistribution: Record<string, number> = {};
-  framerates.forEach((fps) => {
-    fpsDistribution[String(fps)] = (fpsDistribution[String(fps)] ?? INITIAL_COUNT) + INCREMENT_STEP;
-  });
-  const fpsLabels = Object.keys(fpsDistribution).sort((a, b) => parseFloat(a) - parseFloat(b));
-  const fpsCounts = fpsLabels.map((l) => fpsDistribution[l] ?? INITIAL_COUNT);
-  charts.fps = await ChartUtils.createBarChart(fpsLabels, fpsCounts, "");
+  // Capture Errors & Features
+  const errorDefs: ChartDef[] = [
+    { check: (m: ArtifactAnalysis) => m.hasToiletGapErrors, count: INITIAL_COUNT, label: 'Toilet Gap > 1"' },
+    { check: (m: ArtifactAnalysis) => m.hasTubGapErrors, count: INITIAL_COUNT, label: 'Tub Gap 1"-6"' },
+    { check: (m: ArtifactAnalysis) => m.hasWallGapErrors, count: INITIAL_COUNT, label: 'Wall Gaps 1"-12"' },
+    { check: (m: ArtifactAnalysis) => m.hasColinearWallErrors, count: INITIAL_COUNT, label: "Colinear Walls" },
+    {
+      check: (m: ArtifactAnalysis) => m.hasObjectIntersectionErrors,
+      count: INITIAL_COUNT,
+      label: "Object Intersections"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.hasWallObjectIntersectionErrors,
+      count: INITIAL_COUNT,
+      label: "Wall <-> Object Intersections"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.hasWallWallIntersectionErrors,
+      count: INITIAL_COUNT,
+      label: "Wall <-> Wall Intersections"
+    },
+    { check: (m: ArtifactAnalysis) => m.hasCrookedWallErrors, count: INITIAL_COUNT, label: "Crooked Walls" },
+    { check: (m: ArtifactAnalysis) => m.hasDoorBlockingError, count: INITIAL_COUNT, label: "Door Blocked" }
+  ];
 
-  const resolutions = metadataList.map((m) => `${m.width.toString()}x${m.height.toString()}`);
-  const resDistribution: Record<string, number> = {};
-  resolutions.forEach((res) => {
-    resDistribution[res] = (resDistribution[res] ?? INITIAL_COUNT) + INCREMENT_STEP;
-  });
-  const resLabels = Object.keys(resDistribution).sort();
-  const resCounts = resLabels.map((l) => resDistribution[l] ?? INITIAL_COUNT);
-  charts.resolution = await ChartUtils.createBarChart(resLabels, resCounts, "");
-
-  // Feature Prevalence
   const featureDefs: ChartDef[] = [
     { check: (m: ArtifactAnalysis) => m.hasNonRectWall, count: INITIAL_COUNT, label: "Non-Rectangular Walls" },
     { check: (m: ArtifactAnalysis) => m.hasCurvedWall, count: INITIAL_COUNT, label: "Curved Walls" },
@@ -406,44 +431,19 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
     { check: (m: ArtifactAnalysis) => m.hasTelevision, count: INITIAL_COUNT, label: "Television" }
   ];
 
-  const errorDefs: ChartDef[] = [
-    { check: (m: ArtifactAnalysis) => m.hasToiletGapErrors, count: INITIAL_COUNT, label: 'Toilet Gap > 1"' },
-    { check: (m: ArtifactAnalysis) => m.hasTubGapErrors, count: INITIAL_COUNT, label: 'Tub Gap 1"-6"' },
-    { check: (m: ArtifactAnalysis) => m.hasWallGapErrors, count: INITIAL_COUNT, label: 'Wall Gaps 1"-12"' },
-    { check: (m: ArtifactAnalysis) => m.hasColinearWallErrors, count: INITIAL_COUNT, label: "Colinear Walls" },
-    {
-      check: (m: ArtifactAnalysis) => m.hasObjectIntersectionErrors,
-      count: INITIAL_COUNT,
-      label: "Object Intersections"
-    },
-    {
-      check: (m: ArtifactAnalysis) => m.hasWallObjectIntersectionErrors,
-      count: INITIAL_COUNT,
-      label: "Wall <-> Object Intersections"
-    },
-    {
-      check: (m: ArtifactAnalysis) => m.hasWallWallIntersectionErrors,
-      count: INITIAL_COUNT,
-      label: "Wall <-> Wall Intersections"
-    },
-    { check: (m: ArtifactAnalysis) => m.hasCrookedWallErrors, count: INITIAL_COUNT, label: "Crooked Walls" },
-    { check: (m: ArtifactAnalysis) => m.hasDoorBlockingError, count: INITIAL_COUNT, label: "Door Blocked" }
-  ];
-
   for (const m of metadataList) {
-    for (const def of featureDefs) {
-      if (def.check(m)) {
-        def.count++;
+    for (const d of errorDefs) {
+      if (d.check(m)) {
+        d.count++;
       }
     }
-    for (const def of errorDefs) {
-      if (def.check(m)) {
-        def.count++;
+    for (const d of featureDefs) {
+      if (d.check(m)) {
+        d.count++;
       }
     }
   }
 
-  const FEATURE_CHART_HEIGHT = 1500;
   charts.features = await ChartUtils.createBarChart(
     featureDefs.map((d) => d.label),
     featureDefs.map((d) => d.count),
@@ -468,7 +468,7 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
     }
   );
 
-  return charts;
+  return charts as CaptureCharts;
 }
 
 async function createInspectionReport(
@@ -478,103 +478,10 @@ async function createInspectionReport(
   reportPath: string
 ): Promise<void> {
   logger.info("Generating PDF...");
-  const sections: ReportSection[] = [];
 
-  // Metadata
-  const DECIMAL_PLACES_AVG = 1;
-  const subtitle = `Avg Duration: ${avgDuration.toFixed(DECIMAL_PLACES_AVG)}s | Artifacts: ${videoCount.toString()}`;
+  const reportData = buildDataAnalysisReport(charts, avgDuration, videoCount);
 
-  // Charts
-  const chartSections: ReportSection[] = [];
-
-  // Duration
-  chartSections.push({
-    data: `data:image/png;base64,${charts.duration.toString("base64")}`,
-    title: "Duration",
-    type: "chart"
-  });
-
-  // Lens Model
-  chartSections.push({
-    data: `data:image/png;base64,${charts.lens.toString("base64")}`,
-    title: "Lens Model",
-    type: "chart"
-  });
-
-  // Framerate & Resolution Side-by-Side
-  chartSections.push({
-    data: [
-      {
-        data: `data:image/png;base64,${charts.fps.toString("base64")}`,
-        title: "Framerate"
-      },
-      {
-        data: `data:image/png;base64,${charts.resolution.toString("base64")}`,
-        title: "Resolution"
-      }
-    ],
-    type: "chart-row"
-  });
-
-  // Ambient Intensity & Color Temperature Side-by-Side
-  chartSections.push({
-    data: [
-      {
-        data: `data:image/png;base64,${charts.ambient.toString("base64")}`,
-        title: "Ambient Intensity"
-      },
-      {
-        data: `data:image/png;base64,${charts.temperature.toString("base64")}`,
-        title: "Color Temperature"
-      }
-    ],
-    type: "chart-row"
-  });
-
-  // ISO Speed & Brightness Value Side-by-Side
-  chartSections.push({
-    data: [
-      {
-        data: `data:image/png;base64,${charts.iso.toString("base64")}`,
-        title: "ISO Speed"
-      },
-      {
-        data: `data:image/png;base64,${charts.brightness.toString("base64")}`,
-        title: "Brightness Value"
-      }
-    ],
-    type: "chart-row"
-  });
-
-  // Room Area
-  chartSections.push({
-    data: `data:image/png;base64,${charts.area.toString("base64")}`,
-    title: "Room Area (Sq Ft)",
-    type: "chart"
-  });
-
-  // Capture Errors
-  chartSections.push({
-    data: `data:image/png;base64,${charts.errors.toString("base64")}`,
-    title: "Capture Errors",
-    type: "chart"
-  });
-
-  // Feature Prevalence
-  chartSections.push({
-    data: `data:image/png;base64,${charts.features.toString("base64")}`,
-    title: "Feature Prevalence",
-    type: "chart"
-  });
-
-  await generatePdfReport(
-    {
-      sections: [...sections, ...chartSections],
-      subtitle,
-      title: "Artifact Data Analysis"
-    },
-    reportPath
-  );
+  await generatePdfReport(reportData, reportPath);
 
   logger.info(`Report generated at: ${reportPath}`);
 }
@@ -597,12 +504,6 @@ async function main(): Promise<void> {
   for (const dir of artifactDirs) {
     const metadata = new ArtifactAnalysis();
     const success = await addVideoMetadata(dir, metadata);
-    if (success) {
-      addRawScanMetadata(dir, metadata);
-      addArDataMetadata(dir, metadata);
-
-      metadataList.push(metadata);
-    }
     if (success) {
       addRawScanMetadata(dir, metadata);
       addArDataMetadata(dir, metadata);

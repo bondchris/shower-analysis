@@ -10,9 +10,9 @@ import { getBadScans } from "../../src/utils/data/badScans";
 import { getCheckedScans } from "../../src/utils/data/checkedScans";
 
 // Mock dependencies (but NOT fs)
-jest.mock("../../../src/services/geminiService");
-jest.mock("../../../src/utils/data/badScans");
-jest.mock("../../../src/utils/data/checkedScans");
+jest.mock("../../src/services/geminiService");
+jest.mock("../../src/utils/data/badScans");
+jest.mock("../../src/utils/data/checkedScans");
 
 // Types for mocks
 type MockGeminiService = jest.Mocked<GeminiService>;

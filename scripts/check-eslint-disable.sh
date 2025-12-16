@@ -28,8 +28,17 @@ if [ "$FOUND_ANY" = true ]; then
     # But grep results look like: "src/file.ts:10: content"
 
     # Filter
-    grep -vFf "$WHITELIST_FILE" "$MATCHES_FILE" > "${MATCHES_FILE}.filtered"
-    mv "${MATCHES_FILE}.filtered" "$MATCHES_FILE"
+    # Filter
+    # Pre-process whitelist to ignore empty lines and comments (#)
+    # matching an empty line in grep -f causes it to match EVERYTHING (filtering out all errors)
+    CLEAN_WHITELIST=$(mktemp)
+    grep -vE '^\s*($|#)' "$WHITELIST_FILE" > "$CLEAN_WHITELIST"
+
+    if [ -s "$CLEAN_WHITELIST" ]; then
+        grep -vFf "$CLEAN_WHITELIST" "$MATCHES_FILE" > "${MATCHES_FILE}.filtered"
+        mv "${MATCHES_FILE}.filtered" "$MATCHES_FILE"
+    fi
+    rm "$CLEAN_WHITELIST"
 
     # Re-check count
     if [ -s "$MATCHES_FILE" ]; then

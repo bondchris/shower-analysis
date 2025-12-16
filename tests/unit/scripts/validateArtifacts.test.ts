@@ -1,9 +1,5 @@
-import {
-  EnvStats,
-  applyArtifactToStats,
-  generateReport,
-  validateEnvironment
-} from "../../../src/scripts/validateArtifacts";
+import { EnvStats } from "../../../src/models/envStats";
+import { applyArtifactToStats, generateReport, validateEnvironment } from "../../../src/scripts/validateArtifacts";
 import { Artifact, SpatialService } from "../../../src/services/spatialService";
 import { generatePdfReport } from "../../../src/utils/reportGenerator";
 
@@ -125,8 +121,8 @@ describe("validateArtifacts script", () => {
 
       expect(stats.processed).toBe(1);
       expect(stats.artifactsWithIssues).toBe(0);
-      expect(stats.totalScansByDate["2025-12-14"]).toBe(1);
-      expect(stats.cleanScansByDate["2025-12-14"]).toBe(1);
+      expect(stats.totalScansByDate).toHaveProperty("2025-12-14", 1);
+      expect(stats.cleanScansByDate).toHaveProperty("2025-12-14", 1);
     });
 
     it("should detect missing required fields", () => {
@@ -134,8 +130,8 @@ describe("validateArtifacts script", () => {
       applyArtifactToStats(stats, artifact);
 
       expect(stats.artifactsWithIssues).toBe(1);
-      expect(stats.missingCounts["id"]).toBe(1);
-      expect(stats.errorsByDate["2025-12-14"]).toBe(1);
+      expect(stats.missingCounts).toHaveProperty("id", 1);
+      expect(stats.errorsByDate).toHaveProperty("2025-12-14", 1);
       expect(stats.cleanScansByDate["2025-12-14"]).toBeUndefined();
     });
 
@@ -144,7 +140,7 @@ describe("validateArtifacts script", () => {
       applyArtifactToStats(stats, artifact);
 
       expect(stats.artifactsWithIssues).toBe(1);
-      expect(stats.missingCounts["scanDate (invalid)"]).toBe(1);
+      expect(stats.missingCounts).toHaveProperty("scanDate (invalid)", 1);
       expect(stats.totalScansByDate["0001-01-01"]).toBeUndefined();
     });
 
@@ -153,7 +149,7 @@ describe("validateArtifacts script", () => {
       applyArtifactToStats(stats, artifact);
 
       expect(stats.artifactsWithWarnings).toBe(1);
-      expect(stats.warningCounts["projectId"]).toBe(1);
+      expect(stats.warningCounts).toHaveProperty("projectId", 1);
     });
 
     it("should track dynamic properties", () => {
@@ -163,9 +159,9 @@ describe("validateArtifacts script", () => {
       } as unknown as Partial<Artifact>);
       applyArtifactToStats(stats, artifact);
 
-      expect(stats.propertyCounts["id"]).toBe(1);
-      expect(stats.propertyCounts["extraField"]).toBe(1);
-      expect(stats.propertyCounts["pointCloud"]).toBe(1);
+      expect(stats.propertyCounts).toHaveProperty("id", 1);
+      expect(stats.propertyCounts).toHaveProperty("extraField", 1);
+      expect(stats.propertyCounts).toHaveProperty("pointCloud", 1);
     });
   });
 

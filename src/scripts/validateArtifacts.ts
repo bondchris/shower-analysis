@@ -2,23 +2,13 @@ import { LegendItem } from "chart.js";
 import { sumBy } from "lodash";
 
 import { ENVIRONMENTS } from "../../config/config";
+import { EnvStats } from "../models/envStats";
 import { Artifact, SpatialService } from "../services/spatialService";
+import { ValidationCharts, buildValidationReport } from "../templates/validationReport";
 import * as ChartUtils from "../utils/chartUtils";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
-import { ReportSection, generatePdfReport } from "../utils/reportGenerator";
-
-const CHART_BAR_HEIGHT = 15;
-const MIN_CHART_HEIGHT = 300;
-const HEADER_FOOTER_SPACE = 60;
-
-/**
- * Script to validate data integrity of artifacts on the server.
- * - Fetches all artifact metadata from the API.
- * - Checks for missing required fields (id, projectId, scanDate, etc.).
- * - Dynamically tracks and reports presence counts for ALL properties found in artifacts.
- * - Generates a report showing error and warning trends over time and by environment.
- */
+import { generatePdfReport } from "../utils/reportGenerator";
 
 const getValidDateKey = (scanDate: unknown): string | null => {
   const DATE_PART_INDEX = 0;
@@ -32,22 +22,6 @@ const getValidDateKey = (scanDate: unknown): string | null => {
   }
   return date;
 };
-
-export interface EnvStats {
-  artifactsWithIssues: number;
-  artifactsWithWarnings: number;
-  errorsByDate: Record<string, number>;
-  warningsByDate: Record<string, number>;
-  cleanScansByDate: Record<string, number>;
-  totalScansByDate: Record<string, number>;
-  missingCounts: Record<string, number>;
-  warningCounts: Record<string, number>;
-  processed: number;
-  totalArtifacts: number;
-  propertyCounts: Record<string, number>;
-  name: string;
-  pageErrors: Record<number, string>;
-}
 
 export function applyArtifactToStats(stats: EnvStats, item: Artifact): void {
   const REQUIRED_FIELDS: (keyof Artifact)[] = ["id", "scanDate", "rawScan", "arData", "video"];
@@ -222,125 +196,15 @@ export async function validateEnvironment(env: { domain: string; name: string })
   return stats;
 }
 
-export async function generateReport(allStats: EnvStats[]) {
+async function generateValidationCharts(allStats: EnvStats[]): Promise<ValidationCharts> {
+  const charts: ValidationCharts = {};
   const INITIAL_ERROR_COUNT = 0;
-  const ZERO = 0;
-  const PERCENTAGE_BASE = 100;
   const MIN_DATA_POINTS = 0;
-  const NO_STATS = 0;
-  const DECIMAL_PLACES = 1;
-  const LAST_ELEMENT_OFFSET = 1;
+  const CHART_BAR_HEIGHT = 15;
+  const MIN_CHART_HEIGHT = 300;
+  const HEADER_FOOTER_SPACE = 60;
 
   const grandTotal = sumBy(allStats, "totalArtifacts");
-
-  if (allStats.length === NO_STATS) {
-    await generatePdfReport(
-      {
-        sections: [{ data: "No environments / no data.", type: "text" }],
-        title: "Validation Report"
-      },
-      "validation-report.pdf"
-    );
-    return;
-  }
-
-  const sections: ReportSection[] = [];
-
-  // Standardized Table Logic (Exploded Rows for Errors & Warnings)
-  // Columns: [Label, ...Environment Names, All]
-  const totalProcessed = sumBy(allStats, "processed");
-  const totalErrors = sumBy(allStats, "artifactsWithIssues");
-  const totalWarnings = sumBy(allStats, "artifactsWithWarnings");
-
-  const headers = ["", ...allStats.map((s) => s.name), "Total"];
-  const tableData: string[][] = [];
-  const rowClasses: Record<number, string> = {};
-
-  // 1. Processed Row
-  const processedRow = ["Processed Artifacts"];
-  allStats.forEach((stat) => {
-    const total = stat.totalArtifacts; // Use stat.totalArtifacts as the total for this environment
-    if (total > ZERO) {
-      const percentage = ((stat.processed / total) * PERCENTAGE_BASE).toFixed(DECIMAL_PLACES);
-      // De-emphasize the percentage visually
-      processedRow.push(
-        `${stat.processed.toString()} <span style="font-weight:normal;color:#6b7280;font-size:0.9em">(${percentage}%)</span>`
-      );
-    } else {
-      processedRow.push("0 (0.0%)");
-    }
-  });
-  processedRow.push(`<span style="font-weight:normal;color:#6b7280">${totalProcessed.toString()}</span>`);
-  tableData.push(processedRow);
-  rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-info";
-
-  // 2. Total Errors Row
-  const totalErrorsRow = ["Total Errors"];
-  allStats.forEach((stat) => {
-    totalErrorsRow.push(String(stat.artifactsWithIssues));
-  });
-  totalErrorsRow.push(`<span style="font-weight:normal;color:#6b7280">${totalErrors.toString()}</span>`);
-  tableData.push(totalErrorsRow);
-  rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-error";
-
-  // 3. Error Detail Rows
-  // Collect all unique error keys across all environments
-  const allErrorKeys = new Set<string>();
-  allStats.forEach((stat) => {
-    Object.keys(stat.missingCounts).forEach((k) => allErrorKeys.add(k));
-  });
-  Array.from(allErrorKeys)
-    .sort()
-    .forEach((key) => {
-      const row = [key]; // e.g. "Missing rawScan"
-      let rowTotal = 0;
-      allStats.forEach((stat) => {
-        const count = stat.missingCounts[key] ?? INITIAL_ERROR_COUNT;
-        row.push(String(count));
-        rowTotal += count;
-      });
-      row.push(`<span style="font-weight:normal;color:#6b7280">${rowTotal.toString()}</span>`);
-      tableData.push(row);
-      rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-error-light";
-    });
-
-  // 4. Total Warnings Row
-  const totalWarningsRow = ["Total Warnings"];
-  allStats.forEach((stat) => {
-    totalWarningsRow.push(String(stat.artifactsWithWarnings));
-  });
-  totalWarningsRow.push(`<span style="font-weight:normal;color:#6b7280">${totalWarnings.toString()}</span>`);
-  tableData.push(totalWarningsRow);
-  rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-warning";
-
-  // 5. Warning Detail Rows
-  const allWarningKeys = new Set<string>();
-  allStats.forEach((stat) => {
-    Object.keys(stat.warningCounts).forEach((k) => allWarningKeys.add(k));
-  });
-  Array.from(allWarningKeys)
-    .sort()
-    .forEach((key) => {
-      const row = [key]; // e.g. "Missing ProjectId"
-      let rowTotal = 0;
-      allStats.forEach((stat) => {
-        const count = stat.warningCounts[key] ?? INITIAL_ERROR_COUNT;
-        row.push(String(count));
-        rowTotal += count;
-      });
-      row.push(`<span style="font-weight:normal;color:#6b7280">${rowTotal.toString()}</span>`);
-      tableData.push(row);
-      rowClasses[tableData.length - LAST_ELEMENT_OFFSET] = "bg-warning-light";
-    });
-
-  sections.push({
-    data: tableData,
-    options: { headers, rowClasses },
-    type: "table"
-  });
-
-  // Convert charts to base64 for HTML embedding
-  const charts: ReportSection[] = [];
 
   // Aggregate counts across all environments for property chart
   const consolidatedCounts: Record<string, number> = {};
@@ -363,16 +227,11 @@ export async function generateReport(allStats: EnvStats[]) {
       const contentHeight = chartLabels.length * CHART_BAR_HEIGHT;
       const dynamicHeight = Math.max(MIN_CHART_HEIGHT, contentHeight + HEADER_FOOTER_SPACE);
 
-      const propertyChartBuffer = await ChartUtils.createBarChart(chartLabels, chartData, "", {
+      charts.propertyPresence = await ChartUtils.createBarChart(chartLabels, chartData, "", {
         height: dynamicHeight,
         horizontal: true,
         totalForPercentages: grandTotal,
         width: 600
-      });
-      charts.push({
-        data: `data:image/png;base64,${propertyChartBuffer.toString("base64")}`,
-        title: "Property Presence",
-        type: "chart"
       });
     } catch (e) {
       logger.error(`Failed to generate property chart: ${String(e)}`);
@@ -503,7 +362,7 @@ export async function generateReport(allStats: EnvStats[]) {
     });
 
     try {
-      const volumeChartBuffer = await ChartUtils.createMixedChart(sortedDates, volumeDatasets, {
+      charts.scanVolume = await ChartUtils.createMixedChart(sortedDates, volumeDatasets, {
         legendSort: (a: LegendItem, b: LegendItem) => {
           // Force "Cumulative Avg Scans/Day" to the end (Far Right)
           // Sort is Descending (High -> Low).
@@ -518,11 +377,6 @@ export async function generateReport(allStats: EnvStats[]) {
         title: "",
         yLabelLeft: "Total Scans (Cumulative)",
         yLabelRight: "Avg Scans / Day"
-      });
-      charts.push({
-        data: `data:image/png;base64,${volumeChartBuffer.toString("base64")}`,
-        title: "Scan Volume (All Environments)",
-        type: "chart"
       });
     } catch (e) {
       logger.error(`Failed to generate aggregated volume chart: ${String(e)}`);
@@ -550,14 +404,9 @@ export async function generateReport(allStats: EnvStats[]) {
     });
 
     try {
-      const successChartBuffer = await ChartUtils.createLineChart(sortedDates, successDatasets, {
+      charts.success = await ChartUtils.createLineChart(sortedDates, successDatasets, {
         title: "",
         yLabel: "Success %"
-      });
-      charts.push({
-        data: `data:image/png;base64,${successChartBuffer.toString("base64")}`,
-        title: "Scan Success Percentage Over Time",
-        type: "chart"
       });
     } catch (e) {
       logger.error(`Failed to generate success chart: ${String(e)}`);
@@ -582,14 +431,9 @@ export async function generateReport(allStats: EnvStats[]) {
     });
 
     try {
-      const errorChartBuffer = await ChartUtils.createLineChart(sortedDates, errorDatasets, {
+      charts.errors = await ChartUtils.createLineChart(sortedDates, errorDatasets, {
         title: "",
         yLabel: "Error Count"
-      });
-      charts.push({
-        data: `data:image/png;base64,${errorChartBuffer.toString("base64")}`,
-        title: "Errors Over Time",
-        type: "chart"
       });
     } catch (e) {
       logger.error(`Failed to generate code error chart: ${String(e)}`);
@@ -614,29 +458,23 @@ export async function generateReport(allStats: EnvStats[]) {
     });
 
     try {
-      const warningChartBuffer = await ChartUtils.createLineChart(sortedDates, warningDatasets, {
+      charts.warnings = await ChartUtils.createLineChart(sortedDates, warningDatasets, {
         title: "",
         yLabel: "Warning Count"
-      });
-      charts.push({
-        data: `data:image/png;base64,${warningChartBuffer.toString("base64")}`,
-        title: "Warnings Over Time",
-        type: "chart"
       });
     } catch (e) {
       logger.error(`Failed to generate warning chart: ${String(e)}`);
     }
   }
 
-  // Generate Final PDF
-  await generatePdfReport(
-    {
-      sections: [...sections, ...charts],
-      title: "Validation Report"
-    },
-    "validation-report.pdf"
-  );
+  return charts;
+}
 
+export async function generateReport(allStats: EnvStats[]) {
+  const charts = await generateValidationCharts(allStats);
+  const reportData = buildValidationReport(allStats, charts);
+
+  await generatePdfReport(reportData, "validation-report.pdf");
   logger.info(`Report generated at: reports/validation-report.pdf`);
 }
 
