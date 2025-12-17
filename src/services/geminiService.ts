@@ -1,7 +1,7 @@
 import { GenerativeModel, GoogleGenerativeAI } from "@google/generative-ai";
 import * as dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({ quiet: true } as dotenv.DotenvConfigOptions);
 
 /**
  * Service wrapper for Google's Gemini Generative AI.

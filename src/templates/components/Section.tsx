@@ -2,6 +2,8 @@ import React from "react";
 import { ReportSection } from "../../models/report";
 import { Table } from "./Table";
 
+const MIN_HEIGHT = 0;
+
 interface SectionProps {
   section: ReportSection;
 }
@@ -67,12 +69,21 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
         </div>
       );
 
-    case "chart":
+    case "chart": {
+      const chartHeight = (section.data as { height?: number }).height;
       return (
         <div className="mb-8 flex w-full justify-center break-inside-avoid">
-          <img src={section.data as string} alt="Chart" className="max-h-[600px] max-w-full" />
+          <div
+            className="relative w-full"
+            style={{
+              height: chartHeight !== undefined && chartHeight > MIN_HEIGHT ? `${chartHeight.toString()}px` : "300px"
+            }}
+          >
+            <canvas className="chart-canvas" data-config={JSON.stringify(section.data)} />
+          </div>
         </div>
       );
+    }
 
     case "chart-row":
       if (!Array.isArray(section.data)) {
@@ -80,12 +91,22 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
       }
       return (
         <div className="mb-8 flex justify-between gap-5 break-inside-avoid">
-          {(section.data as { title?: string; data: string }[]).map((chart, i) => (
-            <div key={i} className="flex-1 text-center">
+          {(section.data as { title?: string; data: { height?: number } }[]).map((chart, i) => (
+            <div key={i} className="flex-1 text-center min-w-0">
               {chart.title !== undefined && (
                 <h5 className="mb-2 text-center text-sm font-semibold text-gray-700">{chart.title}</h5>
               )}
-              <img src={chart.data} alt={chart.title ?? "Chart"} className="h-auto max-w-full" />
+              <div
+                className="relative w-full"
+                style={{
+                  height:
+                    chart.data.height !== undefined && chart.data.height > MIN_HEIGHT
+                      ? `${chart.data.height.toString()}px`
+                      : "300px"
+                }}
+              >
+                <canvas className="chart-canvas" data-config={JSON.stringify(chart.data)} />
+              </div>
             </div>
           ))}
         </div>

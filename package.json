@@ -49,7 +49,6 @@
     "@types/react-dom": "^19.2.3",
     "axios": "^1.13.2",
     "chart.js": "^4.5.1",
-    "chartjs-node-canvas": "^5.0.0",
     "chartjs-plugin-datalabels": "^2.2.0",
     "cli-progress": "^3.12.0",
     "convert-units": "^2.3.4",

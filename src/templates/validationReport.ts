@@ -1,14 +1,15 @@
+import { ChartConfiguration } from "chart.js";
 import { sumBy } from "lodash";
 
 import { EnvStats } from "../models/envStats";
 import { ReportData, ReportSection } from "../utils/reportGenerator";
 
 export interface ValidationCharts {
-  propertyPresence?: Buffer;
-  scanVolume?: Buffer;
-  success?: Buffer;
-  errors?: Buffer;
-  warnings?: Buffer;
+  propertyPresence?: ChartConfiguration;
+  scanVolume?: ChartConfiguration;
+  success?: ChartConfiguration;
+  errors?: ChartConfiguration;
+  warnings?: ChartConfiguration;
 }
 
 export function buildValidationReport(allStats: EnvStats[], charts: ValidationCharts): ReportData {
@@ -128,7 +129,7 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
   // Add Chart Sections if present
   if (charts.propertyPresence) {
     sections.push({
-      data: `data:image/png;base64,${charts.propertyPresence.toString("base64")}`,
+      data: charts.propertyPresence,
       title: "Property Presence",
       type: "chart"
     });
@@ -136,7 +137,7 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
 
   if (charts.scanVolume) {
     sections.push({
-      data: `data:image/png;base64,${charts.scanVolume.toString("base64")}`,
+      data: charts.scanVolume,
       title: "Scan Volume (All Environments)",
       type: "chart"
     });
@@ -144,7 +145,7 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
 
   if (charts.success) {
     sections.push({
-      data: `data:image/png;base64,${charts.success.toString("base64")}`,
+      data: charts.success,
       title: "Scan Success Percentage Over Time",
       type: "chart"
     });
@@ -152,7 +153,7 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
 
   if (charts.errors) {
     sections.push({
-      data: `data:image/png;base64,${charts.errors.toString("base64")}`,
+      data: charts.errors,
       title: "Errors Over Time",
       type: "chart"
     });
@@ -160,7 +161,7 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
 
   if (charts.warnings) {
     sections.push({
-      data: `data:image/png;base64,${charts.warnings.toString("base64")}`,
+      data: charts.warnings,
       title: "Warnings Over Time",
       type: "chart"
     });

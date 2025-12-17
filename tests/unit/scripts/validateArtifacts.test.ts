@@ -4,9 +4,9 @@ import { Artifact, SpatialService } from "../../../src/services/spatialService";
 import { EnvStats } from "../../../src/models/envStats";
 // ChartUtils Mock
 vi.mock("../../../src/utils/chartUtils", () => ({
-  createBarChart: vi.fn().mockResolvedValue(Buffer.from("chart")),
-  createLineChart: vi.fn().mockResolvedValue(Buffer.from("chart")),
-  createMixedChart: vi.fn().mockResolvedValue(Buffer.from("chart"))
+  getBarChartConfig: vi.fn().mockReturnValue({ type: "bar" }),
+  getLineChartConfig: vi.fn().mockReturnValue({ type: "line" }),
+  getMixedChartConfig: vi.fn().mockReturnValue({ type: "bar" })
 }));
 
 // Logger Mock

@@ -254,7 +254,7 @@ function findArtifactDirectories(dir: string): string[] {
   return results;
 }
 
-async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<CaptureCharts> {
+function generateCharts(metadataList: ArtifactAnalysis[]): CaptureCharts {
   const charts: Partial<CaptureCharts> = {};
   const DURATION_CHART_WIDTH = 800;
   const DURATION_CHART_HEIGHT = 400;
@@ -271,13 +271,16 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
 
   // Duration
   const durations = metadataList.map((m) => m.duration);
-  charts.duration = await ChartUtils.createHistogram(durations, "Seconds", "", {
+  charts.duration = ChartUtils.getHistogramConfig(durations, {
     binSize: 10,
     height: DURATION_CHART_HEIGHT,
     hideUnderflow: true,
     max: 120,
     min: 10,
-    width: DURATION_CHART_WIDTH
+    // Label and title defaults handled in config builder or can be explicit
+    title: "",
+    width: DURATION_CHART_WIDTH,
+    xLabel: "Seconds"
   });
 
   // Lens Models
@@ -290,9 +293,10 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   // Sort by count descending
   const lensLabels = Object.keys(lensMap).sort((a, b) => (lensMap[b] ?? INITIAL_COUNT) - (lensMap[a] ?? INITIAL_COUNT));
   const lensCounts = lensLabels.map((l) => lensMap[l] ?? INITIAL_COUNT);
-  charts.lens = await ChartUtils.createBarChart(lensLabels, lensCounts, "", {
+  charts.lens = ChartUtils.getBarChartConfig(lensLabels, lensCounts, {
     height: DURATION_CHART_HEIGHT,
     horizontal: true,
+    title: "",
     width: DURATION_CHART_WIDTH
   });
 
@@ -304,8 +308,9 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   }
   const fpsLabels = Object.keys(fpsMap).sort((a, b) => parseFloat(a) - parseFloat(b));
   const fpsCounts = fpsLabels.map((l) => fpsMap[l] ?? INITIAL_COUNT);
-  charts.fps = await ChartUtils.createBarChart(fpsLabels, fpsCounts, "", {
+  charts.fps = ChartUtils.getBarChartConfig(fpsLabels, fpsCounts, {
     height: DURATION_CHART_HEIGHT,
+    title: "",
     width: DURATION_CHART_WIDTH
   });
 
@@ -317,8 +322,9 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   }
   const resLabels = Object.keys(resMap).sort();
   const resCounts = resLabels.map((l) => resMap[l] ?? INITIAL_COUNT);
-  charts.resolution = await ChartUtils.createBarChart(resLabels, resCounts, "", {
+  charts.resolution = ChartUtils.getBarChartConfig(resLabels, resCounts, {
     height: DURATION_CHART_HEIGHT,
+    title: "",
     width: DURATION_CHART_WIDTH
   });
 
@@ -330,51 +336,61 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
   const areaVals = metadataList.map((m) => m.roomAreaSqFt).filter((v) => v > NO_RESULTS);
 
   // Ambient: 980-1040, bin 5
-  charts.ambient = await ChartUtils.createHistogram(intensityVals, "Lumens", "", {
+  charts.ambient = ChartUtils.getHistogramConfig(intensityVals, {
     binSize: 5,
     height: DURATION_CHART_HEIGHT,
     max: 1040,
     min: 980,
-    width: DURATION_CHART_WIDTH
+    title: "",
+    width: DURATION_CHART_WIDTH,
+    xLabel: "Lumens"
   });
 
   // Temp: 4000-6000, bin 250
-  charts.temperature = await ChartUtils.createHistogram(tempVals, "Kelvin", "", {
+  charts.temperature = ChartUtils.getHistogramConfig(tempVals, {
     binSize: 250,
     colorByValue: ChartUtils.kelvinToRgb,
     height: DURATION_CHART_HEIGHT,
     max: 6000,
     min: 4000,
-    width: DURATION_CHART_WIDTH
+    title: "",
+    width: DURATION_CHART_WIDTH,
+    xLabel: "Kelvin"
   });
 
   // ISO: 0-800, bin 50
-  charts.iso = await ChartUtils.createHistogram(isoVals, "ISO", "", {
+  charts.iso = ChartUtils.getHistogramConfig(isoVals, {
     binSize: 50,
     height: DURATION_CHART_HEIGHT,
     max: 800,
     min: 0,
-    width: DURATION_CHART_WIDTH
+    title: "",
+    width: DURATION_CHART_WIDTH,
+    xLabel: "ISO"
   });
 
   // Brightness: 0-6, bin 1
-  charts.brightness = await ChartUtils.createHistogram(briVals, "Value (EV)", "", {
+  charts.brightness = ChartUtils.getHistogramConfig(briVals, {
     binSize: 1,
     decimalPlaces: 1,
     height: DURATION_CHART_HEIGHT,
     max: 6,
     min: 0,
-    width: DURATION_CHART_WIDTH
+    title: "",
+    width: DURATION_CHART_WIDTH,
+    xLabel: "Value (EV)"
   });
 
   // Room Area: 0-150, bin 10
-  charts.area = await ChartUtils.createHistogram(areaVals, "Sq Ft", "", {
+  charts.area = ChartUtils.getHistogramConfig(areaVals, {
     binSize: 10,
     height: DURATION_CHART_HEIGHT,
     hideUnderflow: true,
     max: 150,
     min: 0,
-    width: DURATION_CHART_WIDTH
+    title: "",
+    width: DURATION_CHART_WIDTH,
+    xLabel: "Sq Ft"
   });
 
   // Capture Errors & Features
@@ -443,25 +459,25 @@ async function generateCharts(metadataList: ArtifactAnalysis[]): Promise<Capture
     }
   }
 
-  charts.features = await ChartUtils.createBarChart(
+  charts.features = ChartUtils.getBarChartConfig(
     featureDefs.map((d) => d.label),
     featureDefs.map((d) => d.count),
-    "",
     {
       height: FEATURE_CHART_HEIGHT,
       horizontal: true,
+      title: "",
       totalForPercentages: metadataList.length,
       width: DURATION_CHART_WIDTH
     }
   );
 
-  charts.errors = await ChartUtils.createBarChart(
+  charts.errors = ChartUtils.getBarChartConfig(
     errorDefs.map((d) => d.label),
     errorDefs.map((d) => d.count),
-    "",
     {
       height: 320,
       horizontal: true,
+      title: "",
       totalForPercentages: metadataList.length,
       width: DURATION_CHART_WIDTH
     }
@@ -529,7 +545,7 @@ async function main(): Promise<void> {
 
   // Charts
   logger.info("Generating charts...");
-  const charts = await generateCharts(metadataList);
+  const charts = generateCharts(metadataList);
 
   // PDF Generation
   const videoCount = metadataList.length;

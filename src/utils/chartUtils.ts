@@ -1,17 +1,27 @@
 import { ChartConfiguration, ChartData, LegendItem } from "chart.js";
-import { ChartJSNodeCanvas } from "chartjs-node-canvas";
 
 // --- Constants ---
-const DEFAULT_WIDTH = 600;
-const DEFAULT_HEIGHT = 300;
-const CHART_BG_COLOR = "white";
 const INCREMENT_STEP = 1;
 const MAX_TICKS = 20;
 const ZERO = 0;
 const ONE = 1;
 const DEFAULT_DECIMALS = 0;
-const DATASET_INDEX = 0;
-const TOP_PADDING = 20;
+const OFFSET_ADJUST = 1;
+const LEGEND_BOX_WIDTH = 12;
+const LEGEND_PADDING = 10;
+const LEGEND_FONT_SIZE = 10;
+const DEFAULT_HEIGHT = 300;
+const DEFAULT_PADDING_TOP = 30;
+const DEFAULT_PADDING_RIGHT = 40;
+const DEFAULT_PADDING_BOTTOM = 10;
+const DEFAULT_PADDING_LEFT = 10;
+const TITLE_FONT_SIZE = 16;
+const DATALABEL_FONT_SIZE = 10;
+const ANIMATION_ENABLED = false;
+const RIGHT_PADDING_PERCENTAGE = 80;
+const TOP_PADDING_PERCENTAGE = 20;
+const BAR_CHART_ADDITIONAL_HEIGHT = 100;
+const BAR_CHART_ROW_HEIGHT = 30;
 
 // --- Interfaces ---
 
@@ -55,21 +65,35 @@ export interface HistogramResult {
   labels: string[];
 }
 
+export interface MixedChartDataset {
+  label: string;
+  data: (number | null)[];
+  borderColor: string;
+  borderWidth?: number;
+  backgroundColor?: string;
+  type?: "line" | "bar";
+  yAxisID?: string;
+  fill?: boolean;
+  order?: number;
+}
+
+export interface MixedChartOptions {
+  width?: number;
+  height?: number;
+  title?: string;
+  yLabelLeft?: string;
+  yLabelRight?: string;
+  legendSort?: (a: LegendItem, b: LegendItem, data: ChartData) => number;
+}
+
 // --- Pure Helper Functions ---
 
 /**
- * Calculates histogram bins for a given dataset.
- *
- * Logic:
- * - Generates "Main Bins" of fixed `binSize` between `min` and `max`.
- * - Adds an "Underflow" bucket for values < `min`.
- * - Adds an "Overflow" bucket for values >= `max`.
- * - Validates bin count to prevent memory issues with tiny bin sizes.
+ * Calculations for histogram bins.
  */
 export function calculateHistogramBins(data: number[], options: HistogramOptions): HistogramResult {
   const { binSize, decimalPlaces = DEFAULT_DECIMALS, hideUnderflow, max, min } = options;
 
-  // Validation
   if (!Number.isFinite(binSize) || binSize <= ZERO) {
     throw new Error(`Invalid binSize: ${String(binSize)}. Must be > 0.`);
   }
@@ -97,7 +121,6 @@ export function calculateHistogramBins(data: number[], options: HistogramOptions
   const buckets: number[] = new Array(numMainBins + EXTRA_BUCKETS).fill(INITIAL_COUNT) as number[];
   const labels: string[] = [];
 
-  // Consistent formatting for boundary labels
   labels.push(`< ${min.toFixed(decimalPlaces)}`);
   for (let i = 0; i < numMainBins; i++) {
     const startOffset = i * binSize;
@@ -111,7 +134,7 @@ export function calculateHistogramBins(data: number[], options: HistogramOptions
   for (const val of data) {
     if (!Number.isFinite(val)) {
       continue;
-    } // Skip non-finite values
+    }
 
     if (val < min) {
       if (buckets[UNDERFLOW_INDEX] !== undefined) {
@@ -152,14 +175,11 @@ export function calculateHistogramBinCenter(
   const UNDERFLOW_INDEX = 0;
   const UNDERFLOW_SHIFT = 1;
   const NO_SHIFT = 0;
-  const OFFSET_ADJUST = 1;
   const HALF = 2;
 
-  // If hideUnderflow is true, the input index 0 corresponds to the original index 1.
   const effectiveIndex = index + (hideUnderflow ? UNDERFLOW_SHIFT : NO_SHIFT);
 
   if (effectiveIndex === UNDERFLOW_INDEX) {
-    // Underflow
     const halfBin = binSize / HALF;
     return min - halfBin;
   }
@@ -167,40 +187,43 @@ export function calculateHistogramBinCenter(
   const originalLength = totalBuckets + (hideUnderflow ? ONE : ZERO);
 
   if (effectiveIndex === originalLength - OFFSET_ADJUST) {
-    // Overflow
     const halfBin = binSize / HALF;
     return max + halfBin;
   }
 
-  // Main bin
   const binOffset = effectiveIndex - OFFSET_ADJUST;
   const offsetVal = binOffset * binSize;
   const halfBin = binSize / HALF;
   return min + offsetVal + halfBin;
 }
 
-export function formatPercentageLabel(value: number, total: number): string {
-  const PCT_MULTIPLIER = 100;
-  const PCT_DECIMALS = 2;
-  const pctVal = (value / total) * PCT_MULTIPLIER;
-  // Show up to 2 decimals, trim trailing zeros
-  const pctStr = parseFloat(pctVal.toFixed(PCT_DECIMALS)).toString();
-  return `${pctStr}%`;
-}
-
 // --- Config Builders ---
 
-export function buildLineChartConfig(
+export function getLineChartConfig(
   labels: string[],
   datasets: LineChartDataset[],
   options: LineChartOptions = {}
 ): ChartConfiguration {
-  // Validation
   if (datasets.some((ds) => ds.data.length !== labels.length)) {
     throw new Error("Dataset data length mismatch with labels length.");
   }
 
   const { title, yLabel = "Error Count" } = options;
+
+  const plugins: Record<string, unknown> = {
+    datalabels: { display: false },
+    legend: {
+      display: datasets.length > ONE,
+      labels: {
+        boxWidth: LEGEND_BOX_WIDTH,
+        font: { size: LEGEND_FONT_SIZE },
+        padding: LEGEND_PADDING,
+        usePointStyle: true
+      },
+      position: "bottom"
+    },
+    title: { color: "black", display: Boolean(title), font: { size: TITLE_FONT_SIZE, weight: "bold" }, text: title }
+  };
 
   return {
     data: {
@@ -216,12 +239,23 @@ export function buildLineChartConfig(
       })),
       labels
     },
+    // @ts-expect-error - Custom property for React rendering
+    height: DEFAULT_HEIGHT,
     options: {
-      plugins: {
-        legend: { position: "bottom" },
-        title: { color: "black", display: Boolean(title), font: { size: 24, weight: "bold" }, text: title }
+      animation: ANIMATION_ENABLED,
+      layout: {
+        padding: {
+          bottom: DEFAULT_PADDING_BOTTOM,
+          left: DEFAULT_PADDING_LEFT,
+          right: DEFAULT_PADDING_RIGHT,
+          top: DEFAULT_PADDING_TOP
+        }
       },
+      maintainAspectRatio: false,
+      plugins: plugins,
+      responsive: true,
       scales: {
+        x: { ticks: { autoSkip: true, maxTicksLimit: MAX_TICKS } },
         y: {
           beginAtZero: true,
           ticks: { precision: 0 },
@@ -233,14 +267,12 @@ export function buildLineChartConfig(
   };
 }
 
-export function buildHistogramConfig(data: number[], options: HistogramOptions): ChartConfiguration {
+export function getHistogramConfig(data: number[], options: HistogramOptions): ChartConfiguration {
   const { binSize, min, max, colorByValue, hideUnderflow, title, xLabel } = options;
-
   const { buckets, labels } = calculateHistogramBins(data, options);
 
   const startColor = "rgba(54, 162, 235, 0.5)";
   const borderColor = "rgba(54, 162, 235, 1)";
-
   let backgroundColors: string | string[] = startColor;
 
   if (colorByValue) {
@@ -249,6 +281,12 @@ export function buildHistogramConfig(data: number[], options: HistogramOptions):
       return colorByValue(center);
     });
   }
+
+  const plugins: Record<string, unknown> = {
+    datalabels: { align: "end", anchor: "end", color: "black", font: { size: DATALABEL_FONT_SIZE, weight: "bold" } },
+    legend: { display: false },
+    title: { color: "black", display: Boolean(title), font: { size: TITLE_FONT_SIZE, weight: "bold" }, text: title }
+  };
 
   return {
     data: {
@@ -263,11 +301,21 @@ export function buildHistogramConfig(data: number[], options: HistogramOptions):
       ],
       labels
     },
+    // @ts-expect-error - Custom property for React rendering
+    height: DEFAULT_HEIGHT,
     options: {
-      plugins: {
-        legend: { position: "bottom" },
-        title: { color: "black", display: Boolean(title), font: { size: 24, weight: "bold" }, text: title }
+      animation: ANIMATION_ENABLED,
+      layout: {
+        padding: {
+          bottom: DEFAULT_PADDING_BOTTOM,
+          left: DEFAULT_PADDING_LEFT,
+          right: DEFAULT_PADDING_RIGHT,
+          top: DEFAULT_PADDING_TOP
+        }
       },
+      maintainAspectRatio: false,
+      plugins: plugins,
+      responsive: true,
       scales: {
         x: {
           ticks: { autoSkip: true, maxTicksLimit: MAX_TICKS },
@@ -283,66 +331,40 @@ export function buildHistogramConfig(data: number[], options: HistogramOptions):
   };
 }
 
-export function buildBarChartConfig(
-  labels: string[],
-  data: number[],
-  options: BarChartOptions = {}
-): ChartConfiguration {
-  // Validation
+export function getBarChartConfig(labels: string[], data: number[], options: BarChartOptions = {}): ChartConfiguration {
   if (labels.length !== data.length) {
     throw new Error(`Labels length (${String(labels.length)}) does not match data length (${String(data.length)}).`);
   }
 
   const { horizontal = false, title, totalForPercentages } = options;
 
-  const RIGHT_PADDING = 60;
-
-  const LABEL_OFFSET = 4;
-  const FONT_SIZE_PX = 12;
-
-  const customLabelsPlugin = {
-    afterDatasetsDraw(chart: import("chart.js").Chart) {
-      if (totalForPercentages === undefined || totalForPercentages <= ZERO) {
-        return;
-      }
-
-      const { ctx } = chart;
-      const meta = chart.getDatasetMeta(DATASET_INDEX);
-      const datasetData = chart.data.datasets[DATASET_INDEX]?.data as number[];
-
-      ctx.save();
-      ctx.font = `bold ${String(FONT_SIZE_PX)}px sans-serif`;
-      ctx.fillStyle = "black";
-      ctx.textBaseline = "middle";
-
-      meta.data.forEach((element, index) => {
-        const value = datasetData[index];
-        if (value !== undefined) {
-          const text = formatPercentageLabel(value, totalForPercentages);
-
-          // Local type to avoid importing domain models
-          interface XY {
-            x: number;
-            y: number;
-          }
-          const { x, y } = element.getProps(["x", "y"], true) as XY;
-
-          if (horizontal) {
-            ctx.textAlign = "left";
-            ctx.fillText(text, x + LABEL_OFFSET, y);
-          } else {
-            // Vertical bar: place above the bar
-            ctx.textAlign = "center";
-            // y is the top of the bar in vertical mode (usually, depending on base)
-            // Actually in Chart.js 'y' is the end of the bar (top).
-            ctx.fillText(text, x, y - LABEL_OFFSET);
-          }
-        }
-      });
-      ctx.restore();
-    },
-    id: "customLabels"
+  const plugins: Record<string, unknown> = {
+    legend: { display: false },
+    title: { color: "black", display: Boolean(title), font: { size: TITLE_FONT_SIZE, weight: "bold" }, text: title }
   };
+
+  if (totalForPercentages !== undefined && totalForPercentages > ZERO) {
+    plugins["datalabels"] = {
+      // Custom property for client-side hydration to attach the percentage formatter
+      _percentageTotal: totalForPercentages,
+      align: horizontal ? "end" : "end",
+      anchor: horizontal ? "end" : "end",
+      color: "black",
+      display: true,
+      font: { size: DATALABEL_FONT_SIZE, weight: "bold" }
+    };
+  } else {
+    plugins["datalabels"] = {
+      align: horizontal ? "end" : "end",
+      anchor: horizontal ? "end" : "end",
+      color: "black",
+      display: true,
+      font: { size: DATALABEL_FONT_SIZE, weight: "bold" }
+    };
+  }
+
+  const totalRowHeight = labels.length * BAR_CHART_ROW_HEIGHT;
+  const calculatedHeight = totalRowHeight + BAR_CHART_ADDITIONAL_HEIGHT;
 
   return {
     data: {
@@ -357,121 +379,59 @@ export function buildBarChartConfig(
       ],
       labels
     },
+    // @ts-expect-error - Custom property for React rendering
+    height: options.height ?? (horizontal ? calculatedHeight : DEFAULT_HEIGHT),
     options: {
+      animation: ANIMATION_ENABLED,
       indexAxis: horizontal ? "y" : "x",
       layout: {
         padding: {
-          // Only add right padding if horizontal and showing %
-          right: horizontal && totalForPercentages !== undefined && totalForPercentages > ZERO ? RIGHT_PADDING : ZERO,
-          // Maybe add top padding for vertical?
-          top: !horizontal && totalForPercentages !== undefined && totalForPercentages > ZERO ? TOP_PADDING : ZERO
+          bottom: DEFAULT_PADDING_BOTTOM,
+          left: DEFAULT_PADDING_LEFT,
+          right:
+            horizontal && totalForPercentages !== undefined && totalForPercentages > ZERO
+              ? RIGHT_PADDING_PERCENTAGE
+              : DEFAULT_PADDING_RIGHT,
+          top:
+            !horizontal && totalForPercentages !== undefined && totalForPercentages > ZERO
+              ? TOP_PADDING_PERCENTAGE
+              : DEFAULT_PADDING_TOP
         }
       },
-      plugins: {
-        legend: { position: "bottom" },
-        title: { color: "black", display: Boolean(title), font: { size: 24, weight: "bold" }, text: title }
-      },
+      maintainAspectRatio: false,
+      plugins: plugins,
+      responsive: true,
       scales: {
         x: { beginAtZero: true, ticks: { precision: 0 } },
         y: { beginAtZero: true, ticks: { autoSkip: false } }
       }
     },
-    plugins: [customLabelsPlugin],
     type: "bar"
   };
 }
 
-// --- Render Helper ---
-
-const chartCallback = (ChartJS: typeof import("chart.js").Chart) => {
-  ChartJS.defaults.responsive = false;
-  ChartJS.defaults.maintainAspectRatio = false;
-};
-
-async function renderChart(
-  config: ChartConfiguration,
-  width: number = DEFAULT_WIDTH,
-  height: number = DEFAULT_HEIGHT
-): Promise<Buffer> {
-  const RETINA_SCALE = 2;
-  const canvasWidth = width * RETINA_SCALE;
-  const canvasHeight = height * RETINA_SCALE;
-
-  // Ensure devicePixelRatio is set for correct font scaling
-  config.options ??= {};
-  config.options.devicePixelRatio = RETINA_SCALE;
-
-  const chartJSNodeCanvas = new ChartJSNodeCanvas({
-    backgroundColour: CHART_BG_COLOR,
-    chartCallback,
-    height: canvasHeight,
-    width: canvasWidth
-  });
-  const buffer = await chartJSNodeCanvas.renderToBuffer(config);
-  return buffer;
-}
-
-// --- Exported Creators ---
-
-export async function createLineChart(
-  labels: string[],
-  datasets: LineChartDataset[],
-  options: LineChartOptions = {}
-): Promise<Buffer> {
-  const config = buildLineChartConfig(labels, datasets, options);
-  const buffer = await renderChart(config, options.width, options.height);
-  return buffer;
-}
-
-export async function createHistogram(
-  data: number[],
-  label: string,
-  title: string,
-  options: HistogramOptions
-): Promise<Buffer> {
-  const config = buildHistogramConfig(data, { ...options, title, xLabel: label });
-  const buffer = await renderChart(config, options.width, options.height);
-  return buffer;
-}
-
-export async function createBarChart(
-  labels: string[],
-  data: number[],
-  title: string,
-  options: BarChartOptions = {}
-): Promise<Buffer> {
-  const config = buildBarChartConfig(labels, data, { ...options, title });
-  const buffer = await renderChart(config, options.width, options.height);
-  return buffer;
-}
-
-export interface MixedChartDataset {
-  label: string;
-  data: (number | null)[];
-  borderColor: string;
-  borderWidth?: number;
-  backgroundColor?: string;
-  type?: "line" | "bar";
-  yAxisID?: string;
-  fill?: boolean;
-  order?: number;
-}
-
-export interface MixedChartOptions {
-  width?: number;
-  height?: number;
-  title?: string;
-  yLabelLeft?: string;
-  yLabelRight?: string;
-  legendSort?: (a: LegendItem, b: LegendItem, data: ChartData) => number;
-}
-
-export function buildMixedChartConfig(
+export function getMixedChartConfig(
   labels: string[],
   datasets: MixedChartDataset[],
   options: MixedChartOptions = {}
 ): ChartConfiguration {
   const { title, yLabelLeft, yLabelRight, legendSort } = options;
+
+  const plugins: Record<string, unknown> = {
+    datalabels: { display: false },
+    legend: {
+      display: datasets.length > ONE,
+      labels: {
+        boxWidth: LEGEND_BOX_WIDTH,
+        font: { size: LEGEND_FONT_SIZE },
+        padding: LEGEND_PADDING,
+        sort: legendSort,
+        usePointStyle: true
+      },
+      position: "bottom"
+    },
+    title: { color: "black", display: Boolean(title), font: { size: TITLE_FONT_SIZE, weight: "bold" }, text: title }
+  };
 
   return {
     data: {
@@ -490,15 +450,23 @@ export function buildMixedChartConfig(
       })),
       labels
     },
+    // @ts-expect-error - Custom property for React rendering
+    height: DEFAULT_HEIGHT,
     options: {
-      plugins: {
-        legend: {
-          labels: legendSort ? { sort: legendSort } : {},
-          position: "bottom"
-        },
-        title: { color: "black", display: Boolean(title), font: { size: 24, weight: "bold" }, text: title }
+      animation: ANIMATION_ENABLED,
+      layout: {
+        padding: {
+          bottom: DEFAULT_PADDING_BOTTOM,
+          left: DEFAULT_PADDING_LEFT,
+          right: DEFAULT_PADDING_RIGHT,
+          top: DEFAULT_PADDING_TOP
+        }
       },
+      maintainAspectRatio: false,
+      plugins: plugins,
+      responsive: true,
       scales: {
+        x: { ticks: { autoSkip: true, maxTicksLimit: MAX_TICKS } },
         y: {
           beginAtZero: true,
           display: true,
@@ -509,38 +477,19 @@ export function buildMixedChartConfig(
           beginAtZero: true,
           display: true,
           grid: {
-            drawOnChartArea: false // only want the grid lines for one axis to show up
+            drawOnChartArea: false
           },
           position: "right",
           title: { display: Boolean(yLabelRight), text: yLabelRight }
         }
       }
     },
-    type: "line" // Base type, datasets can override
+    type: "line"
   };
-}
-
-export async function createMixedChart(
-  labels: string[],
-  datasets: MixedChartDataset[],
-  options: MixedChartOptions = {}
-): Promise<Buffer> {
-  const config = buildMixedChartConfig(labels, datasets, options);
-  const buffer = await renderChart(config, options.width, options.height);
-  return buffer;
 }
 
 // --- Utils ---
 
-/**
- * Approximates an RGB color from a Color Temperature in Kelvin.
- *
- * Algorithm adapted from Tanner Helland's method:
- * http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/
- *
- * Valid range is roughly 1000K to 40000K, but this function clamps safely.
- * Returns an RGBA string with 0.8 opacity.
- */
 export function kelvinToRgb(kelvin: number): string {
   if (!Number.isFinite(kelvin) || kelvin <= ZERO) {
     return "rgba(0, 0, 0, 0.8)";
@@ -550,21 +499,17 @@ export function kelvinToRgb(kelvin: number): string {
   const TEMP_THRESHOLD = 66;
   const MIN_TEMP_BLUE = 19;
   const BLUE_OFFSET = 10;
-
-  // Red/Green/Blue calculation constants
   const RED_MAX = 255;
   const GREEN_LOG_MULT = 99.4708025861;
   const GREEN_LOG_SUB = 161.1195681661;
   const BLUE_LOG_MULT = 138.5177312231;
   const BLUE_LOG_SUB = 305.0447927307;
-
   const HIGH_TEMP_OFFSET = 60;
   const RED_POW_MULT = 329.698727446;
   const RED_POW_EXP = -0.1332047592;
   const GREEN_POW_MULT = 288.1221695283;
   const GREEN_POW_EXP = -0.0755148492;
   const BLUE_MAX = 255;
-
   const CLAMP_MIN = 0;
   const CLAMP_MAX = 255;
   const ALPHA = 0.8;
@@ -588,18 +533,15 @@ export function kelvinToRgb(kelvin: number): string {
       b = bLog - BLUE_LOG_SUB;
     }
   } else {
-    // High temp red
     const rBase = temp - HIGH_TEMP_OFFSET;
     r = RED_POW_MULT * Math.pow(rBase, RED_POW_EXP);
 
-    // High temp green
     const gBase = temp - HIGH_TEMP_OFFSET;
     g = GREEN_POW_MULT * Math.pow(gBase, GREEN_POW_EXP);
 
     b = BLUE_MAX;
   }
 
-  // Clamp 0-255
   r = Math.min(CLAMP_MAX, Math.max(CLAMP_MIN, r));
   g = Math.min(CLAMP_MAX, Math.max(CLAMP_MIN, g));
   b = Math.min(CLAMP_MAX, Math.max(CLAMP_MIN, b));

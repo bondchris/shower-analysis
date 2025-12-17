@@ -20,7 +20,21 @@ export async function generatePdfReport(data: ReportData, filename: string): Pro
     logger.warn(`Could not load print.css from ${cssPath}: ${String(error)}`);
   }
 
-  const html = ReactDOMServer.renderToStaticMarkup(React.createElement(ReportShell, { css, data }));
+  let chartLib = "";
+  let datalabelsLib = "";
+  try {
+    chartLib = fs.readFileSync(path.join(process.cwd(), "node_modules/chart.js/dist/chart.umd.js"), "utf-8");
+    datalabelsLib = fs.readFileSync(
+      path.join(process.cwd(), "node_modules/chartjs-plugin-datalabels/dist/chartjs-plugin-datalabels.js"),
+      "utf-8"
+    );
+  } catch (error) {
+    logger.warn(`Could not load chart libraries: ${String(error)}`);
+  }
+
+  const html = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(ReportShell, { chartLib, css, data, datalabelsLib })
+  );
   // Add doctype as renderToStaticMarkup doesn't add it
   const fullHtml = `<!DOCTYPE html>\n${html}`;
 
@@ -35,7 +49,19 @@ export async function generatePdfReport(data: ReportData, filename: string): Pro
   try {
     const browser = await chromium.launch();
     const page = await browser.newPage();
+    // Set viewport to A4 width (approx 794px at 96 DPI) to ensure charts render at correct aspect ratio
+    await page.setViewportSize({ height: 1123, width: 794 });
     await page.setContent(fullHtml);
+
+    // Wait for charts to render
+    await page
+      .waitForFunction(() => (window as Window & { _chartsRendered?: boolean })._chartsRendered === true, {
+        timeout: 10000
+      })
+      .catch(() => {
+        logger.warn("Charts did not report ready within timeout, proceeding anyway.");
+      });
+
     await page.pdf({
       format: "A4",
       margin: {

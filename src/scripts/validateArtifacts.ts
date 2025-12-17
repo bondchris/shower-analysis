@@ -1,4 +1,3 @@
-import { LegendItem } from "chart.js";
 import { sumBy } from "lodash";
 
 import { ENVIRONMENTS } from "../../config/config";
@@ -8,6 +7,7 @@ import { ValidationCharts, buildValidationReport } from "../templates/validation
 import * as ChartUtils from "../utils/chartUtils";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
+import { LegendItem } from "chart.js";
 import { generatePdfReport } from "../utils/reportGenerator";
 
 const getValidDateKey = (scanDate: unknown): string | null => {
@@ -154,7 +154,7 @@ export async function validateEnvironment(env: { domain: string; name: string })
         for (const item of res.data) {
           applyArtifactToStats(stats, item);
         }
-      } catch (e) {
+      } catch (e: unknown) {
         logger.error(`Error fetching page ${pageNum.toString()}: ${e instanceof Error ? e.message : String(e)}`);
         stats.pageErrors[pageNum] = e instanceof Error ? e.message : String(e);
       } finally {
@@ -189,14 +189,14 @@ export async function validateEnvironment(env: { domain: string; name: string })
     bar.stop();
 
     logger.info(`${env.name} complete.`);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(`Failed to fetch from ${env.name}: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   return stats;
 }
 
-async function generateValidationCharts(allStats: EnvStats[]): Promise<ValidationCharts> {
+function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
   const charts: ValidationCharts = {};
   const INITIAL_ERROR_COUNT = 0;
   const MIN_DATA_POINTS = 0;
@@ -227,13 +227,14 @@ async function generateValidationCharts(allStats: EnvStats[]): Promise<Validatio
       const contentHeight = chartLabels.length * CHART_BAR_HEIGHT;
       const dynamicHeight = Math.max(MIN_CHART_HEIGHT, contentHeight + HEADER_FOOTER_SPACE);
 
-      charts.propertyPresence = await ChartUtils.createBarChart(chartLabels, chartData, "", {
+      charts.propertyPresence = ChartUtils.getBarChartConfig(chartLabels, chartData, {
         height: dynamicHeight,
         horizontal: true,
+        title: "",
         totalForPercentages: grandTotal,
         width: 600
       });
-    } catch (e) {
+    } catch (e: unknown) {
       logger.error(`Failed to generate property chart: ${String(e)}`);
     }
   }
@@ -316,7 +317,7 @@ async function generateValidationCharts(allStats: EnvStats[]): Promise<Validatio
         borderWidth: 2,
         data: cumulativeData,
         fill: true,
-        label: "Total Cumulative Scans",
+        label: "Total",
         order: 200, // Ensure Total is always at the Bottom/Back (High Order = Back)
         type: "line",
         yAxisID: "y"
@@ -356,29 +357,22 @@ async function generateValidationCharts(allStats: EnvStats[]): Promise<Validatio
       borderWidth: 1.5,
       data: dailyData,
       fill: false,
-      label: "Cumulative Avg Scans/Day",
+      label: "Avg/Day",
+      order: 300, // Top/Front
       type: "line",
       yAxisID: "y1"
     });
 
     try {
-      charts.scanVolume = await ChartUtils.createMixedChart(sortedDates, volumeDatasets, {
-        legendSort: (a: LegendItem, b: LegendItem) => {
-          // Force "Cumulative Avg Scans/Day" to the end (Far Right)
-          // Sort is Descending (High -> Low).
-          // assign -1 to Avg so it is smaller than everything else (indices 0+).
-          const LEGEND_SORT_LAST = -1;
-          const DEFAULT_INDEX = 0;
-          const getVal = (item: LegendItem): number => {
-            return item.text === "Cumulative Avg Scans/Day" ? LEGEND_SORT_LAST : (item.datasetIndex ?? DEFAULT_INDEX);
-          };
-          return getVal(b) - getVal(a);
-        },
+      const DEFAULT_DATASET_INDEX = 0;
+      charts.scanVolume = ChartUtils.getMixedChartConfig(sortedDates, volumeDatasets, {
+        legendSort: (a: LegendItem, b: LegendItem) =>
+          (a.datasetIndex ?? DEFAULT_DATASET_INDEX) - (b.datasetIndex ?? DEFAULT_DATASET_INDEX),
         title: "",
         yLabelLeft: "Total Scans (Cumulative)",
         yLabelRight: "Avg Scans / Day"
       });
-    } catch (e) {
+    } catch (e: unknown) {
       logger.error(`Failed to generate aggregated volume chart: ${String(e)}`);
     }
 
@@ -404,11 +398,11 @@ async function generateValidationCharts(allStats: EnvStats[]): Promise<Validatio
     });
 
     try {
-      charts.success = await ChartUtils.createLineChart(sortedDates, successDatasets, {
+      charts.success = ChartUtils.getLineChartConfig(sortedDates, successDatasets, {
         title: "",
         yLabel: "Success %"
       });
-    } catch (e) {
+    } catch (e: unknown) {
       logger.error(`Failed to generate success chart: ${String(e)}`);
     }
 
@@ -431,11 +425,11 @@ async function generateValidationCharts(allStats: EnvStats[]): Promise<Validatio
     });
 
     try {
-      charts.errors = await ChartUtils.createLineChart(sortedDates, errorDatasets, {
+      charts.errors = ChartUtils.getLineChartConfig(sortedDates, errorDatasets, {
         title: "",
         yLabel: "Error Count"
       });
-    } catch (e) {
+    } catch (e: unknown) {
       logger.error(`Failed to generate code error chart: ${String(e)}`);
     }
 
@@ -458,11 +452,11 @@ async function generateValidationCharts(allStats: EnvStats[]): Promise<Validatio
     });
 
     try {
-      charts.warnings = await ChartUtils.createLineChart(sortedDates, warningDatasets, {
+      charts.warnings = ChartUtils.getLineChartConfig(sortedDates, warningDatasets, {
         title: "",
         yLabel: "Warning Count"
       });
-    } catch (e) {
+    } catch (e: unknown) {
       logger.error(`Failed to generate warning chart: ${String(e)}`);
     }
   }
@@ -471,7 +465,7 @@ async function generateValidationCharts(allStats: EnvStats[]): Promise<Validatio
 }
 
 export async function generateReport(allStats: EnvStats[]) {
-  const charts = await generateValidationCharts(allStats);
+  const charts = generateValidationCharts(allStats);
   const reportData = buildValidationReport(allStats, charts);
 
   await generatePdfReport(reportData, "validation-report.pdf");

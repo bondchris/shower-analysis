@@ -254,17 +254,11 @@
   .table {
     display: table;
   }
-  .h-auto {
-    height: auto;
-  }
-  .max-h-\[600px\] {
-    max-height: 600px;
-  }
   .w-full {
     width: 100%;
   }
-  .max-w-full {
-    max-width: 100%;
+  .min-w-0 {
+    min-width: calc(var(--spacing) * 0);
   }
   .flex-1 {
     flex: 1;

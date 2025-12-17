@@ -1,17 +1,18 @@
+import { ChartConfiguration } from "chart.js";
 import { ReportData, ReportSection } from "../utils/reportGenerator";
 
 export interface CaptureCharts {
-  ambient: Buffer;
-  area: Buffer;
-  brightness: Buffer;
-  duration: Buffer;
-  errors: Buffer;
-  features: Buffer;
-  fps: Buffer;
-  iso: Buffer;
-  lens: Buffer;
-  resolution: Buffer;
-  temperature: Buffer;
+  ambient: ChartConfiguration;
+  area: ChartConfiguration;
+  brightness: ChartConfiguration;
+  duration: ChartConfiguration;
+  errors: ChartConfiguration;
+  features: ChartConfiguration;
+  fps: ChartConfiguration;
+  iso: ChartConfiguration;
+  lens: ChartConfiguration;
+  resolution: ChartConfiguration;
+  temperature: ChartConfiguration;
 }
 
 export function buildDataAnalysisReport(charts: CaptureCharts, avgDuration: number, videoCount: number): ReportData {
@@ -26,14 +27,14 @@ export function buildDataAnalysisReport(charts: CaptureCharts, avgDuration: numb
 
   // Duration
   chartSections.push({
-    data: `data:image/png;base64,${charts.duration.toString("base64")}`,
+    data: charts.duration,
     title: "Duration",
     type: "chart"
   });
 
   // Lens Model
   chartSections.push({
-    data: `data:image/png;base64,${charts.lens.toString("base64")}`,
+    data: charts.lens,
     title: "Lens Model",
     type: "chart"
   });
@@ -42,11 +43,11 @@ export function buildDataAnalysisReport(charts: CaptureCharts, avgDuration: numb
   chartSections.push({
     data: [
       {
-        data: `data:image/png;base64,${charts.fps.toString("base64")}`,
+        data: charts.fps,
         title: "Framerate"
       },
       {
-        data: `data:image/png;base64,${charts.resolution.toString("base64")}`,
+        data: charts.resolution,
         title: "Resolution"
       }
     ],
@@ -57,11 +58,11 @@ export function buildDataAnalysisReport(charts: CaptureCharts, avgDuration: numb
   chartSections.push({
     data: [
       {
-        data: `data:image/png;base64,${charts.ambient.toString("base64")}`,
+        data: charts.ambient,
         title: "Ambient Intensity"
       },
       {
-        data: `data:image/png;base64,${charts.temperature.toString("base64")}`,
+        data: charts.temperature,
         title: "Color Temperature"
       }
     ],
@@ -72,11 +73,11 @@ export function buildDataAnalysisReport(charts: CaptureCharts, avgDuration: numb
   chartSections.push({
     data: [
       {
-        data: `data:image/png;base64,${charts.iso.toString("base64")}`,
+        data: charts.iso,
         title: "ISO Speed"
       },
       {
-        data: `data:image/png;base64,${charts.brightness.toString("base64")}`,
+        data: charts.brightness,
         title: "Brightness Value"
       }
     ],
@@ -85,21 +86,21 @@ export function buildDataAnalysisReport(charts: CaptureCharts, avgDuration: numb
 
   // Room Area
   chartSections.push({
-    data: `data:image/png;base64,${charts.area.toString("base64")}`,
+    data: charts.area,
     title: "Room Area (Sq Ft)",
     type: "chart"
   });
 
   // Capture Errors
   chartSections.push({
-    data: `data:image/png;base64,${charts.errors.toString("base64")}`,
+    data: charts.errors,
     title: "Capture Errors",
     type: "chart"
   });
 
   // Feature Prevalence
   chartSections.push({
-    data: `data:image/png;base64,${charts.features.toString("base64")}`,
+    data: charts.features,
     title: "Feature Prevalence",
     type: "chart"
   });

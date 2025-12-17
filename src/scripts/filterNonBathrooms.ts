@@ -16,7 +16,7 @@ import { createProgressBar } from "../utils/progress";
  * - If YES, marks as checked in `checkedScans.json`.
  */
 
-dotenv.config();
+dotenv.config({ quiet: true } as dotenv.DotenvConfigOptions);
 
 export const MODEL_NAME = "gemini-3-pro-preview";
 
