@@ -14,7 +14,15 @@ const __dirname = path.dirname(__filename);
 export default [
   // Global ignores
   {
-    ignores: ["dist/", "eslint-local-rules.js", "eslint-rules/", "jest.config.js"]
+    ignores: [
+      "coverage/",
+      "data/",
+      "dist/",
+      "eslint-local-rules.js",
+      "eslint-rules/",
+      "jest.config.js",
+      "node_modules/"
+    ]
   },
   // Base JS config
   js.configs.recommended,

@@ -2,6 +2,8 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
+**Current Version:** v0.36.0
+
 ## Overview
 
 This project provides a suite of scripts to validate, sync, inspect, clean, and filter scan artifacts from various environments:
@@ -146,19 +148,59 @@ npm run format
 
 ### Testing
 
-Run unit tests with Jest:
+Run unit tests with Vitest:
 
 ```bash
 npm test
 ```
 
+Generate test coverage report:
+
+```bash
+npm run test:coverage
+```
+
+This generates coverage reports in multiple formats:
+
+- **Text**: Console output
+- **HTML**: `coverage/index.html` (open in browser for detailed view)
+- **JSON**: `coverage/coverage-final.json`
+- **LCOV**: `coverage/lcov.info` (for CI/CD integration)
+
+Coverage thresholds are set at 80% for lines, functions, branches, and statements.
+
+### Full Pipeline
+
+Run the complete data processing pipeline:
+
+```bash
+npm run full-pipeline
+```
+
+This executes: validate → sync → clean-data → filter-videos → format-ar-data → inspect
+
 ## Directory Structure
 
 - `src/`: Source TypeScript files.
   - `scripts/`: Execution scripts (`validate`, `sync`, `inspect`, `clean`, `filter`, `format`).
-  - `models/`: Data interfaces and core domain logic (`rawScan`, `arData`).
+  - `models/`: Data interfaces and core domain logic (`rawScan`, `arData`, `point`, etc.).
   - `services/`: External integrations (`SpatialService`, `GeminiService`).
-  - `utils/`: Shared utilities (`chartUtils`, `badScans`).
+  - `templates/`: React-based PDF report templates and chart components.
+  - `utils/`: Shared utilities organized by domain:
+    - `chartUtils.ts`: Chart generation utilities.
+    - `data/`: Data management utilities (`badScans`, `checkedScans`, `syncFailures`).
+    - `math/`: Mathematical utilities (`vector`, `polygon`, `segment`, `transform`, `constants`).
+    - `room/`: Room validation and analysis functions (wall gaps, intersections, etc.).
+    - `sync/`: Synchronization helpers.
+    - `logger.ts`: Centralized logging.
+    - `reportGenerator.ts`: PDF generation using Playwright.
+- `tests/`: Test files.
+  - `unit/`: Unit tests organized by module.
+  - `integration/`: Integration tests.
 - `reports/`: Generated PDF reports.
 - `data/`: Local data storage (artifacts and API cache).
 - `config/`: Configuration files.
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) for a complete history of all changes with semantic versioning.

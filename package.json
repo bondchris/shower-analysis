@@ -1,10 +1,12 @@
 {
   "name": "shower-analysis",
-  "version": "1.0.0",
+  "version": "0.36.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
     "build": "tsc",
     "clean": "rm -rf node_modules package-lock.json",
     "clean-data": "ts-node src/scripts/cleanData.ts",
@@ -72,6 +74,7 @@
     "@types/node": "^25.0.2",
     "@typescript-eslint/eslint-plugin": "^8.50.0",
     "@typescript-eslint/parser": "^8.50.0",
+    "@vitest/coverage-v8": "^4.0.16",
     "autoprefixer": "^10.4.23",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
