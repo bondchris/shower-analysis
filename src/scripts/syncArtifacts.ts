@@ -25,6 +25,11 @@ import { downloadFile, downloadJsonFile } from "../utils/sync/downloadHelpers";
 
 const INITIAL_ACTIVE = 0;
 
+/**
+ * A concurrency limit helper (similar to `p-limit`).
+ * Restricts the number of concurrent executions of the provided promise-returning function.
+ * This ensures we don't overwhelm external APIs or file descriptors during batch processing.
+ */
 function pLimit(concurrency: number) {
   const queue: (() => void)[] = [];
   let active = INITIAL_ACTIVE;
@@ -72,13 +77,6 @@ function pLimit(concurrency: number) {
   return run;
 }
 
-// Constants
-
-const START_PAGE = 1;
-const JSON_INDENT = 2;
-const EXIT_SUCCESS = 0;
-const EXIT_FAILURE = 1;
-
 interface ArtifactResult {
   new: number;
   skipped: number;
@@ -98,6 +96,8 @@ async function processArtifact(
     new: 0,
     skipped: 0
   };
+
+  const JSON_INDENT = 2;
 
   const ZERO = 0;
 
@@ -208,6 +208,7 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
   const service = new SpatialService(env.domain, env.name);
 
   // Get initial page to determine total pages
+  const START_PAGE = 1;
   const initialPage = START_PAGE;
   try {
     const initialRes = await service.fetchScanArtifacts(initialPage);
@@ -310,6 +311,9 @@ export async function main() {
 }
 
 if (require.main === module) {
+  const EXIT_SUCCESS = 0;
+  const EXIT_FAILURE = 1;
+
   main()
     .then(() => process.exit(EXIT_SUCCESS))
     .catch((err: unknown) => {

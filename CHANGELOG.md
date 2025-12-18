@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-18
 
+### [v0.37.0] Refactor Validation Report Architecture
+
+- Moved chart generation logic from `validateArtifacts.ts` script to `validationReport.ts` template
+- Decoupled report models by removing re-exports from `reportGenerator.ts` and importing directly from `models/report.ts`
+- Added comprehensive documentation to concurrency helpers (`pLimit`) in `syncArtifacts.ts`
+- Refactored global constants in `syncArtifacts.ts` to local scopes for better encapsulation
+- Improved separation of concerns between data processing and report presentation
+
 ### [v0.36.0] Add test coverage reporting
 
 - Added test coverage reporting using @vitest/coverage-v8

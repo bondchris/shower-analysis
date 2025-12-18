@@ -1,6 +1,6 @@
 import { SyncError, SyncStats } from "../models/syncStats";
 import { SyncFailureDatabase } from "../utils/data/syncFailures";
-import { ReportData, ReportSection } from "../utils/reportGenerator";
+import { ReportData, ReportSection } from "../models/report";
 
 export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailureDatabase): ReportData {
   const sections: ReportSection[] = [];

@@ -8,9 +8,6 @@ import { ReportData } from "../models/report";
 import { ReportShell } from "../templates/components/ReportShell";
 import { logger } from "./logger";
 
-// Re-export types for backward compatibility with existing scripts (or update scripts to import from models)
-export { ReportData, ReportSection } from "../models/report";
-
 export async function generatePdfReport(data: ReportData, filename: string): Promise<void> {
   const cssPath = path.join(process.cwd(), "src", "templates", "styles", "print.css");
   let css = "";
