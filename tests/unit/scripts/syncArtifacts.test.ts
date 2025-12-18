@@ -152,7 +152,7 @@ describe("syncArtifacts", () => {
       await generateSyncReport(stats, {});
       const calls = mockGeneratePdfReport.mock.calls as unknown[][];
       const reportData = calls[0]?.[0] as { title: string; sections: unknown[] };
-      expect(reportData.title).toBe("Sync Report");
+      expect(reportData.title).toBe("Inaccessible Artifacts Report");
       expect(reportData.sections).toEqual(
         expect.arrayContaining([{ data: "No failures occurred during sync.", type: "text" }])
       );
@@ -180,9 +180,9 @@ describe("syncArtifacts", () => {
 
       const calls = mockGeneratePdfReport.mock.calls as unknown[][];
       const reportData = calls[0]?.[0] as { title: string; sections: unknown[] };
-      expect(reportData.title).toBe("Sync Report");
+      expect(reportData.title).toBe("Inaccessible Artifacts Report");
       expect(reportData.sections).toEqual(
-        expect.arrayContaining([expect.objectContaining({ title: "Sync Failures", type: "header" })])
+        expect.arrayContaining([expect.objectContaining({ title: "Inaccessible Artifacts", type: "header" })])
       );
       expect(mockGeneratePdfReport).toHaveBeenCalledTimes(1);
     });

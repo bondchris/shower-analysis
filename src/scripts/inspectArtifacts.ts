@@ -256,9 +256,37 @@ function findArtifactDirectories(dir: string): string[] {
 
 function generateCharts(metadataList: ArtifactAnalysis[]): CaptureCharts {
   const charts: Partial<CaptureCharts> = {};
-  const DURATION_CHART_WIDTH = 800;
-  const DURATION_CHART_HEIGHT = 400;
-  const FEATURE_CHART_HEIGHT = 600;
+  // A4 viewport at 96 DPI from reportGenerator; keep sizing as ratios
+  const PAGE_VIEWPORT_WIDTH = 794;
+  const PAGE_VIEWPORT_HEIGHT = 1123;
+  const PAGE_MARGIN = 40;
+  const DOUBLE = 2;
+  const pageMarginDouble = PAGE_MARGIN * DOUBLE;
+  const PAGE_CONTENT_WIDTH = PAGE_VIEWPORT_WIDTH - pageMarginDouble;
+  const PAGE_CONTENT_HEIGHT = PAGE_VIEWPORT_HEIGHT - pageMarginDouble;
+
+  const FULL_WIDTH_RATIO = 0.9;
+  const HALF_WIDTH_RATIO = 0.47;
+  const HISTO_WIDTH_RATIO = FULL_WIDTH_RATIO;
+  const ERRORS_WIDTH_RATIO = 0.82;
+  const LENS_WIDTH_RATIO = 0.9;
+  const DURATION_HEIGHT_RATIO = 0.32;
+  const HALF_HEIGHT_RATIO = 0.26;
+  const LENS_HEIGHT_RATIO = 0.35;
+  const FEATURE_HEIGHT_RATIO = 0.52;
+  const MIN_DURATION_HEIGHT = 260;
+  const MIN_HALF_HEIGHT = 260;
+  const MIN_LENS_HEIGHT = 340;
+  const MIN_FEATURE_HEIGHT = 400;
+
+  const DURATION_CHART_WIDTH = Math.round(PAGE_CONTENT_WIDTH * FULL_WIDTH_RATIO);
+  const HALF_CHART_WIDTH = Math.round(PAGE_CONTENT_WIDTH * HALF_WIDTH_RATIO);
+  const HISTO_CHART_WIDTH = Math.round(PAGE_CONTENT_WIDTH * HISTO_WIDTH_RATIO);
+  const ERRORS_CHART_WIDTH = Math.round(PAGE_CONTENT_WIDTH * ERRORS_WIDTH_RATIO);
+  const DURATION_CHART_HEIGHT = Math.max(MIN_DURATION_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * DURATION_HEIGHT_RATIO));
+  const HALF_CHART_HEIGHT = Math.max(MIN_HALF_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * HALF_HEIGHT_RATIO));
+  const LENS_CHART_HEIGHT = Math.max(MIN_LENS_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * LENS_HEIGHT_RATIO));
+  const FEATURE_CHART_HEIGHT = Math.max(MIN_FEATURE_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * FEATURE_HEIGHT_RATIO));
   const NOT_SET = "not_set";
   const INCREMENT_STEP = 1;
   const INITIAL_COUNT = 0;
@@ -294,10 +322,10 @@ function generateCharts(metadataList: ArtifactAnalysis[]): CaptureCharts {
   const lensLabels = Object.keys(lensMap).sort((a, b) => (lensMap[b] ?? INITIAL_COUNT) - (lensMap[a] ?? INITIAL_COUNT));
   const lensCounts = lensLabels.map((l) => lensMap[l] ?? INITIAL_COUNT);
   charts.lens = ChartUtils.getBarChartConfig(lensLabels, lensCounts, {
-    height: DURATION_CHART_HEIGHT,
+    height: LENS_CHART_HEIGHT,
     horizontal: true,
     title: "",
-    width: DURATION_CHART_WIDTH
+    width: Math.round(PAGE_CONTENT_WIDTH * LENS_WIDTH_RATIO)
   });
 
   // Framerate
@@ -309,9 +337,9 @@ function generateCharts(metadataList: ArtifactAnalysis[]): CaptureCharts {
   const fpsLabels = Object.keys(fpsMap).sort((a, b) => parseFloat(a) - parseFloat(b));
   const fpsCounts = fpsLabels.map((l) => fpsMap[l] ?? INITIAL_COUNT);
   charts.fps = ChartUtils.getBarChartConfig(fpsLabels, fpsCounts, {
-    height: DURATION_CHART_HEIGHT,
+    height: HALF_CHART_HEIGHT,
     title: "",
-    width: DURATION_CHART_WIDTH
+    width: HALF_CHART_WIDTH
   });
 
   // Resolution
@@ -323,9 +351,9 @@ function generateCharts(metadataList: ArtifactAnalysis[]): CaptureCharts {
   const resLabels = Object.keys(resMap).sort();
   const resCounts = resLabels.map((l) => resMap[l] ?? INITIAL_COUNT);
   charts.resolution = ChartUtils.getBarChartConfig(resLabels, resCounts, {
-    height: DURATION_CHART_HEIGHT,
+    height: HALF_CHART_HEIGHT,
     title: "",
-    width: DURATION_CHART_WIDTH
+    width: HALF_CHART_WIDTH
   });
 
   // Lighting & Exposure Data
@@ -338,11 +366,11 @@ function generateCharts(metadataList: ArtifactAnalysis[]): CaptureCharts {
   // Ambient: 980-1040, bin 5
   charts.ambient = ChartUtils.getHistogramConfig(intensityVals, {
     binSize: 5,
-    height: DURATION_CHART_HEIGHT,
+    height: HALF_CHART_HEIGHT,
     max: 1040,
     min: 980,
     title: "",
-    width: DURATION_CHART_WIDTH,
+    width: HISTO_CHART_WIDTH,
     xLabel: "Lumens"
   });
 
@@ -350,22 +378,22 @@ function generateCharts(metadataList: ArtifactAnalysis[]): CaptureCharts {
   charts.temperature = ChartUtils.getHistogramConfig(tempVals, {
     binSize: 250,
     colorByValue: ChartUtils.kelvinToRgb,
-    height: DURATION_CHART_HEIGHT,
+    height: HALF_CHART_HEIGHT,
     max: 6000,
     min: 4000,
     title: "",
-    width: DURATION_CHART_WIDTH,
+    width: HISTO_CHART_WIDTH,
     xLabel: "Kelvin"
   });
 
   // ISO: 0-800, bin 50
   charts.iso = ChartUtils.getHistogramConfig(isoVals, {
     binSize: 50,
-    height: DURATION_CHART_HEIGHT,
+    height: HALF_CHART_HEIGHT,
     max: 800,
     min: 0,
     title: "",
-    width: DURATION_CHART_WIDTH,
+    width: HISTO_CHART_WIDTH,
     xLabel: "ISO"
   });
 
@@ -373,11 +401,11 @@ function generateCharts(metadataList: ArtifactAnalysis[]): CaptureCharts {
   charts.brightness = ChartUtils.getHistogramConfig(briVals, {
     binSize: 1,
     decimalPlaces: 1,
-    height: DURATION_CHART_HEIGHT,
+    height: HALF_CHART_HEIGHT,
     max: 6,
     min: 0,
     title: "",
-    width: DURATION_CHART_WIDTH,
+    width: HISTO_CHART_WIDTH,
     xLabel: "Value (EV)"
   });
 
@@ -479,7 +507,7 @@ function generateCharts(metadataList: ArtifactAnalysis[]): CaptureCharts {
       horizontal: true,
       title: "",
       totalForPercentages: metadataList.length,
-      width: DURATION_CHART_WIDTH
+      width: ERRORS_CHART_WIDTH
     }
   );
 

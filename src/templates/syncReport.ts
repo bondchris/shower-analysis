@@ -28,17 +28,17 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       `<span style="font-weight:normal;color:#6b7280">${totalNew.toString()}</span>`
     ],
     [
-      "Failed",
+      "Inaccessible",
       ...allStats.map((s) => s.failed.toString()),
       `<span style="font-weight:normal;color:#6b7280">${totalFailed.toString()}</span>`
     ],
     [
-      "New Failures",
+      "New Inaccessible",
       ...allStats.map((s) => s.newFailures.toString()),
       `<span style="font-weight:normal;color:#6b7280">${totalNewFailures.toString()}</span>`
     ],
     [
-      "Known Failures",
+      "Known Inaccessible",
       ...allStats.map((s) => s.knownFailures.toString()),
       `<span style="font-weight:normal;color:#6b7280">${totalKnownFailures.toString()}</span>`
     ],
@@ -52,9 +52,9 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
   const rowClasses: Record<number, string> = {
     0: "bg-sky-100 font-semibold text-sky-800 print:print-color-adjust-exact", // Found
     1: "bg-green-100 font-semibold text-green-800 print:print-color-adjust-exact", // New
-    2: "bg-red-100 font-semibold text-red-800 print:print-color-adjust-exact", // Failed
-    3: "bg-red-50 text-red-800 print:print-color-adjust-exact", // New Failures (lighter red)
-    4: "bg-red-50 text-red-800 print:print-color-adjust-exact", // Known Failures (lighter red)
+    2: "bg-red-100 font-semibold text-red-800 print:print-color-adjust-exact", // Inaccessible
+    3: "bg-red-50 text-red-800 print:print-color-adjust-exact", // New Inaccessible (lighter red)
+    4: "bg-red-50 text-red-800 print:print-color-adjust-exact", // Known Inaccessible (lighter red)
     5: "bg-yellow-100 font-semibold text-yellow-800 print:print-color-adjust-exact" // Skipped
   };
 
@@ -70,7 +70,7 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
   const failedStats = allStats.filter((s) => s.errors.length > ZERO_FAILURES);
 
   if (failedStats.length > ZERO_FAILURES) {
-    sections.push({ title: "Sync Failures", type: "header" });
+    sections.push({ title: "Inaccessible Artifacts", type: "header" });
 
     failedStats.forEach((stats) => {
       if (stats.errors.length > ZERO_FAILURES) {
@@ -178,8 +178,8 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
 
         if (newErrors.length > ZERO_FAILURES || knownErrors.length > ZERO_FAILURES) {
           sections.push({ level: 3, title: `Environment: ${stats.env}`, type: "header" });
-          renderErrorList(newErrors, "New Failures");
-          renderErrorList(knownErrors, "Known Failures");
+          renderErrorList(newErrors, "New Inaccessible");
+          renderErrorList(knownErrors, "Known Inaccessible");
         }
       }
     });
@@ -192,6 +192,6 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
 
   return {
     sections,
-    title: "Sync Report"
+    title: "Inaccessible Artifacts Report"
   };
 }

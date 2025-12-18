@@ -1,8 +1,8 @@
 import React from "react";
 import { ReportSection } from "../../models/report";
+import { ChartConfiguration } from "../../utils/chartUtils";
+import { BarChart, Histogram, LineChart, MixedChart } from "./charts";
 import { Table } from "./Table";
-
-const MIN_HEIGHT = 0;
 
 interface SectionProps {
   section: ReportSection;
@@ -70,17 +70,13 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
       );
 
     case "chart": {
-      const chartHeight = (section.data as { height?: number }).height;
+      const chartConfig = section.data as ChartConfiguration;
       return (
-        <div className="mb-8 flex w-full justify-center break-inside-avoid">
-          <div
-            className="relative w-full"
-            style={{
-              height: chartHeight !== undefined && chartHeight > MIN_HEIGHT ? `${chartHeight.toString()}px` : "300px"
-            }}
-          >
-            <canvas className="chart-canvas" data-config={JSON.stringify(section.data)} />
-          </div>
+        <div className="mb-8 flex w-full justify-start break-inside-avoid">
+          {chartConfig.type === "line" && <LineChart config={chartConfig} />}
+          {chartConfig.type === "histogram" && <Histogram config={chartConfig} />}
+          {chartConfig.type === "bar" && <BarChart config={chartConfig} />}
+          {chartConfig.type === "mixed" && <MixedChart config={chartConfig} />}
         </div>
       );
     }
@@ -91,21 +87,16 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
       }
       return (
         <div className="mb-8 flex justify-between gap-5 break-inside-avoid">
-          {(section.data as { title?: string; data: { height?: number } }[]).map((chart, i) => (
+          {(section.data as { title?: string; data: ChartConfiguration }[]).map((chart, i) => (
             <div key={i} className="flex-1 text-center min-w-0">
               {chart.title !== undefined && (
                 <h5 className="mb-2 text-center text-sm font-semibold text-gray-700">{chart.title}</h5>
               )}
-              <div
-                className="relative w-full"
-                style={{
-                  height:
-                    chart.data.height !== undefined && chart.data.height > MIN_HEIGHT
-                      ? `${chart.data.height.toString()}px`
-                      : "300px"
-                }}
-              >
-                <canvas className="chart-canvas" data-config={JSON.stringify(chart.data)} />
+              <div className="flex w-full justify-center">
+                {chart.data.type === "line" && <LineChart config={chart.data} />}
+                {chart.data.type === "histogram" && <Histogram config={chart.data} />}
+                {chart.data.type === "bar" && <BarChart config={chart.data} />}
+                {chart.data.type === "mixed" && <MixedChart config={chart.data} />}
               </div>
             </div>
           ))}
@@ -114,6 +105,9 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
 
     case "header":
       return null;
+
+    case "page-break":
+      return <div style={{ breakBefore: "page" }} />;
 
     default:
       if (section.data !== undefined) {

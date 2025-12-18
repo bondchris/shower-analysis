@@ -1,7 +1,7 @@
-import { ChartConfiguration } from "chart.js";
 import { sumBy } from "lodash";
 
 import { EnvStats } from "../models/envStats";
+import { ChartConfiguration } from "../utils/chartUtils";
 import { ReportData, ReportSection } from "../utils/reportGenerator";
 
 export interface ValidationCharts {
@@ -107,7 +107,8 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
   Array.from(allWarningKeys)
     .sort()
     .forEach((key) => {
-      const row = [key]; // e.g. "Missing ProjectId"
+      const displayKey = key === "projectId" ? "Missing projectId" : key; // clarify warning label
+      const row = [displayKey];
       let rowTotal = 0;
       allStats.forEach((stat) => {
         const count = stat.warningCounts[key] ?? INITIAL_ERROR_COUNT;
@@ -154,7 +155,7 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
   if (charts.errors) {
     sections.push({
       data: charts.errors,
-      title: "Errors Over Time",
+      title: "Upload Failures Over Time",
       type: "chart"
     });
   }
@@ -162,7 +163,7 @@ export function buildValidationReport(allStats: EnvStats[], charts: ValidationCh
   if (charts.warnings) {
     sections.push({
       data: charts.warnings,
-      title: "Warnings Over Time",
+      title: "Missing Project IDs Over Time",
       type: "chart"
     });
   }

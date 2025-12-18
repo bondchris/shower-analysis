@@ -206,7 +206,7 @@ describe("validateArtifacts script", () => {
         expect.arrayContaining([
           expect.objectContaining({
             options: expect.objectContaining({
-              headers: expect.arrayContaining(["", "Env 1"]) as unknown,
+              headers: expect.arrayContaining(["", "Env 1", "Total"]) as unknown,
               rowClasses: expect.any(Object) as unknown
             }) as unknown,
             type: "table"
@@ -214,8 +214,8 @@ describe("validateArtifacts script", () => {
           expect.objectContaining({ title: "Property Presence", type: "chart" }),
           expect.objectContaining({ title: "Scan Volume (All Environments)", type: "chart" }),
           expect.objectContaining({ title: "Scan Success Percentage Over Time", type: "chart" }),
-          expect.objectContaining({ title: "Errors Over Time", type: "chart" }),
-          expect.objectContaining({ title: "Warnings Over Time", type: "chart" })
+          expect.objectContaining({ title: "Upload Failures Over Time", type: "chart" }),
+          expect.objectContaining({ title: "Missing Project IDs Over Time", type: "chart" })
         ])
       );
       expect(mockGeneratePdfReport).toHaveBeenCalledTimes(1);

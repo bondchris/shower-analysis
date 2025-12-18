@@ -1,27 +1,4 @@
-import { ChartConfiguration, ChartData, LegendItem } from "chart.js";
-
-// --- Constants ---
-const INCREMENT_STEP = 1;
-const MAX_TICKS = 20;
-const ZERO = 0;
-const ONE = 1;
-const DEFAULT_DECIMALS = 0;
-const OFFSET_ADJUST = 1;
-const LEGEND_BOX_WIDTH = 12;
-const LEGEND_PADDING = 10;
-const LEGEND_FONT_SIZE = 10;
-const DEFAULT_HEIGHT = 300;
-const DEFAULT_PADDING_TOP = 30;
-const DEFAULT_PADDING_RIGHT = 40;
-const DEFAULT_PADDING_BOTTOM = 10;
-const DEFAULT_PADDING_LEFT = 10;
-const TITLE_FONT_SIZE = 16;
-const DATALABEL_FONT_SIZE = 10;
-const ANIMATION_ENABLED = false;
-const RIGHT_PADDING_PERCENTAGE = 80;
-const TOP_PADDING_PERCENTAGE = 20;
-const BAR_CHART_ADDITIONAL_HEIGHT = 100;
-const BAR_CHART_ROW_HEIGHT = 30;
+// Visx-based chart utilities
 
 // --- Interfaces ---
 
@@ -56,7 +33,7 @@ export interface BarChartOptions {
   width?: number;
   height?: number;
   horizontal?: boolean;
-  totalForPercentages?: number; // If provided, adds % labels
+  totalForPercentages?: number;
   title?: string;
 }
 
@@ -83,8 +60,42 @@ export interface MixedChartOptions {
   title?: string;
   yLabelLeft?: string;
   yLabelRight?: string;
-  legendSort?: (a: LegendItem, b: LegendItem, data: ChartData) => number;
 }
+
+export interface LineChartConfig {
+  type: "line";
+  labels: string[];
+  datasets: LineChartDataset[];
+  options: LineChartOptions;
+  height: number;
+}
+
+export interface HistogramConfig {
+  type: "histogram";
+  buckets: number[];
+  labels: string[];
+  colors: string | string[];
+  options: HistogramOptions;
+  height: number;
+}
+
+export interface BarChartConfig {
+  type: "bar";
+  labels: string[];
+  data: number[];
+  options: BarChartOptions;
+  height: number;
+}
+
+export interface MixedChartConfig {
+  type: "mixed";
+  labels: string[];
+  datasets: MixedChartDataset[];
+  options: MixedChartOptions;
+  height: number;
+}
+
+export type ChartConfiguration = LineChartConfig | HistogramConfig | BarChartConfig | MixedChartConfig;
 
 // --- Pure Helper Functions ---
 
@@ -92,9 +103,13 @@ export interface MixedChartOptions {
  * Calculations for histogram bins.
  */
 export function calculateHistogramBins(data: number[], options: HistogramOptions): HistogramResult {
-  const { binSize, decimalPlaces = DEFAULT_DECIMALS, hideUnderflow, max, min } = options;
+  const defaultDecimals = 0;
+  const zeroValue = 0;
+  const incrementStep = 1;
 
-  if (!Number.isFinite(binSize) || binSize <= ZERO) {
+  const { binSize, decimalPlaces = defaultDecimals, hideUnderflow, max, min } = options;
+
+  if (!Number.isFinite(binSize) || binSize <= zeroValue) {
     throw new Error(`Invalid binSize: ${String(binSize)}. Must be > 0.`);
   }
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
@@ -104,28 +119,28 @@ export function calculateHistogramBins(data: number[], options: HistogramOptions
     throw new Error(`Invalid range: max (${String(max)}) must be > min (${String(min)}).`);
   }
 
-  const MAX_BINS = 50000;
+  const maxBins = 50000;
   const numMainBins = Math.ceil((max - min) / binSize);
 
-  if (numMainBins > MAX_BINS) {
+  if (numMainBins > maxBins) {
     throw new Error(
-      `Bucket count ${String(numMainBins)} exceeds safety limit of ${String(MAX_BINS)}. Increase binSize or reduce range.`
+      `Bucket count ${String(numMainBins)} exceeds safety limit of ${String(maxBins)}. Increase binSize or reduce range.`
     );
   }
 
-  const INITIAL_COUNT = 0;
-  const EXTRA_BUCKETS = 2; // Underflow + Overflow
-  const UNDERFLOW_INDEX = 0;
-  const OFFSET = 1;
+  const initialCount = 0;
+  const extraBuckets = 2;
+  const underflowIndex = 0;
+  const offset = 1;
 
-  const buckets: number[] = new Array(numMainBins + EXTRA_BUCKETS).fill(INITIAL_COUNT) as number[];
+  const buckets: number[] = new Array(numMainBins + extraBuckets).fill(initialCount) as number[];
   const labels: string[] = [];
 
   labels.push(`< ${min.toFixed(decimalPlaces)}`);
   for (let i = 0; i < numMainBins; i++) {
     const startOffset = i * binSize;
     const start = min + startOffset;
-    const endOffset = (i + INCREMENT_STEP) * binSize;
+    const endOffset = (i + incrementStep) * binSize;
     const end = min + endOffset;
     labels.push(`${start.toFixed(decimalPlaces)}-${end.toFixed(decimalPlaces)}`);
   }
@@ -137,27 +152,27 @@ export function calculateHistogramBins(data: number[], options: HistogramOptions
     }
 
     if (val < min) {
-      if (buckets[UNDERFLOW_INDEX] !== undefined) {
-        buckets[UNDERFLOW_INDEX] += INCREMENT_STEP;
+      if (buckets[underflowIndex] !== undefined) {
+        buckets[underflowIndex] += incrementStep;
       }
     } else if (val >= max) {
-      const idxOver = buckets.length - INCREMENT_STEP;
+      const idxOver = buckets.length - incrementStep;
       if (buckets[idxOver] !== undefined) {
-        buckets[idxOver] += INCREMENT_STEP;
+        buckets[idxOver] += incrementStep;
       }
     } else {
-      const binIdx = Math.floor((val - min) / binSize) + OFFSET;
+      const binIdx = Math.floor((val - min) / binSize) + offset;
       if (buckets[binIdx] !== undefined) {
-        buckets[binIdx] += INCREMENT_STEP;
+        buckets[binIdx] += incrementStep;
       }
     }
   }
 
   if (hideUnderflow === true) {
-    const START_INDEX = 1;
+    const startIndex = 1;
     return {
-      buckets: buckets.slice(START_INDEX),
-      labels: labels.slice(START_INDEX)
+      buckets: buckets.slice(startIndex),
+      labels: labels.slice(startIndex)
     };
   }
 
@@ -172,28 +187,31 @@ export function calculateHistogramBinCenter(
   hideUnderflow = false,
   totalBuckets: number
 ): number {
-  const UNDERFLOW_INDEX = 0;
-  const UNDERFLOW_SHIFT = 1;
-  const NO_SHIFT = 0;
-  const HALF = 2;
+  const underflowIndex = 0;
+  const underflowShift = 1;
+  const noShift = 0;
+  const half = 2;
+  const offsetAdjust = 1;
+  const oneValue = 1;
 
-  const effectiveIndex = index + (hideUnderflow ? UNDERFLOW_SHIFT : NO_SHIFT);
+  const effectiveIndex = index + (hideUnderflow ? underflowShift : noShift);
 
-  if (effectiveIndex === UNDERFLOW_INDEX) {
-    const halfBin = binSize / HALF;
+  if (effectiveIndex === underflowIndex) {
+    const halfBin = binSize / half;
     return min - halfBin;
   }
 
-  const originalLength = totalBuckets + (hideUnderflow ? ONE : ZERO);
+  const noValue = 0;
+  const originalLength = totalBuckets + (hideUnderflow ? oneValue : noValue);
 
-  if (effectiveIndex === originalLength - OFFSET_ADJUST) {
-    const halfBin = binSize / HALF;
+  if (effectiveIndex === originalLength - offsetAdjust) {
+    const halfBin = binSize / half;
     return max + halfBin;
   }
 
-  const binOffset = effectiveIndex - OFFSET_ADJUST;
+  const binOffset = effectiveIndex - offsetAdjust;
   const offsetVal = binOffset * binSize;
-  const halfBin = binSize / HALF;
+  const halfBin = binSize / half;
   return min + offsetVal + halfBin;
 }
 
@@ -208,71 +226,32 @@ export function getLineChartConfig(
     throw new Error("Dataset data length mismatch with labels length.");
   }
 
-  const { title, yLabel = "Error Count" } = options;
+  const defaultHeight = 300;
+  const { height = defaultHeight, title, yLabel = "Error Count", width } = options;
 
-  const plugins: Record<string, unknown> = {
-    datalabels: { display: false },
-    legend: {
-      display: datasets.length > ONE,
-      labels: {
-        boxWidth: LEGEND_BOX_WIDTH,
-        font: { size: LEGEND_FONT_SIZE },
-        padding: LEGEND_PADDING,
-        usePointStyle: true
-      },
-      position: "bottom"
-    },
-    title: { color: "black", display: Boolean(title), font: { size: TITLE_FONT_SIZE, weight: "bold" }, text: title }
-  };
+  const configOptions: LineChartOptions = { yLabel };
+  if (title !== undefined) {
+    configOptions.title = title;
+  }
+  if (width !== undefined) {
+    configOptions.width = width;
+  }
 
   return {
-    data: {
-      datasets: datasets.map((ds) => ({
-        backgroundColor: ds.borderColor,
-        borderColor: ds.borderColor,
-        borderWidth: ds.borderWidth,
-        data: ds.data,
-        fill: false,
-        label: ds.label,
-        pointRadius: 0,
-        tension: 0.1
-      })),
-      labels
-    },
-    // @ts-expect-error - Custom property for React rendering
-    height: DEFAULT_HEIGHT,
-    options: {
-      animation: ANIMATION_ENABLED,
-      layout: {
-        padding: {
-          bottom: DEFAULT_PADDING_BOTTOM,
-          left: DEFAULT_PADDING_LEFT,
-          right: DEFAULT_PADDING_RIGHT,
-          top: DEFAULT_PADDING_TOP
-        }
-      },
-      maintainAspectRatio: false,
-      plugins: plugins,
-      responsive: true,
-      scales: {
-        x: { ticks: { autoSkip: true, maxTicksLimit: MAX_TICKS } },
-        y: {
-          beginAtZero: true,
-          ticks: { precision: 0 },
-          title: { display: true, text: yLabel }
-        }
-      }
-    },
+    datasets,
+    height,
+    labels,
+    options: configOptions,
     type: "line"
   };
 }
 
 export function getHistogramConfig(data: number[], options: HistogramOptions): ChartConfiguration {
-  const { binSize, min, max, colorByValue, hideUnderflow, title, xLabel } = options;
+  const { binSize, min, max, colorByValue, hideUnderflow, title, xLabel, height, decimalPlaces, width } = options;
   const { buckets, labels } = calculateHistogramBins(data, options);
 
+  const defaultHeight = 300;
   const startColor = "rgba(54, 162, 235, 0.5)";
-  const borderColor = "rgba(54, 162, 235, 1)";
   let backgroundColors: string | string[] = startColor;
 
   if (colorByValue) {
@@ -282,52 +261,33 @@ export function getHistogramConfig(data: number[], options: HistogramOptions): C
     });
   }
 
-  const plugins: Record<string, unknown> = {
-    datalabels: { align: "end", anchor: "end", color: "black", font: { size: DATALABEL_FONT_SIZE, weight: "bold" } },
-    legend: { display: false },
-    title: { color: "black", display: Boolean(title), font: { size: TITLE_FONT_SIZE, weight: "bold" }, text: title }
-  };
+  const configOptions: HistogramOptions = { binSize, max, min };
+  if (colorByValue !== undefined) {
+    configOptions.colorByValue = colorByValue;
+  }
+  if (decimalPlaces !== undefined) {
+    configOptions.decimalPlaces = decimalPlaces;
+  }
+  if (hideUnderflow !== undefined) {
+    configOptions.hideUnderflow = hideUnderflow;
+  }
+  if (title !== undefined) {
+    configOptions.title = title;
+  }
+  if (xLabel !== undefined) {
+    configOptions.xLabel = xLabel;
+  }
+  if (width !== undefined) {
+    configOptions.width = width;
+  }
 
   return {
-    data: {
-      datasets: [
-        {
-          backgroundColor: backgroundColors,
-          borderColor: borderColor,
-          borderWidth: INCREMENT_STEP,
-          data: buckets,
-          label: xLabel ?? "Count"
-        }
-      ],
-      labels
-    },
-    // @ts-expect-error - Custom property for React rendering
-    height: DEFAULT_HEIGHT,
-    options: {
-      animation: ANIMATION_ENABLED,
-      layout: {
-        padding: {
-          bottom: DEFAULT_PADDING_BOTTOM,
-          left: DEFAULT_PADDING_LEFT,
-          right: DEFAULT_PADDING_RIGHT,
-          top: DEFAULT_PADDING_TOP
-        }
-      },
-      maintainAspectRatio: false,
-      plugins: plugins,
-      responsive: true,
-      scales: {
-        x: {
-          ticks: { autoSkip: true, maxTicksLimit: MAX_TICKS },
-          title: { display: Boolean(xLabel), text: xLabel }
-        },
-        y: {
-          beginAtZero: true,
-          title: { display: true, text: "Count" }
-        }
-      }
-    },
-    type: "bar"
+    buckets,
+    colors: backgroundColors,
+    height: height ?? defaultHeight,
+    labels,
+    options: configOptions,
+    type: "histogram"
   };
 }
 
@@ -336,76 +296,30 @@ export function getBarChartConfig(labels: string[], data: number[], options: Bar
     throw new Error(`Labels length (${String(labels.length)}) does not match data length (${String(data.length)}).`);
   }
 
-  const { horizontal = false, title, totalForPercentages } = options;
+  const defaultHeight = 300;
+  const barChartAdditionalHeight = 100;
+  const barChartRowHeight = 30;
+  const { horizontal = false, title, totalForPercentages, height, width } = options;
 
-  const plugins: Record<string, unknown> = {
-    legend: { display: false },
-    title: { color: "black", display: Boolean(title), font: { size: TITLE_FONT_SIZE, weight: "bold" }, text: title }
-  };
+  const totalRowHeight = labels.length * barChartRowHeight;
+  const calculatedHeight = totalRowHeight + barChartAdditionalHeight;
 
-  if (totalForPercentages !== undefined && totalForPercentages > ZERO) {
-    plugins["datalabels"] = {
-      // Custom property for client-side hydration to attach the percentage formatter
-      _percentageTotal: totalForPercentages,
-      align: horizontal ? "end" : "end",
-      anchor: horizontal ? "end" : "end",
-      color: "black",
-      display: true,
-      font: { size: DATALABEL_FONT_SIZE, weight: "bold" }
-    };
-  } else {
-    plugins["datalabels"] = {
-      align: horizontal ? "end" : "end",
-      anchor: horizontal ? "end" : "end",
-      color: "black",
-      display: true,
-      font: { size: DATALABEL_FONT_SIZE, weight: "bold" }
-    };
+  const configOptions: BarChartOptions = { horizontal };
+  if (title !== undefined) {
+    configOptions.title = title;
+  }
+  if (totalForPercentages !== undefined) {
+    configOptions.totalForPercentages = totalForPercentages;
+  }
+  if (width !== undefined) {
+    configOptions.width = width;
   }
 
-  const totalRowHeight = labels.length * BAR_CHART_ROW_HEIGHT;
-  const calculatedHeight = totalRowHeight + BAR_CHART_ADDITIONAL_HEIGHT;
-
   return {
-    data: {
-      datasets: [
-        {
-          backgroundColor: "rgba(75, 192, 192, 0.5)",
-          borderColor: "rgba(75, 192, 192, 1)",
-          borderWidth: 1,
-          data: data,
-          label: "Count"
-        }
-      ],
-      labels
-    },
-    // @ts-expect-error - Custom property for React rendering
-    height: options.height ?? (horizontal ? calculatedHeight : DEFAULT_HEIGHT),
-    options: {
-      animation: ANIMATION_ENABLED,
-      indexAxis: horizontal ? "y" : "x",
-      layout: {
-        padding: {
-          bottom: DEFAULT_PADDING_BOTTOM,
-          left: DEFAULT_PADDING_LEFT,
-          right:
-            horizontal && totalForPercentages !== undefined && totalForPercentages > ZERO
-              ? RIGHT_PADDING_PERCENTAGE
-              : DEFAULT_PADDING_RIGHT,
-          top:
-            !horizontal && totalForPercentages !== undefined && totalForPercentages > ZERO
-              ? TOP_PADDING_PERCENTAGE
-              : DEFAULT_PADDING_TOP
-        }
-      },
-      maintainAspectRatio: false,
-      plugins: plugins,
-      responsive: true,
-      scales: {
-        x: { beginAtZero: true, ticks: { precision: 0 } },
-        y: { beginAtZero: true, ticks: { autoSkip: false } }
-      }
-    },
+    data,
+    height: height ?? (horizontal ? calculatedHeight : defaultHeight),
+    labels,
+    options: configOptions,
     type: "bar"
   };
 }
@@ -415,136 +329,90 @@ export function getMixedChartConfig(
   datasets: MixedChartDataset[],
   options: MixedChartOptions = {}
 ): ChartConfiguration {
-  const { title, yLabelLeft, yLabelRight, legendSort } = options;
+  const defaultHeight = 300;
+  const { title, yLabelLeft, yLabelRight, height, width } = options;
 
-  const plugins: Record<string, unknown> = {
-    datalabels: { display: false },
-    legend: {
-      display: datasets.length > ONE,
-      labels: {
-        boxWidth: LEGEND_BOX_WIDTH,
-        font: { size: LEGEND_FONT_SIZE },
-        padding: LEGEND_PADDING,
-        sort: legendSort,
-        usePointStyle: true
-      },
-      position: "bottom"
-    },
-    title: { color: "black", display: Boolean(title), font: { size: TITLE_FONT_SIZE, weight: "bold" }, text: title }
-  };
+  const configOptions: MixedChartOptions = {};
+  if (title !== undefined) {
+    configOptions.title = title;
+  }
+  if (width !== undefined) {
+    configOptions.width = width;
+  }
+  if (yLabelLeft !== undefined) {
+    configOptions.yLabelLeft = yLabelLeft;
+  }
+  if (yLabelRight !== undefined) {
+    configOptions.yLabelRight = yLabelRight;
+  }
 
   return {
-    data: {
-      datasets: datasets.map((ds) => ({
-        backgroundColor: ds.backgroundColor ?? ds.borderColor,
-        borderColor: ds.borderColor,
-        borderWidth: ds.borderWidth,
-        data: ds.data,
-        fill: ds.fill ?? false,
-        label: ds.label,
-        order: ds.order,
-        pointRadius: 0,
-        tension: 0.1,
-        type: ds.type ?? "line",
-        yAxisID: ds.yAxisID ?? "y"
-      })),
-      labels
-    },
-    // @ts-expect-error - Custom property for React rendering
-    height: DEFAULT_HEIGHT,
-    options: {
-      animation: ANIMATION_ENABLED,
-      layout: {
-        padding: {
-          bottom: DEFAULT_PADDING_BOTTOM,
-          left: DEFAULT_PADDING_LEFT,
-          right: DEFAULT_PADDING_RIGHT,
-          top: DEFAULT_PADDING_TOP
-        }
-      },
-      maintainAspectRatio: false,
-      plugins: plugins,
-      responsive: true,
-      scales: {
-        x: { ticks: { autoSkip: true, maxTicksLimit: MAX_TICKS } },
-        y: {
-          beginAtZero: true,
-          display: true,
-          position: "left",
-          title: { display: Boolean(yLabelLeft), text: yLabelLeft }
-        },
-        y1: {
-          beginAtZero: true,
-          display: true,
-          grid: {
-            drawOnChartArea: false
-          },
-          position: "right",
-          title: { display: Boolean(yLabelRight), text: yLabelRight }
-        }
-      }
-    },
-    type: "line"
+    datasets,
+    height: height ?? defaultHeight,
+    labels,
+    options: configOptions,
+    type: "mixed"
   };
 }
 
 // --- Utils ---
 
 export function kelvinToRgb(kelvin: number): string {
-  if (!Number.isFinite(kelvin) || kelvin <= ZERO) {
+  const zeroValue = 0;
+  if (!Number.isFinite(kelvin) || kelvin <= zeroValue) {
     return "rgba(0, 0, 0, 0.8)";
   }
 
-  const KELVIN_SCALE = 100;
-  const TEMP_THRESHOLD = 66;
-  const MIN_TEMP_BLUE = 19;
-  const BLUE_OFFSET = 10;
-  const RED_MAX = 255;
-  const GREEN_LOG_MULT = 99.4708025861;
-  const GREEN_LOG_SUB = 161.1195681661;
-  const BLUE_LOG_MULT = 138.5177312231;
-  const BLUE_LOG_SUB = 305.0447927307;
-  const HIGH_TEMP_OFFSET = 60;
-  const RED_POW_MULT = 329.698727446;
-  const RED_POW_EXP = -0.1332047592;
-  const GREEN_POW_MULT = 288.1221695283;
-  const GREEN_POW_EXP = -0.0755148492;
-  const BLUE_MAX = 255;
-  const CLAMP_MIN = 0;
-  const CLAMP_MAX = 255;
-  const ALPHA = 0.8;
+  const kelvinScale = 100;
+  const tempThreshold = 66;
+  const minTempBlue = 19;
+  const blueOffset = 10;
+  const redMax = 255;
+  const greenLogMult = 99.4708025861;
+  const greenLogSub = 161.1195681661;
+  const blueLogMult = 138.5177312231;
+  const blueLogSub = 305.0447927307;
+  const highTempOffset = 60;
+  const redPowMult = 329.698727446;
+  const redPowExp = -0.1332047592;
+  const greenPowMult = 288.1221695283;
+  const greenPowExp = -0.0755148492;
+  const blueMax = 255;
+  const clampMin = 0;
+  const clampMax = 255;
+  const alpha = 0.8;
 
-  const temp = kelvin / KELVIN_SCALE;
-  let r = CLAMP_MIN;
-  let g = CLAMP_MIN;
-  let b = CLAMP_MIN;
+  const temp = kelvin / kelvinScale;
+  let r = clampMin;
+  let g = clampMin;
+  let b = clampMin;
 
-  if (temp <= TEMP_THRESHOLD) {
-    r = RED_MAX;
+  if (temp <= tempThreshold) {
+    r = redMax;
     g = temp;
-    const gLog = GREEN_LOG_MULT * Math.log(g);
-    g = gLog - GREEN_LOG_SUB;
+    const gLog = greenLogMult * Math.log(g);
+    g = gLog - greenLogSub;
 
-    if (temp <= MIN_TEMP_BLUE) {
-      b = CLAMP_MIN;
+    if (temp <= minTempBlue) {
+      b = clampMin;
     } else {
-      b = temp - BLUE_OFFSET;
-      const bLog = BLUE_LOG_MULT * Math.log(b);
-      b = bLog - BLUE_LOG_SUB;
+      b = temp - blueOffset;
+      const bLog = blueLogMult * Math.log(b);
+      b = bLog - blueLogSub;
     }
   } else {
-    const rBase = temp - HIGH_TEMP_OFFSET;
-    r = RED_POW_MULT * Math.pow(rBase, RED_POW_EXP);
+    const rBase = temp - highTempOffset;
+    r = redPowMult * Math.pow(rBase, redPowExp);
 
-    const gBase = temp - HIGH_TEMP_OFFSET;
-    g = GREEN_POW_MULT * Math.pow(gBase, GREEN_POW_EXP);
+    const gBase = temp - highTempOffset;
+    g = greenPowMult * Math.pow(gBase, greenPowExp);
 
-    b = BLUE_MAX;
+    b = blueMax;
   }
 
-  r = Math.min(CLAMP_MAX, Math.max(CLAMP_MIN, r));
-  g = Math.min(CLAMP_MAX, Math.max(CLAMP_MIN, g));
-  b = Math.min(CLAMP_MAX, Math.max(CLAMP_MIN, b));
+  r = Math.min(clampMax, Math.max(clampMin, r));
+  g = Math.min(clampMax, Math.max(clampMin, g));
+  b = Math.min(clampMax, Math.max(clampMin, b));
 
-  return `rgba(${Math.round(r).toString()}, ${Math.round(g).toString()}, ${Math.round(b).toString()}, ${ALPHA.toString()})`;
+  return `rgba(${Math.round(r).toString()}, ${Math.round(g).toString()}, ${Math.round(b).toString()}, ${alpha.toString()})`;
 }

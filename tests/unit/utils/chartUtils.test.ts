@@ -95,21 +95,22 @@ describe("chartUtils", () => {
       it("creates correct structure", () => {
         const config = getLineChartConfig(["A"], [{ borderColor: "r", data: [1], label: "L" }]);
         expect(config.type).toBe("line");
-        expect(config.data.datasets).toHaveLength(1);
-        expect(config.options?.responsive).toBe(true);
-        expect(config.options?.animation).toBe(false);
+        if (config.type === "line") {
+          expect(config.datasets).toHaveLength(1);
+        }
+        expect(config.labels).toEqual(["A"]);
+        expect(config.height).toBe(300);
       });
     });
 
     describe("getHistogramConfig", () => {
       it("creates correct structure", () => {
         const config = getHistogramConfig([1, 2, 5], { binSize: 5, max: 10, min: 0 });
-        expect(config.type).toBe("bar");
-        const dataset = config.data.datasets[0];
-        if (!dataset) {
-          throw new Error("Dataset missing");
+        expect(config.type).toBe("histogram");
+        if (config.type === "histogram") {
+          expect(config.buckets).toHaveLength(4);
+          expect(config.labels).toHaveLength(4);
         }
-        expect(dataset.data).toHaveLength(4); // Underflow + 2 bins + Overflow
       });
     });
 
@@ -121,24 +122,25 @@ describe("chartUtils", () => {
       it("creates correct structure (horizontal)", () => {
         const config = getBarChartConfig(["A"], [1], { horizontal: true, totalForPercentages: 100 });
         expect(config.type).toBe("bar");
-        expect(config.options?.indexAxis).toBe("y");
-        expect(config.options?.layout?.padding).toHaveProperty("right", 80);
-
-        // Check for custom hydration property
-        const plugins = config.options?.plugins as unknown as { datalabels: { _percentageTotal: number } };
-        expect(plugins.datalabels._percentageTotal).toBe(100);
+        if (config.type === "bar") {
+          expect(config.options.horizontal).toBe(true);
+          expect(config.options.totalForPercentages).toBe(100);
+        }
       });
 
       it("creates correct structure (vertical)", () => {
         const config = getBarChartConfig(["A"], [1], { horizontal: false, totalForPercentages: 100 });
-        expect(config.options?.indexAxis).toBe("x");
-        expect(config.options?.layout?.padding).toHaveProperty("top", 20);
+        if (config.type === "bar") {
+          expect(config.options.horizontal).toBe(false);
+          expect(config.options.totalForPercentages).toBe(100);
+        }
       });
 
-      it("enables datalabels by default", () => {
-        const config = getBarChartConfig(["A"], [1], { horizontal: false });
-        const plugins = config.options?.plugins as unknown as { datalabels: { display: boolean } };
-        expect(plugins.datalabels.display).toBe(true);
+      it("includes percentage data when provided", () => {
+        const config = getBarChartConfig(["A"], [1], { horizontal: false, totalForPercentages: 100 });
+        if (config.type === "bar") {
+          expect(config.options.totalForPercentages).toBe(100);
+        }
       });
     });
   });

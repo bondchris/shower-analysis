@@ -7,7 +7,6 @@ import { ValidationCharts, buildValidationReport } from "../templates/validation
 import * as ChartUtils from "../utils/chartUtils";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
-import { LegendItem } from "chart.js";
 import { generatePdfReport } from "../utils/reportGenerator";
 
 const getValidDateKey = (scanDate: unknown): string | null => {
@@ -200,11 +199,17 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
   const charts: ValidationCharts = {};
   const INITIAL_ERROR_COUNT = 0;
   const MIN_DATA_POINTS = 0;
+  const PAGE_VIEWPORT_WIDTH = 794;
+  const PAGE_MARGIN = 40;
+  const DOUBLE = 2;
+  const pageMarginDouble = PAGE_MARGIN * DOUBLE;
+  const PAGE_CONTENT_WIDTH = PAGE_VIEWPORT_WIDTH - pageMarginDouble; // A4 width (~794px) minus margins
+  const PROPERTY_WIDTH_RATIO = 0.9;
   const CHART_BAR_HEIGHT = 15;
   const MIN_CHART_HEIGHT = 300;
   const HEADER_FOOTER_SPACE = 60;
 
-  const grandTotal = sumBy(allStats, "totalArtifacts");
+  const processedTotal = sumBy(allStats, "processed");
 
   // Aggregate counts across all environments for property chart
   const consolidatedCounts: Record<string, number> = {};
@@ -227,12 +232,13 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
       const contentHeight = chartLabels.length * CHART_BAR_HEIGHT;
       const dynamicHeight = Math.max(MIN_CHART_HEIGHT, contentHeight + HEADER_FOOTER_SPACE);
 
+      const propertyChartWidth = Math.round(PAGE_CONTENT_WIDTH * PROPERTY_WIDTH_RATIO);
       charts.propertyPresence = ChartUtils.getBarChartConfig(chartLabels, chartData, {
         height: dynamicHeight,
         horizontal: true,
         title: "",
-        totalForPercentages: grandTotal,
-        width: 600
+        totalForPercentages: processedTotal,
+        width: propertyChartWidth
       });
     } catch (e: unknown) {
       logger.error(`Failed to generate property chart: ${String(e)}`);
@@ -312,7 +318,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
 
     const volumeDatasets: ChartUtils.MixedChartDataset[] = [
       {
-        backgroundColor: "rgba(220, 220, 220, 0.5)",
+        backgroundColor: "rgba(0, 0, 0, 0.4)",
         borderColor: "black",
         borderWidth: 2,
         data: cumulativeData,
@@ -364,10 +370,9 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
     });
 
     try {
-      const DEFAULT_DATASET_INDEX = 0;
+      const SCAN_VOLUME_CHART_HEIGHT = 420;
       charts.scanVolume = ChartUtils.getMixedChartConfig(sortedDates, volumeDatasets, {
-        legendSort: (a: LegendItem, b: LegendItem) =>
-          (a.datasetIndex ?? DEFAULT_DATASET_INDEX) - (b.datasetIndex ?? DEFAULT_DATASET_INDEX),
+        height: SCAN_VOLUME_CHART_HEIGHT,
         title: "",
         yLabelLeft: "Total Scans (Cumulative)",
         yLabelRight: "Avg Scans / Day"

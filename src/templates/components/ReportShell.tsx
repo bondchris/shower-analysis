@@ -5,50 +5,16 @@ import { Section } from "./Section";
 interface ReportShellProps {
   data: ReportData;
   css: string;
-  chartLib?: string;
-  datalabelsLib?: string;
 }
 
-const HYDRATION_SCRIPT = `
+const READY_SCRIPT = `
   document.addEventListener("DOMContentLoaded", () => {
-    // Register the datalabels plugin globally if available
-    if (ChartDataLabels) {
-      Chart.register(ChartDataLabels);
-    }
-
-    const canvases = document.querySelectorAll("canvas.chart-canvas");
-    canvases.forEach((canvas) => {
-      try {
-        const configStr = canvas.getAttribute("data-config");
-        if (!configStr) return;
-        
-        const config = JSON.parse(configStr);
-
-        // Hydrate special flags
-        const datalabelsConfig = config.options?.plugins?.datalabels;
-        if (datalabelsConfig && datalabelsConfig._percentageTotal) {
-           const total = datalabelsConfig._percentageTotal;
-           datalabelsConfig.formatter = (value) => {
-             const pct = (value / total) * 100;
-             return parseFloat(pct.toFixed(2)) + "%";
-           };
-        }
-
-        new Chart(canvas, config);
-        
-        // Mark as rendered for Playwright to wait on
-        canvas.setAttribute("data-rendered", "true");
-      } catch (e) {
-        console.error("Chart render error:", e);
-      }
-    });
-    
-    // Global flag for Playwright
+    // Signal to Playwright that charts are ready (visx renders synchronously)
     window._chartsRendered = true;
   });
 `;
 
-export const ReportShell: React.FC<ReportShellProps> = ({ chartLib, css, data, datalabelsLib }) => {
+export const ReportShell: React.FC<ReportShellProps> = ({ css, data }) => {
   return (
     <html>
       <head>
@@ -65,9 +31,7 @@ export const ReportShell: React.FC<ReportShellProps> = ({ chartLib, css, data, d
           <Section key={index} section={section} />
         ))}
 
-        {chartLib !== undefined && <script dangerouslySetInnerHTML={{ __html: chartLib }} />}
-        {datalabelsLib !== undefined && <script dangerouslySetInnerHTML={{ __html: datalabelsLib }} />}
-        <script dangerouslySetInnerHTML={{ __html: HYDRATION_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: READY_SCRIPT }} />
       </body>
     </html>
   );

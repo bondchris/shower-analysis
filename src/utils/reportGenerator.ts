@@ -20,22 +20,7 @@ export async function generatePdfReport(data: ReportData, filename: string): Pro
     logger.warn(`Could not load print.css from ${cssPath}: ${String(error)}`);
   }
 
-  let chartLib = "";
-  let datalabelsLib = "";
-  try {
-    chartLib = fs.readFileSync(path.join(process.cwd(), "node_modules/chart.js/dist/chart.umd.js"), "utf-8");
-    datalabelsLib = fs.readFileSync(
-      path.join(process.cwd(), "node_modules/chartjs-plugin-datalabels/dist/chartjs-plugin-datalabels.js"),
-      "utf-8"
-    );
-  } catch (error) {
-    logger.warn(`Could not load chart libraries: ${String(error)}`);
-  }
-
-  const html = ReactDOMServer.renderToStaticMarkup(
-    React.createElement(ReportShell, { chartLib, css, data, datalabelsLib })
-  );
-  // Add doctype as renderToStaticMarkup doesn't add it
+  const html = ReactDOMServer.renderToStaticMarkup(React.createElement(ReportShell, { css, data }));
   const fullHtml = `<!DOCTYPE html>\n${html}`;
 
   const reportsDir = path.join(process.cwd(), "reports");
