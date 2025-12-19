@@ -4,7 +4,7 @@ import * as path from "path";
 
 import { logger } from "../utils/logger";
 
-export interface Artifact {
+export interface ArtifactResponse {
   id: string;
   projectId?: string | null;
   scanDate?: string;
@@ -31,7 +31,7 @@ export interface Pagination {
 }
 
 export interface ApiResponse {
-  data: Artifact[];
+  data: ArtifactResponse[];
   pagination: Pagination;
 }
 

@@ -2,7 +2,7 @@ import fs from "fs";
 import { Mock, Mocked, MockedClass, MockedFunction, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { generateSyncReport, main, syncEnvironment } from "../../../src/scripts/syncArtifacts";
-import { Artifact, SpatialService } from "../../../src/services/spatialService";
+import { ArtifactResponse, SpatialService } from "../../../src/services/spatialService";
 import { getBadScans } from "../../../src/utils/data/badScans";
 import { getSyncFailures } from "../../../src/utils/data/syncFailures";
 import { generatePdfReport } from "../../../src/utils/reportGenerator";
@@ -66,7 +66,7 @@ describe("syncArtifacts", () => {
     beforeEach(() => {
       // Default happy path for service
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
-        data: [artifact] as unknown as Artifact[],
+        data: [artifact] as unknown as ArtifactResponse[],
         pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
       });
       // Default file mocks

@@ -4,7 +4,7 @@ import path from "path";
 import { Mock, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import os from "os";
-import { findArtifactDirectories, main, probeVideo } from "../../../src/scripts/cleanData";
+import { main, probeVideo } from "../../../src/scripts/cleanData";
 import { getBadScans, saveBadScans } from "../../../src/utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../../../src/utils/data/checkedScans";
 
@@ -88,42 +88,6 @@ describe("cleanData", () => {
 
       const result = await probeVideo("test.mp4", mockFfmpeg as unknown as typeof ffmpeg.ffprobe);
       expect(result).toEqual({ duration: 0, ok: true });
-    });
-  });
-
-  describe("findArtifactDirectories", () => {
-    let tmpDir: string;
-
-    beforeEach(() => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "find-clean-"));
-    });
-
-    afterEach(() => {
-      fs.rmSync(tmpDir, { force: true, recursive: true });
-    });
-
-    it("returns empty if dir missing", () => {
-      expect(findArtifactDirectories(path.join(tmpDir, "missing"), fs)).toEqual([]);
-    });
-
-    it("finds artifact directory with meta.json", () => {
-      const artifactDir = path.join(tmpDir, "artifact1");
-      fs.mkdirSync(artifactDir);
-      fs.writeFileSync(path.join(artifactDir, "meta.json"), "{}");
-
-      const results = findArtifactDirectories(tmpDir, fs);
-      expect(results).toHaveLength(1);
-      expect(results[0]).toBe(artifactDir);
-    });
-
-    it("recurses to find nested artifacts", () => {
-      const nested = path.join(tmpDir, "env", "artifact2");
-      fs.mkdirSync(nested, { recursive: true });
-      fs.writeFileSync(path.join(nested, "meta.json"), "{}");
-
-      const results = findArtifactDirectories(tmpDir, fs);
-      expect(results).toHaveLength(1);
-      expect(results[0]).toBe(nested);
     });
   });
 

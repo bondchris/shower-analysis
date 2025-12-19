@@ -5,7 +5,8 @@ import { Mock, Mocked, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BadScanDatabase } from "../../src/models/badScanRecord";
 import { CheckedScanDatabase } from "../../src/models/checkedScanRecord";
-import { findArtifactDirectories, processArtifact } from "../../src/scripts/filterNonBathrooms";
+import { processArtifact } from "../../src/scripts/filterNonBathrooms";
+import { findArtifactDirectories } from "../../src/utils/data/artifactIterator";
 import { GeminiService } from "../../src/services/geminiService";
 import { getBadScans } from "../../src/utils/data/badScans";
 import { getCheckedScans } from "../../src/utils/data/checkedScans";

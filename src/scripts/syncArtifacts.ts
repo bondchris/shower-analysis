@@ -4,7 +4,7 @@ import * as path from "path";
 import { ENVIRONMENTS } from "../../config/config";
 import { BadScanDatabase } from "../models/badScanRecord";
 import { SyncError, SyncStats } from "../models/syncStats";
-import { Artifact, SpatialService } from "../services/spatialService";
+import { ArtifactResponse, SpatialService } from "../services/spatialService";
 import { buildSyncReport } from "../templates/syncReport";
 import { getBadScans } from "../utils/data/badScans";
 import { SyncFailureDatabase, getSyncFailures, saveSyncFailures } from "../utils/data/syncFailures";
@@ -86,7 +86,7 @@ interface ArtifactResult {
 
 // Extracted Artifact Processor
 async function processArtifact(
-  artifact: Artifact,
+  artifact: ArtifactResponse,
   dataDir: string,
   badScans: BadScanDatabase
 ): Promise<ArtifactResult> {
@@ -229,7 +229,7 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
     const processPageTask = async (pageNum: number) => {
       try {
         const res = await service.fetchScanArtifacts(pageNum);
-        const artifacts: Artifact[] = res.data;
+        const artifacts: ArtifactResponse[] = res.data;
 
         // Queue all artifacts for processing and wait for results
         const pageResults = await Promise.all(

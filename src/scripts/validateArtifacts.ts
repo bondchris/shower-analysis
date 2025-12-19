@@ -1,6 +1,6 @@
 import { ENVIRONMENTS } from "../../config/config";
 import { EnvStats } from "../models/envStats";
-import { Artifact, SpatialService } from "../services/spatialService";
+import { ArtifactResponse, SpatialService } from "../services/spatialService";
 import { buildValidationReport } from "../templates/validationReport";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
@@ -19,9 +19,9 @@ const getValidDateKey = (scanDate: unknown): string | null => {
   return date;
 };
 
-export function applyArtifactToStats(stats: EnvStats, item: Artifact): void {
-  const REQUIRED_FIELDS: (keyof Artifact)[] = ["id", "scanDate", "rawScan", "arData", "video"];
-  const WARNING_FIELDS: (keyof Artifact)[] = ["projectId"];
+export function applyArtifactToStats(stats: EnvStats, item: ArtifactResponse): void {
+  const REQUIRED_FIELDS: (keyof ArtifactResponse)[] = ["id", "scanDate", "rawScan", "arData", "video"];
+  const WARNING_FIELDS: (keyof ArtifactResponse)[] = ["projectId"];
   const INITIAL_ERROR_COUNT = 0;
   const ERROR_INCREMENT = 1;
   const NO_MISSING_FIELDS = 0;

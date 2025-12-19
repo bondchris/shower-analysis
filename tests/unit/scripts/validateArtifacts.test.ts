@@ -1,6 +1,6 @@
 import { Mock, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyArtifactToStats, generateReport, validateEnvironment } from "../../../src/scripts/validateArtifacts";
-import { Artifact, SpatialService } from "../../../src/services/spatialService";
+import { ArtifactResponse, SpatialService } from "../../../src/services/spatialService";
 import { EnvStats } from "../../../src/models/envStats";
 // ChartUtils Mock
 vi.mock("../../../src/utils/chartUtils", () => ({
@@ -79,7 +79,7 @@ describe("validateArtifacts script", () => {
       };
     });
 
-    const createArtifact = (overrides: Partial<Artifact> = {}): Artifact =>
+    const createArtifact = (overrides: Partial<ArtifactResponse> = {}): ArtifactResponse =>
       ({
         arData: "s3://ar",
         id: "test-id",
@@ -88,7 +88,7 @@ describe("validateArtifacts script", () => {
         scanDate: "2025-12-14T10:00:00Z",
         video: "s3://video",
         ...overrides
-      }) as unknown as Artifact;
+      }) as unknown as ArtifactResponse;
 
     it("should count a valid artifact as processed and successful", () => {
       const artifact = createArtifact();
@@ -101,7 +101,7 @@ describe("validateArtifacts script", () => {
     });
 
     it("should detect missing required fields", () => {
-      const artifact = createArtifact({ id: undefined } as unknown as Partial<Artifact>);
+      const artifact = createArtifact({ id: undefined } as unknown as Partial<ArtifactResponse>);
       applyArtifactToStats(stats, artifact);
 
       expect(stats.artifactsWithIssues).toBe(1);
@@ -120,7 +120,7 @@ describe("validateArtifacts script", () => {
     });
 
     it("should detect missing warnings (projectId)", () => {
-      const artifact = createArtifact({ projectId: undefined } as unknown as Partial<Artifact>);
+      const artifact = createArtifact({ projectId: undefined } as unknown as Partial<ArtifactResponse>);
       applyArtifactToStats(stats, artifact);
 
       expect(stats.artifactsWithWarnings).toBe(1);
@@ -131,7 +131,7 @@ describe("validateArtifacts script", () => {
       const artifact = createArtifact({
         extraField: "some value",
         pointCloud: "s3://pc"
-      } as unknown as Partial<Artifact>);
+      } as unknown as Partial<ArtifactResponse>);
       applyArtifactToStats(stats, artifact);
 
       expect(stats.propertyCounts).toHaveProperty("id", 1);

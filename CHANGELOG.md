@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2025-12-19
+
+### [v0.38.0] Centralize Artifact Iteration & Model Cleanup
+
+- **Centralized Artifact Iteration**: Introduced `src/utils/data/artifactIterator.ts` to unifiy artifact discovery via `meta.json`. Refactored scripts to use this shared utility.
+- **Model Cleanup**: Removed unused `filename`, `path`, and `environment` properties from the `ArtifactAnalysis` domain model.
+- **Decoupled Metadata Extraction**: Updated `inspectArtifacts.ts` to capture `RawScan` and `ArData` metadata even if video metadata extraction fails.
+
 ## 2025-12-18
 
 ### [v0.37.0] Refactor Validation Report Architecture

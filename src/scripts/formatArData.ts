@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 
+import { findArtifactDirectories } from "../utils/data/artifactIterator";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
 
@@ -9,29 +10,6 @@ import { createProgressBar } from "../utils/progress";
  * - Ensures AR frame data is sorted chronologically by timestamp keys.
  * - This normalization helps with diffs and consistent processing.
  */
-
-export function findArDataFiles(dir: string): string[] {
-  const results: string[] = [];
-  if (!fs.existsSync(dir)) {
-    return [];
-  }
-  const list = fs.readdirSync(dir);
-  for (const file of list) {
-    const fullPath = path.join(dir, file);
-    try {
-      const stat = fs.statSync(fullPath);
-      if (stat.isDirectory()) {
-        results.push(...findArDataFiles(fullPath));
-      } else if (file === "arData.json") {
-        results.push(fullPath);
-      }
-    } catch {
-      // Ignore files we can't read
-      logger.warn(`Skipping unreadable path: ${fullPath}`);
-    }
-  }
-  return results;
-}
 
 export interface ArData {
   [key: string]: unknown; // Allow other properties
@@ -68,7 +46,10 @@ export async function run(dataDir?: string): Promise<RunStats> {
   const JSON_INDENT = 2;
 
   logger.info(`Finding arData.json files in ${DATA_DIR}...`);
-  const files = findArDataFiles(DATA_DIR);
+  const artifactDirs = findArtifactDirectories(DATA_DIR);
+  // Filter for actual arData.json files
+  const files = artifactDirs.map((dir) => path.join(dir, "arData.json")).filter((f) => fs.existsSync(f));
+
   logger.info(`Found ${files.length.toString()} arData.json files.`);
 
   const bar = createProgressBar("Formatting |{bar}| {percentage}% | {value}/{total} Files");

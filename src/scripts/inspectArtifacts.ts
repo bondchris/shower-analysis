@@ -9,6 +9,7 @@ import { buildDataAnalysisReport } from "../templates/dataAnalysisReport";
 import { ArData } from "../models/arData/arData";
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
 import { RawScan } from "../models/rawScan/rawScan";
+import { findArtifactDirectories } from "../utils/data/artifactIterator";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
 import { generatePdfReport } from "../utils/reportGenerator";
@@ -30,63 +31,72 @@ import { checkWallGaps } from "../utils/room/checkWallGaps";
  * - Outputs `reports/data-analysis.pdf`.
  */
 
-// 1. Video Metadata Extraction
+async function getVideoMetadata(filePath: string): Promise<ffmpeg.FfprobeData> {
+  const data = await new Promise<ffmpeg.FfprobeData>((resolve, reject) => {
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err !== null && err !== undefined) {
+        reject(err instanceof Error ? err : new Error(String(err)));
+      } else {
+        resolve(metadata);
+      }
+    });
+  });
+  return data;
+}
+
+// 1. Video Metadata (Resolution, FPS, Duration)
 async function addVideoMetadata(dirPath: string, metadata: ArtifactAnalysis): Promise<boolean> {
-  const filePath = path.join(dirPath, "video.mp4");
+  const videoPath = path.join(dirPath, "video.mp4");
+  const EXPECTED_PARTS = 2;
   const NUMERATOR_IDX = 0;
   const DENOMINATOR_IDX = 1;
-  const PATH_OFFSET_ENVIRONMENT = 3;
-  const DEFAULT_VALUE = 0;
+  const RADIX = 10;
+  const ZERO_DENOMINATOR = 0;
 
-  const result = await new Promise<boolean>((resolve) => {
-    ffmpeg.ffprobe(filePath, (err, meta) => {
-      if (err !== null && err !== undefined) {
-        resolve(false);
-        return;
-      }
+  if (fs.existsSync(videoPath)) {
+    try {
+      const vidMeta = await getVideoMetadata(videoPath);
+      const stream = vidMeta.streams.find((s) => s.codec_type === "video");
 
-      const stream = meta.streams.find((s) => s.codec_type === "video");
-      if (stream === undefined) {
-        resolve(false);
-        return;
-      }
-
-      let fps = DEFAULT_VALUE;
-      // Handle fraction fps if present (e.g. "30/1")
-      if (stream.r_frame_rate !== undefined) {
-        if (stream.r_frame_rate.includes("/")) {
+      if (stream) {
+        if (stream.width !== undefined && stream.height !== undefined) {
+          metadata.width = stream.width;
+          metadata.height = stream.height;
+        }
+        if (stream.r_frame_rate !== undefined) {
+          // r_frame_rate is usually "30/1" or similar
           const parts = stream.r_frame_rate.split("/");
-          const num = parts[NUMERATOR_IDX];
-          const den = parts[DENOMINATOR_IDX];
-          if (num !== undefined && den !== undefined) {
-            fps = parseFloat(num) / parseFloat(den);
+          if (
+            parts.length === EXPECTED_PARTS &&
+            parts[NUMERATOR_IDX] !== undefined &&
+            parts[DENOMINATOR_IDX] !== undefined
+          ) {
+            const num = parseInt(parts[NUMERATOR_IDX], RADIX);
+            const den = parseInt(parts[DENOMINATOR_IDX], RADIX);
+            if (den !== ZERO_DENOMINATOR) {
+              metadata.fps = Math.round(num / den);
+            }
           }
-        } else {
-          fps = parseFloat(stream.r_frame_rate);
         }
       }
 
-      const parts = filePath.split(path.sep);
-      const environment = parts[parts.length - PATH_OFFSET_ENVIRONMENT] ?? "unknown";
+      const format = vidMeta.format;
+      if (format.duration !== undefined) {
+        metadata.duration = format.duration;
+      }
 
-      // Populate valid metadata
-      metadata.duration = meta.format.duration ?? DEFAULT_VALUE;
-      metadata.environment = environment;
-      metadata.filename = path.basename(path.dirname(filePath));
-      metadata.fps = fps;
-      metadata.height = stream.height ?? DEFAULT_VALUE;
-      metadata.path = filePath;
-      metadata.width = stream.width ?? DEFAULT_VALUE;
-
-      resolve(true);
-    });
-  });
-  return result;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 
-// 2. RawScan Analysis
+// 2. RawScan Analysis (Room Dimensions, Features)
 function addRawScanMetadata(dirPath: string, metadata: ArtifactAnalysis): void {
   const rawScanPath = path.join(dirPath, "rawScan.json");
+
   if (fs.existsSync(rawScanPath)) {
     try {
       const rawContent = fs.readFileSync(rawScanPath, "utf-8");
@@ -224,28 +234,6 @@ function addArDataMetadata(dirPath: string, metadata: ArtifactAnalysis): void {
   }
 }
 
-function findArtifactDirectories(dir: string): string[] {
-  let results: string[] = [];
-  if (!fs.existsSync(dir)) {
-    return [];
-  }
-  const list = fs.readdirSync(dir);
-
-  // Check if this directory is an artifact directory (contains video.mp4, arData.json, and rawScan.json)
-  if (list.includes("video.mp4") && list.includes("arData.json") && list.includes("rawScan.json")) {
-    results.push(dir);
-  }
-
-  for (const file of list) {
-    const fullPath = path.join(dir, file);
-    const stat = fs.statSync(fullPath);
-    if (stat.isDirectory()) {
-      results = results.concat(findArtifactDirectories(fullPath));
-    }
-  }
-  return results;
-}
-
 async function createInspectionReport(
   metadataList: ArtifactAnalysis[],
   avgDuration: number,
@@ -278,13 +266,11 @@ async function main(): Promise<void> {
 
   for (const dir of artifactDirs) {
     const metadata = new ArtifactAnalysis();
-    const success = await addVideoMetadata(dir, metadata);
-    if (success) {
-      addRawScanMetadata(dir, metadata);
-      addArDataMetadata(dir, metadata);
+    await addVideoMetadata(dir, metadata);
+    addRawScanMetadata(dir, metadata);
+    addArDataMetadata(dir, metadata);
 
-      metadataList.push(metadata);
-    }
+    metadataList.push(metadata);
     bar.increment();
   }
   bar.stop();

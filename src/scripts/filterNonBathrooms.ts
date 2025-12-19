@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { GeminiService } from "../services/geminiService";
+import { findArtifactDirectories } from "../utils/data/artifactIterator";
 import { getBadScans, saveBadScans } from "../utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../utils/data/checkedScans";
 import { logger } from "../utils/logger";
@@ -32,32 +33,6 @@ export interface FilterStats {
   skipped: number;
   skippedAmbiguous: number;
   skippedCached: number;
-}
-
-export function findArtifactDirectories(dir: string): string[] {
-  const results: string[] = [];
-  if (!fs.existsSync(dir)) {
-    return [];
-  }
-
-  try {
-    const list = fs.readdirSync(dir, { withFileTypes: true });
-    for (const ent of list) {
-      if (ent.isDirectory()) {
-        const fullPath = path.join(dir, ent.name);
-        // Optimization: Check for meta.json directly instead of recursing blindly
-        if (fs.existsSync(path.join(fullPath, "meta.json"))) {
-          results.push(fullPath);
-        } else {
-          results.push(...findArtifactDirectories(fullPath));
-        }
-      }
-    }
-  } catch (err) {
-    logger.error(`Error scanning directory ${dir}: ${String(err)}`);
-  }
-
-  return results;
 }
 
 export async function processArtifact(

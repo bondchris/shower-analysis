@@ -3,7 +3,7 @@ import os from "os";
 import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ArData, findArDataFiles, run, sortArData } from "../../../src/scripts/formatArData";
+import { ArData, run, sortArData } from "../../../src/scripts/formatArData";
 import { logger } from "../../../src/utils/logger";
 
 // Mock dependencies
@@ -37,59 +37,6 @@ describe("formatArData", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  // --- Unit Tests: findArDataFiles ---
-  describe("findArDataFiles", () => {
-    let tmpDir: string;
-
-    beforeEach(() => {
-      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "find-test-"));
-    });
-
-    afterEach(() => {
-      try {
-        fs.rmSync(tmpDir, { force: true, recursive: true });
-      } catch {
-        // Ignore cleanup errors
-      }
-    });
-
-    it("returns empty array for missing directory", () => {
-      const nonExistent = path.join(tmpDir, "missing");
-      expect(findArDataFiles(nonExistent)).toEqual([]);
-    });
-
-    it("returns empty array for empty directory", () => {
-      const emptyDir = path.join(tmpDir, "empty");
-      fs.mkdirSync(emptyDir);
-      expect(findArDataFiles(emptyDir)).toEqual([]);
-    });
-
-    it("finds arData.json in root", () => {
-      fs.writeFileSync(path.join(tmpDir, "arData.json"), "{}");
-      const files = findArDataFiles(tmpDir);
-      expect(files).toHaveLength(1);
-      expect(files[0]).toContain("arData.json");
-    });
-
-    it("finds nested arData.json files", () => {
-      const nested = path.join(tmpDir, "a", "b");
-      fs.mkdirSync(nested, { recursive: true });
-      fs.writeFileSync(path.join(tmpDir, "arData.json"), "{}");
-      fs.writeFileSync(path.join(nested, "arData.json"), "{}");
-
-      const files = findArDataFiles(tmpDir);
-      expect(files).toHaveLength(2);
-    });
-
-    it("ignores non-matching files", () => {
-      fs.writeFileSync(path.join(tmpDir, "other.json"), "{}");
-      fs.writeFileSync(path.join(tmpDir, "arData.json"), "{}");
-      const files = findArDataFiles(tmpDir);
-      expect(files).toHaveLength(1);
-      expect(files[0]).toMatch(/arData\.json$/);
-    });
   });
 
   // --- Unit Tests: sortArData ---
@@ -169,6 +116,9 @@ describe("formatArData", () => {
     it("creates arDataFormatted.json for valid files", async () => {
       const fileDir = path.join(tmpDir, "artifact1");
       fs.mkdirSync(fileDir);
+      // Valid artifact requires meta.json
+      fs.writeFileSync(path.join(fileDir, "meta.json"), "{}");
+
       const input = { data: { "1": "a", "2": "b" } };
       fs.writeFileSync(path.join(fileDir, "arData.json"), JSON.stringify(input));
 
@@ -188,6 +138,7 @@ describe("formatArData", () => {
     it("skips if arDataFormatted.json exists", async () => {
       const fileDir = path.join(tmpDir, "artifact1");
       fs.mkdirSync(fileDir);
+      fs.writeFileSync(path.join(fileDir, "meta.json"), "{}");
       fs.writeFileSync(path.join(fileDir, "arData.json"), "{}");
       fs.writeFileSync(path.join(fileDir, "arDataFormatted.json"), "{}");
 
@@ -200,6 +151,7 @@ describe("formatArData", () => {
     it("skips file if data property is missing", async () => {
       const fileDir = path.join(tmpDir, "artifact1");
       fs.mkdirSync(fileDir);
+      fs.writeFileSync(path.join(fileDir, "meta.json"), "{}");
       fs.writeFileSync(path.join(fileDir, "arData.json"), JSON.stringify({ meta: "only" }));
 
       const stats = await run(tmpDir);
@@ -216,6 +168,7 @@ describe("formatArData", () => {
     it("handles invalid JSON gracefully", async () => {
       const fileDir = path.join(tmpDir, "artifact1");
       fs.mkdirSync(fileDir);
+      fs.writeFileSync(path.join(fileDir, "meta.json"), "{}");
       fs.writeFileSync(path.join(fileDir, "arData.json"), "{ invalid json");
 
       const stats = await run(tmpDir);

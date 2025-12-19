@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { Mocked, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiResponse, Artifact, SpatialService } from "../../src/services/spatialService";
+import { ApiResponse, ArtifactResponse, SpatialService } from "../../src/services/spatialService";
 
 vi.mock("axios");
 const mockedAxios = axios as Mocked<typeof axios>;
@@ -73,7 +73,7 @@ describe("SpatialService Integration", () => {
     fs.writeFileSync(path.join(dir, "page_" + page.toString() + ".json"), JSON.stringify(data));
   };
 
-  const mockApiResponse = (total: number, items: Artifact[] = []): ApiResponse => ({
+  const mockApiResponse = (total: number, items: ArtifactResponse[] = []): ApiResponse => ({
     data: items,
     pagination: {
       currentPage: 1,

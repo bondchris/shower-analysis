@@ -2,6 +2,7 @@ import ffmpeg from "fluent-ffmpeg";
 import * as fs from "fs";
 import * as path from "path";
 
+import { findArtifactDirectories } from "../utils/data/artifactIterator";
 import { getBadScans, saveBadScans } from "../utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../utils/data/checkedScans";
 import { logger } from "../utils/logger";
@@ -70,42 +71,6 @@ export async function probeVideo(
   return result;
 }
 
-export function findArtifactDirectories(
-  dir: string,
-  fsImpl: Pick<typeof fs, "readdirSync" | "statSync" | "existsSync">
-): string[] {
-  const results: string[] = [];
-  if (!fsImpl.existsSync(dir)) {
-    return [];
-  }
-
-  try {
-    const list = fsImpl.readdirSync(dir);
-    for (const file of list) {
-      const fullPath = path.join(dir, file);
-      try {
-        const stat = fsImpl.statSync(fullPath);
-        if (stat.isDirectory()) {
-          // Check if it looks like an artifact dir (has UUID-like name)
-          // Simple heuristic: if it contains meta.json directly, it's a candidate
-          // identifying by meta.json allows us to catch incomplete artifacts that have meta but no video
-          if (fsImpl.existsSync(path.join(fullPath, "meta.json"))) {
-            results.push(fullPath);
-          } else {
-            // Recurse (e.g., data/env/uuid)
-            results.push(...findArtifactDirectories(fullPath, fsImpl));
-          }
-        }
-      } catch {
-        // Ignore unreadable files/dirs
-      }
-    }
-  } catch {
-    // Ignore unreadable dirs
-  }
-  return results;
-}
-
 export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
   const fsImpl = opts?.fs ?? fs;
   const ffprobeImpl = opts?.ffprobe ?? ffmpeg.ffprobe;
@@ -133,7 +98,7 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
     log(`  [QUARANTINE] Moving bad artifacts to: ${QUARANTINE_DIR}`);
   }
 
-  const artifactDirs = findArtifactDirectories(DATA_DIR, fsImpl);
+  const artifactDirs = findArtifactDirectories(DATA_DIR);
   log(`Found ${artifactDirs.length.toString()} directories to check.`);
 
   // Load dbs

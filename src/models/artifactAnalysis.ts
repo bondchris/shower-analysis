@@ -6,9 +6,6 @@ const NO_RESULTS = 0;
  * Used for analysis, filtering, and reporting on room characteristics.
  */
 export class ArtifactAnalysis {
-  public path = NOT_SET;
-  public filename = NOT_SET;
-  public environment = NOT_SET;
   public width = NO_RESULTS;
   public height = NO_RESULTS;
   public fps = NO_RESULTS;
