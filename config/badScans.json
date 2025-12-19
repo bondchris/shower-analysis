@@ -419,6 +419,11 @@
     "environment": "bond_production",
     "reason": "Not a bathroom (Gemini)"
   },
+  "7e08521b-4ab0-46da-8f0d-bd471b9f3e65": {
+    "date": "2025-12-19T20:19:50.134Z",
+    "environment": "lowe_s_production",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)"
+  },
   "86eb0cb1-a538-4a52-a792-f2496fe2897f": {
     "date": "2025-12-08T03:31:15.531Z",
     "environment": "bond_production",

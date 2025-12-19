@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-19
 
+### [v0.39.0] Persist all metadata for inspect
+
+- **Persist Video Metadata**: Implemented caching for video metadata extraction (`videoMetadata.json`), significantly improving subsequent run times.
+- **Persist RawScan/ArData**: Extended caching to `RawScan` and `ArData` metadata (`rawScanMetadata.json`, `arDataMetadata.json`).
+- **Refactor Utilities**: Moved metadata logic to domain-specific folders (`src/utils/room`, `src/utils/arData`, `src/utils/video`) for better separation of concerns.
+
 ### [v0.38.0] Centralize Artifact Iteration & Model Cleanup
 
 - **Centralized Artifact Iteration**: Introduced `src/utils/data/artifactIterator.ts` to unifiy artifact discovery via `meta.json`. Refactored scripts to use this shared utility.
