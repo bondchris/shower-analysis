@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { chromium } from "playwright";
+import { Browser, chromium } from "playwright";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
 
@@ -28,8 +28,9 @@ export async function generatePdfReport(data: ReportData, filename: string): Pro
 
   const reportPath = path.join(reportsDir, filename);
 
+  let browser: Browser | undefined = undefined;
   try {
-    const browser = await chromium.launch();
+    browser = await chromium.launch();
     const page = await browser.newPage();
     // Set viewport to A4 width (approx 794px at 96 DPI) to ensure charts render at correct aspect ratio
     await page.setViewportSize({ height: 1123, width: 794 });
@@ -55,10 +56,11 @@ export async function generatePdfReport(data: ReportData, filename: string): Pro
       path: reportPath,
       printBackground: true
     });
-    await browser.close();
     logger.info(`PDF report generated at: ${reportPath}`);
   } catch (error) {
     logger.error(`Failed to generate PDF report: ${String(error)}`);
     throw error;
+  } finally {
+    await browser?.close();
   }
 }

@@ -205,4 +205,37 @@ describe("checkNibWalls", () => {
       expect(checkNibWalls(createMockScan({ story: 2, walls: [w] }))).toBe(false);
     });
   });
+  describe("Coverage Improvements", () => {
+    it("should ignore walls with invalid transforms", () => {
+      // Wall is short enough to be a nib (< 0.3m), but transform is invalid
+      const w1 = createExternalWall("w1", {
+        polygonCorners: [
+          [0, 0],
+          [0.2, 0]
+        ],
+        transform: [1, 0, 0, 0] // Invalid length
+      });
+      expect(checkNibWalls(createMockScan({ walls: [w1] }))).toBe(false);
+    });
+
+    it("should use dimension fallback for empty polygonCorners", () => {
+      // Dimension provides length 0.2m (Nib).
+      const w1 = createExternalWall("w1", {
+        dimensions: [0.2, 0, 0],
+        polygonCorners: []
+      });
+      // Should calculate corners around origin: [-0.1, 0] to [0.1, 0]. Length 0.2.
+      expect(checkNibWalls(createMockScan({ walls: [w1] }))).toBe(true);
+    });
+
+    it("should ignore points with insufficient data (length < 2)", () => {
+      // Wall has corners but they are malformed arrays (e.g. [0])
+      const w1 = createExternalWall("w1", {
+        polygonCorners: [[0]] // invalid point, length 1
+      });
+      // Logic skips this point. Resulting valid corners = 0.
+      // Wall is skipped. Returns false.
+      expect(checkNibWalls(createMockScan({ walls: [w1] }))).toBe(false);
+    });
+  });
 });

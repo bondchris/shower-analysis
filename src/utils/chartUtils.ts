@@ -35,6 +35,7 @@ export interface BarChartOptions {
   horizontal?: boolean;
   totalForPercentages?: number;
   title?: string;
+  showCount?: boolean;
 }
 
 export interface HistogramResult {
@@ -313,6 +314,9 @@ export function getBarChartConfig(labels: string[], data: number[], options: Bar
   }
   if (width !== undefined) {
     configOptions.width = width;
+  }
+  if (options.showCount === true) {
+    configOptions.showCount = true;
   }
 
   return {

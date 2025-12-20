@@ -63,15 +63,19 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
       // Calculate Averages
       let totalIntensity = 0;
       let totalTemperature = 0;
+      let lightCount = 0;
+
       let totalISO = 0;
+      let isoCount = 0;
+
       let totalBrightness = 0;
-      let count = 0;
+      let brightnessCount = 0;
 
       for (const frame of frames) {
         if (frame.lightEstimate) {
           totalIntensity += frame.lightEstimate.ambientIntensity;
           totalTemperature += frame.lightEstimate.ambientColorTemperature;
-          count++;
+          lightCount++;
         }
 
         const isoRatings = frame.exifData.ISOSpeedRatings;
@@ -80,6 +84,7 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
           const isoVal = parseFloat(isoStr);
           if (!isNaN(isoVal)) {
             totalISO += isoVal;
+            isoCount++;
           }
         }
 
@@ -88,15 +93,22 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
           const briVal = parseFloat(brightness);
           if (!isNaN(briVal)) {
             totalBrightness += briVal;
+            brightnessCount++;
           }
         }
       }
 
-      if (count > MIN_VALID_FRAMES) {
-        result.avgAmbientIntensity = totalIntensity / count;
-        result.avgColorTemperature = totalTemperature / count;
-        result.avgIso = totalISO / count;
-        result.avgBrightness = totalBrightness / count;
+      if (lightCount > MIN_VALID_FRAMES) {
+        result.avgAmbientIntensity = totalIntensity / lightCount;
+        result.avgColorTemperature = totalTemperature / lightCount;
+      }
+
+      if (isoCount > MIN_VALID_FRAMES) {
+        result.avgIso = totalISO / isoCount;
+      }
+
+      if (brightnessCount > MIN_VALID_FRAMES) {
+        result.avgBrightness = totalBrightness / brightnessCount;
       }
 
       // Persist to cache

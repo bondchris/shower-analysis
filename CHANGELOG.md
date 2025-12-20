@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2025-12-20
+
+### [v0.39.1] Add chart data labels and improve coverage
+
+- **Chart Data Labels**: specific charts (Framerate, Resolution) now display numerical counts above bars, and horizontal charts (Lens Models) display percentages.
+- **Fix Chart Clipping**: Resolved layout issues in the "Feature Prevalence" chart within the Data Analysis report.
+- **Test Coverage**: Significantly improved test coverage.
+- **Linting**: Added functional test that simulates a full pipeline run.
+
 ## 2025-12-19
 
 ### [v0.39.0] Persist all metadata for inspect

@@ -283,5 +283,12 @@ describe("Wall", () => {
       ];
       expect(wall.hasSoffit).toBe(false);
     });
+    it("should handle sparse or undefined points in corners gracefully (safety check)", () => {
+      const wall = new Wall({ category: {} } as WallData);
+      // Construct a "sparse" array or one with explicit undefineds to trigger the `!pPrev || !pCurr || !pNext` check.
+      // 0,0 -> undefined -> 10,0
+      wall.polygonCorners = [[0, 0, 0], undefined as unknown as number[], [10, 0, 0]];
+      expect(wall.hasSoffit).toBe(false);
+    });
   });
 });

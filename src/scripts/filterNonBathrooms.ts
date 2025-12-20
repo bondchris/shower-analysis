@@ -35,6 +35,21 @@ export interface FilterStats {
   skippedCached: number;
 }
 
+export function classifyGeminiAnswer(textRaw: string): "YES" | "NO" | "AMBIGUOUS" {
+  const text = textRaw.trim().toUpperCase();
+  const normalized = text.replace(/[^\w\s]/g, " ");
+  const hasYes = /\bYES\b/.test(normalized);
+  const hasNo = /\bNO\b/.test(normalized);
+
+  if (hasNo && !hasYes) {
+    return "NO";
+  }
+  if (hasYes && !hasNo) {
+    return "YES";
+  }
+  return "AMBIGUOUS";
+}
+
 export async function processArtifact(
   dir: string,
   service: GeminiService,
@@ -93,29 +108,20 @@ export async function processArtifact(
     const videoBuffer = fs.readFileSync(videoPath);
     const prompt = "Is this video showing a bathroom? Reply YES or NO.";
 
-    let text = "";
-    text = (
-      await service.generateContent(prompt, [
-        {
-          inlineData: {
-            data: videoBuffer.toString("base64"),
-            mimeType: "video/mp4"
-          }
+    const text = await service.generateContent(prompt, [
+      {
+        inlineData: {
+          data: videoBuffer.toString("base64"),
+          mimeType: "video/mp4"
         }
-      ])
-    )
-      .trim()
-      .toUpperCase();
+      }
+    ]);
 
     // logger.info(`  -> ${artifactId}: Gemini says: ${text}`);
 
-    // Strict Parsing
-    // Remove punctuation to handle "NO." or "YES!"
-    const normalized = text.replace(/[^\w\s]/g, " ");
-    const hasYes = /\bYES\b/.test(normalized);
-    const hasNo = /\bNO\b/.test(normalized);
+    const classification = classifyGeminiAnswer(text);
 
-    if (hasNo && !hasYes) {
+    if (classification === "NO") {
       logger.info(`  -> ${artifactId}: NOT A BATHROOM. Removing...`);
 
       if (!dryRun) {
@@ -138,7 +144,7 @@ export async function processArtifact(
         logger.info(`  -> ${artifactId}: [DRY RUN] Would remove.`);
         stats.removed++;
       }
-    } else if (hasYes && !hasNo) {
+    } else if (classification === "YES") {
       logger.info(`  -> ${artifactId}: Kept.`);
       if (!dryRun) {
         let entry = checkedScans[artifactId];
@@ -162,6 +168,77 @@ export async function processArtifact(
   }
 
   return stats;
+}
+
+interface BatchOptions extends FilterOptions {
+  saveInterval?: number;
+}
+
+export async function runBatchProcessing(
+  artifactDirs: string[],
+  service: GeminiService,
+  badScans: ReturnType<typeof getBadScans>,
+  checkedScanIds: Set<string>,
+  checkedScans: ReturnType<typeof getCheckedScans>,
+  saveCallback: () => void,
+  options: BatchOptions
+): Promise<FilterStats> {
+  const globalStats: FilterStats = {
+    errors: 0,
+    processed: 0,
+    removed: 0,
+    skipped: 0,
+    skippedAmbiguous: 0,
+    skippedCached: 0
+  };
+
+  const queue = [...artifactDirs];
+  const ZERO = 0;
+  const QUEUE_EMPTY = ZERO;
+  const DEFAULT_SAVE_INTERVAL = 50;
+  const SAVE_INTERVAL = options.saveInterval ?? DEFAULT_SAVE_INTERVAL;
+  let processedSinceLastSave = ZERO;
+
+  const bar = createProgressBar("Filtering |{bar}| {percentage}% | {value}/{total} Artifacts | ETA: {eta}s");
+  const INITIAL_PROGRESS = 0;
+  bar.start(queue.length, INITIAL_PROGRESS);
+
+  const DEFAULT_CONCURRENCY = 5;
+  const concurrency = options.concurrency ?? DEFAULT_CONCURRENCY;
+  const dryRun = options.dryRun ?? false;
+
+  const workers = Array(concurrency)
+    .fill(null)
+    .map(async () => {
+      while (queue.length > QUEUE_EMPTY) {
+        const dir = queue.shift();
+        if (dir !== undefined) {
+          const stats = await processArtifact(dir, service, badScans, checkedScanIds, checkedScans, {
+            dryRun
+          });
+
+          // Accumulate stats (not thread-safe strictly but JS is single threaded event loop so OK)
+          globalStats.processed += stats.processed;
+          globalStats.removed += stats.removed;
+          globalStats.skipped += stats.skipped;
+          globalStats.skippedCached += stats.skippedCached;
+          globalStats.skippedAmbiguous += stats.skippedAmbiguous;
+          globalStats.errors += stats.errors;
+
+          processedSinceLastSave++;
+          if (processedSinceLastSave >= SAVE_INTERVAL) {
+            processedSinceLastSave = ZERO;
+            saveCallback();
+          }
+          bar.increment();
+        }
+      }
+    });
+
+  await Promise.all(workers);
+  bar.stop();
+
+  return globalStats;
 }
 
 export async function main() {
@@ -190,67 +267,18 @@ export async function main() {
 
   logger.info(`Loaded ${Object.keys(checkedScans).length.toString()} checked scans.`);
 
-  const globalStats: FilterStats = {
-    errors: 0,
-    processed: 0,
-    removed: 0,
-    skipped: 0,
-    skippedAmbiguous: 0,
-    skippedCached: 0
-  };
-
-  // Process in chunks/queue
-  const queue = [...artifactDirs];
-  const ZERO = 0;
-  const QUEUE_EMPTY = ZERO;
-
-  // Periodic Save Config
-  const SAVE_INTERVAL = 50;
-  let processedSinceLastSave = ZERO;
-
-  // Save helper
+  // Periodic Save Helper
   const saveDB = () => {
     if (!DRY_RUN) {
       saveBadScans(badScans);
       saveCheckedScans(checkedScans);
-      // logger.info("  [Checkpoint] DB Saved.");
     }
   };
 
-  const bar = createProgressBar("Filtering |{bar}| {percentage}% | {value}/{total} Artifacts | ETA: {eta}s");
-  const INITIAL_PROGRESS = 0;
-  bar.start(queue.length, INITIAL_PROGRESS);
-
-  const workers = Array(CONCURRENCY)
-    .fill(null)
-    .map(async () => {
-      while (queue.length > QUEUE_EMPTY) {
-        const dir = queue.shift();
-        if (dir !== undefined) {
-          const stats = await processArtifact(dir, service, badScans, checkedScanIds, checkedScans, {
-            dryRun: DRY_RUN
-          });
-
-          // Accumulate stats (not thread-safe strictly but JS is single threaded event loop so OK)
-          globalStats.processed += stats.processed;
-          globalStats.removed += stats.removed;
-          globalStats.skipped += stats.skipped;
-          globalStats.skippedCached += stats.skippedCached;
-          globalStats.skippedAmbiguous += stats.skippedAmbiguous;
-          globalStats.errors += stats.errors;
-
-          processedSinceLastSave++;
-          if (processedSinceLastSave >= SAVE_INTERVAL) {
-            processedSinceLastSave = ZERO;
-            saveDB();
-          }
-          bar.increment();
-        }
-      }
-    });
-
-  await Promise.all(workers);
-  bar.stop();
+  const globalStats = await runBatchProcessing(artifactDirs, service, badScans, checkedScanIds, checkedScans, saveDB, {
+    concurrency: CONCURRENCY,
+    dryRun: DRY_RUN
+  });
 
   saveDB(); // Final save
 

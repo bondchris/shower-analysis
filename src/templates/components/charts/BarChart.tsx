@@ -16,15 +16,15 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
 
   const defaultWidth = 650;
   const width = options.width ?? defaultWidth;
-  const { horizontal = false, totalForPercentages } = options;
+  const { horizontal = false, totalForPercentages, showCount } = options;
 
   const topMargin = 30;
   const bottomMarginMin = 50;
   const bottomMarginRatio = 0.1;
   const rightMarginDefaultMin = 30;
   const rightMarginDefaultRatio = 0.06;
-  const rightMarginPercentageMin = 30;
-  const rightMarginPercentageRatio = 0.04;
+  const rightMarginPercentageMin = 60;
+  const rightMarginPercentageRatio = 0.1;
   const leftMarginHorizontalMin = 60;
   const leftMarginHorizontalRatio = 0.04;
   const tickFontSizeHorizontal = 8;
@@ -119,6 +119,19 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
                     {parseFloat(((value / totalForPercentages) * percentageBase).toFixed(decimalPlaces))}%
                   </text>
                 )}
+                {showCount === true && (
+                  <text
+                    fill="#000"
+                    fontSize={10}
+                    fontWeight="bold"
+                    textAnchor="start"
+                    dominantBaseline="middle"
+                    x={labelX}
+                    y={labelY}
+                  >
+                    {value}
+                  </text>
+                )}
               </Group>
             );
           })}
@@ -200,6 +213,18 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
                     y={yValue - textOffset}
                   >
                     {parseFloat(((value / totalForPercentages) * percentageBase).toFixed(decimalPlaces))}%
+                  </text>
+                )}
+                {showCount === true && (
+                  <text
+                    fill="#000"
+                    fontSize={10}
+                    fontWeight="bold"
+                    textAnchor="middle"
+                    x={labelX}
+                    y={yValue - textOffset}
+                  >
+                    {value}
                   </text>
                 )}
               </Group>

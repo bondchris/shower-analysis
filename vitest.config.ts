@@ -6,12 +6,10 @@ export default defineConfig({
       exclude: [
         "**/node_modules/**",
         "**/dist/**",
-        "**/*.config.{js,ts,mjs,cjs}",
         "**/tests/**",
         "**/*.test.{ts,js}",
         "**/*.spec.{ts,js}",
-        "**/scripts/**",
-        "**/templates/**"
+        "**/*.config.{js,ts,mjs,cjs}"
       ],
       include: ["src/**/*.{ts,tsx}"],
       provider: "v8",
@@ -26,6 +24,7 @@ export default defineConfig({
     environment: "node",
     exclude: ["**/node_modules/**", "**/dist/**"],
     globals: true,
-    include: ["tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"]
+    include: ["tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+    setupFiles: ["./tests/setup.ts"]
   }
 });

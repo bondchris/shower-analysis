@@ -1,0 +1,48 @@
+
+> shower-analysis@0.39.0 test
+> vitest run tests/functional/pipeline.test.ts
+
+
+[1m[46m RUN [49m[22m [36mv4.0.16 [39m[90m/Users/chris.seltzer/Developer/Bond/scratch/shower-analysis[39m
+
+[90mstdout[2m | tests/functional/pipeline.test.ts[2m > [22m[2mFunctional Pipeline Test[2m > [22m[2mruns the full analysis pipeline with mixed data, caching, and failure handling
+[22m[39mMockGemini called. Prompt: Is this video showin
+MockGemini Images Arg: [90mundefined[39m
+Returning YES
+MockGemini called. Prompt: Is this video showin
+MockGemini Images Arg: [90mundefined[39m
+Returning YES
+MockGemini called. Prompt: Is this video showin
+MockGemini Images Arg: [90mundefined[39m
+Returning YES
+
+ [31m❯[39m tests/functional/pipeline.test.ts [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 2880[2mms[22m[39m
+[31m     [31m×[31m runs the full analysis pipeline with mixed data, caching, and failure handling[39m[33m 2879[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/functional/pipeline.test.ts[2m > [22mFunctional Pipeline Test[2m > [22mruns the full analysis pipeline with mixed data, caching, and failure handling
+[31m[1mAssertionError[22m: expected true to be false // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- false[39m
+[31m+ true[39m
+
+[36m [2m❯[22m tests/functional/pipeline.test.ts:[2m407:48[22m[39m
+    [90m405| [39m        [90m// Not Bathroom should be REMOVED[39m
+    [90m406| [39m        const notBathroomPath = path.join(tempDir, "data", "artifacts"…
+    [90m407| [39m        [34mexpect[39m(fs[33m.[39m[34mexistsSync[39m(notBathroomPath))[33m.[39m[34mtoBe[39m([35mfalse[39m)[33m;[39m
+    [90m   | [39m                                               [31m^[39m
+    [90m408| [39m
+    [90m409| [39m        [90m// Verify badScans recording[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m   Start at [22m 00:04:21
+[2m   Duration [22m 3.95s[2m (transform 304ms, setup 90ms, import 871ms, tests 2.88s, environment 0ms)[22m
+

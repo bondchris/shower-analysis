@@ -45,7 +45,15 @@ function addArDataMetadata(dirPath: string, metadata: ArtifactAnalysis): void {
   }
 }
 
-async function createInspectionReport(
+export async function analyzeArtifact(dir: string): Promise<ArtifactAnalysis> {
+  const metadata = new ArtifactAnalysis();
+  await addVideoMetadata(dir, metadata);
+  addRawScanMetadata(dir, metadata);
+  addArDataMetadata(dir, metadata);
+  return metadata;
+}
+
+export async function createInspectionReport(
   metadataList: ArtifactAnalysis[],
   avgDuration: number,
   videoCount: number,
@@ -60,7 +68,7 @@ async function createInspectionReport(
   logger.info(`Report generated at: ${reportPath}`);
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const DATA_DIR = path.join(process.cwd(), "data", "artifacts");
   const INITIAL_COUNT = 0;
 
@@ -76,11 +84,7 @@ async function main(): Promise<void> {
   bar.start(artifactDirs.length, INITIAL_PROGRESS);
 
   for (const dir of artifactDirs) {
-    const metadata = new ArtifactAnalysis();
-    await addVideoMetadata(dir, metadata);
-    addRawScanMetadata(dir, metadata);
-    addArDataMetadata(dir, metadata);
-
+    const metadata = await analyzeArtifact(dir);
     metadataList.push(metadata);
     bar.increment();
   }
@@ -94,7 +98,10 @@ async function main(): Promise<void> {
   }
 
   // --- Analysis ---
-  const durations = metadataList.map((m) => m.duration);
+  const durations = metadataList
+    .map((m) => m.duration)
+    .filter((d): d is number => typeof d === "number" && !Number.isNaN(d));
+
   const avgDuration =
     durations.length > INITIAL_COUNT
       ? durations.reduce((a, b) => a + b, INITIAL_COUNT) / durations.length
@@ -106,4 +113,6 @@ async function main(): Promise<void> {
   await createInspectionReport(metadataList, avgDuration, videoCount, REPORT_FILE);
 }
 
-main().catch((err: unknown) => logger.error(err));
+if (require.main === module) {
+  main().catch((err: unknown) => logger.error(err));
+}

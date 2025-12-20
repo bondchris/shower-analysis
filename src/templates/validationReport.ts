@@ -23,7 +23,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
   const DOUBLE = 2;
   const pageMarginDouble = PAGE_MARGIN * DOUBLE;
   const PAGE_CONTENT_WIDTH = PAGE_VIEWPORT_WIDTH - pageMarginDouble; // A4 width (~794px) minus margins
-  const PROPERTY_WIDTH_RATIO = 0.9;
+  const PROPERTY_WIDTH_RATIO = 0.8;
   const CHART_BAR_HEIGHT = 15;
   const MIN_CHART_HEIGHT = 300;
   const HEADER_FOOTER_SPACE = 60;

@@ -1,0 +1,12 @@
+{
+    "b_artifact": {
+        "date": "2024-01-02",
+        "environment": "env1",
+        "reason": "error b"
+    },
+    "a_artifact": {
+        "date": "2024-01-01",
+        "environment": "env1",
+        "reason": "error a"
+    }
+}

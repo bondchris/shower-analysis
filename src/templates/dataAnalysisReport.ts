@@ -99,6 +99,7 @@ export function buildDataAnalysisReport(
     height: LENS_CHART_HEIGHT,
     horizontal: true,
     title: "",
+    totalForPercentages: metadataList.length,
     width: Math.round(PAGE_CONTENT_WIDTH * LENS_WIDTH_RATIO)
   });
 
@@ -112,6 +113,7 @@ export function buildDataAnalysisReport(
   const fpsCounts = fpsLabels.map((l) => fpsMap[l] ?? INITIAL_COUNT);
   charts.fps = ChartUtils.getBarChartConfig(fpsLabels, fpsCounts, {
     height: HALF_CHART_HEIGHT,
+    showCount: true,
     title: "",
     width: HALF_CHART_WIDTH
   });
@@ -126,6 +128,7 @@ export function buildDataAnalysisReport(
   const resCounts = resLabels.map((l) => resMap[l] ?? INITIAL_COUNT);
   charts.resolution = ChartUtils.getBarChartConfig(resLabels, resCounts, {
     height: HALF_CHART_HEIGHT,
+    showCount: true,
     title: "",
     width: HALF_CHART_WIDTH
   });

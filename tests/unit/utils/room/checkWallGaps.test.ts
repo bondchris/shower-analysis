@@ -569,4 +569,59 @@ describe("checkWallGaps", () => {
       expect(checkWallGaps(createMockScan({ walls: [wA, wB] }))).toBe(true);
     });
   });
+  describe("Coverage Improvements", () => {
+    it("should ignore walls with invalid transforms", () => {
+      // Wall A and Wall B would have a gap, but Wall B has invalid transform
+      const wA = createExternalWall("wA", {
+        polygonCorners: [
+          [0, 0],
+          [10, 0]
+        ]
+      });
+      // Gap 6 inches
+      const gapM = 6 * INCH;
+      const wB = createExternalWall("wB", {
+        polygonCorners: [
+          [10 + gapM, 0],
+          [20, 0]
+        ],
+        transform: [1, 0, 0, 0] // Invalid
+      });
+      // wB skipped. Only wA remains. No pairs. False.
+      expect(checkWallGaps(createMockScan({ walls: [wA, wB] }))).toBe(false);
+    });
+
+    it("should use dimension fallback for empty polygonCorners", () => {
+      // wA defined via dimensions. Length 10.
+      const wA = createExternalWall("wA", {
+        dimensions: [10, 0, 0],
+        polygonCorners: [],
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] // Identity. World: -5 to 5.
+      });
+      // wB defined via dimensions. Start at 5 + 6in.
+      const gapM = 6 * INCH;
+      // wB local starts at -5. We want world start at 5 + gapM.
+      // -5 + tx = 5 + gapM => tx = 10 + gapM.
+      const wB = createExternalWall("wB", {
+        dimensions: [10, 0, 0],
+        polygonCorners: [],
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10 + gapM, 0, 0, 1]
+      });
+
+      expect(checkWallGaps(createMockScan({ walls: [wA, wB] }))).toBe(true);
+    });
+
+    it("should ignore degenerate walls (insufficient points)", () => {
+      const wA = createExternalWall("wA", {
+        polygonCorners: [
+          [0, 0],
+          [10, 0]
+        ]
+      });
+      const wB = createExternalWall("wB", {
+        polygonCorners: [[0]] // Invalid
+      });
+      expect(checkWallGaps(createMockScan({ walls: [wA, wB] }))).toBe(false);
+    });
+  });
 });

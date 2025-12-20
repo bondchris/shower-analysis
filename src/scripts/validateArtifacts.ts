@@ -202,7 +202,7 @@ export async function generateReport(allStats: EnvStats[]) {
   logger.info(`Report generated at: reports/validation-report.pdf`);
 }
 
-async function main() {
+export async function main() {
   const allStats: EnvStats[] = [];
   for (const env of ENVIRONMENTS) {
     const stats = await validateEnvironment(env as { domain: string; name: string });

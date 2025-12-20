@@ -142,6 +142,13 @@ describe("chartUtils", () => {
           expect(config.options.totalForPercentages).toBe(100);
         }
       });
+
+      it("propagates showCount option", () => {
+        const config = getBarChartConfig(["A"], [1], { showCount: true });
+        if (config.type === "bar") {
+          expect(config.options.showCount).toBe(true);
+        }
+      });
     });
   });
 });

@@ -263,4 +263,83 @@ describe("checkColinearWalls", () => {
       expect(checkColinearWalls(createMockScan({ walls: [w1, w1] }))).toBe(true);
     });
   });
+  describe("Coverage Improvements", () => {
+    it("should ignore walls with invalid transforms", () => {
+      const w1 = createExternalWall("w1", {
+        polygonCorners: [
+          [0, 0],
+          [10, 0]
+        ]
+      });
+      const w2 = createExternalWall("w2", {
+        polygonCorners: [
+          [0, 0],
+          [10, 0]
+        ],
+        // Invalid transform length (should be 16)
+        transform: [1, 0, 0, 0]
+      });
+      // w2 is skipped, so only w1 remains -> no pairs -> false
+      expect(checkColinearWalls(createMockScan({ walls: [w1, w2] }))).toBe(false);
+    });
+
+    it("should use dimensions fallback when polygonCorners are empty", () => {
+      // Logic: If polygonCorners is empty, it uses dimensions[0] as length centering around origin (0,0)
+      // Then transforms it.
+      // Let's create two walls that WOULD be colinear if fallback works.
+      // Wall 1: Standard
+      const w1 = createExternalWall("w1", {
+        polygonCorners: [
+          [-5, 0],
+          [5, 0]
+        ]
+      });
+      // Wall 2: Dimensions fallback. Length 10. Origin at 0,0 (identity transform).
+      // Should result in corners [-5, 0] and [5, 0].
+      const w2 = createExternalWall("w2", {
+        dimensions: [10, 0, 0],
+        polygonCorners: []
+      });
+
+      expect(checkColinearWalls(createMockScan({ walls: [w1, w2] }))).toBe(true);
+    });
+
+    it("should ignore walls with fewer than 2 corners after processing", () => {
+      const w1 = createExternalWall("w1", {
+        polygonCorners: [
+          [0, 0],
+          [10, 0]
+        ]
+      });
+      const w2 = createExternalWall("w2", {
+        // Only 1 corner provided
+        polygonCorners: [[0, 0]]
+      });
+      expect(checkColinearWalls(createMockScan({ walls: [w1, w2] }))).toBe(false);
+    });
+
+    it("should handle undefined dimensions in fallback by defaulting to 0", () => {
+      const w1 = createExternalWall("w1", {
+        polygonCorners: [
+          [0, 0],
+          [0, 0] // Effective point
+        ]
+      });
+      const w2 = createExternalWall("w2", {
+        dimensions: [], // Should default length to 0 -> corners [-0,0], [0,0]
+        polygonCorners: []
+      });
+      // Both are effectively zero-length walls at origin?
+      // Wait, min wall corners is 2. Fallback creates 2 corners.
+      // If length is 0, corners are [0,0] and [0,0].
+      // Logic checkColinearWalls L87 checks `wA.corners.length < MIN_PTS`. (2).
+      // But loop L91 iterates corners. P1=0,0. P2=0,0.
+      // Vector v = 0,0. Length = 0.
+      // maxLenA stays 0. vAx, vAy stay 0.
+      // Then checking against wB.
+      // Parallel check: dot product of (0,0) and (1,0) -> 0. Not parallel.
+      // So expects False.
+      expect(checkColinearWalls(createMockScan({ walls: [w1, w2] }))).toBe(false);
+    });
+  });
 });
