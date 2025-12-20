@@ -322,6 +322,55 @@ describe("buildSyncReport", () => {
     expect(config.datasets[0]?.label).toBe("Production");
   });
 
+  it("should sort chart datasets by volume found (descending)", () => {
+    const stats: SyncStats[] = [
+      {
+        arDataSize: 0,
+        env: "Small (Found 10)",
+        errors: [],
+        failed: 0,
+        found: 10,
+        knownFailures: 0,
+        new: 0,
+        newArDataSize: 0,
+        newFailures: 0,
+        newRawScanSize: 0,
+        newVideoSize: 0,
+        processedIds: new Set(),
+        rawScanSize: 0,
+        skipped: 0,
+        videoHistory: { "2023-01": { count: 1, totalSize: 100 } },
+        videoSize: 0
+      },
+      {
+        arDataSize: 0,
+        env: "Large (Found 100)",
+        errors: [],
+        failed: 0,
+        found: 100,
+        knownFailures: 0,
+        new: 0,
+        newArDataSize: 0,
+        newFailures: 0,
+        newRawScanSize: 0,
+        newVideoSize: 0,
+        processedIds: new Set(),
+        rawScanSize: 0,
+        skipped: 0,
+        videoHistory: { "2023-01": { count: 1, totalSize: 100 } },
+        videoSize: 0
+      }
+    ];
+
+    const report = buildSyncReport(stats, {});
+    const chartSection = report.sections.find((s) => s.title === "Average Video Size Trend");
+    const config = chartSection?.data as LineChartConfig;
+
+    // Expected Order: Large, Small
+    expect(config.datasets[0]?.label).toBe("Large (Found 100)");
+    expect(config.datasets[1]?.label).toBe("Small (Found 10)");
+  });
+
   it("should handle zero artifacts found correctly (division by zero protection)", () => {
     const stats: SyncStats[] = [
       {

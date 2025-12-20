@@ -36,6 +36,7 @@ export interface BarChartOptions {
   totalForPercentages?: number;
   title?: string;
   showCount?: boolean;
+  separatorLabel?: string;
 }
 
 export interface HistogramResult {
@@ -317,6 +318,9 @@ export function getBarChartConfig(labels: string[], data: number[], options: Bar
   }
   if (options.showCount === true) {
     configOptions.showCount = true;
+  }
+  if (options.separatorLabel !== undefined) {
+    configOptions.separatorLabel = options.separatorLabel;
   }
 
   return {

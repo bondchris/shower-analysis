@@ -29,11 +29,12 @@ export function checkToiletGaps(rawScan: RawScan): boolean {
 
   // Prepare Walls (Projected to 2D World X-Z plane)
   // We use `transformPoint` which maps {x, y} (Input: Local X, Z) -> {x, y} (Output: World X, Z).
-  const roomWalls: { corners: Point[] }[] = [];
+  const roomWalls: ({ corners: Point[] } | null)[] = [];
   const MIN_CORNERS = 0;
 
   for (const w of walls) {
     if (w.transform?.length !== TRANSFORM_SIZE) {
+      roomWalls.push(null);
       continue;
     }
 
@@ -68,6 +69,8 @@ export function checkToiletGaps(rawScan: RawScan): boolean {
 
     if (wallCornersWorld.length > MIN_CORNERS) {
       roomWalls.push({ corners: wallCornersWorld });
+    } else {
+      roomWalls.push(null);
     }
   }
 

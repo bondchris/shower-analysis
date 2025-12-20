@@ -233,4 +233,17 @@ describe("checkDoorBlocking (Refactored)", () => {
     // No Objects -> Not Blocked
     expect(checkDoorBlocking(createMockScan({ doors: [d1], objects: [] }))).toBe(false);
   });
+
+  it("18) Invalid Transform Data", () => {
+    const d1 = createDoor("d1");
+    // Object with invalid transform should be skipped (not blocking)
+    const oInvalid = createObj("oInvalid", { transform: [] });
+    expect(checkDoorBlocking(createMockScan({ doors: [d1], objects: [oInvalid] }))).toBe(false);
+
+    // Door with invalid transform should be skipped
+    const dInvalid = createDoor("dInvalid", { transform: [] });
+    // Valid object that would block if door was valid
+    const o1 = createObj("o1", placeAt(0, 0.3));
+    expect(checkDoorBlocking(createMockScan({ doors: [dInvalid], objects: [o1] }))).toBe(false);
+  });
 });

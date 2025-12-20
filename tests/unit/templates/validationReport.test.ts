@@ -1,6 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { EnvStats } from "../../../src/models/envStats";
 import { buildValidationReport } from "../../../src/templates/validationReport";
+import * as ChartUtils from "../../../src/utils/chartUtils";
+import { logger } from "../../../src/utils/logger";
+
+vi.mock("../../../src/utils/logger", () => ({
+  logger: {
+    error: vi.fn(),
+    info: vi.fn()
+  }
+}));
 
 // Mock ChartUtils
 vi.mock("../../../src/utils/chartUtils", async () => {
@@ -86,5 +95,52 @@ describe("buildValidationReport", () => {
     expect(report.title).toBe("Validation Report");
     expect(report.sections.length).toBeGreaterThan(0);
     expect(report.sections[0]?.data).toBe("No environments / no data.");
+  });
+
+  it("should handle environment with zero artifacts", () => {
+    const baseStat = mockStats[0];
+    if (!baseStat) {
+      throw new Error("Test setup error");
+    }
+    const zeroStats: EnvStats[] = [
+      {
+        ...baseStat,
+        name: "EmptyEnv",
+        processed: 0,
+        totalArtifacts: 0
+      }
+    ];
+
+    const report = buildValidationReport(zeroStats);
+    const summaryTable = report.sections[0]?.data as string[][];
+    // Column 0: Label, Column 1: EmptyEnv, Column 2: Total
+    const processedRow = summaryTable.find((r) => r[0] === "Processed Artifacts");
+    expect(processedRow?.[1]).toBe("0 (0.0%)");
+  });
+
+  it("should log errors when chart generation fails", () => {
+    const baseStat = mockStats[0];
+    if (!baseStat) {
+      throw new Error("Test setup error");
+    }
+    // Setup stats that would trigger chart generation (e.g. property presence)
+    const stats: EnvStats[] = [
+      {
+        ...baseStat,
+        propertyCounts: { prop1: 10 }
+      }
+    ];
+
+    // Spy and throw
+    const errorSpy = vi.spyOn(ChartUtils, "getBarChartConfig").mockImplementation(() => {
+      throw new Error("Chart Error");
+    });
+    const loggerSpy = vi.spyOn(logger, "error");
+
+    buildValidationReport(stats);
+
+    expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to generate property chart"));
+
+    errorSpy.mockRestore();
   });
 });

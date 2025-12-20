@@ -1,6 +1,7 @@
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
 import * as ChartUtils from "../utils/chartUtils";
 import { ChartConfiguration } from "../utils/chartUtils";
+import { DEVICE_RELEASE_ORDER } from "../utils/deviceReleaseOrder";
 import { ReportData, ReportSection } from "../models/report";
 
 export interface CaptureCharts {
@@ -15,6 +16,8 @@ export interface CaptureCharts {
   lens: ChartConfiguration;
   resolution: ChartConfiguration;
   temperature: ChartConfiguration;
+  focalLength: ChartConfiguration;
+  aperture: ChartConfiguration;
 }
 
 // Helper interface for local chart data preparation
@@ -61,7 +64,7 @@ export function buildDataAnalysisReport(
   const HALF_CHART_HEIGHT = Math.max(MIN_HALF_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * HALF_HEIGHT_RATIO));
   const LENS_CHART_HEIGHT = Math.max(MIN_LENS_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * LENS_HEIGHT_RATIO));
   const FEATURE_CHART_HEIGHT = Math.max(MIN_FEATURE_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * FEATURE_HEIGHT_RATIO));
-  const NOT_SET = "not_set";
+  const NOT_SET = "";
   const INCREMENT_STEP = 1;
   const INITIAL_COUNT = 0;
   const NO_RESULTS = 0;
@@ -70,6 +73,15 @@ export function buildDataAnalysisReport(
   const MIN_TOILETS = 2;
   const MIN_TUBS = 2;
   const MIN_WALLS = 4;
+
+  // Helper for dynamic height
+  const MIN_BAR_HEIGHT = 20;
+  const HEADER_SPACE = 60;
+  const DECIMAL_PLACES_LENS = 1;
+  function getDynamicHeight(itemCount: number, minHeight = HALF_CHART_HEIGHT): number {
+    const contentHeight = itemCount * MIN_BAR_HEIGHT;
+    return Math.max(minHeight, contentHeight + HEADER_SPACE);
+  }
 
   // Duration
   const durations = metadataList.map((m) => m.duration);
@@ -85,22 +97,237 @@ export function buildDataAnalysisReport(
     xLabel: "Seconds"
   });
 
-  // Lens Models
-  const lensMap: Record<string, number> = {};
+  // Device Model
+  const deviceMap: Record<string, number> = {};
   for (const m of metadataList) {
-    if (m.lensModel !== NOT_SET) {
-      lensMap[m.lensModel] = (lensMap[m.lensModel] ?? INITIAL_COUNT) + INCREMENT_STEP;
-    }
+    const model = m.deviceModel === NOT_SET ? "Unknown" : m.deviceModel;
+    deviceMap[model] = (deviceMap[model] ?? INITIAL_COUNT) + INCREMENT_STEP;
   }
-  // Sort by count descending
-  const lensLabels = Object.keys(lensMap).sort((a, b) => (lensMap[b] ?? INITIAL_COUNT) - (lensMap[a] ?? INITIAL_COUNT));
-  const lensCounts = lensLabels.map((l) => lensMap[l] ?? INITIAL_COUNT);
-  charts.lens = ChartUtils.getBarChartConfig(lensLabels, lensCounts, {
-    height: LENS_CHART_HEIGHT,
+
+  const allKeys = Object.keys(deviceMap);
+
+  const DEFAULT_DATE = 0;
+  const getReleaseDate = (model: string) => DEVICE_RELEASE_ORDER[model] ?? DEFAULT_DATE;
+
+  // Sort iPhones by release date desc, then by name desc
+  const iPhones = allKeys
+    .filter((k) => k.toLowerCase().includes("iphone"))
+    .sort((a, b) => {
+      const dateA = getReleaseDate(a);
+      const dateB = getReleaseDate(b);
+      if (dateA !== dateB) {
+        return dateB - dateA;
+      }
+      return b.localeCompare(a);
+    });
+
+  // Sort iPads by Hybrid Logic:
+  // 1. M4 Generation (Newest Flagships)
+  // 2. Legacy Large Pros (12.9) - Clean lineage
+  // 3. Legacy Small Pros (11) - Clean lineage
+  // 4. Airs > Base > Mini
+  const RANK_M4 = 1;
+  const RANK_LEGACY_LARGE = 2;
+  const RANK_LEGACY_SMALL = 3;
+  const RANK_PRO = 4;
+  const RANK_AIR = 5;
+  const RANK_BASE = 6;
+  const RANK_MINI = 7;
+  const RANK_DEFAULT = 99;
+
+  const getiPadRank = (model: string): number => {
+    // ... (omitted for brevity, assume content matches existing or re-copy whole function? Better re-copy to avoid partial match issues if possible, but it's long.
+    // Actually the sort function below is what matters for magic 0s in comparators?
+    // Wait, getReleaseDate uses DEFAULT_DATE now.
+    // The errors 174:38/60 were in iPad sort?
+    // Let's re-read line 174 from Step 1792.
+    // 174:     return RANK_DEFAULT; (No magic number 0 here).
+
+    // Ah, Step 1823 error log lines might differ from Step 1792 lines.
+    // Let's check step 1823 again.
+    // 204:45 error No magic number: 0.
+    // 204:     if (iPhones.length > 0 && (iPads.length > 0 || others.length > 0)) {
+    // Yes.
+
+    // I need to replace '0' with 'NO_RESULTS'.
+
+    // Also Step 1823 said 174:38 No magic number 0.
+    // In Step 1792, line 174 is `return RANK_DEFAULT;`. Wait, `RANK_DEFAULT = 99`.
+    // Maybe line 174 in the LINT output corresponds to something else?
+    // Ah, Step 1792 view ended at line 220.
+    // Let's look at lines around iPad sort again.
+    // Line 180 sort.
+    // 180: sort((a,b) => ...
+    //   if (rankA !== rankB) return rankA - rankB;
+    //   ... if (dateA !== dateB) return dateB - dateA;
+    // None of these use 0 literals explicitly.
+    // Wait... `return rankA - rankB`.
+    // Is it complaining about subtraction? No.
+    // Maybe `const dateA = ... ?? 0`? No, I changed that to `DEFAULT_DATE`.
+
+    // Let's look at `iPhones` sort (lines 111-121).
+    // `const dateA = getReleaseDate(a);` (Lines 114-115).
+    // `type getReleaseDate` uses `DEFAULT_DATE`.
+
+    // Wait! Step 1798 replaced `getReleaseDate`.
+    // So the Sort functions shouldn't have `0` if they use that helper.
+
+    // Maybe the errors `204`, `209`, `215` are the valid ones remaining (length > 0, SEPARATOR_KEY ? 0).
+    // Lines `174` errors in previous run (Step 1750) might have shifted.
+    // In Step 1823 output, I see lines 204, 209, 215 errors.
+    // I DO NOT see lines 174 erros in Step 1823 snippet (it was truncated).
+    // BUT Step 1823 output delta says `<truncated 182 lines>`.
+    // It's possible I still have errors in Sort.
+
+    // Wait, if `getReleaseDate` returns number, sorting by subtraction `dateB - dateA` is fine.
+    // Where is the 0coming from for sort?
+    // Maybe `deviceMap[b] ?? 0` in `others` sort? I fixed that in 1809.
+
+    // So likely just the `length > 0` checks.
+
+    // I will fix `if (iPhones.length > NO_RESULTS ...)` and `(l === SEPARATOR_KEY ? INITIAL_COUNT : ...)`
+
+    const m = model.toLowerCase();
+
+    // Rank 1: M4 Generation (Both 13" and 11")
+    if (m.includes("(m4)")) {
+      return RANK_M4;
+    }
+
+    // Rank 2: Legacy Large Pros
+    if (m.includes("pro") && (m.includes("12.9") || m.includes("13-inch"))) {
+      return RANK_LEGACY_LARGE;
+    }
+
+    // Rank 3: Legacy Small Pros
+    if (m.includes("pro") && m.includes("11-inch")) {
+      return RANK_LEGACY_SMALL;
+    }
+
+    // Rank 4: Other Pros
+    if (m.includes("pro")) {
+      return RANK_PRO;
+    }
+
+    // Rank 5: Airs
+    if (m.includes("air")) {
+      return RANK_AIR;
+    }
+
+    // Rank 6: Base
+    if (m.includes("ipad") && !m.includes("mini")) {
+      return RANK_BASE;
+    }
+
+    // Rank 7: Mini
+    if (m.includes("mini")) {
+      return RANK_MINI;
+    }
+
+    return RANK_DEFAULT;
+  };
+
+  const iPads = allKeys
+    .filter((k) => k.toLowerCase().includes("ipad"))
+    .sort((a, b) => {
+      const rankA = getiPadRank(a);
+      const rankB = getiPadRank(b);
+
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+      const dateA = getReleaseDate(a);
+      const dateB = getReleaseDate(b);
+      if (dateA !== dateB) {
+        return dateB - dateA;
+      }
+      return b.localeCompare(a);
+    });
+
+  // Others sorted by count as before
+  const others = allKeys
+    .filter((k) => !k.toLowerCase().includes("iphone") && !k.toLowerCase().includes("ipad"))
+    .sort((a, b) => (deviceMap[b] ?? INITIAL_COUNT) - (deviceMap[a] ?? INITIAL_COUNT));
+
+  const SEPARATOR_KEY = "---";
+  let separatorLabel: string | undefined = undefined;
+
+  // If we have both iPhones and (iPads or Others), insert a gap
+  if (iPhones.length > NO_RESULTS && (iPads.length > NO_RESULTS || others.length > NO_RESULTS)) {
+    // Insert separator label after the last iPhone
+  }
+
+  const deviceLabels = [...iPhones, ...iPads, ...others];
+  if (iPhones.length > NO_RESULTS && (iPads.length > NO_RESULTS || others.length > NO_RESULTS)) {
+    const insertIdx = iPhones.length;
+    deviceLabels.splice(insertIdx, NO_RESULTS, SEPARATOR_KEY);
+    separatorLabel = SEPARATOR_KEY;
+  }
+
+  const deviceCounts = deviceLabels.map((l) => (l === SEPARATOR_KEY ? INITIAL_COUNT : (deviceMap[l] ?? INITIAL_COUNT)));
+
+  charts.lens = ChartUtils.getBarChartConfig(deviceLabels, deviceCounts, {
+    height: getDynamicHeight(deviceLabels.length, LENS_CHART_HEIGHT),
     horizontal: true,
+    ...(separatorLabel !== undefined ? { separatorLabel } : {}),
     title: "",
     totalForPercentages: metadataList.length,
     width: Math.round(PAGE_CONTENT_WIDTH * LENS_WIDTH_RATIO)
+  });
+
+  // Focal Length (aggregated & normalized)
+  const focalMap: Record<string, number> = {};
+  for (const m of metadataList) {
+    let key = "Unknown";
+    if (m.lensFocalLength !== NOT_SET) {
+      // Normalize: "5.1 mm" -> 5.1
+      const val = parseFloat(m.lensFocalLength);
+      if (!isNaN(val)) {
+        key = `${val.toFixed(DECIMAL_PLACES_LENS)} mm`;
+      } else {
+        key = m.lensFocalLength;
+      }
+    }
+    focalMap[key] = (focalMap[key] ?? INITIAL_COUNT) + INCREMENT_STEP;
+  }
+  // Sort numerically
+  const focalLabels = Object.keys(focalMap).sort((a, b) => parseFloat(a) - parseFloat(b));
+  const focalCounts = focalLabels.map((l) => focalMap[l] ?? INITIAL_COUNT);
+
+  // Aperture
+  const apertureMap: Record<string, number> = {};
+  for (const m of metadataList) {
+    let key = "Unknown";
+    if (m.lensAperture !== NOT_SET) {
+      // Normalize f/1.6000 -> f/1.6
+      const val = parseFloat(m.lensAperture.replace("f/", ""));
+      if (!isNaN(val)) {
+        key = `f/${val.toFixed(DECIMAL_PLACES_LENS)}`;
+      } else {
+        key = m.lensAperture;
+      }
+    }
+    apertureMap[key] = (apertureMap[key] ?? INITIAL_COUNT) + INCREMENT_STEP;
+  }
+  const apertureLabels = Object.keys(apertureMap).sort((a, b) => {
+    const valA = parseFloat(a.replace("f/", ""));
+    const valB = parseFloat(b.replace("f/", ""));
+    return valA - valB;
+  });
+  const apertureCounts = apertureLabels.map((l) => apertureMap[l] ?? INITIAL_COUNT);
+
+  charts.focalLength = ChartUtils.getBarChartConfig(focalLabels, focalCounts, {
+    height: HALF_CHART_HEIGHT,
+    showCount: true,
+    title: "", // Title handled in section
+    width: HALF_CHART_WIDTH
+  });
+
+  charts.aperture = ChartUtils.getBarChartConfig(apertureLabels, apertureCounts, {
+    height: HALF_CHART_HEIGHT,
+    showCount: true,
+    title: "",
+    width: HALF_CHART_WIDTH
   });
 
   // Framerate
@@ -328,11 +555,26 @@ export function buildDataAnalysisReport(
     type: "page-break"
   });
 
-  // Lens Model (dedicated page)
+  // Device Model (dedicated page)
   chartSections.push({
     data: populatedCharts.lens,
-    title: "Lens Model",
+    title: "Device Model",
     type: "chart"
+  });
+
+  // Focal Length & Aperture Side-by-Side
+  chartSections.push({
+    data: [
+      {
+        data: populatedCharts.focalLength,
+        title: "Focal Length"
+      },
+      {
+        data: populatedCharts.aperture,
+        title: "Max Aperture"
+      }
+    ],
+    type: "chart-row"
   });
 
   // Ambient Intensity (full-width)

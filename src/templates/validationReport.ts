@@ -152,7 +152,10 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
 
     // Add individual environment lines
     // Push in Reverse Order (Large -> Small) so Large draws First (Back) and Small draws Last (Front)
-    [...orderedStats].reverse().forEach((stats, i) => {
+    // Use consistent order for all charts (Largest Volume -> Smallest Volume)
+    const descStats = [...orderedStats].reverse();
+
+    descStats.forEach((stats, i) => {
       let envCumulative = 0;
       const envData: number[] = [];
       sortedDates.forEach((date) => {
@@ -202,7 +205,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
     }
 
     // --- 2. Scan Success Percentage Chart ---
-    const successDatasets = orderedStats.map((s) => {
+    const successDatasets = descStats.map((s) => {
       const color = envColors[s.name] ?? DEFAULT_COLOR;
       const data = sortedDates.map((d) => {
         const PERCENTAGE_BASE = 100;
@@ -232,7 +235,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
     }
 
     // --- 3. Error Chart ---
-    const errorDatasets = orderedStats.map((s) => {
+    const errorDatasets = descStats.map((s) => {
       const color = envColors[s.name] ?? DEFAULT_COLOR;
       const data = sortedDates.map((d) => {
         const total = s.totalScansByDate[d] ?? INITIAL_ERROR_COUNT;
@@ -259,7 +262,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
     }
 
     // --- 4. Warning Chart ---
-    const warningDatasets = orderedStats.map((s) => {
+    const warningDatasets = descStats.map((s) => {
       const color = envColors[s.name] ?? DEFAULT_COLOR;
       const data = sortedDates.map((d) => {
         const total = s.totalScansByDate[d] ?? INITIAL_ERROR_COUNT;

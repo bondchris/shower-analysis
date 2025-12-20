@@ -210,4 +210,31 @@ describe("checkToiletGaps", () => {
       expect(checkToiletGaps(scan)).toBe(true);
     });
   });
+
+  describe("Coverage / Bug Fixes", () => {
+    it("should skip wall with invalid transform and align indices correctly", () => {
+      const t1 = createToilet("t1");
+      const wInvalid = createFlushWall("wInvalid", { transform: [] });
+      const wValid = createFlushWall("wValid"); // Flush
+
+      // Ensure that wInvalid is skipped and doesn't mess up wValid check
+      const scan = createMockScan({ objects: [t1], walls: [wInvalid, wValid] });
+      expect(checkToiletGaps(scan)).toBe(false);
+    });
+
+    it("should skip toilet with missing dimensions", () => {
+      const t1 = createToilet("t1", { dimensions: [] }); // Less than 3
+      const scan = createMockScan({ objects: [t1], walls: [createFlushWall("w1")] });
+      expect(checkToiletGaps(scan)).toBe(false);
+    });
+
+    it("should ignore degenerate wall points but continue to others", () => {
+      const t1 = createToilet("t1");
+      const wBadPoints = createFlushWall("wBad", { polygonCorners: [[0]] }); // invalid point (len 1)
+      const wValid = createFlushWall("wValid");
+
+      const scan = createMockScan({ objects: [t1], walls: [wBadPoints, wValid] });
+      expect(checkToiletGaps(scan)).toBe(false);
+    });
+  });
 });

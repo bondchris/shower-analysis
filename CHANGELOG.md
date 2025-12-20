@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-20
 
+### [v0.41.0] Improve device sorting and test coverage
+
+- **Lens Analysis**: Split Lens Model analysis into dedicated charts for Device, Focal Length, and Aperture with improved formatting.
+
 ### [v0.40.0] Add Video Size Chart and Disk Usage Summary
 
 - **Average Video Size Chart**: Added a line chart to the sync report visualizing average video size trends over time per environment.

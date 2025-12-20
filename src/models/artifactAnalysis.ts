@@ -11,6 +11,9 @@ export class ArtifactAnalysis {
   public fps = NO_RESULTS;
   public duration = NO_RESULTS;
   public lensModel = NOT_SET;
+  public deviceModel = NOT_SET;
+  public lensFocalLength = NOT_SET;
+  public lensAperture = NOT_SET;
   public avgAmbientIntensity = NO_RESULTS;
   public avgColorTemperature = NO_RESULTS; // in Kelvin
   public avgIso = NO_RESULTS;

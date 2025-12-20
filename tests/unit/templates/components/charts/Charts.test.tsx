@@ -13,7 +13,11 @@ import {
 // Mock Visx components to avoid complex SVG rendering issues in simple smoke tests
 // We just want to ensure our wrapper components render without crashing
 vi.mock("@visx/group", () => ({ Group: ({ children }: { children: React.ReactNode }) => <g>{children}</g> }));
-vi.mock("@visx/shape", () => ({ Bar: () => <rect />, LinePath: () => <path /> }));
+vi.mock("@visx/shape", () => ({
+  Bar: () => <rect />,
+  Line: () => <line data-testid="separator-line" />,
+  LinePath: () => <path />
+}));
 vi.mock("@visx/text", () => ({ Text: () => <text /> }));
 vi.mock("@visx/axis", () => ({ AxisBottom: () => <g />, AxisLeft: () => <g />, AxisRight: () => <g /> }));
 vi.mock("@visx/grid", () => ({ GridColumns: () => <g />, GridRows: () => <g /> }));
@@ -79,6 +83,62 @@ describe("Chart Components", () => {
     };
     const { container } = render(<BarChart config={horizontalConfig} />);
     expect(container).toBeInTheDocument();
+  });
+
+  it("BarChart renders separator line and hides text for separator item", () => {
+    const VAL_10 = 10;
+    const VAL_0 = 0;
+    const VAL_20 = 20;
+    const sepConfig: BarChartConfig = {
+      ...barConfig,
+      data: [VAL_10, VAL_0, VAL_20],
+      labels: ["A", "---", "B"],
+      options: { horizontal: true, separatorLabel: "---" }
+    };
+
+    // We need to render with enough width/height
+    const { queryByText, getAllByTestId } = render(<BarChart config={sepConfig} />);
+
+    // "---" text should be hidden
+    expect(queryByText("---")).not.toBeInTheDocument();
+
+    // "10" and "20" should be visible (if showing counts, defaults might be off, checking logic)
+    // Actually default showCount might be false.
+    // Let's check pure existence of checks.
+
+    // The separator line should be rendered
+    const lines = getAllByTestId("separator-line");
+    expect(lines.length).toBeGreaterThan(VAL_0);
+  });
+
+  it("BarChart displays percentages when totalForPercentages is set", () => {
+    const VAL_50 = 50;
+    const TOTAL_100 = 100;
+    const pctConfig: BarChartConfig = {
+      ...barConfig,
+      data: [VAL_50],
+      labels: ["Item"],
+      options: { horizontal: true, totalForPercentages: TOTAL_100 }
+    };
+
+    const { getByText } = render(<BarChart config={pctConfig} />);
+    // 50 / 100 * 100 = 50%
+    expect(getByText("50%")).toBeInTheDocument();
+  });
+
+  it("BarChart displays counts and percentages if showCount is true", () => {
+    const VAL_25 = 25;
+    const TOTAL_100 = 100;
+    const countPctConfig: BarChartConfig = {
+      ...barConfig,
+      data: [VAL_25],
+      labels: ["Item"],
+      options: { horizontal: true, showCount: true, totalForPercentages: TOTAL_100 }
+    };
+
+    const { getByText } = render(<BarChart config={countPctConfig} />);
+    // 25 (25%)
+    expect(getByText("25 (25%)")).toBeInTheDocument();
   });
 
   it("Histogram renders", () => {

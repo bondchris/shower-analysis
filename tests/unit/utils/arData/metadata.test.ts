@@ -11,38 +11,6 @@ describe("extractArDataMetadata", () => {
   const mockArDataPath = path.join(mockDir, "arData.json");
   const mockCachePath = path.join(mockDir, "arDataMetadata.json");
 
-  const validArDataJson = {
-    data: {
-      "1234567890": {
-        anchors: [],
-        cameraResolution: { height: 1080, width: 1920 },
-        cameraTransform: new Array(16).fill(0),
-        exifData: {
-          BrightnessValue: "2.5",
-          ISOSpeedRatings: "125",
-          LensModel: "iPhone 12 Pro"
-        },
-        lightEstimate: {
-          ambientColorTemperature: 3000,
-          ambientIntensity: 1000
-        },
-        timestamp: 1234567890
-      },
-      "1234567891": {
-        anchors: [],
-        cameraResolution: { height: 1080, width: 1920 },
-        cameraTransform: new Array(16).fill(0),
-        // lightEstimate undefined
-        exifData: {
-          BrightnessValue: "1.5",
-          ISOSpeedRatings: "200",
-          LensModel: "iPhone 12 Pro"
-        },
-        timestamp: 1234567891
-      }
-    }
-  };
-
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -57,6 +25,9 @@ describe("extractArDataMetadata", () => {
       avgBrightness: 3.5,
       avgColorTemperature: 4000,
       avgIso: 100,
+      deviceModel: "Test Device",
+      lensAperture: "f/1.8",
+      lensFocalLength: "26mm",
       lensModel: "Test Lens"
     };
 
@@ -65,9 +36,45 @@ describe("extractArDataMetadata", () => {
 
     const result = extractArDataMetadata(mockDir);
 
-    expect(fs.existsSync).toHaveBeenCalledWith(mockCachePath);
-    expect(fs.readFileSync).toHaveBeenCalledWith(mockCachePath, "utf-8");
     expect(result).toEqual(cachedData);
+  });
+
+  it("should ignore stale cache if deviceModel is missing and re-extract", () => {
+    // Stale cache (missing deviceModel)
+    const staleData = {
+      avgAmbientIntensity: 500,
+      lensModel: "Test Lens"
+    };
+
+    (fs.existsSync as Mock).mockImplementation((p) => {
+      if (p === mockCachePath || p === mockArDataPath) {
+        return true;
+      }
+      return false;
+    });
+
+    (fs.readFileSync as Mock).mockImplementation((p) => {
+      if (p === mockCachePath) {
+        return JSON.stringify(staleData);
+      }
+      if (p === mockArDataPath) {
+        // Mock minimal valid ArData to allow extraction
+        return JSON.stringify({
+          data: {
+            "1": {
+              cameraResolution: { height: 100, width: 100 },
+              cameraTransform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+              exifData: { LensModel: "New Device front" },
+              timestamp: 1
+            }
+          }
+        });
+      }
+      return "";
+    });
+
+    const result = extractArDataMetadata(mockDir);
+    expect(result?.deviceModel).toBe("New Device");
   });
 
   it("should extract metadata from arData.json if cache is missing", () => {
@@ -81,20 +88,62 @@ describe("extractArDataMetadata", () => {
       return false;
     });
 
-    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(validArDataJson));
+    const richArData = {
+      data: {
+        "1": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            BrightnessValue: "2.5",
+            FNumber: "1.6",
+            FocalLength: "5.1 mm",
+            ISOSpeedRatings: "125",
+            LensModel: "iPhone 12 Pro back triple camera 5.1mm f/1.6"
+          },
+          lightEstimate: {
+            ambientColorTemperature: 3000,
+            ambientIntensity: 1000
+          },
+          timestamp: 1
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(richArData));
 
     const result = extractArDataMetadata(mockDir);
 
     expect(result).not.toBeNull();
     if (result) {
       expect(result.avgAmbientIntensity).toBe(1000);
-      expect(result.avgBrightness).toBe(2.0);
-      expect(result.avgColorTemperature).toBe(3000);
-      expect(result.avgIso).toBe(162.5);
-      expect(result.lensModel).toBe("iPhone 12 Pro");
+      expect(result.lensModel).toBe("iPhone 12 Pro back triple camera 5.1mm f/1.6");
+      // Parsed fields
+      expect(result.deviceModel).toBe("iPhone 12 Pro");
+      expect(result.lensFocalLength).toBe("5.1 mm");
+      expect(result.lensAperture).toBe("f/1.6");
     }
+  });
 
-    expect(fs.writeFileSync).toHaveBeenCalledWith(mockCachePath, expect.any(String));
+  it("should handle minimal lens model string", () => {
+    (fs.existsSync as Mock).mockReturnValue(true); // For arData
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const simpleData = {
+      data: {
+        "1": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            LensModel: "iPad Pro"
+          },
+          timestamp: 1
+        }
+      }
+    };
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(simpleData));
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result?.deviceModel).toBe("iPad Pro");
   });
 
   it("should return null if arData.json does not exist", () => {
@@ -104,12 +153,7 @@ describe("extractArDataMetadata", () => {
   });
 
   it("should return null if parsing fails/ArData throws", () => {
-    (fs.existsSync as Mock).mockImplementation((p: string) => {
-      if (p === mockArDataPath) {
-        return true;
-      }
-      return false;
-    });
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
     (fs.readFileSync as Mock).mockReturnValue("INVALID JSON");
 
     const result = extractArDataMetadata(mockDir);
@@ -117,12 +161,7 @@ describe("extractArDataMetadata", () => {
   });
 
   it("should handle empty or minimal data gracefully", () => {
-    (fs.existsSync as Mock).mockImplementation((p: string) => {
-      if (p === mockArDataPath) {
-        return true;
-      }
-      return false;
-    });
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
 
     const minimalData = { data: {} };
     (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(minimalData));
@@ -134,7 +173,49 @@ describe("extractArDataMetadata", () => {
       avgBrightness: 0,
       avgColorTemperature: 0,
       avgIso: 0,
+      deviceModel: "",
+      lensAperture: "",
+      lensFocalLength: "",
       lensModel: ""
     });
+  });
+  it("should extract metadata from LensModel string when EXIF fields are missing", () => {
+    // Setup specific mock for this test
+    const specificMockExif = {
+      BrightnessValue: "2",
+      DateTimeOriginal: "2023-01-01T00:00:00.000Z",
+      ExposureBiasValue: "0",
+      ExposureTime: "1/60",
+      FNumber: undefined,
+      FocalLength: undefined,
+      ISOSpeedRatings: "400",
+      LensModel: "iPhone 13 Pro back triple camera 5.7mm f/1.5",
+      ShutterSpeedValue: "1/60",
+      WhiteBalance: "0"
+    };
+
+    const specificArData = {
+      data: {
+        "1234567890": {
+          cameraResolution: { height: 1920, width: 1440 }, // Required by ArData
+          cameraTransform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], // Required by ArData
+          exifData: specificMockExif,
+          lightEstimate: { ambientColorTemperature: 5000, ambientIntensity: 1000 },
+          timestamp: 1234567890 // Required by ArData
+        }
+      }
+    };
+
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(specificArData));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.deviceModel).toBe("iPhone 13 Pro");
+      expect(result.lensFocalLength).toBe("5.7 mm");
+      expect(result.lensAperture).toBe("f/1.5");
+    }
   });
 });

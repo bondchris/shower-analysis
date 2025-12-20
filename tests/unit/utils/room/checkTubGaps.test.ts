@@ -235,4 +235,26 @@ describe("checkTubGaps", () => {
       expect(checkTubGaps(createGapScan(INCH))).toBe(true);
     });
   });
+
+  describe("Coverage Improvements", () => {
+    it("should skip wall with invalid transform", () => {
+      const t1 = createTub("t1");
+      const wInvalid = createExternalWall("wInvalid", { transform: [] });
+
+      const scan = createMockScan({ objects: [t1], walls: [wInvalid] });
+      // Skips invalid wall -> no walls -> false (no gaps found)
+      expect(checkTubGaps(scan)).toBe(false);
+    });
+
+    it("should skip wall with degenerate points (avoiding fallback)", () => {
+      const t1 = createTub("t1");
+      // Providing [0] means numCorners > 0, so fallback skipped.
+      // But point length < 2, so point skipped.
+      // Result: wallCorners empty -> continue.
+      const wBad = createExternalWall("wBad", { polygonCorners: [[0]] });
+
+      const scan = createMockScan({ objects: [t1], walls: [wBad] });
+      expect(checkTubGaps(scan)).toBe(false);
+    });
+  });
 });

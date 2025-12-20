@@ -178,7 +178,18 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
   const MIN_MONTHS = 0;
   if (sortedMonths.length > MIN_MONTHS) {
     const BYTES_TO_MB = 1048576; // 1024 * 1024
-    const datasets = allStats.map((stats, index) => {
+    // Sort by volume found (Largest -> Smallest)
+    const descStats = [...allStats].sort((a, b) => b.found - a.found);
+
+    const envColors: Record<string, string> = {
+      "Bond Demo": "rgba(127, 24, 127, 1)",
+      "Bond Production": "rgba(0, 100, 0, 1)",
+      "Lowe's Production": "rgba(1, 33, 105, 1)",
+      "Lowe's Staging": "rgba(0, 117, 206, 1)"
+    };
+    const defaultColors = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
+
+    const datasets = descStats.map((stats, index) => {
       const data = sortedMonths.map((month) => {
         const history = stats.videoHistory[month];
         const ZERO_COUNT = 0;
@@ -188,11 +199,10 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
         return null;
       });
 
-      // Simple color palette (matching report colors if possible, or generic)
-      const colors = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"]; // Sky, Green, Red, Yellow
+      const borderColor = envColors[stats.env] ?? defaultColors[index % defaultColors.length] ?? "#000000";
 
       return {
-        borderColor: colors[index % colors.length] ?? "#000000",
+        borderColor,
         data,
         label: stats.env
       };

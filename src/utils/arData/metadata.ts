@@ -5,6 +5,9 @@ import { ArData } from "../../models/arData/arData";
 
 export interface ArDataMetadata {
   lensModel: string;
+  deviceModel: string;
+  lensFocalLength: string;
+  lensAperture: string;
   avgAmbientIntensity: number;
   avgColorTemperature: number;
   avgIso: number;
@@ -23,7 +26,12 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
   if (fs.existsSync(metaCachePath)) {
     try {
       const cachedContent = fs.readFileSync(metaCachePath, "utf-8");
-      return JSON.parse(cachedContent) as ArDataMetadata;
+      const cached = JSON.parse(cachedContent) as ArDataMetadata;
+      // Invalidate cache if new fields are missing
+      if (typeof cached.deviceModel === "string") {
+        return cached;
+      }
+      // Fall through to re-extraction if stale
     } catch {
       // Proceed to extraction
     }
@@ -46,16 +54,70 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
         avgBrightness: 0,
         avgColorTemperature: 0,
         avgIso: 0,
+        deviceModel: NOT_SET,
+        lensAperture: NOT_SET,
+        lensFocalLength: NOT_SET,
         lensModel: NOT_SET
       };
 
       if (frames.length > INITIAL_COUNT) {
-        // Lens Model
+        // Lens Model & Device Info
         const firstFrame = frames[INITIAL_COUNT];
         if (firstFrame) {
-          const model = firstFrame.exifData.LensModel;
-          if (model !== undefined && model !== NOT_SET) {
-            result.lensModel = model;
+          const exif = firstFrame.exifData;
+
+          // 1. Lens Model -> Device Model (e.g. "iPhone 13 Pro")
+          const rawModel = exif.LensModel;
+          if (rawModel !== undefined && rawModel !== NOT_SET) {
+            result.lensModel = rawModel;
+            // Parse "iPhone 13 Pro back triple camera 5.7mm f/1.5"
+            // Default regex for device model
+            const DEVICE_MODEL_GROUP = 1;
+            const deviceRegex = /^(.+?)\s+(?:front|back)/i;
+            const matchDevice = deviceRegex.exec(rawModel);
+
+            if (matchDevice !== null && typeof matchDevice[DEVICE_MODEL_GROUP] === "string") {
+              result.deviceModel = matchDevice[DEVICE_MODEL_GROUP].trim();
+            } else {
+              result.deviceModel = rawModel;
+            }
+
+            // Parse Focal Length from string if missing or to augment
+            // Looks for "5.7mm" or "5.7 mm"
+            // Note: Capture "5.7" as group 1
+            const CAPTURE_GROUP_INDEX = 1;
+            const focalRegex = /([\d.]+)\s*mm/i;
+            const matchFocal = focalRegex.exec(rawModel);
+            if (matchFocal?.[CAPTURE_GROUP_INDEX] !== undefined) {
+              // If EXIF missing, use this
+              if (result.lensFocalLength === NOT_SET) {
+                result.lensFocalLength = `${matchFocal[CAPTURE_GROUP_INDEX]} mm`;
+              }
+            }
+
+            // Parse Aperture from string
+            // Looks for "f/1.5" or "f1.5"
+            const apertureRegex = /f\/?([\d.]+)/i;
+            const matchAperture = apertureRegex.exec(rawModel);
+            if (matchAperture?.[CAPTURE_GROUP_INDEX] !== undefined) {
+              if (result.lensAperture === NOT_SET) {
+                result.lensAperture = `f/${matchAperture[CAPTURE_GROUP_INDEX]}`;
+              }
+            }
+          }
+
+          // 2. Focal Length (e.g. "5.7 mm") - EXIF takes precedence if valid
+          if (exif.FocalLength !== undefined && exif.FocalLength !== NOT_SET) {
+            result.lensFocalLength = exif.FocalLength.trim();
+          }
+
+          // 3. Aperture (FNumber) (e.g. "1.5" or "f/1.5") - EXIF takes precedence if valid
+          if (exif.FNumber !== undefined && exif.FNumber !== NOT_SET) {
+            let fNum = exif.FNumber.trim();
+            if (!fNum.toLowerCase().startsWith("f/") && !isNaN(parseFloat(fNum))) {
+              fNum = `f/${fNum}`;
+            }
+            result.lensAperture = fNum;
           }
         }
       }

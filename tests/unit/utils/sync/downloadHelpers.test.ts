@@ -73,6 +73,17 @@ describe("downloadHelpers", () => {
       const result = await downloadFile(url, outputPath);
       expect(result).toContain("file download failed");
     });
+    it("handles axios network error (no response) correctly", async () => {
+      mockFs.existsSync.mockReturnValue(false);
+      const axiosError = new AxiosError("Network Error");
+      // response is undefined
+      mockAxios.isAxiosError.mockReturnValue(true);
+      mockAxios.get.mockRejectedValue(axiosError);
+
+      const result = await downloadFile(url, outputPath, "Video");
+
+      expect(result).toBe("Video download failed");
+    });
   });
 
   describe("downloadJsonFile", () => {
@@ -110,6 +121,16 @@ describe("downloadHelpers", () => {
 
       expect(result).toBe(`${label} download failed (Unknown: Error: Fail)`);
       expect(mockFs.unlinkSync).toHaveBeenCalledWith(tmpPath);
+    });
+    it("handles axios network error (no response) correctly", async () => {
+      mockFs.existsSync.mockReturnValue(false);
+      const axiosError = new AxiosError("Network Error");
+      mockAxios.isAxiosError.mockReturnValue(true);
+      mockAxios.get.mockRejectedValue(axiosError);
+
+      const result = await downloadJsonFile(url, outputPath, label);
+
+      expect(result).toBe(`${label} download failed`);
     });
   });
 });

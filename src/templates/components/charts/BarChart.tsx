@@ -2,7 +2,7 @@ import { AxisBottom, AxisLeft } from "@visx/axis";
 import { GridColumns, GridRows } from "@visx/grid";
 import { Group } from "@visx/group";
 import { scaleBand, scaleLinear } from "@visx/scale";
-import { Bar } from "@visx/shape";
+import { Bar, Line } from "@visx/shape";
 import React from "react";
 
 import { BarChartConfig } from "../../../utils/chartUtils";
@@ -23,14 +23,14 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
   const bottomMarginRatio = 0.1;
   const rightMarginDefaultMin = 30;
   const rightMarginDefaultRatio = 0.06;
-  const rightMarginPercentageMin = 60;
-  const rightMarginPercentageRatio = 0.1;
+  const rightMarginPercentageMin = 65;
+  const rightMarginPercentageRatio = 0.05;
   const leftMarginHorizontalMin = 60;
   const leftMarginHorizontalRatio = 0.04;
   const tickFontSizeHorizontal = 8;
   const leftMarginDefault = 60;
-  const labelCharWidthEstimate = 4.5;
-  const labelPadding = 6;
+  const labelCharWidthEstimate = 6;
+  const labelPadding = 10;
   const zeroValue = 0;
   const paddingValue = 0.2;
 
@@ -93,7 +93,7 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
             const barHeight = yScaleBand.bandwidth();
             const halfBarHeight = barHeight / halfDivisor;
             const labelY = (yBand ?? zeroValue) + halfBarHeight;
-            const labelX = Math.min(xValue + textOffset, xMax - textOffset);
+            const labelX = xValue + textOffset;
 
             return (
               <Group key={i}>
@@ -106,39 +106,84 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
                   x={zeroValue}
                   y={yBand}
                 />
-                {totalForPercentages !== undefined && totalForPercentages > zeroValue && (
-                  <text
-                    fill="#000"
-                    fontSize={10}
-                    fontWeight="bold"
-                    textAnchor="start"
-                    dominantBaseline="middle"
-                    x={labelX}
-                    y={labelY}
-                  >
-                    {parseFloat(((value / totalForPercentages) * percentageBase).toFixed(decimalPlaces))}%
-                  </text>
-                )}
-                {showCount === true && (
-                  <text
-                    fill="#000"
-                    fontSize={10}
-                    fontWeight="bold"
-                    textAnchor="start"
-                    dominantBaseline="middle"
-                    x={labelX}
-                    y={labelY}
-                  >
-                    {value}
-                  </text>
-                )}
+                {(() => {
+                  const hasPercentage = totalForPercentages !== undefined && totalForPercentages > zeroValue;
+
+                  // Skip text for separator label
+                  if (
+                    options.separatorLabel !== undefined &&
+                    options.separatorLabel !== "" &&
+                    labels[i] === options.separatorLabel
+                  ) {
+                    return null;
+                  }
+
+                  const hasCount = showCount === true;
+                  const PERCENTAGE_BASE = 100;
+                  const percentageVal = hasPercentage
+                    ? parseFloat(((value / totalForPercentages) * PERCENTAGE_BASE).toFixed(decimalPlaces))
+                    : zeroValue;
+
+                  let labelText = "";
+                  if (hasCount && hasPercentage) {
+                    labelText = `${String(value)} (${String(percentageVal)}%)`;
+                  } else if (hasPercentage) {
+                    labelText = `${String(percentageVal)}%`;
+                  } else if (hasCount) {
+                    labelText = String(value);
+                  }
+
+                  if (labelText) {
+                    return (
+                      <text
+                        fill="#000"
+                        fontSize={10}
+                        fontWeight="bold"
+                        textAnchor="start"
+                        dominantBaseline="middle"
+                        x={labelX}
+                        y={labelY}
+                      >
+                        {labelText}
+                      </text>
+                    );
+                  }
+                  return null;
+                })()}
               </Group>
             );
           })}
 
+          {options.separatorLabel !== undefined &&
+            labels.includes(options.separatorLabel) &&
+            (() => {
+              const idx = labels.indexOf(options.separatorLabel);
+              const label = labels[idx];
+              if (label === undefined) {
+                return null;
+              }
+              // Calculate Y position: center of the separator band
+              const yStart = yScaleBand(label) ?? zeroValue;
+              const bandHeight = yScaleBand.bandwidth();
+              const DIVISOR = 2;
+              const halfBandHeight = bandHeight / DIVISOR;
+              const lineY = yStart + halfBandHeight;
+
+              return (
+                <Line
+                  from={{ x: -margin.left, y: lineY }}
+                  to={{ x: xMax, y: lineY }}
+                  stroke="#000"
+                  strokeWidth={1}
+                  strokeDasharray="4,4"
+                />
+              );
+            })()}
+
           <AxisLeft
             scale={yScaleBand}
             tickValues={labels}
+            tickFormat={(v) => (v === options.separatorLabel ? "" : v)}
             tickLabelProps={() => ({
               dx: "-0.25em",
               dy: "0.25em",

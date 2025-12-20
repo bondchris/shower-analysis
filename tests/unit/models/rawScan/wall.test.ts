@@ -290,5 +290,19 @@ describe("Wall", () => {
       wall.polygonCorners = [[0, 0, 0], undefined as unknown as number[], [10, 0, 0]];
       expect(wall.hasSoffit).toBe(false);
     });
+
+    it("should use default coordinates for points with missing indices", () => {
+      const wall = new Wall({ category: {} } as WallData);
+      // Points with missing X or Y coordinates
+      // Should default to 0.
+      // If all are 0,0, then vectors are 0,0. atan2(0,0) is 0.
+      // angleDiff = 0. No soffit.
+      wall.polygonCorners = [
+        [], // Defaults to 0,0
+        [10, 10], // 10,10
+        [10] // Defaults to 10,0
+      ];
+      expect(wall.hasSoffit).toBe(false);
+    });
   });
 });
