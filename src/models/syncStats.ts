@@ -13,4 +13,11 @@ export interface SyncStats {
   knownFailures: number;
   errors: SyncError[];
   processedIds: Set<string>;
+  videoSize: number;
+  arDataSize: number;
+  rawScanSize: number;
+  newVideoSize: number;
+  newArDataSize: number;
+  newRawScanSize: number;
+  videoHistory: Record<string, { totalSize: number; count: number }>;
 }

@@ -109,6 +109,18 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
     case "page-break":
       return <div style={{ breakBefore: "page" }} />;
 
+    case "react-component": {
+      const Component = section.component;
+      if (!Component) {
+        return null;
+      }
+      return (
+        <div className="mb-8 flex w-full justify-start break-inside-avoid">
+          <Component />
+        </div>
+      );
+    }
+
     default:
       if (section.data !== undefined) {
         return <p>{(section.data as string | undefined) ?? ""}</p>;

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-20
 
+### [v0.40.0] Add Video Size Chart and Disk Usage Summary
+
+- **Average Video Size Chart**: Added a line chart to the sync report visualizing average video size trends over time per environment.
+- **Disk Usage Summary**: Added a disk usage table with comprehensive Total, Average, and New size metrics.
+- **Test Coverage**: Added robust test cases for `LineChart` edge cases and `syncReport` zero-data scenarios.
+
 ### [v0.39.1] Add chart data labels and improve coverage
 
 - **Chart Data Labels**: specific charts (Framerate, Resolution) now display numerical counts above bars, and horizontal charts (Lens Models) display percentages.

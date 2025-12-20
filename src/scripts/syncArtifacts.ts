@@ -82,6 +82,10 @@ interface ArtifactResult {
   skipped: number;
   failed: number;
   errors: SyncError[];
+  videoSize: number;
+  arDataSize: number;
+  rawScanSize: number;
+  scanDate?: string;
 }
 
 // Extracted Artifact Processor
@@ -91,10 +95,13 @@ async function processArtifact(
   badScans: BadScanDatabase
 ): Promise<ArtifactResult> {
   const result: ArtifactResult = {
+    arDataSize: 0,
     errors: [],
     failed: 0,
     new: 0,
-    skipped: 0
+    rawScanSize: 0,
+    skipped: 0,
+    videoSize: 0
   };
 
   const JSON_INDENT = 2;
@@ -105,6 +112,10 @@ async function processArtifact(
   if (Object.prototype.hasOwnProperty.call(badScans, artifact.id)) {
     result.skipped = 1;
     return result;
+  }
+
+  if (artifact.scanDate !== undefined) {
+    result.scanDate = artifact.scanDate;
   }
 
   const { video, rawScan, arData } = artifact;
@@ -170,6 +181,20 @@ async function processArtifact(
     } else if (!exists) {
       result.new = 1;
     }
+
+    if (!artifactFailed) {
+      try {
+        const videoStats = fs.statSync(path.join(artifactDir, "video.mp4"));
+        const rawScanStats = fs.statSync(path.join(artifactDir, "rawScan.json"));
+        const arDataStats = fs.statSync(path.join(artifactDir, "arData.json"));
+
+        result.videoSize = videoStats.size;
+        result.rawScanSize = rawScanStats.size;
+        result.arDataSize = arDataStats.size;
+      } catch (e) {
+        logger.warn(`Failed to get stats for artifact ${artifact.id}: ${String(e)}`);
+      }
+    }
   }
 
   return result;
@@ -180,15 +205,22 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
   const dataDir = path.join(process.cwd(), "data", "artifacts", env.name.replace(/[^a-z0-9]/gi, "_").toLowerCase());
 
   const stats: SyncStats = {
+    arDataSize: 0,
     env: env.name,
     errors: [],
     failed: 0,
     found: 0,
     knownFailures: 0,
     new: 0,
+    newArDataSize: 0,
     newFailures: 0,
+    newRawScanSize: 0,
+    newVideoSize: 0,
     processedIds: new Set<string>(),
-    skipped: 0
+    rawScanSize: 0,
+    skipped: 0,
+    videoHistory: {},
+    videoSize: 0
   };
 
   // Limits
@@ -248,6 +280,40 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
           stats.skipped += r.skipped;
           stats.failed += r.failed;
           stats.errors.push(...r.errors);
+
+          stats.videoSize += r.videoSize;
+          stats.arDataSize += r.arDataSize;
+          stats.rawScanSize += r.rawScanSize;
+
+          const ONE_NEW = 1;
+          if (r.new >= ONE_NEW) {
+            stats.newArDataSize += r.arDataSize;
+            stats.newRawScanSize += r.rawScanSize;
+            stats.newVideoSize += r.videoSize;
+          }
+
+          if (r.scanDate !== undefined) {
+            const ZERO_SIZE = 0;
+            if (r.videoSize > ZERO_SIZE) {
+              try {
+                const date = new Date(r.scanDate);
+                const SUBSTRING_START = 0;
+                const SUBSTRING_LENGTH = 7;
+                const monthKey = date.toISOString().slice(SUBSTRING_START, SUBSTRING_LENGTH); // YYYY-MM
+
+                const history = stats.videoHistory[monthKey] ?? {
+                  count: 0,
+                  totalSize: 0
+                };
+
+                history.count++;
+                history.totalSize += r.videoSize;
+                stats.videoHistory[monthKey] = history;
+              } catch {
+                // Ignore invalid dates
+              }
+            }
+          }
         }
       } catch (e) {
         logger.error(`Error fetching page ${pageNum.toString()}: ${String(e)}`);
