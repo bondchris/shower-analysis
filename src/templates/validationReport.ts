@@ -23,7 +23,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
   const DOUBLE = 2;
   const pageMarginDouble = PAGE_MARGIN * DOUBLE;
   const PAGE_CONTENT_WIDTH = PAGE_VIEWPORT_WIDTH - pageMarginDouble; // A4 width (~794px) minus margins
-  const PROPERTY_WIDTH_RATIO = 0.8;
+  const PROPERTY_WIDTH_RATIO = 0.9;
   const CHART_BAR_HEIGHT = 15;
   const MIN_CHART_HEIGHT = 300;
   const HEADER_FOOTER_SPACE = 60;
@@ -314,17 +314,21 @@ export function buildValidationReport(allStats: EnvStats[]): ReportData {
 
   // Standardized Table Logic (Exploded Rows for Errors & Warnings)
   // Columns: [Label, ...Environment Names, All]
+
+  // Sort by Total Artifacts (Descending) to match Chart Legend Order
+  const sortedStats = [...allStats].sort((a, b) => b.totalArtifacts - a.totalArtifacts);
+
   const totalProcessed = sumBy(allStats, "processed");
   const totalErrors = sumBy(allStats, "artifactsWithIssues");
   const totalWarnings = sumBy(allStats, "artifactsWithWarnings");
 
-  const headers = ["", ...allStats.map((s) => s.name), "Total"];
+  const headers = ["", ...sortedStats.map((s) => s.name), "Total"];
   const tableData: string[][] = [];
   const rowClasses: Record<number, string> = {};
 
   // 1. Processed Row
   const processedRow = ["Processed Artifacts"];
-  allStats.forEach((stat) => {
+  sortedStats.forEach((stat) => {
     const total = stat.totalArtifacts; // Use stat.totalArtifacts as the total for this environment
     if (total > ZERO) {
       const percentage = ((stat.processed / total) * PERCENTAGE_BASE).toFixed(DECIMAL_PLACES);
@@ -343,7 +347,7 @@ export function buildValidationReport(allStats: EnvStats[]): ReportData {
 
   // 2. Total Errors Row
   const totalErrorsRow = ["Total Errors"];
-  allStats.forEach((stat) => {
+  sortedStats.forEach((stat) => {
     totalErrorsRow.push(String(stat.artifactsWithIssues));
   });
   totalErrorsRow.push(`<span style="font-weight:normal;color:#6b7280">${totalErrors.toString()}</span>`);
@@ -362,7 +366,7 @@ export function buildValidationReport(allStats: EnvStats[]): ReportData {
     .forEach((key) => {
       const row = [key]; // e.g. "Missing rawScan"
       let rowTotal = 0;
-      allStats.forEach((stat) => {
+      sortedStats.forEach((stat) => {
         const count = stat.missingCounts[key] ?? INITIAL_ERROR_COUNT;
         row.push(String(count));
         rowTotal += count;
@@ -374,7 +378,7 @@ export function buildValidationReport(allStats: EnvStats[]): ReportData {
 
   // 4. Total Warnings Row
   const totalWarningsRow = ["Total Warnings"];
-  allStats.forEach((stat) => {
+  sortedStats.forEach((stat) => {
     totalWarningsRow.push(String(stat.artifactsWithWarnings));
   });
   totalWarningsRow.push(`<span style="font-weight:normal;color:#6b7280">${totalWarnings.toString()}</span>`);
@@ -393,7 +397,7 @@ export function buildValidationReport(allStats: EnvStats[]): ReportData {
       const displayKey = key === "projectId" ? "Missing projectId" : key; // clarify warning label
       const row = [displayKey];
       let rowTotal = 0;
-      allStats.forEach((stat) => {
+      sortedStats.forEach((stat) => {
         const count = stat.warningCounts[key] ?? INITIAL_ERROR_COUNT;
         row.push(String(count));
         rowTotal += count;

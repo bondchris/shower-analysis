@@ -23,6 +23,7 @@ describe("extractVideoMetadata", () => {
 
   it("should return cached metadata if it exists and is valid", async () => {
     const cachedData: VideoMetadata = {
+      creationTime: "2023-01-01T00:00:00Z",
       duration: 60,
       fps: 30,
       height: 1080,
@@ -88,6 +89,62 @@ describe("extractVideoMetadata", () => {
     expect(fs.writeFileSync).toHaveBeenCalledWith(mockCachePath, expect.any(String));
   });
 
+  it("should re-extract metadata if cache is missing creationTime", async () => {
+    // 1. Mock cache exists but is missing creationTime
+    const staleCache = {
+      duration: 60,
+      fps: 30,
+      height: 1080,
+      width: 1920
+    };
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return true;
+      }
+      if (p === mockVideoPath) {
+        return true;
+      }
+      return false;
+    });
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(staleCache));
+
+    // 2. Mock ffmpeg execution with fresh data including creationTime
+    const mockFfprobeData = {
+      format: {
+        duration: 60,
+        tags: {
+          creation_time: "2023-01-01T12:00:00Z"
+        }
+      },
+      streams: [
+        {
+          codec_type: "video",
+          height: 1080,
+          r_frame_rate: "30/1",
+          width: 1920
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result).toEqual({
+      creationTime: "2023-01-01T12:00:00Z",
+      duration: 60,
+      fps: 30,
+      height: 1080,
+      width: 1920
+    });
+    // Should have written updated cache
+    expect(fs.writeFileSync).toHaveBeenCalledWith(mockCachePath, expect.stringContaining("creationTime"));
+  });
+
   it("should extract metadata from video file if cache is missing", async () => {
     // 1. Mock cache missing, video exists
     (fs.existsSync as Mock).mockImplementation((p: string) => {
@@ -103,7 +160,10 @@ describe("extractVideoMetadata", () => {
     // 2. Mock ffmpeg
     const mockFfprobeData = {
       format: {
-        duration: 10.5
+        duration: 10.5,
+        tags: {
+          creation_time: "2023-01-01T10:00:00Z"
+        }
       },
       streams: [
         {
@@ -124,6 +184,7 @@ describe("extractVideoMetadata", () => {
     const result = await extractVideoMetadata(mockDir);
 
     expect(result).toEqual({
+      creationTime: "2023-01-01T10:00:00Z",
       duration: 10.5,
       fps: 30, // Math.round(29.97)
       height: 2160,

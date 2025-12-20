@@ -4,6 +4,7 @@ import * as path from "path";
 import { ENVIRONMENTS } from "../../config/config";
 import { BadScanDatabase } from "../models/badScanRecord";
 import { SyncError, SyncStats } from "../models/syncStats";
+import { extractVideoMetadata } from "../utils/video/metadata";
 import { ArtifactResponse, SpatialService } from "../services/spatialService";
 import { buildSyncReport } from "../templates/syncReport";
 import { getBadScans } from "../utils/data/badScans";
@@ -86,6 +87,12 @@ interface ArtifactResult {
   arDataSize: number;
   rawScanSize: number;
   scanDate?: string;
+  dateMismatch?: {
+    scanDate: string;
+    videoDate: string;
+    diffHours: number;
+    isNew?: boolean;
+  };
 }
 
 // Extracted Artifact Processor
@@ -149,21 +156,21 @@ async function processArtifact(
           if (typeof err !== "string") {
             logger.warn(`Undefined error returned for video download: ${artifact.id}`);
           }
-          result.errors.push({ id: artifact.id, reason });
+          result.errors.push({ date: artifact.scanDate, id: artifact.id, reason });
         }
         return err === null;
       }),
       downloadJsonFile(rawScan, path.join(artifactDir, "rawScan.json"), "rawScan").then((err) => {
         if (err !== null) {
           const reason = typeof err === "string" ? err : "rawScan download failed (unknown error)";
-          result.errors.push({ id: artifact.id, reason });
+          result.errors.push({ date: artifact.scanDate, id: artifact.id, reason });
         }
         return err === null;
       }),
       downloadJsonFile(arData, path.join(artifactDir, "arData.json"), "arData").then((err) => {
         if (err !== null) {
           const reason = typeof err === "string" ? err : "arData download failed (unknown error)";
-          result.errors.push({ id: artifact.id, reason });
+          result.errors.push({ date: artifact.scanDate, id: artifact.id, reason });
         }
         return err === null;
       })
@@ -191,8 +198,33 @@ async function processArtifact(
         result.videoSize = videoStats.size;
         result.rawScanSize = rawScanStats.size;
         result.arDataSize = arDataStats.size;
+
+        // Date Mismatch Check
+        if (artifact.scanDate !== undefined) {
+          const vidMeta = await extractVideoMetadata(artifactDir);
+          if (vidMeta?.creationTime !== undefined) {
+            const scanTime = new Date(artifact.scanDate).getTime();
+            const videoTime = new Date(vidMeta.creationTime).getTime();
+            const diffMs = Math.abs(scanTime - videoTime);
+            const SECONDS_PER_MIN = 60;
+            const MINUTES_PER_HOUR = 60;
+            const MS_PER_SECOND = 1000;
+            const HOUR_MS = SECONDS_PER_MIN * MINUTES_PER_HOUR * MS_PER_SECOND;
+            const diffHours = diffMs / HOUR_MS;
+
+            const MISMATCH_THRESHOLD_HOURS = 24;
+            if (diffHours > MISMATCH_THRESHOLD_HOURS) {
+              result.dateMismatch = {
+                diffHours,
+                isNew: !exists,
+                scanDate: artifact.scanDate,
+                videoDate: vidMeta.creationTime
+              };
+            }
+          }
+        }
       } catch (e) {
-        logger.warn(`Failed to get stats for artifact ${artifact.id}: ${String(e)}`);
+        logger.warn(`Failed to get stats/metadata for artifact ${artifact.id}: ${String(e)}`);
       }
     }
   }
@@ -206,6 +238,7 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
 
   const stats: SyncStats = {
     arDataSize: 0,
+    dateMismatches: [],
     env: env.name,
     errors: [],
     failed: 0,
@@ -274,12 +307,29 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
           })
         );
 
-        // Aggregate results safely
-        for (const r of pageResults) {
+        for (let i = 0; i < pageResults.length; i++) {
+          const r = pageResults[i];
+          const a = artifacts[i];
+
+          if (!r || !a) {
+            continue;
+          }
+
           stats.new += r.new;
           stats.skipped += r.skipped;
           stats.failed += r.failed;
           stats.errors.push(...r.errors);
+
+          if (r.dateMismatch) {
+            stats.dateMismatches.push({
+              diffHours: r.dateMismatch.diffHours,
+              environment: env.name,
+              id: a.id,
+              isNew: r.dateMismatch.isNew ?? false,
+              scanDate: r.dateMismatch.scanDate,
+              videoDate: r.dateMismatch.videoDate
+            });
+          }
 
           stats.videoSize += r.videoSize;
           stats.arDataSize += r.arDataSize;

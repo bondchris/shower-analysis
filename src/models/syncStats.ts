@@ -1,6 +1,7 @@
 export interface SyncError {
   id: string;
   reason: string;
+  date?: string | undefined;
 }
 
 export interface SyncStats {
@@ -20,4 +21,14 @@ export interface SyncStats {
   newArDataSize: number;
   newRawScanSize: number;
   videoHistory: Record<string, { totalSize: number; count: number }>;
+  dateMismatches: DateMismatch[];
+}
+
+export interface DateMismatch {
+  id: string;
+  scanDate: string;
+  videoDate: string;
+  diffHours: number;
+  environment: string;
+  isNew?: boolean;
 }

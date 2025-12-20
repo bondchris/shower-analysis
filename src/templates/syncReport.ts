@@ -8,9 +8,13 @@ import { LineChartConfig } from "../utils/chartUtils";
 export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailureDatabase): ReportData {
   const sections: ReportSection[] = [];
   const ZERO = 0;
+  const ONE = 1;
+
+  // Sort by volume found (Largest -> Smallest) to match charts
+  const sortedStats = [...allStats].sort((a, b) => b.found - a.found);
 
   // Summary Table
-  // Calculate Totals
+  // Calculate Totals using original array (order doesn't matter for sum)
   const totalFound = allStats.reduce((sum, s) => sum + s.found, ZERO);
   const totalNew = allStats.reduce((sum, s) => sum + s.new, ZERO);
   const totalFailed = allStats.reduce((sum, s) => sum + s.failed, ZERO);
@@ -18,36 +22,36 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
   const totalKnownFailures = allStats.reduce((sum, s) => sum + s.knownFailures, ZERO);
   const totalNewFailures = allStats.reduce((sum, s) => sum + s.newFailures, ZERO);
 
-  const headers = ["", ...allStats.map((s) => s.env), "Total"];
+  const headers = ["", ...sortedStats.map((s) => s.env), "Total"];
   const tableData: string[][] = [
     [
       "Found",
-      ...allStats.map((s) => s.found.toString()),
+      ...sortedStats.map((s) => s.found.toString()),
       `<span style="font-weight:normal;color:#6b7280">${totalFound.toString()}</span>`
     ],
     [
       "New",
-      ...allStats.map((s) => s.new.toString()),
+      ...sortedStats.map((s) => s.new.toString()),
       `<span style="font-weight:normal;color:#6b7280">${totalNew.toString()}</span>`
     ],
     [
       "Inaccessible",
-      ...allStats.map((s) => s.failed.toString()),
+      ...sortedStats.map((s) => s.failed.toString()),
       `<span style="font-weight:normal;color:#6b7280">${totalFailed.toString()}</span>`
     ],
     [
       "New Inaccessible",
-      ...allStats.map((s) => s.newFailures.toString()),
+      ...sortedStats.map((s) => s.newFailures.toString()),
       `<span style="font-weight:normal;color:#6b7280">${totalNewFailures.toString()}</span>`
     ],
     [
       "Known Inaccessible",
-      ...allStats.map((s) => s.knownFailures.toString()),
+      ...sortedStats.map((s) => s.knownFailures.toString()),
       `<span style="font-weight:normal;color:#6b7280">${totalKnownFailures.toString()}</span>`
     ],
     [
       "Skipped",
-      ...allStats.map((s) => s.skipped.toString()),
+      ...sortedStats.map((s) => s.skipped.toString()),
       `<span style="font-weight:normal;color:#6b7280">${totalSkipped.toString()}</span>`
     ]
   ];
@@ -67,6 +71,79 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
     title: "Sync Summary",
     type: "table"
   });
+
+  // Inaccessible Artifacts Chart
+  const errorHistory = new Map<string, Record<string, number>>(); // Month -> Env -> Count
+  const allErrorMonths = new Set<string>();
+
+  sortedStats.forEach((stats) => {
+    // Add months from video history (successful scans)
+    Object.keys(stats.videoHistory).forEach((month) => allErrorMonths.add(month));
+
+    stats.errors.forEach((err) => {
+      if (err.date !== undefined && err.date !== "") {
+        const DATE_SUBSTRING_LENGTH = 7;
+        const month = err.date.substring(ZERO, DATE_SUBSTRING_LENGTH); // YYYY-MM
+        allErrorMonths.add(month);
+
+        if (!errorHistory.has(month)) {
+          errorHistory.set(month, {});
+        }
+        const monthData = errorHistory.get(month);
+        if (monthData !== undefined) {
+          monthData[stats.env] = (monthData[stats.env] ?? ZERO) + ONE;
+        }
+      }
+    });
+  });
+
+  const sortedErrorMonths = Array.from(allErrorMonths).sort();
+  const MIN_ERROR_MONTHS = 0;
+
+  if (sortedErrorMonths.length > MIN_ERROR_MONTHS) {
+    const envColors: Record<string, string> = {
+      "Bond Demo": "rgba(127, 24, 127, 1)",
+      "Bond Production": "rgba(0, 100, 0, 1)",
+      "Lowe's Production": "rgba(1, 33, 105, 1)",
+      "Lowe's Staging": "rgba(0, 117, 206, 1)"
+    };
+    const defaultColors = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
+
+    const errorDatasets = sortedStats.map((stats, index) => {
+      const data = sortedErrorMonths.map((month) => {
+        const count = errorHistory.get(month)?.[stats.env] ?? ZERO;
+        return count;
+      });
+
+      const borderColor = envColors[stats.env] ?? defaultColors[index % defaultColors.length] ?? "#000000";
+
+      return {
+        borderColor,
+        data,
+        label: stats.env
+      };
+    });
+
+    const errorChartConfig: LineChartConfig = {
+      datasets: errorDatasets,
+      height: 350,
+      labels: sortedErrorMonths,
+      options: {
+        title: "Inaccessible Artifacts Over Time",
+        yLabel: "Count"
+      },
+      type: "line"
+    };
+
+    const ErrorChartComponent = (): React.ReactElement => React.createElement(LineChart, { config: errorChartConfig });
+
+    sections.push({
+      component: ErrorChartComponent,
+      data: errorChartConfig,
+      title: "Inaccessible Artifacts Trend",
+      type: "react-component"
+    });
+  }
 
   // Disk Usage Summary Table
   const formatBytes = (bytes: number) => {
@@ -229,6 +306,173 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
     });
   }
 
+  // Date Mismatch Summary Table
+  const totalMismatches = sortedStats.reduce((sum, s) => sum + s.dateMismatches.length, ZERO);
+
+  if (totalMismatches > ZERO) {
+    const totalNewMismatches = sortedStats.reduce(
+      (sum, s) => sum + s.dateMismatches.filter((m) => m.isNew === true).length,
+      ZERO
+    );
+
+    const mismatchHeaders = ["", ...sortedStats.map((s) => s.env), "Total"];
+    const mismatchTableData = [
+      [
+        "Total Mismatches",
+        ...sortedStats.map((s) => s.dateMismatches.length.toString()),
+        `<span style="font-weight:normal;color:#6b7280">${totalMismatches.toString()}</span>`
+      ],
+      [
+        "New Mismatches",
+        ...sortedStats.map((s) => s.dateMismatches.filter((m) => m.isNew === true).length.toString()),
+        `<span style="font-weight:normal;color:#6b7280">${totalNewMismatches.toString()}</span>`
+      ]
+    ];
+
+    const mismatchRowClasses: Record<number, string> = {
+      0: "bg-orange-100 font-semibold text-orange-800 print:print-color-adjust-exact",
+      1: "bg-orange-50 text-orange-800 print:print-color-adjust-exact"
+    };
+
+    sections.push({
+      data: mismatchTableData,
+      options: { headers: mismatchHeaders, rowClasses: mismatchRowClasses },
+      title: "Date Mismatch Summary",
+      type: "table"
+    });
+
+    // Date Mismatch Chart
+    const mismatchHistory = new Map<string, Record<string, number>>(); // Month -> Env -> Count
+    const allMismatchMonths = new Set<string>();
+
+    sortedStats.forEach((stats) => {
+      // Add months from video history for full timeline context
+      Object.keys(stats.videoHistory).forEach((month) => allMismatchMonths.add(month));
+
+      stats.dateMismatches.forEach((m) => {
+        if (m.scanDate !== "") {
+          const DATE_SUBSTRING_LENGTH = 7;
+          const month = m.scanDate.substring(ZERO, DATE_SUBSTRING_LENGTH); // YYYY-MM
+          allMismatchMonths.add(month);
+
+          if (!mismatchHistory.has(month)) {
+            mismatchHistory.set(month, {});
+          }
+          const monthData = mismatchHistory.get(month);
+          if (monthData !== undefined) {
+            monthData[stats.env] = (monthData[stats.env] ?? ZERO) + ONE;
+          }
+        }
+      });
+    });
+
+    const sortedMismatchMonths = Array.from(allMismatchMonths).sort();
+    const MIN_MISMATCH_MONTHS = 0;
+
+    if (sortedMismatchMonths.length > MIN_MISMATCH_MONTHS) {
+      const envColors: Record<string, string> = {
+        "Bond Demo": "rgba(127, 24, 127, 1)",
+        "Bond Production": "rgba(0, 100, 0, 1)",
+        "Lowe's Production": "rgba(1, 33, 105, 1)",
+        "Lowe's Staging": "rgba(0, 117, 206, 1)"
+      };
+      const defaultColors = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
+
+      const mismatchDatasets = sortedStats.map((stats, index) => {
+        const data = sortedMismatchMonths.map((month) => {
+          const count = mismatchHistory.get(month)?.[stats.env] ?? ZERO;
+          return count;
+        });
+
+        const borderColor = envColors[stats.env] ?? defaultColors[index % defaultColors.length] ?? "#000000";
+
+        return {
+          borderColor,
+          data,
+          label: stats.env
+        };
+      });
+
+      const mismatchChartConfig: LineChartConfig = {
+        datasets: mismatchDatasets,
+        height: 350,
+        labels: sortedMismatchMonths,
+        options: {
+          title: "Date Mismatches Over Time",
+          yLabel: "Count"
+        },
+        type: "line"
+      };
+
+      const MismatchChartComponent = (): React.ReactElement =>
+        React.createElement(LineChart, { config: mismatchChartConfig });
+
+      sections.push({
+        component: MismatchChartComponent,
+        data: mismatchChartConfig,
+        title: "Date Mismatches Trend",
+        type: "react-component"
+      });
+    }
+  }
+
+  // Date Mismatches Section
+  const ZERO_MISMATCHES = 0;
+  const statsWithMismatches = allStats.filter((s) => s.dateMismatches.length > ZERO_MISMATCHES);
+
+  if (statsWithMismatches.length > ZERO_MISMATCHES) {
+    sections.push({ title: "Date Mismatches (> 1 Day)", type: "header" });
+    sections.push({
+      data: "Format: ID - [Days] (Video Date vs API Date in ET)",
+      type: "text"
+    });
+
+    statsWithMismatches.forEach((stats) => {
+      // Sort by difference descending
+      const sortedMismatches = [...stats.dateMismatches].sort((a, b) => b.diffHours - a.diffHours);
+      const mismatchLines: string[] = [];
+      const formatDate = (dateStr: string) => {
+        try {
+          const d = new Date(dateStr);
+          const options: Intl.DateTimeFormatOptions = {
+            day: "2-digit",
+            hour: "2-digit",
+            hour12: false,
+            minute: "2-digit",
+            month: "2-digit",
+            timeZone: "America/New_York",
+            year: "2-digit"
+          };
+          const parts = new Intl.DateTimeFormat("en-US", options).formatToParts(d);
+          const find = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+          return `${find("year")}-${find("month")}-${find("day")} ${find("hour")}:${find("minute")}`;
+        } catch {
+          return dateStr;
+        }
+      };
+
+      sortedMismatches.forEach((m) => {
+        const monoId = `<span class="font-mono">${m.id}</span>`;
+        const HOURS_PER_DAY = 24;
+        const diffDays = m.diffHours / HOURS_PER_DAY;
+        const DIGIT_THRESHOLD = 10;
+        const diffVal = diffDays.toFixed(ONE);
+        const paddedDiffVal = diffDays < DIGIT_THRESHOLD ? `&nbsp;${diffVal}` : diffVal;
+        const diff = `<span class="font-mono">${paddedDiffVal} days</span>`;
+        const dates = `(${formatDate(m.videoDate)} vs ${formatDate(m.scanDate)})`;
+        mismatchLines.push(`${monoId} - ${diff} ${dates}`);
+      });
+
+      sections.push({ level: 3, title: `Environment: ${stats.env}`, type: "header" });
+      sections.push({
+        data: mismatchLines,
+        level: 4,
+        title: "Mismatches",
+        type: "list"
+      });
+    });
+  }
+
   // Failures Section
   const ZERO_FAILURES = 0;
   const failedStats = allStats.filter((s) => s.errors.length > ZERO_FAILURES);
@@ -356,6 +600,6 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
 
   return {
     sections,
-    title: "Inaccessible Artifacts Report"
+    title: "Data Sync Report"
   };
 }

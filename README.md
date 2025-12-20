@@ -2,7 +2,7 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
-**Current Version:** v0.39.1
+**Current Version:** v0.42.0
 
 ## Overview
 
@@ -44,6 +44,10 @@ npm run sync
 - Creates `data/artifacts/{environment}/{id}/` directories.
 - Caches API responses to `data/api_cache/` to minimize network requests.
 - Skips existing files and "bad scans" listed in `config/badScans.json`.
+
+**Output**:
+
+- `reports/sync-report.pdf`: Includes Date Mismatch Analysis, Video Size Trends, Inaccessible Artifacts Over Time, and download stats.
 
 ### 2. Validate Artifacts
 

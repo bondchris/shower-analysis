@@ -9,6 +9,7 @@ describe("buildSyncReport", () => {
     const stats: SyncStats[] = [
       {
         arDataSize: 1024 * 50, // 50 KB
+        dateMismatches: [],
         env: "Production",
         errors: [],
         failed: 0,
@@ -30,7 +31,7 @@ describe("buildSyncReport", () => {
 
     const report = buildSyncReport(stats, failures);
 
-    expect(report.title).toBe("Inaccessible Artifacts Report");
+    expect(report.title).toBe("Data Sync Report");
     expect(report.sections[0]?.title).toBe("Sync Summary");
     expect(report.sections[1]?.title).toBe("Disk Usage Summary");
     expect(report.sections[2]?.data).toBe("No failures occurred during sync.");
@@ -63,6 +64,7 @@ describe("buildSyncReport", () => {
     const stats: SyncStats[] = [
       {
         arDataSize: 0,
+        dateMismatches: [],
         env: "Production",
         errors: [{ id: "scan1", reason: "Access Denied" }],
         failed: 1,
@@ -111,6 +113,7 @@ describe("buildSyncReport", () => {
     const stats: SyncStats[] = [
       {
         arDataSize: 0,
+        dateMismatches: [],
         env: "Production",
         errors: [
           { id: "scan1", reason: "Video download failed (404)" },
@@ -153,6 +156,7 @@ describe("buildSyncReport", () => {
       const stats: SyncStats[] = [
         {
           arDataSize: 0,
+          dateMismatches: [],
           env: "Production",
           errors: [{ id: "known1", reason: "Access Denied" }],
           failed: 1,
@@ -188,6 +192,7 @@ describe("buildSyncReport", () => {
       const stats: SyncStats[] = [
         {
           arDataSize: 0,
+          dateMismatches: [],
           env: "Production",
           errors: [
             { id: "scan1", reason: "RawScan download failed (404)" },
@@ -222,6 +227,7 @@ describe("buildSyncReport", () => {
       const stats: SyncStats[] = [
         {
           arDataSize: 0,
+          dateMismatches: [],
           env: "Production",
           errors: [{ id: "scan1", reason: "RawScan download failed (404)" }],
           failed: 1,
@@ -251,6 +257,7 @@ describe("buildSyncReport", () => {
       const stats: SyncStats[] = [
         {
           arDataSize: 0,
+          dateMismatches: [],
           env: "Production",
           errors: [
             { id: "scan1", reason: "Error A" },
@@ -289,6 +296,7 @@ describe("buildSyncReport", () => {
     const stats: SyncStats[] = [
       {
         arDataSize: 0,
+        dateMismatches: [],
         env: "Production",
         errors: [],
         failed: 0,
@@ -326,6 +334,7 @@ describe("buildSyncReport", () => {
     const stats: SyncStats[] = [
       {
         arDataSize: 0,
+        dateMismatches: [],
         env: "Small (Found 10)",
         errors: [],
         failed: 0,
@@ -344,6 +353,7 @@ describe("buildSyncReport", () => {
       },
       {
         arDataSize: 0,
+        dateMismatches: [],
         env: "Large (Found 100)",
         errors: [],
         failed: 0,
@@ -375,6 +385,7 @@ describe("buildSyncReport", () => {
     const stats: SyncStats[] = [
       {
         arDataSize: 0,
+        dateMismatches: [],
         env: "Production",
         errors: [],
         failed: 0,
@@ -400,5 +411,226 @@ describe("buildSyncReport", () => {
     // Video Avg Row (Index 1)
     // Should be "0 B" or similar, not NaN or Infinity
     expect(tableData[1]?.[1]).toBe("0 B");
+  });
+
+  it("should generate Inaccessible Artifacts Trend chart", () => {
+    const stats: SyncStats[] = [
+      {
+        arDataSize: 0,
+        dateMismatches: [],
+        env: "Production",
+        errors: [
+          { date: "2023-01-15", id: "1", reason: "Fail" },
+          { date: "2023-01-20", id: "2", reason: "Fail" },
+          { date: "2023-02-10", id: "3", reason: "Fail" }
+        ],
+        failed: 1,
+        found: 10,
+        knownFailures: 0,
+        new: 0,
+        newArDataSize: 0,
+        newFailures: 0,
+        newRawScanSize: 0,
+        newVideoSize: 0,
+        processedIds: new Set(),
+        rawScanSize: 0,
+        skipped: 0,
+        videoHistory: {
+          "2023-01": { count: 1, totalSize: 100 }, // Success in Jan
+          "2023-02": { count: 1, totalSize: 100 }, // Success in Feb
+          "2023-03": { count: 1, totalSize: 100 } // Success in Mar (but no errors)
+        },
+        videoSize: 0
+      }
+    ];
+
+    const report = buildSyncReport(stats, {});
+    // Find the chart
+    const chartSection = report.sections.find((s) => s.title === "Inaccessible Artifacts Trend");
+    expect(chartSection).toBeDefined();
+    expect(chartSection?.type).toBe("react-component");
+
+    const config = chartSection?.data as LineChartConfig;
+    // Should include Jan, Feb (errors) AND Mar (success only)
+    expect(config.labels).toEqual(["2023-01", "2023-02", "2023-03"]);
+    expect(config.datasets[0]?.label).toBe("Production");
+    // Values: Jan=1, Feb=0 (err dates were 15th and 20th of Jan, 10th of Feb), Mar=0
+    // Wait, my test data had Jan 15, Jan 20, Feb 10.
+    // So Jan=2 errors, Feb=1 error. Mar=0.
+    expect(config.datasets[0]?.data).toEqual([2, 1, 0]);
+  });
+
+  it("should generate Date Mismatch Summary table", () => {
+    const stats: SyncStats[] = [
+      {
+        arDataSize: 0,
+        dateMismatches: [
+          { diffHours: 25, environment: "Production", id: "1", isNew: true, scanDate: "", videoDate: "" },
+          { diffHours: 35, environment: "Production", id: "2", isNew: false, scanDate: "", videoDate: "" },
+          { diffHours: 45, environment: "Production", id: "3", isNew: true, scanDate: "", videoDate: "" }
+        ],
+        env: "Production",
+        errors: [],
+        failed: 0,
+        found: 10,
+        knownFailures: 0,
+        new: 0,
+        newArDataSize: 0,
+        newFailures: 0,
+        newRawScanSize: 0,
+        newVideoSize: 0,
+        processedIds: new Set(),
+        rawScanSize: 0,
+        skipped: 0,
+        videoHistory: {},
+        videoSize: 0
+      }
+    ];
+
+    const report = buildSyncReport(stats, {});
+    const tableSection = report.sections.find((s) => s.title === "Date Mismatch Summary");
+    expect(tableSection).toBeDefined();
+    expect(tableSection?.type).toBe("table");
+
+    const data = tableSection?.data as string[][];
+    // Row 0: Total Mismatches -> 3
+    // Row 1: New Mismatches -> 2
+    // Columns: [Label, Production, Total]
+    expect(data[0]?.[1]).toBe("3");
+    expect(data[0]?.[2]).toContain("3"); // Total column (HTML)
+
+    expect(data[1]?.[1]).toBe("2");
+    expect(data[1]?.[2]).toContain("2");
+  });
+
+  it("should generate Date Mismatches Trend chart", () => {
+    const stats: SyncStats[] = [
+      {
+        arDataSize: 0,
+        dateMismatches: [
+          {
+            diffHours: 25,
+            environment: "Production",
+            id: "1",
+            isNew: true,
+            scanDate: "2023-01-15T00:00:00Z",
+            videoDate: ""
+          },
+          {
+            diffHours: 35,
+            environment: "Production",
+            id: "2",
+            isNew: false,
+            scanDate: "2023-02-10T00:00:00Z",
+            videoDate: ""
+          }
+        ],
+        env: "Production",
+        errors: [],
+        failed: 0,
+        found: 10,
+        knownFailures: 0,
+        new: 0,
+        newArDataSize: 0,
+        newFailures: 0,
+        newRawScanSize: 0,
+        newVideoSize: 0,
+        processedIds: new Set(),
+        rawScanSize: 0,
+        skipped: 0,
+        videoHistory: {
+          "2023-01": { count: 1, totalSize: 100 },
+          "2023-03": { count: 1, totalSize: 100 }
+        },
+        videoSize: 0
+      }
+    ];
+
+    const report = buildSyncReport(stats, {});
+    // Should pass the Total Mismatches > 0 check to generate chart
+    const chartSection = report.sections.find((s) => s.title === "Date Mismatches Trend");
+    expect(chartSection).toBeDefined();
+
+    const config = chartSection?.data as LineChartConfig;
+    // Jan (mix), Feb (mismatch only), Mar (video history only)
+    expect(config.labels).toEqual(["2023-01", "2023-02", "2023-03"]);
+    // Jan: 1 mismatch. Feb: 1 mismatch. Mar: 0 mismatches.
+    expect(config.datasets[0]?.data).toEqual([1, 1, 0]);
+  });
+
+  it("should handle zero count in video history for size chart", () => {
+    const stats: SyncStats[] = [
+      {
+        arDataSize: 0,
+        dateMismatches: [],
+        env: "Production",
+        errors: [],
+        failed: 0,
+        found: 0,
+        knownFailures: 0,
+        new: 0,
+        newArDataSize: 0,
+        newFailures: 0,
+        newRawScanSize: 0,
+        newVideoSize: 0,
+        processedIds: new Set(),
+        rawScanSize: 0,
+        skipped: 0,
+        videoHistory: {
+          "2023-01": { count: 0, totalSize: 0 }, // Should result in null data point
+          "2023-02": { count: 1, totalSize: 100 }
+        },
+        videoSize: 0
+      }
+    ];
+
+    const report = buildSyncReport(stats, {});
+    const chartSection = report.sections.find((s) => s.title === "Average Video Size Trend");
+    const config = chartSection?.data as LineChartConfig;
+
+    // Verify first data point is null (line 276 coverage)
+    expect(config.datasets[0]?.data[0]).toBeNull();
+    expect(config.datasets[0]?.data[1]).toBe(100 / 1 / (1024 * 1024));
+  });
+
+  it("should render MismatchChartComponent", () => {
+    const stats: SyncStats[] = [
+      {
+        arDataSize: 0,
+        dateMismatches: [
+          {
+            diffHours: 26,
+            environment: "Production",
+            id: "1",
+            isNew: true,
+            scanDate: "2023-01-01T00:00:00Z",
+            videoDate: ""
+          }
+        ],
+        env: "Production",
+        errors: [],
+        failed: 0,
+        found: 0,
+        knownFailures: 0,
+        new: 0,
+        newArDataSize: 0,
+        newFailures: 0,
+        newRawScanSize: 0,
+        newVideoSize: 0,
+        processedIds: new Set(),
+        rawScanSize: 0,
+        skipped: 0,
+        videoHistory: {},
+        videoSize: 0
+      }
+    ];
+
+    const report = buildSyncReport(stats, {});
+    const chartSection = report.sections.find((s) => s.title === "Date Mismatches Trend");
+    // Executing the component function to cover line 408
+    const Component = chartSection?.component as React.FC;
+    expect(Component).toBeDefined();
+    const element = Component({});
+    expect(element).toBeDefined();
   });
 });

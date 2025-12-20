@@ -13,6 +13,15 @@ import { generatePdfReport } from "../../../src/utils/reportGenerator";
 import { downloadFile, downloadJsonFile } from "../../../src/utils/sync/downloadHelpers";
 import { logger } from "../../../src/utils/logger";
 
+// Mock fs to allow spying on statSync
+vi.mock("fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("fs")>();
+  return {
+    ...actual,
+    statSync: vi.fn(actual.statSync)
+  };
+});
+
 // --- Mocks ---
 
 vi.mock("../../../src/utils/reportGenerator", () => ({
@@ -64,6 +73,10 @@ const mockDownloadJsonFile = downloadJsonFile as unknown as Mock;
 const mockBuildSyncReport = buildSyncReport as unknown as Mock;
 const mockLoggerError = logger.error as unknown as Mock;
 const mockLoggerWarn = logger.warn as unknown as Mock;
+
+import { extractVideoMetadata } from "../../../src/utils/video/metadata";
+vi.mock("../../../src/utils/video/metadata");
+const mockExtractVideoMetadata = extractVideoMetadata as unknown as Mock;
 
 describe("syncArtifacts", () => {
   let tmpDir: string;
@@ -429,6 +442,101 @@ describe("syncArtifacts", () => {
         "sync-report.pdf"
       );
     });
+  });
+
+  describe("Date Mismatch Check", () => {
+    const env = { domain: "test.com", name: "test-env" };
+    const artifact = {
+      arData: "a.json",
+      id: "123",
+      rawScan: "r.json",
+      scanDate: "2023-01-01T10:00:00Z",
+      video: "v.mp4"
+    };
+    const getArtifactDir = (id: string) => path.join(tmpDir, "data", "artifacts", "test_env", id);
+
+    it("detects date mismatch when difference > 24 hours", async () => {
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifact] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      // Mock video metadata with 26 hours difference
+      // API: 10:00
+      // Video: 2023-01-02T12:00:00Z (+26h)
+      mockExtractVideoMetadata.mockResolvedValue({
+        creationTime: "2023-01-02T12:00:00Z",
+        duration: 10,
+        fps: 30,
+        height: 1080,
+        width: 1920
+      });
+
+      const stats = await syncEnvironment(env);
+
+      expect(stats.dateMismatches).toHaveLength(1);
+      expect(stats.dateMismatches[0]).toEqual({
+        diffHours: 26,
+        environment: "test-env",
+        id: "123",
+        isNew: true,
+        scanDate: "2023-01-01T10:00:00Z",
+        videoDate: "2023-01-02T12:00:00Z"
+      });
+      expect(mockExtractVideoMetadata).toHaveBeenCalledWith(getArtifactDir("123"));
+    });
+
+    it("does not report mismatch when difference <= 24 hours", async () => {
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifact] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      // 23 hours difference
+      mockExtractVideoMetadata.mockResolvedValue({
+        creationTime: "2023-01-02T09:00:00Z",
+        duration: 10,
+        fps: 30,
+        height: 1080,
+        width: 1920
+      });
+
+      const stats = await syncEnvironment(env);
+
+      expect(stats.dateMismatches).toHaveLength(0);
+    });
+  });
+
+  it("should warn if stats extraction fails (e.g. fs error)", async () => {
+    // Mock stats to throw
+    vi.mocked(fs.statSync).mockImplementation(() => {
+      throw new Error("Stats Failure Injection");
+    });
+
+    MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+      data: [
+        {
+          arData: "a",
+          id: "stats_fail_id",
+          rawScan: "r",
+          scanDate: "2023-01-01",
+          video: "v"
+        }
+      ] as unknown as ArtifactResponse[],
+      pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+    });
+    // Ensure downloads succeed
+    mockDownloadFile.mockResolvedValue(null);
+    mockDownloadJsonFile.mockResolvedValue(null);
+
+    const env = { domain: "test.com", name: "test_env" };
+    await syncEnvironment(env);
+
+    expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Failed to get stats/metadata"));
+
+    // Restore
+    const { statSync } = await vi.importActual<typeof import("fs")>("fs");
+    vi.mocked(fs.statSync).mockImplementation(statSync);
   });
 
   describe("main", () => {

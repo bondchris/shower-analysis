@@ -12,6 +12,9 @@
     --color-red-100: oklch(93.6% 0.032 17.717);
     --color-red-500: oklch(63.7% 0.237 25.331);
     --color-red-800: oklch(44.4% 0.177 26.899);
+    --color-orange-50: oklch(98% 0.016 73.684);
+    --color-orange-100: oklch(95.4% 0.038 75.164);
+    --color-orange-800: oklch(47% 0.157 37.304);
     --color-yellow-50: oklch(98.7% 0.026 102.212);
     --color-yellow-100: oklch(97.3% 0.071 103.193);
     --color-yellow-800: oklch(47.6% 0.114 61.907);
@@ -347,6 +350,12 @@
   .bg-green-100 {
     background-color: var(--color-green-100);
   }
+  .bg-orange-50 {
+    background-color: var(--color-orange-50);
+  }
+  .bg-orange-100 {
+    background-color: var(--color-orange-100);
+  }
   .bg-red-50 {
     background-color: var(--color-red-50);
   }
@@ -444,6 +453,9 @@
   }
   .text-green-800 {
     color: var(--color-green-800);
+  }
+  .text-orange-800 {
+    color: var(--color-orange-800);
   }
   .text-red-800 {
     color: var(--color-red-800);

@@ -72,4 +72,23 @@ describe("LineChart", () => {
     const { container } = render(<LineChart config={config} />);
     expect(container.querySelector("svg")).not.toBeNull();
   });
+
+  it("should render legend for multiple datasets", () => {
+    const config: LineChartConfig = {
+      datasets: [
+        { borderColor: "red", data: [DATA_A, DATA_B], label: "Set A" },
+        { borderColor: "blue", data: [DATA_B, DATA_C], label: "Set B" }
+      ],
+      height: HEIGHT,
+      labels: ["1", "2"],
+      options: { title: "Multi Chart", yLabel: "Y" },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    // Check if legend is rendered (foreignObject)
+    expect(container.querySelector("foreignObject")).not.toBeNull();
+    // Check for labels
+    expect(container.textContent).toContain("Set A");
+    expect(container.textContent).toContain("Set B");
+  });
 });

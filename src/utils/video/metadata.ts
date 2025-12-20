@@ -8,6 +8,7 @@ export interface VideoMetadata {
   height: number;
   fps: number;
   duration: number;
+  creationTime?: string;
 }
 
 /**
@@ -39,9 +40,12 @@ export async function extractVideoMetadata(dirPath: string): Promise<VideoMetada
   if (fs.existsSync(metaCachePath)) {
     try {
       const cachedContent = fs.readFileSync(metaCachePath, "utf-8");
-      return JSON.parse(cachedContent) as VideoMetadata;
+      const cachedData = JSON.parse(cachedContent) as VideoMetadata;
+      if (cachedData.creationTime !== undefined) {
+        return cachedData;
+      }
     } catch {
-      // If cache is corrupt, proceed to extraction
+      // If cache is corrupt or missing new fields, proceed to extraction
     }
   }
 
@@ -91,6 +95,10 @@ export async function extractVideoMetadata(dirPath: string): Promise<VideoMetada
       const format = vidMeta.format;
       if (format.duration !== undefined) {
         result.duration = format.duration;
+      }
+
+      if (format.tags?.["creation_time"] !== undefined) {
+        result.creationTime = String(format.tags["creation_time"]);
       }
 
       // Persist to cache

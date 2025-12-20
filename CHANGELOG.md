@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-20
 
+### [v0.42.0] Add Date Mismatch Analysis and Trends
+
+- **Date Mismatch Reporting**: Added a "Date Mismatches" section in Sync Report with trend charts, summary tables, and cleaner list formatting.
+- **Detailed List Improvements**: Formatted tables across reports to be consisent in the way they list environments.
+
 ### [v0.41.0] Improve device sorting and test coverage
 
 - **Lens Analysis**: Split Lens Model analysis into dedicated charts for Device, Focal Length, and Aperture with improved formatting.

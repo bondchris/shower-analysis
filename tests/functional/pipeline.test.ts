@@ -83,7 +83,7 @@ vi.mock("fluent-ffmpeg", () => {
           // Logic to return metadata based on file name
           const duration = file.includes("scan-short-video") ? 5 : 15;
           cb(null, {
-            format: { duration },
+            format: { duration, tags: { creation_time: "2023-01-01T00:00:00Z" } },
             streams: [{ codec_type: "video", height: 1080, r_frame_rate: "30/1", width: 1920 }]
           });
         })
