@@ -6,8 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### [v0.42.1] Maintenance: Type Safety Improvements
 
-- **Refactor**: Improved type safety in `checkColinearWalls.ts` by using explicit `entries()` iteration and `expectDefined` helper, resolving potential `undefined` access issues without `eslint-disable`.
-- **Linting**: Removed `eslint-disable` exceptions from codebase.
+- **Visualization updates**: Visualize continuous data in charts instead of just counts.
+- **Shading**: Shade relevant charts to visualizually indicate their data.
 
 ### [v0.42.0] Add Date Mismatch Analysis and Trends
 
