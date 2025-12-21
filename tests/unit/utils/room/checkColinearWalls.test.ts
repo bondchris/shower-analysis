@@ -1,10 +1,20 @@
 import convert from "convert-units";
 
-import { checkColinearWalls } from "../../../../src/utils/room/checkColinearWalls";
+import { checkColinearWalls, expectDefined } from "../../../../src/utils/room/checkColinearWalls";
 import { createExternalWall, createMockScan } from "./testHelpers";
 
 describe("checkColinearWalls", () => {
   const INCH = convert(1).from("in").to("m");
+
+  describe("expectDefined Helper", () => {
+    it("should return value if defined", () => {
+      expect(expectDefined(123, "error")).toBe(123);
+    });
+
+    it("should throw specific error if value is undefined", () => {
+      expect(() => expectDefined(undefined as unknown, "Custom Error")).toThrow("Custom Error");
+    });
+  });
 
   describe("Core 'should detect' cases", () => {
     it("should return true for end-to-end walls with 0 gap", () => {

@@ -7,7 +7,23 @@ import { LineChartConfig } from "../../../../../src/utils/chartUtils";
 
 // Mock Visx components to avoid complex SVG rendering issues
 vi.mock("@visx/group", () => ({ Group: ({ children }: { children: React.ReactNode }) => <g>{children}</g> }));
-vi.mock("@visx/shape", () => ({ Bar: () => <rect />, LinePath: () => <path /> }));
+vi.mock("@visx/shape", () => ({
+  AreaClosed: ({ x, y, data }: { data?: unknown[]; x?: (d: unknown) => number; y?: (d: unknown) => number }) => {
+    if (data && x && y) {
+      data.forEach((d) => {
+        try {
+          x(d);
+          y(d);
+        } catch {
+          /* ignore */
+        }
+      });
+    }
+    return <path data-testid="area-closed" />;
+  },
+  Bar: () => <rect />,
+  LinePath: () => <path />
+}));
 vi.mock("@visx/text", () => ({ Text: () => <text /> }));
 vi.mock("@visx/axis", () => ({ AxisBottom: () => <g />, AxisLeft: () => <g />, AxisRight: () => <g /> }));
 vi.mock("@visx/grid", () => ({ GridColumns: () => <g />, GridRows: () => <g /> }));
@@ -30,6 +46,18 @@ describe("LineChart", () => {
     expect(container).toBeDefined();
     // Basic check that SVG is rendered
     expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("should render AreaClosed when fill is true (triggers accessors)", () => {
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B], fill: true, label: "Filled" }],
+      height: HEIGHT,
+      labels: ["A", "B"],
+      options: { title: "Filled Chart", yLabel: "Y" },
+      type: "line"
+    };
+    const { getByTestId } = render(<LineChart config={config} />);
+    expect(getByTestId("area-closed")).toBeDefined();
   });
 
   it("should handle null and non-finite values gracefully", () => {

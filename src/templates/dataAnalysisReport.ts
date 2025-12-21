@@ -367,63 +367,139 @@ export function buildDataAnalysisReport(
   const briVals = metadataList.map((m) => m.avgBrightness).filter((v) => v !== NO_RESULTS);
   const areaVals = metadataList.map((m) => m.roomAreaSqFt).filter((v) => v > NO_RESULTS);
 
-  // Ambient: 980-1040, bin 5
-  charts.ambient = ChartUtils.getHistogramConfig(intensityVals, {
-    binSize: 5,
-    height: HALF_CHART_HEIGHT,
+  // Ambient: 980-1040
+  // Rendered as Kernel Density Estimation Smooth Area Chart
+  const ambientKde = ChartUtils.calculateKde(intensityVals, {
     max: 1040,
     min: 980,
-    title: "",
-    width: HISTO_CHART_WIDTH,
-    xLabel: "Lumens"
+    resolution: 200
   });
 
-  // Temp: 4000-6000, bin 250
-  charts.temperature = ChartUtils.getHistogramConfig(tempVals, {
-    binSize: 250,
-    colorByValue: ChartUtils.kelvinToRgb,
-    height: HALF_CHART_HEIGHT,
-    max: 6000,
-    min: 4000,
-    title: "",
-    width: HISTO_CHART_WIDTH,
-    xLabel: "Kelvin"
-  });
+  charts.ambient = ChartUtils.getLineChartConfig(
+    ambientKde.labels,
+    [
+      {
+        borderColor: "#d97706",
+        borderWidth: 2,
+        data: ambientKde.values,
+        fill: true,
+        gradientDirection: "horizontal",
+        gradientFrom: "#1f2937",
+        gradientTo: "#fbbf24",
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "ambient",
+      height: HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: HISTO_CHART_WIDTH,
+      yLabel: "Count"
+    }
+  );
 
-  // ISO: 0-800, bin 50
-  charts.iso = ChartUtils.getHistogramConfig(isoVals, {
-    binSize: 50,
-    height: HALF_CHART_HEIGHT,
-    max: 800,
-    min: 0,
-    title: "",
-    width: HISTO_CHART_WIDTH,
-    xLabel: "ISO"
-  });
+  // Temp: 3500-6700
+  // Rendered as KDE Smooth Area Chart
+  const tempKde = ChartUtils.calculateKde(tempVals, { max: 6700, min: 3500, resolution: 200 });
+  charts.temperature = ChartUtils.getLineChartConfig(
+    tempKde.labels,
+    [
+      {
+        borderColor: "#f59e0b",
+        borderWidth: 2,
+        data: tempKde.values,
+        fill: true,
+        gradientDirection: "horizontal",
+        gradientFrom: "#fbbf24", // Orange (3500K)
+        gradientTo: "#60a5fa", // Blue (6700K)
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "temperature",
+      height: HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: HISTO_CHART_WIDTH,
+      yLabel: "Count"
+    }
+  );
 
-  // Brightness: 0-6, bin 1
-  charts.brightness = ChartUtils.getHistogramConfig(briVals, {
-    binSize: 1,
-    decimalPlaces: 1,
-    height: HALF_CHART_HEIGHT,
-    max: 6,
-    min: 0,
-    title: "",
-    width: HISTO_CHART_WIDTH,
-    xLabel: "Value (EV)"
-  });
+  // ISO: 0-800
+  // Rendered as KDE Smooth Area Chart (Solid Fill)
+  const isoKde = ChartUtils.calculateKde(isoVals, { max: 800, min: 0, resolution: 200 });
+  charts.iso = ChartUtils.getLineChartConfig(
+    isoKde.labels,
+    [
+      {
+        borderColor: "#6366f1",
+        borderWidth: 2,
+        data: isoKde.values,
+        fill: true,
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "iso",
+      height: HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: HISTO_CHART_WIDTH,
+      yLabel: "Count"
+    }
+  );
 
-  // Room Area: 0-150, bin 10
-  charts.area = ChartUtils.getHistogramConfig(areaVals, {
-    binSize: 10,
-    height: DURATION_CHART_HEIGHT,
-    hideUnderflow: true,
-    max: 150,
-    min: 0,
-    title: "",
-    width: DURATION_CHART_WIDTH,
-    xLabel: "Sq Ft"
-  });
+  // Brightness: 0-6
+  // Rendered as KDE Smooth Area Chart
+  const briKde = ChartUtils.calculateKde(briVals, { max: 6, min: 0, resolution: 200 });
+  charts.brightness = ChartUtils.getLineChartConfig(
+    briKde.labels,
+    [
+      {
+        borderColor: "#eab308",
+        borderWidth: 2,
+        data: briKde.values,
+        fill: true,
+        gradientDirection: "horizontal",
+        gradientFrom: "#1f2937",
+        gradientTo: "#fef08a",
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "brightness",
+      height: HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: HISTO_CHART_WIDTH,
+      yLabel: "Count"
+    }
+  );
+
+  // Room Area: 0-150
+  // Rendered as KDE Smooth Area Chart (Solid Fill)
+  const areaKde = ChartUtils.calculateKde(areaVals, { max: 150, min: 0, resolution: 200 });
+  charts.area = ChartUtils.getLineChartConfig(
+    areaKde.labels,
+    [
+      {
+        borderColor: "#10b981",
+        borderWidth: 2,
+        data: areaKde.values,
+        fill: true,
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "area",
+      height: DURATION_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: DURATION_CHART_WIDTH,
+      yLabel: "Count"
+    }
+  );
 
   // Capture Errors & Features
   const errorDefs: ChartDef[] = [

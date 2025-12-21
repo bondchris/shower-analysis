@@ -7,6 +7,10 @@ export interface LineChartDataset {
   data: (number | null)[];
   borderColor: string;
   borderWidth?: number;
+  fill?: boolean;
+  gradientFrom?: string;
+  gradientTo?: string;
+  gradientDirection?: "vertical" | "horizontal";
 }
 
 export interface LineChartOptions {
@@ -14,6 +18,8 @@ export interface LineChartOptions {
   height?: number;
   title?: string;
   yLabel?: string;
+  smooth?: boolean;
+  chartId?: string;
 }
 
 export interface HistogramOptions {
@@ -131,7 +137,7 @@ export function calculateHistogramBins(data: number[], options: HistogramOptions
   }
 
   const initialCount = 0;
-  const extraBuckets = 2;
+  const extraBuckets = 2; // Underflow + Overflow
   const underflowIndex = 0;
   const offset = 1;
 
@@ -217,6 +223,92 @@ export function calculateHistogramBinCenter(
   return min + offsetVal + halfBin;
 }
 
+export function calculateMean(data: number[]): number {
+  const zeroValue = 0;
+  if (data.length === zeroValue) {
+    return zeroValue;
+  }
+  const initialSum = 0;
+  return data.reduce((sum, val) => sum + val, initialSum) / data.length;
+}
+
+export function calculateStdDev(data: number[]): number {
+  const minLength = 2;
+  const zeroValue = 0;
+  if (data.length < minLength) {
+    return zeroValue;
+  }
+  const mean = calculateMean(data);
+  const power = 2;
+  const offset = 1;
+  const initialSum = 0;
+  const variance = data.reduce((sum, val) => sum + Math.pow(val - mean, power), initialSum) / (data.length - offset);
+  return Math.sqrt(variance);
+}
+
+export interface KdeResult {
+  labels: string[];
+  values: number[];
+}
+
+export function calculateKde(data: number[], options: { min: number; max: number; resolution?: number }): KdeResult {
+  const defaultResolution = 100;
+  const { min, max, resolution = defaultResolution } = options;
+  const validData = data.filter((d) => Number.isFinite(d));
+  const n = validData.length;
+
+  const zeroValue = 0;
+  if (n === zeroValue) {
+    return { labels: [], values: [] };
+  }
+
+  const std = calculateStdDev(validData);
+
+  // Silverman's Rule of Thumb for bandwidth
+  // Fallback to non-zero bandwidth if std is 0 (all points same)
+  const defaultBandwidth = 1.0;
+  const hMult = 1.06;
+  const hPow = -0.2;
+  let h = hMult * std * Math.pow(n, hPow);
+  if (h === zeroValue) {
+    h = defaultBandwidth;
+  }
+
+  const labels: string[] = [];
+  const values: number[] = [];
+
+  const resolutionOffset = 1;
+  const step = (max - min) / (resolution - resolutionOffset);
+  const PI_FACTOR = 2;
+  const sqrt2Pi = Math.sqrt(PI_FACTOR * Math.PI);
+  const EXP_FACTOR = -0.5;
+
+  for (let i = 0; i < resolution; i++) {
+    const offset = i * step;
+    const x = min + offset;
+    let sumKernel = 0;
+    for (const d of validData) {
+      const u = (x - d) / h;
+      sumKernel += Math.exp(EXP_FACTOR * u * u) / sqrt2Pi;
+    }
+    // Density * N gives approximate count density per unit
+    // We multiply by N so the magnitude reflects point counts roughly
+    // value = (1/h) * sumKernel
+    // This is the sum of kernels.
+    // If we want Density: (1 / (n * h)) * sumKernel
+    // If we want "Sum of kernels": (1/h) * sumKernel
+    // We'll return Sum of Kernels (scaled density) for nicer Y-axis values
+    const unit = 1;
+    const value = (unit / h) * sumKernel;
+
+    const labelDecimalPlaces = 1;
+    labels.push(x.toFixed(labelDecimalPlaces));
+    values.push(value);
+  }
+
+  return { labels, values };
+}
+
 // --- Config Builders ---
 
 export function getLineChartConfig(
@@ -237,6 +329,9 @@ export function getLineChartConfig(
   }
   if (width !== undefined) {
     configOptions.width = width;
+  }
+  if (options.chartId !== undefined) {
+    configOptions.chartId = options.chartId;
   }
 
   return {

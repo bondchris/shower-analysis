@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-20
 
+### [v0.42.1] Maintenance: Type Safety Improvements
+
+- **Refactor**: Improved type safety in `checkColinearWalls.ts` by using explicit `entries()` iteration and `expectDefined` helper, resolving potential `undefined` access issues without `eslint-disable`.
+- **Linting**: Removed `eslint-disable` exceptions from codebase.
+
 ### [v0.42.0] Add Date Mismatch Analysis and Trends
 
 - **Date Mismatch Reporting**: Added a "Date Mismatches" section in Sync Report with trend charts, summary tables, and cleaner list formatting.

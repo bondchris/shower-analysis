@@ -74,26 +74,14 @@ export function checkColinearWalls(rawScan: RawScan): boolean {
 
   let colinearErrorFound = false;
 
-  for (let i = 0; i < roomWalls.length; i++) {
-    const wA = roomWalls[i];
-    if (!wA) {
-      continue;
-    }
-
+  for (const [i, wA] of roomWalls.entries()) {
     let maxLenA = 0;
     let vAx = 0;
     let vAy = 0;
-    const MIN_PTS = 2;
-    if (wA.corners.length < MIN_PTS) {
-      continue;
-    }
 
     for (let k = 0; k < wA.corners.length; k++) {
-      const p1 = wA.corners[k];
-      const p2 = wA.corners[(k + NEXT_IDX_ONE) % wA.corners.length];
-      if (!p1 || !p2) {
-        continue;
-      }
+      const p1 = expectDefined(wA.corners[k], "Wall A Corner Missing");
+      const p2 = expectDefined(wA.corners[(k + NEXT_IDX_ONE) % wA.corners.length], "Wall A Corner Missing");
 
       const v = subtract(p2, p1);
       const len = Math.sqrt(magnitudeSquared(v));
@@ -104,12 +92,8 @@ export function checkColinearWalls(rawScan: RawScan): boolean {
       }
     }
 
-    for (let j = i + NEXT_IDX_ONE; j < roomWalls.length; j++) {
-      const wB = roomWalls[j];
-      if (!wB) {
-        continue;
-      }
-
+    // Use slice to avoid indexed access for wB
+    for (const wB of roomWalls.slice(i + NEXT_IDX_ONE)) {
       // Check Story (if both defined)
       if (wA.story !== undefined && wB.story !== undefined && wA.story !== wB.story) {
         continue;
@@ -119,16 +103,10 @@ export function checkColinearWalls(rawScan: RawScan): boolean {
       let maxLenB = 0;
       let vBx = 0;
       let vBy = 0;
-      if (wB.corners.length < MIN_PTS) {
-        continue;
-      }
 
       for (let k = 0; k < wB.corners.length; k++) {
-        const p1 = wB.corners[k];
-        const p2 = wB.corners[(k + NEXT_IDX_ONE) % wB.corners.length];
-        if (!p1 || !p2) {
-          continue;
-        }
+        const p1 = expectDefined(wB.corners[k], "Wall B Corner Missing");
+        const p2 = expectDefined(wB.corners[(k + NEXT_IDX_ONE) % wB.corners.length], "Wall B Corner Missing");
 
         const v = subtract(p2, p1);
         const len = Math.sqrt(magnitudeSquared(v));
@@ -152,13 +130,11 @@ export function checkColinearWalls(rawScan: RawScan): boolean {
       // Check distance from A corners to B segments
       for (const pA of wA.corners) {
         for (let k = 0; k < wB.corners.length; k++) {
-          const pB1 = wB.corners[k];
-          const pB2 = wB.corners[(k + NEXT_IDX_ONE) % wB.corners.length];
-          if (pB1 && pB2) {
-            const d = distToSegment(pA, pB1, pB2);
-            if (d < minDist) {
-              minDist = d;
-            }
+          const pB1 = expectDefined(wB.corners[k], "Wall B Corner Missing");
+          const pB2 = expectDefined(wB.corners[(k + NEXT_IDX_ONE) % wB.corners.length], "Wall B Corner Missing");
+          const d = distToSegment(pA, pB1, pB2);
+          if (d < minDist) {
+            minDist = d;
           }
         }
       }
@@ -166,13 +142,11 @@ export function checkColinearWalls(rawScan: RawScan): boolean {
       // Check distance from B corners to A segments
       for (const pB of wB.corners) {
         for (let k = 0; k < wA.corners.length; k++) {
-          const pA1 = wA.corners[k];
-          const pA2 = wA.corners[(k + NEXT_IDX_ONE) % wA.corners.length];
-          if (pA1 && pA2) {
-            const d = distToSegment(pB, pA1, pA2);
-            if (d < minDist) {
-              minDist = d;
-            }
+          const pA1 = expectDefined(wA.corners[k], "Wall A Corner Missing");
+          const pA2 = expectDefined(wA.corners[(k + NEXT_IDX_ONE) % wA.corners.length], "Wall A Corner Missing");
+          const d = distToSegment(pB, pA1, pA2);
+          if (d < minDist) {
+            minDist = d;
           }
         }
       }
@@ -188,4 +162,12 @@ export function checkColinearWalls(rawScan: RawScan): boolean {
   }
 
   return colinearErrorFound;
+}
+
+// Exported for testing purposes to achieve 100% coverage on the helper itself
+export function expectDefined<T>(value: T | undefined, msg: string): T {
+  if (value === undefined) {
+    throw new Error(msg);
+  }
+  return value;
 }

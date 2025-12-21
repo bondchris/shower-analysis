@@ -2,7 +2,9 @@ import { AxisBottom, AxisLeft } from "@visx/axis";
 import { GridRows } from "@visx/grid";
 import { Group } from "@visx/group";
 import { scaleLinear, scalePoint } from "@visx/scale";
-import { LinePath } from "@visx/shape";
+import { LinearGradient } from "@visx/gradient";
+import { curveLinear, curveMonotoneX } from "@visx/curve";
+import { AreaClosed, LinePath } from "@visx/shape";
 import React from "react";
 
 import { LineChartConfig } from "../../../utils/chartUtils";
@@ -63,6 +65,8 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
   const legendHeight = legendRows * legendRowHeight;
   const legendYPosition = height - legendBottomOffset - legendHeight;
 
+  const curveType = options.smooth === true ? curveMonotoneX : curveLinear;
+
   return (
     <svg height={height} width={width}>
       <Group left={margin.left} top={margin.top}>
@@ -89,14 +93,62 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
             .filter((p): p is { x: number; y: number } => p !== null);
 
           return (
-            <LinePath<{ x: number; y: number }>
-              key={idx}
-              data={points}
-              stroke={color}
-              strokeWidth={dataset.borderWidth ?? defaultBorderWidth}
-              x={(d) => d.x}
-              y={(d) => d.y}
-            />
+            <React.Fragment key={idx}>
+              {dataset.fill === true && (
+                <>
+                  {(() => {
+                    const fallback = "chart";
+                    const gradientId = `gradient-${options.chartId ?? fallback}-${String(idx)}`;
+                    const gradientOpacity = 0.6;
+                    const fillOpacityStart = 0.6;
+                    const fillOpacityEnd = 0.1;
+                    const solidOpacity = 0.2;
+                    const fullOpacity = 1;
+                    const fallbackColor = "#000";
+
+                    return (
+                      <>
+                        {(typeof dataset.gradientFrom === "string" || typeof dataset.gradientTo === "string") && (
+                          <LinearGradient
+                            from={dataset.gradientFrom ?? color ?? fallbackColor}
+                            fromOpacity={gradientOpacity}
+                            id={gradientId}
+                            to={dataset.gradientTo ?? color ?? fallbackColor}
+                            toOpacity={dataset.gradientDirection === "horizontal" ? fillOpacityStart : fillOpacityEnd}
+                            vertical={dataset.gradientDirection !== "horizontal"}
+                          />
+                        )}
+                        <AreaClosed<{ x: number; y: number }>
+                          curve={curveType}
+                          data={points}
+                          fill={
+                            typeof dataset.gradientFrom === "string" || typeof dataset.gradientTo === "string"
+                              ? `url(#${gradientId})`
+                              : color
+                          }
+                          fillOpacity={
+                            typeof dataset.gradientFrom === "string" || typeof dataset.gradientTo === "string"
+                              ? fullOpacity
+                              : solidOpacity
+                          }
+                          x={(d) => d.x}
+                          y={(d) => d.y}
+                          yScale={yScale}
+                        />
+                      </>
+                    );
+                  })()}
+                </>
+              )}
+              <LinePath<{ x: number; y: number }>
+                curve={curveType}
+                data={points}
+                stroke={color}
+                strokeWidth={dataset.borderWidth ?? defaultBorderWidth}
+                x={(d) => d.x}
+                y={(d) => d.y}
+              />
+            </React.Fragment>
           );
         })}
 

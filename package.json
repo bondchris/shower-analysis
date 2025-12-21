@@ -1,6 +1,6 @@
 {
   "name": "shower-analysis",
-  "version": "0.42.0",
+  "version": "0.42.1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -51,6 +51,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@visx/axis": "^3.10.1",
+    "@visx/gradient": "^3.12.0",
     "@visx/grid": "^3.5.0",
     "@visx/group": "^3.3.0",
     "@visx/scale": "^3.5.0",
