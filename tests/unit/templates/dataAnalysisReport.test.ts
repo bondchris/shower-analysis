@@ -9,8 +9,10 @@ vi.mock("../../../src/utils/chartUtils", async () => {
   const actual = await vi.importActual("../../../src/utils/chartUtils");
   return {
     ...actual,
+    calculateKde: vi.fn().mockReturnValue({ labels: [0, 1, 2], values: [0, 1, 0] }),
     getBarChartConfig: vi.fn().mockReturnValue({ type: "bar" }),
-    getHistogramConfig: vi.fn().mockReturnValue({ type: "histogram" })
+    getHistogramConfig: vi.fn().mockReturnValue({ type: "histogram" }),
+    getLineChartConfig: vi.fn().mockReturnValue({ type: "line" })
   };
 });
 
@@ -171,7 +173,7 @@ describe("buildDataAnalysisReport", () => {
     expect(report.subtitle).toContain("Avg Duration: 60");
 
     // Duration, Frame/Res Row, Page Break, Device, Focal/Aperture Row, Ambient, Temp, ISO, Brightness, Area, Errors, Features, Objects, Sections
-    // 14
+    // 14 (window/door/opening area charts only added when artifactDirs provided)
     const EXPECTED_SECTION_COUNT = 14;
     expect(report.sections).toHaveLength(EXPECTED_SECTION_COUNT);
 
@@ -904,6 +906,289 @@ describe("buildDataAnalysisReport", () => {
       // Should generate sections chart
       const sectionsSection = report.sections.find((s) => s.title === "Section Types");
       expect(sectionsSection).toBeDefined();
+    });
+  });
+
+  describe("unexpected version error", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    });
+
+    it("should not add unexpected version error when artifact directories not provided", () => {
+      const report = buildDataAnalysisReport(mockMetadata, 60, 1);
+      const errorsSection = report.sections.find((s) => s.title === "Capture Errors");
+      expect(errorsSection).toBeDefined();
+
+      // Find the errors chart call
+      const errorsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
+        (call: unknown[]) => {
+          const labels = call[0] as string[];
+          return labels.includes("Unexpected Version");
+        }
+      );
+      expect(errorsChartCall).toBeUndefined();
+    });
+
+    it("should count unexpected versions when artifact directories provided", () => {
+      const mockRawScanDataVersion1 = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 1,
+        walls: [],
+        windows: []
+      };
+
+      const mockRawScanDataVersion2 = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [],
+        windows: []
+      };
+
+      const mockRawScanDataVersion3 = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 3,
+        walls: [],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+
+      // Return the correct version based on directory path
+      // This handles both getUnexpectedVersionArtifactDirs and getObjectConfidenceCounts calls
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        // Use path.basename or check the full path
+        const normalizedPath = filePath.replace(/\\/g, "/");
+        if (normalizedPath.includes("/dir1/") || normalizedPath.endsWith("/dir1/rawScan.json")) {
+          return JSON.stringify(mockRawScanDataVersion1);
+        }
+        if (normalizedPath.includes("/dir2/") || normalizedPath.endsWith("/dir2/rawScan.json")) {
+          return JSON.stringify(mockRawScanDataVersion2);
+        }
+        if (normalizedPath.includes("/dir3/") || normalizedPath.endsWith("/dir3/rawScan.json")) {
+          return JSON.stringify(mockRawScanDataVersion3);
+        }
+        // Fallback for other calls
+        return JSON.stringify(mockRawScanDataVersion2);
+      });
+
+      // Use exactly 3 metadata items to match 3 directories
+      const metadataForTest: ArtifactAnalysis[] = [
+        Object.assign({}, mockMetadata[0]),
+        Object.assign({}, mockMetadata[0]),
+        Object.assign({}, mockMetadata[0])
+      ];
+      const artifactDirs = ["/test/dir1", "/test/dir2", "/test/dir3"];
+      buildDataAnalysisReport(metadataForTest, 60, 1, artifactDirs);
+
+      // Find the errors chart call
+      const errorsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
+        (call: unknown[]) => {
+          const labels = call[0] as string[];
+          return labels.includes("Unexpected Version");
+        }
+      );
+
+      expect(errorsChartCall).toBeDefined();
+      if (errorsChartCall !== undefined) {
+        const labels = errorsChartCall[0] as string[];
+        const counts = errorsChartCall[1] as number[];
+        const unexpectedVersionIndex = labels.indexOf("Unexpected Version");
+        expect(unexpectedVersionIndex).toBeGreaterThanOrEqual(0);
+        // Should count 2 unexpected versions (version 1 and version 3)
+        expect(counts[unexpectedVersionIndex]).toBe(2);
+      }
+    });
+
+    it("should count zero unexpected versions when all are version 2", () => {
+      const mockRawScanDataVersion2 = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanDataVersion2));
+
+      const artifactDirs = ["/test/dir1", "/test/dir2"];
+      buildDataAnalysisReport(mockMetadata.slice(0, 2), 60, 1, artifactDirs);
+
+      // Find the errors chart call
+      const errorsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
+        (call: unknown[]) => {
+          const labels = call[0] as string[];
+          return labels.includes("Unexpected Version");
+        }
+      );
+
+      expect(errorsChartCall).toBeDefined();
+      if (errorsChartCall !== undefined) {
+        const labels = errorsChartCall[0] as string[];
+        const counts = errorsChartCall[1] as number[];
+        const unexpectedVersionIndex = labels.indexOf("Unexpected Version");
+        expect(unexpectedVersionIndex).toBeGreaterThanOrEqual(0);
+        // Should count 0 unexpected versions
+        expect(counts[unexpectedVersionIndex]).toBe(0);
+      }
+    });
+
+    it("should handle missing rawScan files when counting unexpected versions", () => {
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+
+      const artifactDirs = ["/test/dir1"];
+      buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Find the errors chart call
+      const errorsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
+        (call: unknown[]) => {
+          const labels = call[0] as string[];
+          return labels.includes("Unexpected Version");
+        }
+      );
+
+      expect(errorsChartCall).toBeDefined();
+      if (errorsChartCall !== undefined) {
+        const labels = errorsChartCall[0] as string[];
+        const counts = errorsChartCall[1] as number[];
+        const unexpectedVersionIndex = labels.indexOf("Unexpected Version");
+        expect(unexpectedVersionIndex).toBeGreaterThanOrEqual(0);
+        // Should count 0 when file is missing
+        expect(counts[unexpectedVersionIndex]).toBe(0);
+      }
+    });
+  });
+
+  describe("window, door, and opening area charts", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    });
+
+    it("should not add area charts when artifact directories not provided", () => {
+      const report = buildDataAnalysisReport(mockMetadata, 60, 1);
+      const sectionTitles = report.sections.map((s) => s.title);
+      expect(sectionTitles).not.toContain("Window Areas");
+      expect(sectionTitles).not.toContain("Door Areas");
+      expect(sectionTitles).not.toContain("Opening Areas");
+    });
+
+    it("should add area charts when artifact directories provided with window, door, and opening data", () => {
+      const mockRawScanData = {
+        coreModel: "test",
+        doors: [
+          {
+            confidence: { high: {} },
+            dimensions: [0.9, 2.1, 0]
+          }
+        ],
+        floors: [],
+        objects: [],
+        openings: [
+          {
+            dimensions: [1.2, 0.8, 0]
+          }
+        ],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [],
+        windows: [
+          {
+            confidence: { high: {} },
+            dimensions: [1.5, 1.2, 0]
+          }
+        ]
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+
+      const artifactDirs = ["/test/dir1"];
+      const report = buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      const sectionTitles = report.sections.map((s) => s.title);
+      expect(sectionTitles).toContain("Window Areas");
+      expect(sectionTitles).toContain("Door Areas");
+      expect(sectionTitles).toContain("Opening Areas");
+
+      // Verify line charts were created for area charts
+      const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const windowAreaCall = lineChartCalls.find((call: unknown[]) => {
+        const options = call[2] as { chartId?: string };
+        return options.chartId === "windowArea";
+      });
+      const doorAreaCall = lineChartCalls.find((call: unknown[]) => {
+        const options = call[2] as { chartId?: string };
+        return options.chartId === "doorArea";
+      });
+      const openingAreaCall = lineChartCalls.find((call: unknown[]) => {
+        const options = call[2] as { chartId?: string };
+        return options.chartId === "openingArea";
+      });
+
+      expect(windowAreaCall).toBeDefined();
+      expect(doorAreaCall).toBeDefined();
+      expect(openingAreaCall).toBeDefined();
+    });
+
+    it("should handle missing dimensions gracefully", () => {
+      const mockRawScanData = {
+        coreModel: "test",
+        doors: [{}],
+        floors: [],
+        objects: [],
+        openings: [{}],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [],
+        windows: [{}]
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+
+      const artifactDirs = ["/test/dir1"];
+      const report = buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Should still create charts even with empty data
+      const sectionTitles = report.sections.map((s) => s.title);
+      expect(sectionTitles).toContain("Window Areas");
+      expect(sectionTitles).toContain("Door Areas");
+      expect(sectionTitles).toContain("Opening Areas");
     });
   });
 });

@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import convert from "convert-units";
 
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
 import { RawScan } from "../models/rawScan/rawScan";
@@ -24,6 +25,9 @@ export interface CaptureCharts {
   focalLength: ChartConfiguration;
   aperture: ChartConfiguration;
   sections: ChartConfiguration;
+  windowArea: ChartConfiguration;
+  doorArea: ChartConfiguration;
+  openingArea: ChartConfiguration;
 }
 
 // Helper interface for local chart data preparation
@@ -134,6 +138,136 @@ function getObjectConfidenceCounts(artifactDirs: string[]): ObjectConfidenceCoun
   }
 
   return counts;
+}
+
+function getUnexpectedVersionArtifactDirs(artifactDirs: string[]): Set<string> {
+  const unexpectedDirs = new Set<string>();
+  const expectedVersion = 2;
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+      if (rawScan.version !== expectedVersion) {
+        unexpectedDirs.add(dir);
+      }
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return unexpectedDirs;
+}
+
+function getWindowAreas(artifactDirs: string[]): number[] {
+  const areas: number[] = [];
+  const dimensionIndexWidth = 0;
+  const dimensionIndexHeight = 1;
+  const minDimensionsLength = 2;
+  const minAreaValue = 0;
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+
+      for (const window of rawScan.windows) {
+        if (Array.isArray(window.dimensions) && window.dimensions.length >= minDimensionsLength) {
+          const width = window.dimensions[dimensionIndexWidth];
+          const height = window.dimensions[dimensionIndexHeight];
+          if (width !== undefined && height !== undefined && width > minAreaValue && height > minAreaValue) {
+            areas.push(width * height);
+          }
+        }
+      }
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return areas;
+}
+
+function getDoorAreas(artifactDirs: string[]): number[] {
+  const areas: number[] = [];
+  const dimensionIndexWidth = 0;
+  const dimensionIndexHeight = 1;
+  const minDimensionsLength = 2;
+  const minAreaValue = 0;
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+
+      for (const door of rawScan.doors) {
+        if (Array.isArray(door.dimensions) && door.dimensions.length >= minDimensionsLength) {
+          const width = door.dimensions[dimensionIndexWidth];
+          const height = door.dimensions[dimensionIndexHeight];
+          if (width !== undefined && height !== undefined && width > minAreaValue && height > minAreaValue) {
+            areas.push(width * height);
+          }
+        }
+      }
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return areas;
+}
+
+function getOpeningAreas(artifactDirs: string[]): number[] {
+  const areas: number[] = [];
+  const dimensionIndexWidth = 0;
+  const dimensionIndexHeight = 1;
+  const minDimensionsLength = 2;
+  const minAreaValue = 0;
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+
+      for (const opening of rawScan.openings) {
+        if (Array.isArray(opening.dimensions) && opening.dimensions.length >= minDimensionsLength) {
+          const width = opening.dimensions[dimensionIndexWidth];
+          const height = opening.dimensions[dimensionIndexHeight];
+          if (width !== undefined && height !== undefined && width > minAreaValue && height > minAreaValue) {
+            areas.push(width * height);
+          }
+        }
+      }
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return areas;
+}
+
+function convertAreasToSquareFeet(areasInSquareMeters: number[]): number[] {
+  return areasInSquareMeters.map((area) => convert(area).from("m2").to("ft2"));
 }
 
 export function buildDataAnalysisReport(
@@ -629,6 +763,10 @@ export function buildDataAnalysisReport(
     }
   );
 
+  // Get set of artifact directories with unexpected versions
+  const unexpectedVersionDirs =
+    artifactDirs !== undefined ? getUnexpectedVersionArtifactDirs(artifactDirs) : new Set<string>();
+
   // Capture Errors & Features
   const errorDefs: ChartDef[] = [
     { check: (m: ArtifactAnalysis) => m.hasToiletGapErrors, count: INITIAL_COUNT, label: 'Toilet Gap > 1"' },
@@ -655,6 +793,15 @@ export function buildDataAnalysisReport(
     { check: (m: ArtifactAnalysis) => m.wallCount < MIN_WALLS, count: INITIAL_COUNT, label: "< 4 Walls" },
     { check: (m: ArtifactAnalysis) => m.hasUnparentedEmbedded, count: INITIAL_COUNT, label: "Unparented Embedded" }
   ];
+
+  // Add unexpected version error if artifact directories are provided
+  if (artifactDirs !== undefined) {
+    errorDefs.push({
+      check: () => false, // Will be handled separately in counting loop
+      count: INITIAL_COUNT,
+      label: "Unexpected Version"
+    });
+  }
 
   const featureDefs: ChartDef[] = [
     { check: (m: ArtifactAnalysis) => m.hasNonRectWall, count: INITIAL_COUNT, label: "Non-Rectangular Walls" },
@@ -700,9 +847,20 @@ export function buildDataAnalysisReport(
     { check: (m: ArtifactAnalysis) => m.hasTelevision, count: INITIAL_COUNT, label: "Television" }
   ];
 
-  for (const m of metadataList) {
+  for (let i = 0; i < metadataList.length; i++) {
+    const m = metadataList[i];
+    if (m === undefined) {
+      continue;
+    }
+    const currentDir = artifactDirs !== undefined && i < artifactDirs.length ? artifactDirs[i] : undefined;
+
     for (const d of errorDefs) {
-      if (d.check(m)) {
+      if (d.label === "Unexpected Version") {
+        // Special handling for unexpected version: check if current directory is in the set
+        if (currentDir !== undefined && unexpectedVersionDirs.has(currentDir)) {
+          d.count++;
+        }
+      } else if (d.check(m)) {
         d.count++;
       }
     }
@@ -857,6 +1015,89 @@ export function buildDataAnalysisReport(
     width: DURATION_CHART_WIDTH
   });
 
+  // Window, Door, and Opening Areas
+  if (artifactDirs !== undefined) {
+    const windowAreasSqM = getWindowAreas(artifactDirs);
+    const doorAreasSqM = getDoorAreas(artifactDirs);
+    const openingAreasSqM = getOpeningAreas(artifactDirs);
+
+    const windowAreasSqFt = convertAreasToSquareFeet(windowAreasSqM);
+    const doorAreasSqFt = convertAreasToSquareFeet(doorAreasSqM);
+    const openingAreasSqFt = convertAreasToSquareFeet(openingAreasSqM);
+
+    // Window Areas: 0-50 sq ft (typical window sizes)
+    const windowAreaKde = ChartUtils.calculateKde(windowAreasSqFt, { max: 50, min: 0, resolution: 200 });
+    charts.windowArea = ChartUtils.getLineChartConfig(
+      windowAreaKde.labels,
+      [
+        {
+          borderColor: "#3b82f6",
+          borderWidth: 2,
+          data: windowAreaKde.values,
+          fill: true,
+          label: "Density"
+        }
+      ],
+      {
+        chartId: "windowArea",
+        height: HALF_CHART_HEIGHT,
+        smooth: true,
+        title: "",
+        width: HISTO_CHART_WIDTH,
+        xLabel: "sq ft",
+        yLabel: "Count"
+      }
+    );
+
+    // Door Areas: 0-30 sq ft (typical door sizes)
+    const doorAreaKde = ChartUtils.calculateKde(doorAreasSqFt, { max: 30, min: 0, resolution: 200 });
+    charts.doorArea = ChartUtils.getLineChartConfig(
+      doorAreaKde.labels,
+      [
+        {
+          borderColor: "#8b5cf6",
+          borderWidth: 2,
+          data: doorAreaKde.values,
+          fill: true,
+          label: "Density"
+        }
+      ],
+      {
+        chartId: "doorArea",
+        height: HALF_CHART_HEIGHT,
+        smooth: true,
+        title: "",
+        width: HISTO_CHART_WIDTH,
+        xLabel: "sq ft",
+        yLabel: "Count"
+      }
+    );
+
+    // Opening Areas: 0-50 sq ft (similar to windows)
+    const openingAreaKde = ChartUtils.calculateKde(openingAreasSqFt, { max: 50, min: 0, resolution: 200 });
+    charts.openingArea = ChartUtils.getLineChartConfig(
+      openingAreaKde.labels,
+      [
+        {
+          borderColor: "#f59e0b",
+          borderWidth: 2,
+          data: openingAreaKde.values,
+          fill: true,
+          label: "Density"
+        }
+      ],
+      {
+        chartId: "openingArea",
+        height: HALF_CHART_HEIGHT,
+        smooth: true,
+        title: "",
+        width: HISTO_CHART_WIDTH,
+        xLabel: "sq ft",
+        yLabel: "Count"
+      }
+    );
+  }
+
   const populatedCharts = charts as CaptureCharts;
 
   const sections: ReportSection[] = [];
@@ -981,6 +1222,33 @@ export function buildDataAnalysisReport(
     title: "Section Types",
     type: "chart"
   });
+
+  // Window Areas
+  if (artifactDirs !== undefined) {
+    chartSections.push({
+      data: populatedCharts.windowArea,
+      title: "Window Areas",
+      type: "chart"
+    });
+  }
+
+  // Door Areas
+  if (artifactDirs !== undefined) {
+    chartSections.push({
+      data: populatedCharts.doorArea,
+      title: "Door Areas",
+      type: "chart"
+    });
+  }
+
+  // Opening Areas
+  if (artifactDirs !== undefined) {
+    chartSections.push({
+      data: populatedCharts.openingArea,
+      title: "Opening Areas",
+      type: "chart"
+    });
+  }
 
   const reportData: ReportData = {
     sections: [...sections, ...chartSections],

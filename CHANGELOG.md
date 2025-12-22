@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-21
 
+### [v0.44.0] Area Distribution Charts and Version Error Detection
+
+- **Window, Door, and Opening Area Charts**: Added three new charts showing the distribution of window, door, and opening areas.
+  Areas are displayed in square feet with smooth density visualization. Charts only appear when artifact directories are provided.
+- **Unexpected Version Error Detection**: Added "Unexpected Version" row to the Capture Errors table that counts scans with versions other than 2.
+
 ### [v0.43.0] Feature Extraction Chart Enhancements
 
 - **Curved Embedded Detection**: Added detection and reporting for curved embedded features (windows, doors, and openings with curve values embedded in walls).

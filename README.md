@@ -2,7 +2,7 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
-**Current Version:** v0.43.0
+**Current Version:** v0.44.0
 
 ## Overview
 
