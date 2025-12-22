@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-22
 
+### [v0.45.2] Code Refactoring: Extract Utilities from Data Analysis Report
+
+- **Raw Scan Data Extraction Utilities**: Extracted all raw scan data extraction functions to `utils/data/rawScanExtractor.ts`:
+  - `getObjectConfidenceCounts()` - extracts object confidence data from raw scans
+  - `getUnexpectedVersionArtifactDirs()` - finds artifacts with unexpected versions
+  - `getWindowAreas()`, `getDoorAreas()`, `getOpeningAreas()`, `getWallAreas()` - extract area data
+  - `convertAreasToSquareFeet()` - unit conversion utility
+- **Device Sorting Utilities**: Extracted device sorting/ranking logic to `utils/deviceSorting.ts`:
+  - `sortDeviceModels()` - sorts devices into iPhones, iPads, and Others with custom ranking logic
+  - Includes complex iPad ranking system (M4, Legacy Pros, Airs, Base, Mini)
+- **Code Organization**: Reduced `dataAnalysisReport.ts` from 1382 lines to ~908 lines (34% reduction)
+- **Maintainability**: Improved separation of concerns with reusable utilities following existing patterns in the `utils/` directory
+
 ### [v0.45.1] General Data Formatting Script with Recursive Key Sorting
 
 - **Generalized Format Script**: Renamed `formatArData` to `formatData` to handle both `arData.json` and `rawScan.json` files.
