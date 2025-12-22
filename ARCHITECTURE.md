@@ -84,9 +84,17 @@ External integrations and core services:
 Organized by domain:
 
 - **`chartUtils.ts`**: Chart configuration and data transformation
-- **`data/`**: Data management utilities (`badScans`, `checkedScans`, `syncFailures`)
+  - Supports BarChart, LineChart, Histogram, and MixedChart configurations
+  - Dynamic x-axis label positioning based on tick label length and rotation
+  - Gradient support for line chart fills and strokes
+- **`data/`**: Data management utilities
+  - `badScans.ts`: Tracks known bad artifacts
+  - `checkedScans.ts`: Caches Gemini AI classification results
+  - `syncFailures.ts`: Tracks synchronization failures
+  - `artifactIterator.ts`: Centralized artifact discovery via `meta.json`
 - **`math/`**: Mathematical operations (`vector`, `polygon`, `segment`, `transform`, `constants`)
-- **`room/`**: Room validation and analysis functions:
+- **`room/`**: Room validation and analysis functions
+  - `metadata.ts`: Extracts room metadata (area, counts, features)
   - Wall gap detection
   - Intersection checks
   - Colinear/crooked wall detection
@@ -94,6 +102,10 @@ Organized by domain:
   - Tub/toilet gap detection
   - Nib wall detection
   - External opening detection
+- **`arData/`**: Augmented reality data utilities
+  - `metadata.ts`: Extracts AR data metadata (frames, camera resolution, EXIF, light estimates)
+- **`video/`**: Video analysis utilities
+  - `metadata.ts`: Extracts video metadata (duration, fps, resolution) with caching
 - **`sync/`**: Synchronization helpers
 - **`logger.ts`**: Centralized logging using Winston
 - **`reportGenerator.ts`**: PDF generation using Playwright
@@ -118,10 +130,10 @@ React-based PDF report generation:
   - **`Section.tsx`**: Report section wrapper
   - **`Table.tsx`**: Data table component
   - **`charts/`**: Chart components using visx:
-    - `BarChart.tsx`
-    - `Histogram.tsx`
-    - `LineChart.tsx`
-    - `MixedChart.tsx`
+    - `BarChart.tsx`: Horizontal and vertical bar charts with dynamic sorting
+    - `Histogram.tsx`: Histogram charts with customizable bins
+    - `LineChart.tsx`: Line and area charts with gradient support and dynamic x-axis labels
+    - `MixedChart.tsx`: Combined bar and line charts with dual y-axes
 - **`dataAnalysisReport.ts`**: Data analysis report builder
 - **`validationReport.ts`**: Validation report builder
 - **`syncReport.ts`**: Sync report builder
@@ -170,7 +182,10 @@ Local Artifacts
     ↓
 inspectArtifacts.ts
     ↓
-Metadata Extraction (video, rawScan, arData)
+Metadata Extraction
+    ├─ video/metadata.ts (duration, fps, resolution)
+    ├─ arData/metadata.ts (frames, camera, EXIF, lighting)
+    └─ room/metadata.ts (area, counts, features, errors)
     ↓
 Room Analysis (room/ utilities)
     ↓
@@ -292,10 +307,12 @@ src/
 │   ├── components/  # Reusable React components
 │   └── styles/      # CSS stylesheets
 └── utils/          # Utility functions organized by domain
+    ├── arData/      # AR data metadata extraction
     ├── data/        # Data management utilities
     ├── math/        # Mathematical operations
-    ├── room/        # Room analysis functions
-    └── sync/        # Synchronization helpers
+    ├── room/        # Room analysis functions and metadata
+    ├── sync/        # Synchronization helpers
+    └── video/       # Video metadata extraction
 
 tests/
 ├── unit/           # Unit tests organized by module

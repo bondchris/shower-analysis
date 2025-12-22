@@ -17,6 +17,7 @@ export interface LineChartOptions {
   width?: number;
   height?: number;
   title?: string;
+  xLabel?: string;
   yLabel?: string;
   smooth?: boolean;
   chartId?: string;
@@ -321,17 +322,23 @@ export function getLineChartConfig(
   }
 
   const defaultHeight = 300;
-  const { height = defaultHeight, title, yLabel = "Error Count", width } = options;
+  const { height = defaultHeight, title, xLabel, yLabel = "Error Count", width } = options;
 
   const configOptions: LineChartOptions = { yLabel };
   if (title !== undefined) {
     configOptions.title = title;
+  }
+  if (xLabel !== undefined) {
+    configOptions.xLabel = xLabel;
   }
   if (width !== undefined) {
     configOptions.width = width;
   }
   if (options.chartId !== undefined) {
     configOptions.chartId = options.chartId;
+  }
+  if (options.smooth !== undefined) {
+    configOptions.smooth = options.smooth;
   }
 
   return {

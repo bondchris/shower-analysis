@@ -28,7 +28,9 @@ describe("buildDataAnalysisReport", () => {
       avgIso: 400,
       bitrate: 5000,
       captureDate: new Date(),
+      confidenceBreakdown: {},
       deviceModel: "Test Device",
+      doorCount: 0,
       duration: 60,
       environment: "Test",
       errors: [],
@@ -45,6 +47,7 @@ describe("buildDataAnalysisReport", () => {
       hasDoorBlockingError: false,
       hasExternalOpening: false,
       hasFireplace: false,
+      hasMultipleStories: false,
       hasNibWalls: false,
       hasNonRectWall: false,
       hasObjectIntersectionErrors: false,
@@ -59,6 +62,7 @@ describe("buildDataAnalysisReport", () => {
       hasTelevision: false,
       hasToiletGapErrors: false,
       hasTubGapErrors: false,
+      hasUnparentedEmbedded: false,
       hasVideo: true,
       hasWallGapErrors: false,
       hasWallObjectIntersectionErrors: false,
@@ -69,15 +73,19 @@ describe("buildDataAnalysisReport", () => {
       lensAperture: "f/1.8",
       lensFocalLength: "26mm",
       lensModel: "Wide",
+      openingCount: 0,
       processedAt: new Date(),
       roomAreaSqFt: 100,
+      sectionLabels: [],
       sinkCount: 1,
       storageCount: 0,
+      stories: [],
       toiletCount: 1,
       tubCount: 1,
       wallCount: 4,
       warnings: [],
-      width: 1920
+      width: 1920,
+      windowCount: 0
     } as unknown as ArtifactAnalysis,
     {
       audioChannels: 2,
@@ -88,6 +96,7 @@ describe("buildDataAnalysisReport", () => {
       avgIso: 800,
       bitrate: 10000,
       captureDate: new Date(),
+      confidenceBreakdown: {},
       deviceModel: "Test Device 2",
       duration: 120,
       environment: "Test",
@@ -105,6 +114,7 @@ describe("buildDataAnalysisReport", () => {
       hasDoorBlockingError: true,
       hasExternalOpening: true,
       hasFireplace: true,
+      hasMultipleStories: true,
       hasNibWalls: true,
       hasNonRectWall: true,
       hasObjectIntersectionErrors: true,
@@ -131,8 +141,10 @@ describe("buildDataAnalysisReport", () => {
       lensModel: "Ultra Wide",
       processedAt: new Date(),
       roomAreaSqFt: 200,
+      sectionLabels: ["Full Scan"],
       sinkCount: 0,
       storageCount: 0,
+      stories: [],
       toiletCount: 2,
       tubCount: 2,
       wallCount: 3,
@@ -147,20 +159,27 @@ describe("buildDataAnalysisReport", () => {
     expect(report.title).toBe("Artifact Data Analysis");
     expect(report.subtitle).toContain("Avg Duration: 60");
 
-    // Duration, Frame/Res Row, Page Break, Device, Focal/Aperture Row, Ambient, Temp, ISO, Brightness, Area, Errors, Features
-    // 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 = 12
-    const EXPECTED_SECTION_COUNT = 12;
+    // Duration, Frame/Res Row, Page Break, Device, Focal/Aperture Row, Ambient, Temp, ISO, Brightness, Area, Errors, Features, Objects, Sections
+    // 14
+    const EXPECTED_SECTION_COUNT = 14;
     expect(report.sections).toHaveLength(EXPECTED_SECTION_COUNT);
 
     // Verify specific chart sections exist
     const sectionTitles = report.sections.map((s) => s.title);
     expect(sectionTitles).toContain("Duration");
     expect(sectionTitles).toContain("Device Model");
-    expect(sectionTitles).toContain("Room Area (Sq Ft)");
+    expect(sectionTitles).toContain("Room Area");
     expect(sectionTitles).toContain("Ambient Intensity");
     expect(sectionTitles).toContain("Capture Errors");
     expect(sectionTitles).toContain("Feature Prevalence");
-    // Focal/Aperture is a chart-row, might not have top-level title or checks children
+    expect(sectionTitles).toContain("Object Distribution");
+    expect(sectionTitles).toContain("Section Types");
+
+    // Verify "Multiple Stories" feature is included in Feature Prevalence
+    const featuresChartCall = vi
+      .mocked(ChartUtils.getBarChartConfig)
+      .mock.calls.find((c) => c[0].includes("Multiple Stories"));
+    expect(featuresChartCall).toBeDefined();
   });
 
   it("should handle mixed data gracefully", () => {
@@ -183,7 +202,9 @@ describe("buildDataAnalysisReport", () => {
         "iPhone 15 Pro Max" // Newest, logic: 15 Pro Max > 15 Pro
       ];
 
-      const meta = devices.map((d) => Object.assign({}, mockMetadata[0], { deviceModel: d }) as ArtifactAnalysis);
+      const meta = devices.map(
+        (d) => Object.assign({}, mockMetadata[0], { confidenceBreakdown: {}, deviceModel: d }) as ArtifactAnalysis
+      );
       buildDataAnalysisReport(meta, 1, 1);
 
       const chartCall = vi
@@ -210,7 +231,9 @@ describe("buildDataAnalysisReport", () => {
         "iPad Pro (12.9-inch) (5th generation)" // Rank 2 (Legacy Large)
       ];
 
-      const meta = devices.map((d) => Object.assign({}, mockMetadata[0], { deviceModel: d }) as ArtifactAnalysis);
+      const meta = devices.map(
+        (d) => Object.assign({}, mockMetadata[0], { confidenceBreakdown: {}, deviceModel: d }) as ArtifactAnalysis
+      );
       buildDataAnalysisReport(meta, 1, 1);
 
       const chartCall = vi
@@ -231,7 +254,9 @@ describe("buildDataAnalysisReport", () => {
 
     it("should insert separator between iPhones and other devices", () => {
       const devices = ["iPhone 14", "iPad Pro"];
-      const meta = devices.map((d) => Object.assign({}, mockMetadata[0], { deviceModel: d }) as ArtifactAnalysis);
+      const meta = devices.map(
+        (d) => Object.assign({}, mockMetadata[0], { confidenceBreakdown: {}, deviceModel: d }) as ArtifactAnalysis
+      );
 
       buildDataAnalysisReport(meta, 1, 1);
 
@@ -255,7 +280,9 @@ describe("buildDataAnalysisReport", () => {
 
     it("should NOT insert separator if only iPhones exist", () => {
       const devices = ["iPhone 14", "iPhone 13"];
-      const meta = devices.map((d) => Object.assign({}, mockMetadata[0], { deviceModel: d }) as ArtifactAnalysis);
+      const meta = devices.map(
+        (d) => Object.assign({}, mockMetadata[0], { confidenceBreakdown: {}, deviceModel: d }) as ArtifactAnalysis
+      );
 
       buildDataAnalysisReport(meta, 1, 1);
 
@@ -271,7 +298,9 @@ describe("buildDataAnalysisReport", () => {
       // Both date 0.
       // Sort Name Desc -> iPhone B, iPhone A.
 
-      const meta = devices.map((d) => Object.assign({}, mockMetadata[0], { deviceModel: d }) as ArtifactAnalysis);
+      const meta = devices.map(
+        (d) => Object.assign({}, mockMetadata[0], { confidenceBreakdown: {}, deviceModel: d }) as ArtifactAnalysis
+      );
       buildDataAnalysisReport(meta, 1, 1);
 
       const chartCall = vi
@@ -290,7 +319,9 @@ describe("buildDataAnalysisReport", () => {
         "Unknown iPad Device" // Rank 99 (Default)
       ];
 
-      const meta = devices.map((d) => Object.assign({}, mockMetadata[0], { deviceModel: d }) as ArtifactAnalysis);
+      const meta = devices.map(
+        (d) => Object.assign({}, mockMetadata[0], { confidenceBreakdown: {}, deviceModel: d }) as ArtifactAnalysis
+      );
       buildDataAnalysisReport(meta, 1, 1);
 
       const chartCall = vi
@@ -329,7 +360,9 @@ describe("buildDataAnalysisReport", () => {
       // Release dates likely 0.
       // Sort: Name Descending -> iPad B, iPad A.
 
-      const meta = devices.map((d) => Object.assign({}, mockMetadata[0], { deviceModel: d }) as ArtifactAnalysis);
+      const meta = devices.map(
+        (d) => Object.assign({}, mockMetadata[0], { confidenceBreakdown: {}, deviceModel: d }) as ArtifactAnalysis
+      );
       buildDataAnalysisReport(meta, 1, 1);
 
       const chartCall = vi

@@ -18,19 +18,48 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
   const defaultWidth = 650;
   const width = options.width ?? defaultWidth;
 
-  // Margins: extra space at bottom (85px) for rotated date labels and legend
+  const zeroValue = 0;
+  const paddingValue = 0.5;
+
+  // Calculate dynamic x-axis label offset based on tick label length and rotation
+  const xLabelDyMin = 36;
+  const xLabelDyScale = 1;
+  const xLabelDyBase = 16;
+  // Account for -45 degree rotation: sin(45°) ≈ 0.707, but we also need space for the label itself
+  const rotationFactor = 0.7;
+  const maxTickLength = labels.reduce((max, label) => Math.max(max, label.length), zeroValue);
+  const xLabelDyScaled = maxTickLength * xLabelDyScale * rotationFactor;
+  const xLabelDyCandidate = xLabelDyScaled + xLabelDyBase;
+  const xLabelDyPx = Math.max(xLabelDyMin, xLabelDyCandidate);
+
+  // Margins: extra space at bottom for rotated date labels, x-axis label, and legend
   const topMargin = 30;
   const rightMargin = 40;
-  const bottomMargin = 85;
+  const bottomMarginDefault = 60;
+  // Calculate bottom margin: need space for rotated tick labels and x-axis label
+  // For rotated labels at -45 degrees, estimate vertical space needed
+  const charWidthEstimate = 4.5;
+  const rotationSin = 0.707; // sin(45°)
+  const tickLabelFontSize = 9;
+  const rotatedLabelPadding = 5;
+  const xAxisLabelPadding = 5;
+  // Estimate space needed for rotated tick labels (font size accounts for text height)
+  const rotatedLabelWidth = maxTickLength * charWidthEstimate * rotationSin;
+  const rotatedLabelHeight = tickLabelFontSize + rotatedLabelPadding;
+  const rotatedLabelTotal = rotatedLabelWidth + rotatedLabelHeight;
+  const rotatedLabelSpace = maxTickLength > zeroValue ? Math.max(rotatedLabelPadding, rotatedLabelTotal) : zeroValue;
+  const xAxisLabelSpace = options.xLabel !== undefined && options.xLabel !== "" ? xAxisLabelPadding : zeroValue;
+  // Bottom margin: base + rotated labels + x-axis label space
+  // Cap it to prevent excessive margins
+  const maxBottomMargin = 90;
+  const calculatedBottomMargin = bottomMarginDefault + rotatedLabelSpace + xAxisLabelSpace;
+  const bottomMargin = Math.min(maxBottomMargin, Math.max(bottomMarginDefault, calculatedBottomMargin));
   const leftMargin = 60;
 
   const margin = { bottom: bottomMargin, left: leftMargin, right: rightMargin, top: topMargin };
 
   const xMax = width - margin.left - margin.right;
   const yMax = height - margin.top - margin.bottom;
-
-  const zeroValue = 0;
-  const paddingValue = 0.5;
 
   const maxDataValue = Math.max(
     ...datasets.flatMap((ds) => ds.data.filter((v): v is number => v !== null && Number.isFinite(v)))
@@ -92,58 +121,57 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
             })
             .filter((p): p is { x: number; y: number } => p !== null);
 
+          const fallback = "chart";
+          const fillGradientId = `gradient-fill-${options.chartId ?? fallback}-${String(idx)}`;
+          const strokeGradientId = `gradient-stroke-${options.chartId ?? fallback}-${String(idx)}`;
+          const hasGradient = typeof dataset.gradientFrom === "string" || typeof dataset.gradientTo === "string";
+          const gradientOpacity = 0.6;
+          const fillOpacityStart = 0.6;
+          const fillOpacityEnd = 0.1;
+          const solidOpacity = 0.2;
+          const fullOpacity = 1;
+          const strokeOpacity = 1;
+          const fallbackColor = "#000";
+
           return (
             <React.Fragment key={idx}>
-              {dataset.fill === true && (
+              {hasGradient && (
                 <>
-                  {(() => {
-                    const fallback = "chart";
-                    const gradientId = `gradient-${options.chartId ?? fallback}-${String(idx)}`;
-                    const gradientOpacity = 0.6;
-                    const fillOpacityStart = 0.6;
-                    const fillOpacityEnd = 0.1;
-                    const solidOpacity = 0.2;
-                    const fullOpacity = 1;
-                    const fallbackColor = "#000";
-
-                    return (
-                      <>
-                        {(typeof dataset.gradientFrom === "string" || typeof dataset.gradientTo === "string") && (
-                          <LinearGradient
-                            from={dataset.gradientFrom ?? color ?? fallbackColor}
-                            fromOpacity={gradientOpacity}
-                            id={gradientId}
-                            to={dataset.gradientTo ?? color ?? fallbackColor}
-                            toOpacity={dataset.gradientDirection === "horizontal" ? fillOpacityStart : fillOpacityEnd}
-                            vertical={dataset.gradientDirection !== "horizontal"}
-                          />
-                        )}
-                        <AreaClosed<{ x: number; y: number }>
-                          curve={curveType}
-                          data={points}
-                          fill={
-                            typeof dataset.gradientFrom === "string" || typeof dataset.gradientTo === "string"
-                              ? `url(#${gradientId})`
-                              : color
-                          }
-                          fillOpacity={
-                            typeof dataset.gradientFrom === "string" || typeof dataset.gradientTo === "string"
-                              ? fullOpacity
-                              : solidOpacity
-                          }
-                          x={(d) => d.x}
-                          y={(d) => d.y}
-                          yScale={yScale}
-                        />
-                      </>
-                    );
-                  })()}
+                  {/* Gradient for fill area */}
+                  <LinearGradient
+                    from={dataset.gradientFrom ?? color ?? fallbackColor}
+                    fromOpacity={gradientOpacity}
+                    id={fillGradientId}
+                    to={dataset.gradientTo ?? color ?? fallbackColor}
+                    toOpacity={dataset.gradientDirection === "horizontal" ? fillOpacityStart : fillOpacityEnd}
+                    vertical={dataset.gradientDirection !== "horizontal"}
+                  />
+                  {/* Gradient for stroke (line) - always horizontal for temperature scale */}
+                  <LinearGradient
+                    from={dataset.gradientFrom ?? color ?? fallbackColor}
+                    fromOpacity={strokeOpacity}
+                    id={strokeGradientId}
+                    to={dataset.gradientTo ?? color ?? fallbackColor}
+                    toOpacity={strokeOpacity}
+                    vertical={false}
+                  />
                 </>
+              )}
+              {dataset.fill === true && (
+                <AreaClosed<{ x: number; y: number }>
+                  curve={curveType}
+                  data={points}
+                  fill={hasGradient ? `url(#${fillGradientId})` : color}
+                  fillOpacity={hasGradient ? fullOpacity : solidOpacity}
+                  x={(d) => d.x}
+                  y={(d) => d.y}
+                  yScale={yScale}
+                />
               )}
               <LinePath<{ x: number; y: number }>
                 curve={curveType}
                 data={points}
-                stroke={color}
+                stroke={hasGradient ? `url(#${strokeGradientId})` : color}
                 strokeWidth={dataset.borderWidth ?? defaultBorderWidth}
                 x={(d) => d.x}
                 y={(d) => d.y}
@@ -153,6 +181,13 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
         })}
 
         <AxisBottom
+          label={options.xLabel ?? ""}
+          labelProps={{
+            dy: xLabelDyPx,
+            fill: "#374151",
+            fontSize: 12,
+            textAnchor: "middle"
+          }}
           numTicks={Math.min(labels.length, maxXTicks)}
           scale={xScale}
           tickLabelProps={() => ({

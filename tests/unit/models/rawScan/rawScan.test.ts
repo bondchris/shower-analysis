@@ -97,16 +97,6 @@ describe("RawScan Model", () => {
     });
   });
 
-  describe("Strict Key Validation", () => {
-    it("should throw if unknown keys are present", () => {
-      const payload = {
-        ...VALID_PAYLOAD,
-        unknownKey: "bad"
-      };
-      expect(() => new RawScan(payload)).toThrow('Invalid raw scan: unknown key "unknownKey"');
-    });
-  });
-
   describe("Field Validation", () => {
     it("should throw on invalid version", () => {
       const payload = { ...VALID_PAYLOAD, version: "1" };

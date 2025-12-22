@@ -183,4 +183,29 @@ describe("checkCrookedWalls", () => {
 
     expect(checkCrookedWalls(createMockScan({ walls: [w1, w2] }))).toBe(false);
   });
+
+  it("should handle walls with invalid transform (coverage)", () => {
+    // w1 invalid
+    const w1 = createWall("w1", { transform: [] });
+    const w2 = createWall("w2");
+    expect(checkCrookedWalls(createMockScan({ walls: [w1, w2] }))).toBe(false);
+
+    // w2 invalid
+    const w3 = createWall("w3");
+    const w4 = createWall("w4", { transform: [1, 2, 3] });
+    expect(checkCrookedWalls(createMockScan({ walls: [w3, w4] }))).toBe(false);
+  });
+
+  it("should handle walls with missing dimensions (coverage)", () => {
+    // w1 no dimensions. DEFAULT_VALUE (0) used.
+    const w1 = createWall("w1");
+    delete (w1 as Partial<WallData>).dimensions;
+
+    // w2 no dimensions.
+    const w2 = createWall("w2");
+    delete (w2 as Partial<WallData>).dimensions;
+
+    // Expect false (0 length walls at same point? dist=0, angle=?)
+    expect(checkCrookedWalls(createMockScan({ walls: [w1, w2] }))).toBe(true);
+  });
 });

@@ -13,11 +13,11 @@ export interface RawScanData {
   floors: FloorData[];
   walls: WallData[];
   objects: ObjectItem[];
-  windows: Window[];
-  doors: Door[];
+  windows?: Window[];
+  doors?: Door[];
   referenceOriginTransform?: number[];
   story: number;
-  openings: Opening[];
+  openings?: Opening[];
 }
 
 export class RawScan {
@@ -39,27 +39,8 @@ export class RawScan {
     }
 
     const typedData = data as RawScanData;
-    const allowedKeys = new Set([
-      "version",
-      "sections",
-      "coreModel",
-      "floors",
-      "walls",
-      "objects",
-      "windows",
-      "doors",
-      "referenceOriginTransform",
-      "story",
-      "openings"
-    ]);
 
-    // Strict Key Validation
-    const keys = Object.keys(typedData);
-    for (const key of keys) {
-      if (!allowedKeys.has(key)) {
-        throw new Error(`Invalid raw scan: unknown key "${key}"`);
-      }
-    }
+    // Strict Key Validation was removed for backward compatibility
 
     // Validate Version
     if (typeof typedData.version !== "number") {
@@ -97,17 +78,25 @@ export class RawScan {
     }
     this.objects = typedData.objects;
 
-    // Validate Windows
-    if (!Array.isArray(typedData.windows)) {
-      throw new Error('Invalid raw scan: missing or invalid "windows" array');
+    // Validate Windows (Optional)
+    if (typedData.windows !== undefined) {
+      if (!Array.isArray(typedData.windows)) {
+        throw new Error('Invalid raw scan: missing or invalid "windows" array');
+      }
+      this.windows = typedData.windows;
+    } else {
+      this.windows = [];
     }
-    this.windows = typedData.windows;
 
-    // Validate Doors
-    if (!Array.isArray(typedData.doors)) {
-      throw new Error('Invalid raw scan: missing or invalid "doors" array');
+    // Validate Doors (Optional)
+    if (typedData.doors !== undefined) {
+      if (!Array.isArray(typedData.doors)) {
+        throw new Error('Invalid raw scan: missing or invalid "doors" array');
+      }
+      this.doors = typedData.doors;
+    } else {
+      this.doors = [];
     }
-    this.doors = typedData.doors;
 
     // Validate ReferenceOriginTransform (Optional)
     if (typedData.referenceOriginTransform !== undefined) {
@@ -125,10 +114,14 @@ export class RawScan {
     }
     this.story = typedData.story;
 
-    // Validate Openings
-    if (!Array.isArray(typedData.openings)) {
-      throw new Error('Invalid raw scan: missing or invalid "openings" array');
+    // Validate Openings (Optional for backward compatibility)
+    if (typedData.openings !== undefined) {
+      if (!Array.isArray(typedData.openings)) {
+        throw new Error('Invalid raw scan: missing or invalid "openings" array');
+      }
+      this.openings = typedData.openings;
+    } else {
+      this.openings = [];
     }
-    this.openings = typedData.openings;
   }
 }

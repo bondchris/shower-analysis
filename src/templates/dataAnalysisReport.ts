@@ -11,6 +11,7 @@ export interface CaptureCharts {
   duration: ChartConfiguration;
   errors: ChartConfiguration;
   features: ChartConfiguration;
+  objects: ChartConfiguration;
   fps: ChartConfiguration;
   iso: ChartConfiguration;
   lens: ChartConfiguration;
@@ -18,6 +19,7 @@ export interface CaptureCharts {
   temperature: ChartConfiguration;
   focalLength: ChartConfiguration;
   aperture: ChartConfiguration;
+  sections: ChartConfiguration;
 }
 
 // Helper interface for local chart data preparation
@@ -50,11 +52,12 @@ export function buildDataAnalysisReport(
   const DURATION_HEIGHT_RATIO = 0.32;
   const HALF_HEIGHT_RATIO = 0.26;
   const LENS_HEIGHT_RATIO = 0.35;
-  const FEATURE_HEIGHT_RATIO = 0.52;
+
   const MIN_DURATION_HEIGHT = 260;
   const MIN_HALF_HEIGHT = 260;
   const MIN_LENS_HEIGHT = 340;
-  const MIN_FEATURE_HEIGHT = 400;
+
+  const MIN_DYNAMIC_HEIGHT = 140;
 
   const DURATION_CHART_WIDTH = Math.round(PAGE_CONTENT_WIDTH * FULL_WIDTH_RATIO);
   const HALF_CHART_WIDTH = Math.round(PAGE_CONTENT_WIDTH * HALF_WIDTH_RATIO);
@@ -63,7 +66,7 @@ export function buildDataAnalysisReport(
   const DURATION_CHART_HEIGHT = Math.max(MIN_DURATION_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * DURATION_HEIGHT_RATIO));
   const HALF_CHART_HEIGHT = Math.max(MIN_HALF_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * HALF_HEIGHT_RATIO));
   const LENS_CHART_HEIGHT = Math.max(MIN_LENS_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * LENS_HEIGHT_RATIO));
-  const FEATURE_CHART_HEIGHT = Math.max(MIN_FEATURE_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * FEATURE_HEIGHT_RATIO));
+
   const NOT_SET = "";
   const INCREMENT_STEP = 1;
   const INITIAL_COUNT = 0;
@@ -85,17 +88,29 @@ export function buildDataAnalysisReport(
 
   // Duration
   const durations = metadataList.map((m) => m.duration);
-  charts.duration = ChartUtils.getHistogramConfig(durations, {
-    binSize: 10,
-    height: DURATION_CHART_HEIGHT,
-    hideUnderflow: true,
-    max: 120,
-    min: 10,
-    // Label and title defaults handled in config builder or can be explicit
-    title: "",
-    width: DURATION_CHART_WIDTH,
-    xLabel: "Seconds"
-  });
+  // Rendered as KDE Smooth Area Chart
+  const durKde = ChartUtils.calculateKde(durations, { max: 120, min: 10, resolution: 200 });
+  charts.duration = ChartUtils.getLineChartConfig(
+    durKde.labels,
+    [
+      {
+        borderColor: "#06b6d4", // Cyan-500
+        borderWidth: 2,
+        data: durKde.values,
+        fill: true,
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "duration",
+      height: DURATION_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: DURATION_CHART_WIDTH,
+      xLabel: "Seconds",
+      yLabel: "Count"
+    }
+  );
 
   // Device Model
   const deviceMap: Record<string, number> = {};
@@ -395,6 +410,7 @@ export function buildDataAnalysisReport(
       smooth: true,
       title: "",
       width: HISTO_CHART_WIDTH,
+      xLabel: "Lux",
       yLabel: "Count"
     }
   );
@@ -422,6 +438,7 @@ export function buildDataAnalysisReport(
       smooth: true,
       title: "",
       width: HISTO_CHART_WIDTH,
+      xLabel: "Kelvin",
       yLabel: "Count"
     }
   );
@@ -446,6 +463,7 @@ export function buildDataAnalysisReport(
       smooth: true,
       title: "",
       width: HISTO_CHART_WIDTH,
+      xLabel: "ISO",
       yLabel: "Count"
     }
   );
@@ -473,6 +491,7 @@ export function buildDataAnalysisReport(
       smooth: true,
       title: "",
       width: HISTO_CHART_WIDTH,
+      xLabel: "EV",
       yLabel: "Count"
     }
   );
@@ -497,6 +516,7 @@ export function buildDataAnalysisReport(
       smooth: true,
       title: "",
       width: DURATION_CHART_WIDTH,
+      xLabel: "sq ft",
       yLabel: "Count"
     }
   );
@@ -523,7 +543,9 @@ export function buildDataAnalysisReport(
       label: "Wall <-> Wall Intersections"
     },
     { check: (m: ArtifactAnalysis) => m.hasCrookedWallErrors, count: INITIAL_COUNT, label: "Crooked Walls" },
-    { check: (m: ArtifactAnalysis) => m.hasDoorBlockingError, count: INITIAL_COUNT, label: "Door Blocked" }
+    { check: (m: ArtifactAnalysis) => m.hasDoorBlockingError, count: INITIAL_COUNT, label: "Door Blocked" },
+    { check: (m: ArtifactAnalysis) => m.wallCount < MIN_WALLS, count: INITIAL_COUNT, label: "< 4 Walls" },
+    { check: (m: ArtifactAnalysis) => m.hasUnparentedEmbedded, count: INITIAL_COUNT, label: "Unparented Embedded" }
   ];
 
   const featureDefs: ChartDef[] = [
@@ -531,7 +553,6 @@ export function buildDataAnalysisReport(
     { check: (m: ArtifactAnalysis) => m.hasCurvedWall, count: INITIAL_COUNT, label: "Curved Walls" },
     { check: (m: ArtifactAnalysis) => m.toiletCount >= MIN_TOILETS, count: INITIAL_COUNT, label: "2+ Toilets" },
     { check: (m: ArtifactAnalysis) => m.tubCount >= MIN_TUBS, count: INITIAL_COUNT, label: "2+ Tubs" },
-    { check: (m: ArtifactAnalysis) => m.wallCount < MIN_WALLS, count: INITIAL_COUNT, label: "< 4 Walls" },
     {
       check: (m: ArtifactAnalysis) => m.sinkCount === INITIAL_COUNT && m.storageCount === INITIAL_COUNT,
       count: INITIAL_COUNT,
@@ -540,6 +561,17 @@ export function buildDataAnalysisReport(
     { check: (m: ArtifactAnalysis) => m.hasExternalOpening, count: INITIAL_COUNT, label: "External Opening" },
     { check: (m: ArtifactAnalysis) => m.hasSoffit, count: INITIAL_COUNT, label: "Soffit" },
     { check: (m: ArtifactAnalysis) => m.hasNibWalls, count: INITIAL_COUNT, label: "Nib Walls (< 1ft)" },
+    { check: (m: ArtifactAnalysis) => m.hasMultipleStories, count: INITIAL_COUNT, label: "Multiple Stories" }
+  ];
+
+  const objectDefs: ChartDef[] = [
+    { check: (m: ArtifactAnalysis) => m.toiletCount > NO_RESULTS, count: INITIAL_COUNT, label: "Toilet" },
+    { check: (m: ArtifactAnalysis) => m.doorCount > NO_RESULTS, count: INITIAL_COUNT, label: "Door" },
+    { check: (m: ArtifactAnalysis) => m.windowCount > NO_RESULTS, count: INITIAL_COUNT, label: "Window" },
+    { check: (m: ArtifactAnalysis) => m.storageCount > NO_RESULTS, count: INITIAL_COUNT, label: "Storage" },
+    { check: (m: ArtifactAnalysis) => m.sinkCount > NO_RESULTS, count: INITIAL_COUNT, label: "Sink" },
+    { check: (m: ArtifactAnalysis) => m.tubCount > NO_RESULTS, count: INITIAL_COUNT, label: "Bathtub" },
+    { check: (m: ArtifactAnalysis) => m.openingCount > NO_RESULTS, count: INITIAL_COUNT, label: "Opening" },
     { check: (m: ArtifactAnalysis) => m.hasWasherDryer, count: INITIAL_COUNT, label: "Washer/Dryer" },
     { check: (m: ArtifactAnalysis) => m.hasStove, count: INITIAL_COUNT, label: "Stove" },
     { check: (m: ArtifactAnalysis) => m.hasTable, count: INITIAL_COUNT, label: "Table" },
@@ -565,13 +597,35 @@ export function buildDataAnalysisReport(
         d.count++;
       }
     }
+    for (const d of objectDefs) {
+      if (d.check(m)) {
+        d.count++;
+      }
+    }
   }
+
+  // Sort objects by frequency (most common at top)
+  objectDefs.sort((a, b) => b.count - a.count);
+  errorDefs.sort((a, b) => b.count - a.count);
+  featureDefs.sort((a, b) => b.count - a.count);
 
   charts.features = ChartUtils.getBarChartConfig(
     featureDefs.map((d) => d.label),
     featureDefs.map((d) => d.count),
     {
-      height: FEATURE_CHART_HEIGHT,
+      height: getDynamicHeight(featureDefs.length, MIN_DYNAMIC_HEIGHT),
+      horizontal: true,
+      title: "",
+      totalForPercentages: metadataList.length,
+      width: DURATION_CHART_WIDTH
+    }
+  );
+
+  charts.objects = ChartUtils.getBarChartConfig(
+    objectDefs.map((d) => d.label),
+    objectDefs.map((d) => d.count),
+    {
+      height: getDynamicHeight(objectDefs.length, MIN_DYNAMIC_HEIGHT),
       horizontal: true,
       title: "",
       totalForPercentages: metadataList.length,
@@ -583,13 +637,33 @@ export function buildDataAnalysisReport(
     errorDefs.map((d) => d.label),
     errorDefs.map((d) => d.count),
     {
-      height: 320,
+      height: getDynamicHeight(errorDefs.length, MIN_DYNAMIC_HEIGHT),
       horizontal: true,
       title: "",
       totalForPercentages: metadataList.length,
       width: ERRORS_CHART_WIDTH
     }
   );
+
+  // Sections
+  const sectionMap: Record<string, number> = {};
+  for (const m of metadataList) {
+    for (const label of m.sectionLabels) {
+      sectionMap[label] = (sectionMap[label] ?? INITIAL_COUNT) + INCREMENT_STEP;
+    }
+  }
+  const sectionLabels = Object.keys(sectionMap).sort(
+    (a, b) => (sectionMap[b] ?? INITIAL_COUNT) - (sectionMap[a] ?? INITIAL_COUNT)
+  );
+  const sectionCounts = sectionLabels.map((l) => sectionMap[l] ?? INITIAL_COUNT);
+
+  charts.sections = ChartUtils.getBarChartConfig(sectionLabels, sectionCounts, {
+    height: getDynamicHeight(sectionLabels.length, MIN_DYNAMIC_HEIGHT),
+    horizontal: true,
+    title: "",
+    totalForPercentages: metadataList.length,
+    width: DURATION_CHART_WIDTH
+  });
 
   const populatedCharts = charts as CaptureCharts;
 
@@ -684,7 +758,7 @@ export function buildDataAnalysisReport(
   // Room Area
   chartSections.push({
     data: populatedCharts.area,
-    title: "Room Area (Sq Ft)",
+    title: "Room Area",
     type: "chart"
   });
 
@@ -702,9 +776,24 @@ export function buildDataAnalysisReport(
     type: "chart"
   });
 
-  return {
+  // Object Distribution
+  chartSections.push({
+    data: populatedCharts.objects,
+    title: "Object Distribution",
+    type: "chart"
+  });
+
+  // Section Types
+  chartSections.push({
+    data: populatedCharts.sections,
+    title: "Section Types",
+    type: "chart"
+  });
+
+  const reportData: ReportData = {
     sections: [...sections, ...chartSections],
     subtitle,
     title: "Artifact Data Analysis"
   };
+  return reportData;
 }

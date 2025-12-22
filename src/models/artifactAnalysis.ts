@@ -25,6 +25,9 @@ export class ArtifactAnalysis {
   public sinkCount = NO_RESULTS;
   public storageCount = NO_RESULTS;
   public wallCount = NO_RESULTS;
+  public doorCount = NO_RESULTS;
+  public windowCount = NO_RESULTS;
+  public openingCount = NO_RESULTS;
   public hasCurvedWall = false;
   public hasExternalOpening = false;
   public hasSoffit = false;
@@ -38,6 +41,8 @@ export class ArtifactAnalysis {
   public hasWallWallIntersectionErrors = false;
   public hasCrookedWallErrors = false;
   public hasWasherDryer = false;
+  public hasMultipleStories = false;
+  public hasUnparentedEmbedded = false;
   public hasStove = false;
   public hasTable = false;
   public hasChair = false;
@@ -50,4 +55,6 @@ export class ArtifactAnalysis {
   public hasFireplace = false;
   public hasTelevision = false;
   public hasDoorBlockingError = false;
+  public sectionLabels: string[] = [];
+  public stories: number[] = [];
 }

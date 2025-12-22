@@ -183,3 +183,40 @@ describe("checkExternalOpening", () => {
     });
   });
 });
+
+describe("Coverage Edge Cases", () => {
+  it("should return false if there are no floors", () => {
+    const rawScan = createMockScan({ floors: [] });
+    expect(checkExternalOpening(rawScan)).toBe(false);
+  });
+
+  it("should return false if the first floor is missing/undefined", () => {
+    const rawScan = createMockScan({ floors: [] });
+    // @ts-ignore
+    rawScan.floors[0] = undefined;
+    expect(checkExternalOpening(rawScan)).toBe(false);
+  });
+
+  it("should return false if floor has no polygon corners", () => {
+    const floor = createFloor();
+    // @ts-ignore
+    floor.polygonCorners = [];
+    const rawScan = createMockScan({
+      floors: [floor]
+    });
+    expect(checkExternalOpening(rawScan)).toBe(false);
+  });
+
+  it("should handle sparse polygon corners safely", () => {
+    const floor = createFloor();
+    // @ts-ignore
+    floor.polygonCorners = [[0, 0, 0], undefined, [10, 0, 0]];
+    const rawScan = createMockScan({
+      floors: [floor],
+      // Add a valid opening/wall to ensure we reach the corner loop
+      openings: [createOpening("o1", "w1")],
+      walls: [createExternalWall("w1")]
+    });
+    expect(checkExternalOpening(rawScan)).toBe(true);
+  });
+});

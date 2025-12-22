@@ -142,6 +142,42 @@ describe("checkTubGaps", () => {
       const scan = createMockScan({ objects: [t1], walls: [w1, w2] });
       expect(checkTubGaps(scan)).toBe(true);
     });
+
+    it("should detect gap when detailed wall corner is closest to tub side (Line 122 coverage)", () => {
+      // Logic: Tub 1x1. Side at X=0.5.
+      // Wall (rotated) has corner poking at X=0.5 + gap.
+      const tub = createTub("t_122");
+      // Tub default w=1.5, d=0.7. HalfW=0.75, HalfD=0.35.
+      // Tub corners: (+/-0.75, +/-0.35).
+      // Let's position a wall point at (0, 0.35 + gap).
+      // Wall is normally a line along X.
+      // We need a wall CORNER at (0, 0.35 + gap).
+      // createExternalWall makes a rect width ~5m, depth 0.1m.
+      // Corners are at +/-2.5.
+      // We can translate the wall so one corner hits our target.
+      // Target Point: (0, 0.35 + 3").
+
+      const gap = 3 * INCH;
+      const targetZ = 0.35 + gap;
+
+      const w = createExternalWall("w_corner");
+      // Wall local corner is (-halfLen, 0).
+      // halfLen default ~2.5.
+      // We want (-2.5, 0) -> (0, targetZ).
+      // So Translate X by +2.5, Translate Z by +targetZ.
+      // But wait, createExternalWall creates a wall centered at 0.
+      // Corners are [-2.5, 0], [2.5, 0].
+      // Let's interpret "w.transform" translation (idx 12, 14).
+
+      if (w.transform) {
+        // Shift wall so left corner (-2.5) lands at X=0.
+        w.transform[12] = 2.5;
+        w.transform[14] = targetZ;
+      }
+
+      const scan = createMockScan({ objects: [tub], walls: [w] });
+      expect(checkTubGaps(scan)).toBe(true);
+    });
   });
 
   describe("C. Spatial configurations", () => {

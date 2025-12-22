@@ -6,6 +6,7 @@ import { FloorData } from "../../../../src/models/rawScan/floor";
 import { ObjectItem } from "../../../../src/models/rawScan/objectItem";
 import { WallData } from "../../../../src/models/rawScan/wall";
 import { RawScanMetadata, extractRawScanMetadata } from "../../../../src/utils/room/metadata";
+import { createWindow } from "./testHelpers";
 
 // Mock modules
 vi.mock("fs");
@@ -107,9 +108,16 @@ describe("extractRawScanMetadata", () => {
 
   it("should return cached metadata if it exists and is valid", () => {
     const cachedData: Partial<RawScanMetadata> = {
+      doorCount: 0,
+      hasMultipleStories: false,
+      hasUnparentedEmbedded: false,
+      openingCount: 0,
       roomAreaSqFt: 500,
+      sectionLabels: [],
+      stories: [],
       toiletCount: 1,
-      wallCount: 4
+      wallCount: 4,
+      windowCount: 0
     };
 
     (fs.existsSync as Mock).mockReturnValue(true);
@@ -120,6 +128,30 @@ describe("extractRawScanMetadata", () => {
     expect(fs.existsSync).toHaveBeenCalledWith(mockCachePath);
     expect(fs.readFileSync).toHaveBeenCalledWith(mockCachePath, "utf-8");
     expect(result).toEqual(cachedData);
+  });
+
+  it("should detect hasUnparentedEmbedded if a window has null parent", () => {
+    // Force cache miss, but allow rawScan to exist
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockRawScanPath) {
+        return true;
+      }
+      return false;
+    });
+
+    // Create rawScan with unparented window
+    const rawScanUnparented = {
+      ...validRawScanData,
+      windows: [createWindow("w1", null)]
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(rawScanUnparented));
+
+    const result = extractRawScanMetadata(mockDir);
+    expect(result?.hasUnparentedEmbedded).toBe(true);
   });
 
   it("should extract metadata from rawScan.json if cache is missing", () => {

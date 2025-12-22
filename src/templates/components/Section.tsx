@@ -22,9 +22,9 @@ export const Section: React.FC<SectionProps> = ({ section }) => {
 
   const headerClasses: Record<number, string> = {
     1: "text-2xl font-bold text-center mb-2 text-gray-900", // Mostly handled by ReportShell but good fallback
-    2: "text-lg font-semibold mt-8 mb-4 border-b border-gray-200 pb-2 text-gray-700 break-after-avoid",
-    3: "text-sm font-semibold mt-5 mb-2 text-gray-600 break-after-avoid",
-    4: "text-[13px] font-semibold mt-4 mb-2 text-gray-600 break-after-avoid",
+    2: "text-lg font-semibold mt-4 mb-2 border-b border-gray-200 pb-2 text-gray-700 break-after-avoid",
+    3: "text-sm font-semibold mt-3 mb-1 text-gray-600 break-after-avoid",
+    4: "text-[13px] font-semibold mt-2 mb-1 text-gray-600 break-after-avoid",
     5: "text-sm font-semibold mb-2 text-gray-700 text-center",
     6: "text-xs font-semibold mb-1 text-gray-500"
   };
@@ -72,7 +72,7 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
     case "chart": {
       const chartConfig = section.data as ChartConfiguration;
       return (
-        <div className="mb-8 flex w-full justify-start break-inside-avoid">
+        <div className="mb-2 flex w-full justify-start break-inside-avoid">
           {chartConfig.type === "line" && <LineChart config={chartConfig} />}
           {chartConfig.type === "histogram" && <Histogram config={chartConfig} />}
           {chartConfig.type === "bar" && <BarChart config={chartConfig} />}
@@ -86,7 +86,7 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
         return null;
       }
       return (
-        <div className="mb-8 flex justify-between gap-5 break-inside-avoid">
+        <div className="mb-2 flex justify-between gap-5 break-inside-avoid">
           {(section.data as { title?: string; data: ChartConfiguration }[]).map((chart, i) => (
             <div key={i} className="flex-1 text-center min-w-0">
               {chart.title !== undefined && (
@@ -115,7 +115,7 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
         return null;
       }
       return (
-        <div className="mb-8 flex w-full justify-start break-inside-avoid">
+        <div className="mb-2 flex w-full justify-start break-inside-avoid">
           <Component />
         </div>
       );

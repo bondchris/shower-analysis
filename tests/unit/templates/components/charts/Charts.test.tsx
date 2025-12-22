@@ -19,7 +19,37 @@ vi.mock("@visx/shape", () => ({
   LinePath: () => <path />
 }));
 vi.mock("@visx/text", () => ({ Text: () => <text /> }));
-vi.mock("@visx/axis", () => ({ AxisBottom: () => <g />, AxisLeft: () => <g />, AxisRight: () => <g /> }));
+
+interface AxisBottomProps {
+  tickLabelProps?: (val: string, index: number, ticks: unknown[]) => void;
+}
+
+interface AxisLeftProps {
+  tickFormat?: (val: number) => string;
+  tickLabelProps?: (val: string, index: number, ticks: unknown[]) => void;
+}
+
+const TEST_VAL_10 = 10;
+const TEST_INDEX_0 = 0;
+
+vi.mock("@visx/axis", () => ({
+  AxisBottom: (props: AxisBottomProps) => {
+    if (props.tickLabelProps !== undefined) {
+      props.tickLabelProps("test", TEST_INDEX_0, []);
+    }
+    return <g />;
+  },
+  AxisLeft: (props: AxisLeftProps) => {
+    if (props.tickFormat !== undefined) {
+      props.tickFormat(TEST_VAL_10);
+    }
+    if (props.tickLabelProps !== undefined) {
+      props.tickLabelProps("test", TEST_INDEX_0, []);
+    }
+    return <g />;
+  },
+  AxisRight: () => <g />
+}));
 vi.mock("@visx/grid", () => ({ GridColumns: () => <g />, GridRows: () => <g /> }));
 
 describe("Chart Components", () => {
@@ -154,6 +184,15 @@ describe("Chart Components", () => {
       options: { ...histogramConfig.options, hideUnderflow: true }
     };
     const { container } = render(<Histogram config={hiddenConfig} />);
+    expect(container).toBeInTheDocument();
+  });
+
+  it("Histogram renders with single string color", () => {
+    const stringColorConfig: HistogramConfig = {
+      ...histogramConfig,
+      colors: "blue"
+    };
+    const { container } = render(<Histogram config={stringColorConfig} />);
     expect(container).toBeInTheDocument();
   });
 

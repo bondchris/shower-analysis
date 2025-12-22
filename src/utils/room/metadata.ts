@@ -23,6 +23,9 @@ export interface RawScanMetadata {
   tubCount: number;
   sinkCount: number;
   storageCount: number;
+  doorCount: number;
+  windowCount: number;
+  openingCount: number;
   hasWasherDryer: boolean;
   hasStove: boolean;
   hasTable: boolean;
@@ -39,6 +42,7 @@ export interface RawScanMetadata {
   hasSoffit: boolean;
   hasToiletGapErrors: boolean;
   hasTubGapErrors: boolean;
+  hasUnparentedEmbedded: boolean;
   hasWallGapErrors: boolean;
   hasColinearWallErrors: boolean;
   hasNibWalls: boolean;
@@ -47,6 +51,9 @@ export interface RawScanMetadata {
   hasWallWallIntersectionErrors: boolean;
   hasCrookedWallErrors: boolean;
   hasDoorBlockingError: boolean;
+  sectionLabels: string[];
+  stories: number[];
+  hasMultipleStories: boolean;
 }
 
 /**
@@ -56,14 +63,26 @@ export interface RawScanMetadata {
 export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null {
   const metaCachePath = path.join(dirPath, "rawScanMetadata.json");
   const JSON_INDENT = 2;
+  const SINGLE_STORY_COUNT = 1;
 
   // 1. Check Cache
   if (fs.existsSync(metaCachePath)) {
     try {
-      const cachedContent = fs.readFileSync(metaCachePath, "utf-8");
-      return JSON.parse(cachedContent) as RawScanMetadata;
+      const cached = JSON.parse(fs.readFileSync(metaCachePath, "utf-8")) as Partial<RawScanMetadata>;
+
+      const isValid =
+        cached.stories !== undefined &&
+        cached.doorCount !== undefined &&
+        cached.windowCount !== undefined &&
+        cached.openingCount !== undefined;
+
+      if (isValid) {
+        return cached as RawScanMetadata;
+      }
+
+      // Cache invalid, proceed to regeneration
     } catch {
-      // Proceed to extraction
+      // Ignore cache errors
     }
   }
 
@@ -77,8 +96,18 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
       const intersectionResults = checkIntersections(rawScan);
 
       const MIN_NON_RECT_CORNERS = 4;
+      const DEFAULT_STORY_INDEX = 0;
+
+      const stories = Array.from(new Set(rawScan.walls.map((w) => w.story ?? DEFAULT_STORY_INDEX))).sort(
+        (a, b) => a - b
+      );
+      const hasNonRectWall = rawScan.walls.some(
+        (w) => w.polygonCorners !== undefined && w.polygonCorners.length > MIN_NON_RECT_CORNERS
+      );
+      const roomAreaSqMeters = sumBy(rawScan.floors, "area");
 
       const result: RawScanMetadata = {
+        doorCount: rawScan.doors.length,
         hasBed: rawScan.objects.some((o) => o.category.bed !== undefined),
         hasChair: rawScan.objects.some((o) => o.category.chair !== undefined),
         hasColinearWallErrors: checkColinearWalls(rawScan),
@@ -88,10 +117,9 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
         hasDoorBlockingError: checkDoorBlocking(rawScan),
         hasExternalOpening: checkExternalOpening(rawScan),
         hasFireplace: rawScan.objects.some((o) => o.category.fireplace !== undefined),
+        hasMultipleStories: stories.length > SINGLE_STORY_COUNT,
         hasNibWalls: checkNibWalls(rawScan),
-        hasNonRectWall: rawScan.walls.some(
-          (w) => w.polygonCorners !== undefined && w.polygonCorners.length > MIN_NON_RECT_CORNERS
-        ),
+        hasNonRectWall: hasNonRectWall,
         hasObjectIntersectionErrors: intersectionResults.hasObjectIntersectionErrors,
         hasOven: rawScan.objects.some((o) => o.category.oven !== undefined),
         hasRefrigerator: rawScan.objects.some((o) => o.category.refrigerator !== undefined),
@@ -103,16 +131,24 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
         hasTelevision: rawScan.objects.some((o) => o.category.television !== undefined),
         hasToiletGapErrors: checkToiletGaps(rawScan),
         hasTubGapErrors: checkTubGaps(rawScan),
+        hasUnparentedEmbedded:
+          rawScan.doors.some((d) => d.parentIdentifier === null) ||
+          rawScan.windows.some((w) => w.parentIdentifier === null) ||
+          rawScan.openings.some((o) => o.parentIdentifier === null),
         hasWallGapErrors: checkWallGaps(rawScan),
         hasWallObjectIntersectionErrors: intersectionResults.hasWallObjectIntersectionErrors,
         hasWallWallIntersectionErrors: intersectionResults.hasWallWallIntersectionErrors,
         hasWasherDryer: rawScan.objects.some((o) => o.category.washerDryer !== undefined),
-        roomAreaSqFt: convert(sumBy(rawScan.floors, "area")).from("m2").to("ft2"),
+        openingCount: rawScan.openings.length,
+        roomAreaSqFt: convert(roomAreaSqMeters).from("m2").to("ft2"),
+        sectionLabels: rawScan.sections.map((s) => s.label),
         sinkCount: rawScan.objects.filter((o) => o.category.sink !== undefined).length,
         storageCount: rawScan.objects.filter((o) => o.category.storage !== undefined).length,
+        stories,
         toiletCount: rawScan.objects.filter((o) => o.category.toilet !== undefined).length,
         tubCount: rawScan.objects.filter((o) => o.category.bathtub !== undefined).length,
-        wallCount: rawScan.walls.length
+        wallCount: rawScan.walls.length,
+        windowCount: rawScan.windows.length
       };
 
       // Persist to cache

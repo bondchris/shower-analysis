@@ -6,6 +6,7 @@ import {
   getBarChartConfig,
   getHistogramConfig,
   getLineChartConfig,
+  getMixedChartConfig,
   kelvinToRgb
 } from "../../../src/utils/chartUtils";
 
@@ -112,9 +113,40 @@ describe("chartUtils", () => {
           expect(config.labels).toHaveLength(4);
         }
       });
+
+      it("propagates all options (colorByValue, decimalPlaces, hideUnderflow, title, xLabel, width)", () => {
+        const colorFn = (v: number) => (v > 5 ? "red" : "blue");
+        const config = getHistogramConfig([1, 2, 8], {
+          binSize: 5,
+          colorByValue: colorFn,
+          decimalPlaces: 1,
+          height: 100,
+          hideUnderflow: true,
+          max: 10,
+          min: 0,
+          title: "My Histo",
+          width: 200,
+          xLabel: "X Axis"
+        });
+
+        if (config.type === "histogram") {
+          expect(config.options.title).toBe("My Histo");
+          expect(config.options.xLabel).toBe("X Axis");
+          expect(config.options.width).toBe(200);
+          expect(config.options.hideUnderflow).toBe(true);
+          expect(config.options.decimalPlaces).toBe(1);
+          expect(config.colors).toHaveLength(config.labels.length);
+        }
+      });
     });
 
     describe("getBarChartConfig", () => {
+      it("propagates separatorLabel", () => {
+        const config = getBarChartConfig(["A"], [1], { separatorLabel: "---" });
+        if (config.type === "bar") {
+          expect(config.options.separatorLabel).toBe("---");
+        }
+      });
       it("validates inputs", () => {
         expect(() => getBarChartConfig(["A"], [1, 2])).toThrow(/does not match/);
       });
@@ -149,6 +181,40 @@ describe("chartUtils", () => {
           expect(config.options.showCount).toBe(true);
         }
       });
+    });
+
+    describe("getMixedChartConfig", () => {
+      it("propagates width", () => {
+        const config = getMixedChartConfig(["A"], [], { width: 400 });
+        if (config.type === "mixed") {
+          expect(config.options.width).toBe(400);
+        }
+      });
+    });
+  });
+
+  describe("kelvinToRgb", () => {
+    it("should return a string for valid input (normal range)", () => {
+      expect(kelvinToRgb(5000)).toMatch(/^rgba/);
+    });
+
+    it("should handle low temp (< 1900K)", () => {
+      // Temp < 19 covers line 500 branch
+      const rgb = kelvinToRgb(1000);
+      expect(rgb).toMatch(/^rgba/);
+    });
+
+    it("should handle high temp (> 6600K)", () => {
+      // Temp > 66 covers lines 507-513
+      const rgb = kelvinToRgb(8000);
+      expect(rgb).toMatch(/^rgba/);
+      expect(rgb).not.toBe("rgba(0, 0, 0, 0.8)");
+    });
+
+    it("should handle invalid inputs gracefully", () => {
+      expect(kelvinToRgb(-100)).toBe("rgba(0, 0, 0, 0.8)");
+      // @ts-expect-error
+      expect(kelvinToRgb("foo")).toBe("rgba(0, 0, 0, 0.8)");
     });
   });
 });

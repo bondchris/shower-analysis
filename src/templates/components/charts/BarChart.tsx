@@ -29,7 +29,7 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
   const leftMarginHorizontalRatio = 0.04;
   const tickFontSizeHorizontal = 8;
   const leftMarginDefault = 60;
-  const labelCharWidthEstimate = 6;
+  const labelCharWidthEstimate = 4.5;
   const labelPadding = 10;
   const zeroValue = 0;
   const paddingValue = 0.2;
@@ -46,7 +46,7 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
     estimatedLabelWidth
   );
   // Cap the left margin to prevent it from squashing the chart
-  const MAX_LEFT_MARGIN = 120;
+  const MAX_LEFT_MARGIN = 300;
   const clampedLeftMargin = Math.min(leftMarginHorizontal, MAX_LEFT_MARGIN);
 
   const margin = {
@@ -190,7 +190,7 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
               if (v === options.separatorLabel) {
                 return "";
               }
-              const MAX_LABEL_LENGTH = 20;
+              const MAX_LABEL_LENGTH = 50;
               return v.length > MAX_LABEL_LENGTH ? `${v.substring(zeroValue, MAX_LABEL_LENGTH)}...` : v;
             }}
             tickLabelProps={() => ({

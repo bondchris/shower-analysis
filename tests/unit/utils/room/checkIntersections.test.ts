@@ -727,4 +727,135 @@ describe("checkIntersections", () => {
       expect(res.hasObjectIntersectionErrors).toBe(true);
     });
   });
+  describe("Coverage Improvements", () => {
+    // Helper to create straight wall
+    const createStraightWall = (id: string, overrides: Partial<WallData> = {}) =>
+      createExternalWall(id, {
+        polygonCorners: [
+          [0, 0],
+          [10, 0]
+        ],
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+        ...overrides
+      });
+
+    it("should handle objects with invalid transform (length != 16)", () => {
+      const o1 = createObject("o1", {
+        transform: [1, 0, 0, 0] // Invalid
+      });
+      const o2 = createObject("o2"); // Valid
+
+      const res = checkIntersections(createMockScan({ objects: [o1, o2], walls: [] }));
+      expect(res.hasObjectIntersectionErrors).toBe(false);
+    });
+
+    it("should handle objects with invalid dimensions (length != 3)", () => {
+      const o1 = createObject("o1", {
+        dimensions: [1, 1] // Invalid
+      });
+      const o2 = createObject("o2"); // Valid
+
+      const res = checkIntersections(createMockScan({ objects: [o1, o2], walls: [] }));
+      expect(res.hasObjectIntersectionErrors).toBe(false);
+    });
+
+    it("should handle walls with invalid transform (length != 16)", () => {
+      const w1 = createStraightWall("w1", {
+        transform: [1, 0, 0, 0] // Invalid
+      });
+      const w2 = createStraightWall("w2"); // Valid
+
+      const res = checkIntersections(createMockScan({ objects: [], walls: [w1, w2] }));
+      expect(res.hasWallWallIntersectionErrors).toBe(false);
+      expect(res.hasWallObjectIntersectionErrors).toBe(false);
+    });
+
+    it("should use dimensions fallback if polygonCorners are missing", () => {
+      // Wall without polygonCorners, but with dimensions
+      const w1 = createExternalWall("w1", {
+        dimensions: [4, 2, 0.2], // Length 4 (X)
+        polygonCorners: [], // Missing/Empty
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+      });
+
+      // Wall 2 crossing it
+      const w2 = createExternalWall("w2", {
+        dimensions: [4, 2, 0.2],
+        polygonCorners: [],
+        transform: [0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 1] // Rotated Y 90
+      });
+
+      // W1: (-2, 0) to (2, 0) (Center 0, Length 4)
+      // W2: (0, -2) to (0, 2)
+      // Intersection at (0,0).
+      const res = checkIntersections(createMockScan({ walls: [w1, w2] }));
+      expect(res.hasWallWallIntersectionErrors).toBe(true);
+    });
+
+    it("should skip Wall-Object check if object has invalid AABB (Line 217)", () => {
+      // Valid Wall
+      const w1 = createStraightWall("w1");
+      // Invalid Object (Zero dims -> Empty AABB)
+      const o1 = createObject("o1", {
+        dimensions: [0, 0, 0],
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 0, 0, 1] // Positioned to intersect
+      });
+
+      const res = checkIntersections(createMockScan({ objects: [o1], walls: [w1] }));
+      // Should result in NO error because object is invalid/skipped
+      expect(res.hasWallObjectIntersectionErrors).toBe(false);
+    });
+
+    it("should handle zero-length wall segment (Line 356)", () => {
+      // Wall with zero length (MinX == MaxX)
+      const w1 = createExternalWall("w1", {
+        dimensions: [0, 0, 0], // Ensure fallback doesn't create a valid wall
+        polygonCorners: [
+          [0, 0],
+          [0, 0] // Zero length
+        ],
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+      });
+      // Another wall parallel/overlapping to trigger logic
+      const w2 = createExternalWall("w2", {
+        polygonCorners: [
+          [0, 0],
+          [10, 0]
+        ],
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+      });
+
+      const res = checkIntersections(createMockScan({ walls: [w1, w2] }));
+      // Should NOT crash and should probably ignore zero length wall
+      expect(res.hasWallWallIntersectionErrors).toBe(false);
+    });
+
+    it("should detect collinear walls with valid overlap (Line 387)", () => {
+      // W1: (0,0) to (10,0)
+      const w1 = createStraightWall("w1");
+      // W2: (2,0) to (8,0). Fully inside W1.
+      const w2 = createStraightWall("w2", {
+        polygonCorners: [
+          [0, 0],
+          [6, 0]
+        ],
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1]
+      });
+
+      const res = checkIntersections(createMockScan({ walls: [w1, w2] }));
+      expect(res.hasWallWallIntersectionErrors).toBe(true);
+    });
+
+    it("should ignore collinear walls with NO overlap (Endpoint touch)", () => {
+      // W1: (0,0) to (10,0)
+      const w1 = createStraightWall("w1");
+      // W2: (10,0) to (20,0). Touches at 10.
+      const w2 = createStraightWall("w2", {
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10, 0, 0, 1]
+      });
+
+      const res = checkIntersections(createMockScan({ walls: [w1, w2] }));
+      expect(res.hasWallWallIntersectionErrors).toBe(false);
+    });
+  });
 });
