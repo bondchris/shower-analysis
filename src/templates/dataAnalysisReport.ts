@@ -28,6 +28,7 @@ export interface CaptureCharts {
   windowArea: ChartConfiguration;
   doorArea: ChartConfiguration;
   openingArea: ChartConfiguration;
+  wallArea: ChartConfiguration;
 }
 
 // Helper interface for local chart data preparation
@@ -255,6 +256,91 @@ function getOpeningAreas(artifactDirs: string[]): number[] {
           const height = opening.dimensions[dimensionIndexHeight];
           if (width !== undefined && height !== undefined && width > minAreaValue && height > minAreaValue) {
             areas.push(width * height);
+          }
+        }
+      }
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return areas;
+}
+
+function getWallAreas(artifactDirs: string[]): number[] {
+  const areas: number[] = [];
+  const dimensionIndexLength = 0;
+  const dimensionIndexHeight = 1;
+  const minDimensionsLength = 2;
+  const minAreaValue = 0;
+  const minPolygonCorners = 3;
+  const pointIndexX = 0;
+  const pointIndexZ = 1;
+  const initialCount = 0;
+  const nextOffset = 1;
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+
+      for (const wall of rawScan.walls) {
+        const hasPolygonCorners =
+          wall.polygonCorners !== undefined &&
+          Array.isArray(wall.polygonCorners) &&
+          wall.polygonCorners.length >= minPolygonCorners;
+
+        if (hasPolygonCorners && wall.polygonCorners !== undefined) {
+          // Calculate wall area from polygon corners: perimeter * height
+          const corners = wall.polygonCorners;
+          let perimeter = initialCount;
+
+          for (let i = initialCount; i < corners.length; i++) {
+            const j = (i + nextOffset) % corners.length;
+            const p1 = corners[i];
+            const p2 = corners[j];
+
+            if (
+              p1 !== undefined &&
+              p2 !== undefined &&
+              p1.length >= minPolygonCorners &&
+              p2.length >= minPolygonCorners
+            ) {
+              const x1 = p1[pointIndexX] ?? initialCount;
+              const z1 = p1[pointIndexZ] ?? initialCount;
+              const x2 = p2[pointIndexX] ?? initialCount;
+              const z2 = p2[pointIndexZ] ?? initialCount;
+
+              const dx = x2 - x1;
+              const dz = z2 - z1;
+              const dxSquared = dx * dx;
+              const dzSquared = dz * dz;
+              const segmentLength = Math.sqrt(dxSquared + dzSquared);
+              perimeter += segmentLength;
+            }
+          }
+
+          // Get height from dimensions
+          const height =
+            Array.isArray(wall.dimensions) && wall.dimensions.length > dimensionIndexHeight
+              ? wall.dimensions[dimensionIndexHeight]
+              : undefined;
+
+          if (height !== undefined && height > minAreaValue && perimeter > minAreaValue) {
+            areas.push(perimeter * height);
+          }
+        } else if (Array.isArray(wall.dimensions) && wall.dimensions.length >= minDimensionsLength) {
+          // Calculate wall area from dimensions: length * height
+          const length = wall.dimensions[dimensionIndexLength];
+          const height = wall.dimensions[dimensionIndexHeight];
+
+          if (length !== undefined && height !== undefined && length > minAreaValue && height > minAreaValue) {
+            areas.push(length * height);
           }
         }
       }
@@ -821,6 +907,7 @@ export function buildDataAnalysisReport(
     },
     { check: (m: ArtifactAnalysis) => m.hasExternalOpening, count: INITIAL_COUNT, label: "External Opening" },
     { check: (m: ArtifactAnalysis) => m.hasSoffit, count: INITIAL_COUNT, label: "Soffit" },
+    { check: (m: ArtifactAnalysis) => m.hasLowCeiling, count: INITIAL_COUNT, label: "Low Ceiling (< 7.5ft)" },
     { check: (m: ArtifactAnalysis) => m.hasNibWalls, count: INITIAL_COUNT, label: "Nib Walls (< 1ft)" },
     { check: (m: ArtifactAnalysis) => m.hasMultipleStories, count: INITIAL_COUNT, label: "Multiple Stories" }
   ];
@@ -1015,15 +1102,17 @@ export function buildDataAnalysisReport(
     width: DURATION_CHART_WIDTH
   });
 
-  // Window, Door, and Opening Areas
+  // Window, Door, Opening, and Wall Areas
   if (artifactDirs !== undefined) {
     const windowAreasSqM = getWindowAreas(artifactDirs);
     const doorAreasSqM = getDoorAreas(artifactDirs);
     const openingAreasSqM = getOpeningAreas(artifactDirs);
+    const wallAreasSqM = getWallAreas(artifactDirs);
 
     const windowAreasSqFt = convertAreasToSquareFeet(windowAreasSqM);
     const doorAreasSqFt = convertAreasToSquareFeet(doorAreasSqM);
     const openingAreasSqFt = convertAreasToSquareFeet(openingAreasSqM);
+    const wallAreasSqFt = convertAreasToSquareFeet(wallAreasSqM);
 
     // Window Areas: 0-50 sq ft (typical window sizes)
     const windowAreaKde = ChartUtils.calculateKde(windowAreasSqFt, { max: 50, min: 0, resolution: 200 });
@@ -1088,6 +1177,30 @@ export function buildDataAnalysisReport(
       ],
       {
         chartId: "openingArea",
+        height: HALF_CHART_HEIGHT,
+        smooth: true,
+        title: "",
+        width: HISTO_CHART_WIDTH,
+        xLabel: "sq ft",
+        yLabel: "Count"
+      }
+    );
+
+    // Wall Areas: 0-200 sq ft (typical wall sizes)
+    const wallAreaKde = ChartUtils.calculateKde(wallAreasSqFt, { max: 200, min: 0, resolution: 200 });
+    charts.wallArea = ChartUtils.getLineChartConfig(
+      wallAreaKde.labels,
+      [
+        {
+          borderColor: "#ef4444",
+          borderWidth: 2,
+          data: wallAreaKde.values,
+          fill: true,
+          label: "Density"
+        }
+      ],
+      {
+        chartId: "wallArea",
         height: HALF_CHART_HEIGHT,
         smooth: true,
         title: "",
@@ -1246,6 +1359,15 @@ export function buildDataAnalysisReport(
     chartSections.push({
       data: populatedCharts.openingArea,
       title: "Opening Areas",
+      type: "chart"
+    });
+  }
+
+  // Wall Areas
+  if (artifactDirs !== undefined) {
+    chartSections.push({
+      data: populatedCharts.wallArea,
+      title: "Wall Areas",
       type: "chart"
     });
   }

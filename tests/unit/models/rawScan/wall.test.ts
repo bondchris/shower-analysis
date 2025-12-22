@@ -305,4 +305,88 @@ describe("Wall", () => {
       expect(wall.hasSoffit).toBe(false);
     });
   });
+
+  describe("getMinimumCeilingHeight", () => {
+    it("should return null for wall with no dimensions and no polygonCorners", () => {
+      const wall = new Wall({ category: {} } as WallData);
+      delete (wall as { dimensions?: number[] }).dimensions;
+      delete (wall as { polygonCorners?: number[][] }).polygonCorners;
+      expect(wall.getMinimumCeilingHeight()).toBeNull();
+    });
+
+    it("should return height from dimensions for rectangular wall", () => {
+      const wall = new Wall({ category: {} } as WallData);
+      wall.dimensions = [5.0, 2.4, 0.15];
+      delete (wall as { polygonCorners?: number[][] }).polygonCorners;
+      expect(wall.getMinimumCeilingHeight()).toBe(2.4);
+    });
+
+    it("should return null for wall with invalid dimensions", () => {
+      const wall = new Wall({ category: {} } as WallData);
+      wall.dimensions = [5.0];
+      delete (wall as { polygonCorners?: number[][] }).polygonCorners;
+      expect(wall.getMinimumCeilingHeight()).toBeNull();
+    });
+
+    it("should return height from dimensions for non-rectangular wall with polygonCorners", () => {
+      const wall = new Wall({ category: {} } as WallData);
+      wall.dimensions = [5.0, 2.3, 0.15];
+      wall.polygonCorners = [
+        [-2.5, -1.15, 0],
+        [2.5, -1.15, 0],
+        [2.5, 1.15, 0],
+        [-2.5, 1.15, 0]
+      ];
+      expect(wall.getMinimumCeilingHeight()).toBe(2.3);
+    });
+
+    it("should calculate height from polygonCorners Y range when dimensions missing", () => {
+      const wall = new Wall({ category: {} } as WallData);
+      delete (wall as { dimensions?: number[] }).dimensions;
+      wall.polygonCorners = [
+        [-2.5, -1.0, 0],
+        [2.5, -1.0, 0],
+        [2.5, 1.2, 0],
+        [-2.5, 1.2, 0]
+      ];
+      const height = wall.getMinimumCeilingHeight();
+      expect(height).toBeCloseTo(2.2, 1);
+    });
+
+    it("should return null for wall with polygonCorners but invalid Y values", () => {
+      const wall = new Wall({ category: {} } as WallData);
+      delete (wall as { dimensions?: number[] }).dimensions;
+      wall.polygonCorners = [
+        [-2.5, 0, 0],
+        [2.5, 0, 0]
+      ];
+      expect(wall.getMinimumCeilingHeight()).toBeNull();
+    });
+
+    it("should return minimum height from V-shaped wall top (not bounding box height)", () => {
+      const wall = new Wall({ category: {} } as WallData);
+      // V-shaped wall: corners create a notch at the top
+      // polygonCorners are [X, Y, Z] where Y is vertical offset from center
+      // For a wall with dimensions [10, 10], Y ranges from -5 to +5
+      // V-shape: bottom at Y=-5, sides at Y=+5, but notch at Y=0 (middle)
+      // So minimum ceiling height should be 5 (from center to lowest point = 0 - (-5) = 5)
+      // Actually, if dimensions[1] = 10, that's the full height span
+      // The Y values are relative to center, so if minY = -5 and maxY = +5, height = 10
+      // But if there's a notch at Y=0, the actual minimum height from base to lowest top point
+      // would be: base to center (5) + center to notch (0) = 5
+      wall.dimensions = [10, 10, 0.15]; // length=10, height=10 (bounding box), thickness=0.15
+      wall.polygonCorners = [
+        [0, -5, 0], // bottom-left: Y = -5 (5 units below center)
+        [10, -5, 0], // bottom-right: Y = -5
+        [5, 0, 0], // notch point: Y = 0 (at center, so 5 units from base)
+        [10, 5, 0], // top-right: Y = +5 (5 units above center)
+        [0, 5, 0] // top-left: Y = +5
+      ];
+      // The function should return the minimum height, which is from base to the lowest top point
+      // Base is at minY = -5, lowest top point is at Y = 0 (the notch)
+      // So minimum ceiling height = 0 - (-5) = 5
+      const height = wall.getMinimumCeilingHeight();
+      expect(height).toBe(5);
+    });
+  });
 });

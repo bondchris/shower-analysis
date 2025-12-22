@@ -2,7 +2,7 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
-**Current Version:** v0.44.0
+**Current Version:** v0.45.0
 
 ## Overview
 
@@ -105,7 +105,23 @@ npm run format-ar-data
 - Sorts `arData.json` keys chronologically.
 - Saves standardized output to `arDataFormatted.json`.
 
-### 6. Inspect Data
+### 6. Clear Metadata Cache
+
+Invalidates cached metadata files to force regeneration with updated detection logic.
+
+```bash
+npm run clear-cache
+```
+
+**When to use**:
+
+- After updating detection logic or thresholds
+- When metadata appears incorrect or stale
+- After code changes that affect feature extraction
+
+**Note**: After clearing the cache, run `npm run inspect` to regenerate metadata files.
+
+### 7. Inspect Data
 
 Deep analysis of metadata, lighting, room features, and camera settings.
 

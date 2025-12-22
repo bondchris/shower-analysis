@@ -1087,7 +1087,7 @@ describe("buildDataAnalysisReport", () => {
     });
   });
 
-  describe("window, door, and opening area charts", () => {
+  describe("window, door, opening, and wall area charts", () => {
     beforeEach(() => {
       vi.clearAllMocks();
       (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
@@ -1099,9 +1099,10 @@ describe("buildDataAnalysisReport", () => {
       expect(sectionTitles).not.toContain("Window Areas");
       expect(sectionTitles).not.toContain("Door Areas");
       expect(sectionTitles).not.toContain("Opening Areas");
+      expect(sectionTitles).not.toContain("Wall Areas");
     });
 
-    it("should add area charts when artifact directories provided with window, door, and opening data", () => {
+    it("should add area charts when artifact directories provided with window, door, opening, and wall data", () => {
       const mockRawScanData = {
         coreModel: "test",
         doors: [
@@ -1120,7 +1121,14 @@ describe("buildDataAnalysisReport", () => {
         sections: [],
         story: 1,
         version: 2,
-        walls: [],
+        walls: [
+          {
+            category: { wall: {} },
+            confidence: { high: {} },
+            dimensions: [3.0, 2.5, 0.2],
+            polygonCorners: []
+          }
+        ],
         windows: [
           {
             confidence: { high: {} },
@@ -1141,6 +1149,7 @@ describe("buildDataAnalysisReport", () => {
       expect(sectionTitles).toContain("Window Areas");
       expect(sectionTitles).toContain("Door Areas");
       expect(sectionTitles).toContain("Opening Areas");
+      expect(sectionTitles).toContain("Wall Areas");
 
       // Verify line charts were created for area charts
       const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
@@ -1156,10 +1165,15 @@ describe("buildDataAnalysisReport", () => {
         const options = call[2] as { chartId?: string };
         return options.chartId === "openingArea";
       });
+      const wallAreaCall = lineChartCalls.find((call: unknown[]) => {
+        const options = call[2] as { chartId?: string };
+        return options.chartId === "wallArea";
+      });
 
       expect(windowAreaCall).toBeDefined();
       expect(doorAreaCall).toBeDefined();
       expect(openingAreaCall).toBeDefined();
+      expect(wallAreaCall).toBeDefined();
     });
 
     it("should handle missing dimensions gracefully", () => {
@@ -1172,7 +1186,7 @@ describe("buildDataAnalysisReport", () => {
         sections: [],
         story: 1,
         version: 2,
-        walls: [],
+        walls: [{}],
         windows: [{}]
       };
 
@@ -1189,6 +1203,274 @@ describe("buildDataAnalysisReport", () => {
       expect(sectionTitles).toContain("Window Areas");
       expect(sectionTitles).toContain("Door Areas");
       expect(sectionTitles).toContain("Opening Areas");
+      expect(sectionTitles).toContain("Wall Areas");
+    });
+
+    it("should calculate wall areas from dimensions for rectangular walls", () => {
+      const mockRawScanData = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [
+          {
+            category: { wall: {} },
+            confidence: { high: {} },
+            dimensions: [4.0, 2.5, 0.2],
+            polygonCorners: []
+          }
+        ],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+
+      const artifactDirs = ["/test/dir1"];
+      buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Verify that getLineChartConfig was called for wallArea
+      const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const wallAreaCall = lineChartCalls.find((call: unknown[]) => {
+        const options = call[2] as { chartId?: string };
+        return options.chartId === "wallArea";
+      });
+
+      expect(wallAreaCall).toBeDefined();
+    });
+
+    it("should calculate wall areas from polygon corners for non-rectangular walls", () => {
+      const mockRawScanData = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [
+          {
+            category: { wall: {} },
+            confidence: { high: {} },
+            dimensions: [0, 2.5, 0.2],
+            polygonCorners: [
+              [0, 0],
+              [3, 0],
+              [3, 1],
+              [0, 1]
+            ]
+          }
+        ],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+
+      const artifactDirs = ["/test/dir1"];
+      buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Verify that getLineChartConfig was called for wallArea
+      const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const wallAreaCall = lineChartCalls.find((call: unknown[]) => {
+        const options = call[2] as { chartId?: string };
+        return options.chartId === "wallArea";
+      });
+
+      expect(wallAreaCall).toBeDefined();
+    });
+
+    it("should handle walls with polygon corners but missing or invalid height", () => {
+      const mockRawScanData = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [
+          {
+            category: { wall: {} },
+            confidence: { high: {} },
+            dimensions: [0, 0, 0.2],
+            polygonCorners: [
+              [0, 0],
+              [3, 0],
+              [3, 1],
+              [0, 1]
+            ]
+          },
+          {
+            category: { wall: {} },
+            confidence: { high: {} },
+            polygonCorners: [
+              [0, 0],
+              [3, 0],
+              [3, 1],
+              [0, 1]
+            ]
+          }
+        ],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+
+      const artifactDirs = ["/test/dir1"];
+      buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Should still create the chart section even if some walls are invalid
+      const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const wallAreaCall = lineChartCalls.find((call: unknown[]) => {
+        const options = call[2] as { chartId?: string };
+        return options.chartId === "wallArea";
+      });
+
+      expect(wallAreaCall).toBeDefined();
+    });
+
+    it("should handle polygon corners with invalid point data", () => {
+      const mockRawScanData = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [
+          {
+            category: { wall: {} },
+            confidence: { high: {} },
+            dimensions: [0, 2.5, 0.2],
+            polygonCorners: [[0, 0], [3, 0], undefined, [3, 1], [0, 1, 0, 0]]
+          }
+        ],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+
+      const artifactDirs = ["/test/dir1"];
+      buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Should still create the chart section
+      const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const wallAreaCall = lineChartCalls.find((call: unknown[]) => {
+        const options = call[2] as { chartId?: string };
+        return options.chartId === "wallArea";
+      });
+
+      expect(wallAreaCall).toBeDefined();
+    });
+
+    it("should skip walls with invalid polygon corners (less than 3 points)", () => {
+      const mockRawScanData = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [
+          {
+            category: { wall: {} },
+            confidence: { high: {} },
+            dimensions: [4.0, 2.5, 0.2],
+            polygonCorners: [
+              [0, 0],
+              [1, 0]
+            ]
+          }
+        ],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+
+      const artifactDirs = ["/test/dir1"];
+      buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Should still create the chart section
+      const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const wallAreaCall = lineChartCalls.find((call: unknown[]) => {
+        const options = call[2] as { chartId?: string };
+        return options.chartId === "wallArea";
+      });
+
+      expect(wallAreaCall).toBeDefined();
+    });
+
+    it("should handle invalid rawScan JSON files gracefully", () => {
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("invalid json");
+
+      const artifactDirs = ["/test/dir1"];
+      const report = buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Should still create charts even if some files are invalid
+      const sectionTitles = report.sections.map((s) => s.title);
+      expect(sectionTitles).toContain("Wall Areas");
+    });
+
+    it("should skip directories without rawScan.json files", () => {
+      const mockRawScanData = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [
+          {
+            category: { wall: {} },
+            confidence: { high: {} },
+            dimensions: [4.0, 2.5, 0.2],
+            polygonCorners: []
+          }
+        ],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        // First directory has rawScan.json, second doesn't
+        return filePath.includes("/test/dir1") && filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+
+      const artifactDirs = ["/test/dir1", "/test/dir2"];
+      const report = buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Should still create charts
+      const sectionTitles = report.sections.map((s) => s.title);
+      expect(sectionTitles).toContain("Wall Areas");
     });
   });
 });

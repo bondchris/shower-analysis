@@ -31,6 +31,7 @@ export class ArtifactAnalysis {
   public hasCurvedWall = false;
   public hasExternalOpening = false;
   public hasSoffit = false;
+  public hasLowCeiling = false;
   public hasToiletGapErrors = false;
   public hasTubGapErrors = false;
   public hasWallGapErrors = false;

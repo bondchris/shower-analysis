@@ -110,6 +110,7 @@ describe("extractRawScanMetadata", () => {
     const cachedData: Partial<RawScanMetadata> = {
       doorCount: 0,
       hasCurvedEmbedded: false,
+      hasLowCeiling: false,
       hasMultipleStories: false,
       hasNonRectangularEmbedded: false,
       hasUnparentedEmbedded: false,

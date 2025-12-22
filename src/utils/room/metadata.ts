@@ -40,6 +40,7 @@ export interface RawScanMetadata {
   hasTelevision: boolean;
   hasExternalOpening: boolean;
   hasSoffit: boolean;
+  hasLowCeiling: boolean;
   hasToiletGapErrors: boolean;
   hasTubGapErrors: boolean;
   hasUnparentedEmbedded: boolean;
@@ -76,7 +77,9 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
         cached.stories !== undefined &&
         cached.doorCount !== undefined &&
         cached.windowCount !== undefined &&
-        cached.openingCount !== undefined;
+        cached.openingCount !== undefined &&
+        cached.hasLowCeiling !== undefined &&
+        cached.hasNonRectangularEmbedded !== undefined;
 
       if (isValid) {
         return cached as RawScanMetadata;
@@ -100,6 +103,7 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
       const MIN_NON_RECT_CORNERS = 4;
       const RECTANGULAR_CORNER_COUNT = 4;
       const DEFAULT_STORY_INDEX = 0;
+      const MIN_POLYGON_CORNERS_LENGTH = 0;
 
       const stories = Array.from(new Set(rawScan.walls.map((w) => w.story ?? DEFAULT_STORY_INDEX))).sort(
         (a, b) => a - b
@@ -107,6 +111,12 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
       const hasNonRectWall = rawScan.walls.some(
         (w) => w.polygonCorners !== undefined && w.polygonCorners.length > MIN_NON_RECT_CORNERS
       );
+      const LOW_CEILING_THRESHOLD_FEET = 7.5;
+      const LOW_CEILING_THRESHOLD_METERS = convert(LOW_CEILING_THRESHOLD_FEET).from("ft").to("m");
+      const hasLowCeiling = rawScan.walls.some((w) => {
+        const minHeight = w.getMinimumCeilingHeight();
+        return minHeight !== null && minHeight < LOW_CEILING_THRESHOLD_METERS;
+      });
       const roomAreaSqMeters = sumBy(rawScan.floors, "area");
 
       const result: RawScanMetadata = {
@@ -142,21 +152,29 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
         hasDoorBlockingError: checkDoorBlocking(rawScan),
         hasExternalOpening: checkExternalOpening(rawScan),
         hasFireplace: rawScan.objects.some((o) => o.category.fireplace !== undefined),
+        hasLowCeiling: hasLowCeiling,
         hasMultipleStories: stories.length > SINGLE_STORY_COUNT,
         hasNibWalls: checkNibWalls(rawScan),
         hasNonRectWall: hasNonRectWall,
         hasNonRectangularEmbedded:
           rawScan.doors.some(
-            (d) => d.parentIdentifier !== null && d.polygonCorners.length !== RECTANGULAR_CORNER_COUNT
+            (d) =>
+              d.parentIdentifier !== null &&
+              d.polygonCorners.length > MIN_POLYGON_CORNERS_LENGTH &&
+              d.polygonCorners.length !== RECTANGULAR_CORNER_COUNT
           ) ||
           rawScan.windows.some(
-            (w) => w.parentIdentifier !== null && w.polygonCorners.length !== RECTANGULAR_CORNER_COUNT
+            (w) =>
+              w.parentIdentifier !== null &&
+              w.polygonCorners.length > MIN_POLYGON_CORNERS_LENGTH &&
+              w.polygonCorners.length !== RECTANGULAR_CORNER_COUNT
           ) ||
           rawScan.openings.some(
             (o) =>
               o.parentIdentifier !== null &&
               o.parentIdentifier !== undefined &&
               o.polygonCorners !== undefined &&
+              o.polygonCorners.length > MIN_POLYGON_CORNERS_LENGTH &&
               o.polygonCorners.length !== RECTANGULAR_CORNER_COUNT
           ),
         hasObjectIntersectionErrors: intersectionResults.hasObjectIntersectionErrors,
