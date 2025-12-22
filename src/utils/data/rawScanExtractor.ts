@@ -349,3 +349,41 @@ export function convertAreasToSquareFeet(areasInSquareMeters: number[]): number[
   return areasInSquareMeters.map((area) => convert(area).from("m2").to("ft2"));
 }
 
+/**
+ * Extracts door isOpen values from raw scan files.
+ * Returns a record mapping isOpen values (as strings) to their counts.
+ */
+export function getDoorIsOpenCounts(artifactDirs: string[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  const initialCount = 0;
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+
+      for (const door of rawScan.doors) {
+        const isOpen = door.category.door?.isOpen;
+        // Convert boolean to string, handle undefined as "Unknown"
+        let key = "Unknown";
+        if (isOpen === true) {
+          key = "Open";
+        } else if (isOpen === false) {
+          key = "Closed";
+        }
+        const increment = 1;
+        counts[key] = (counts[key] ?? initialCount) + increment;
+      }
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return counts;
+}
+

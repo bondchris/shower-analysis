@@ -1,4 +1,5 @@
 // Visx-based chart utilities
+import React from "react";
 
 // --- Interfaces ---
 
@@ -50,6 +51,18 @@ export interface BarChartOptions {
   // For stacked bars: artifact counts per label (for percentage calculation)
   // Maps label to number of artifacts that have this object type
   artifactCountsPerLabel?: Record<string, number>;
+}
+
+export interface PieChartOptions {
+  width?: number;
+  height?: number;
+  title?: string;
+  colors?: string[];
+  legendIcons?: Record<string, string>; // Map of label to SVG file path
+  legendIconComponents?: Record<
+    string,
+    React.ComponentType<{ color: string; x: number; y: number; legendBoxSize: number }>
+  >; // Map of label to icon component
 }
 
 export interface HistogramResult {
@@ -110,7 +123,15 @@ export interface MixedChartConfig {
   height: number;
 }
 
-export type ChartConfiguration = LineChartConfig | HistogramConfig | BarChartConfig | MixedChartConfig;
+export interface PieChartConfig {
+  type: "pie";
+  labels: string[];
+  data: number[];
+  options: PieChartOptions;
+  height: number;
+}
+
+export type ChartConfiguration = LineChartConfig | HistogramConfig | BarChartConfig | MixedChartConfig | PieChartConfig;
 
 // --- Pure Helper Functions ---
 
@@ -486,6 +507,36 @@ export function getMixedChartConfig(
     labels,
     options: configOptions,
     type: "mixed"
+  };
+}
+
+export function getPieChartConfig(labels: string[], data: number[], options: PieChartOptions = {}): ChartConfiguration {
+  if (labels.length !== data.length) {
+    throw new Error(`Labels length (${String(labels.length)}) does not match data length (${String(data.length)}).`);
+  }
+
+  const defaultHeight = 300;
+  const defaultWidth = 300;
+  const defaultColors = ["#1e40af", "#047857", "#b45309", "#b91c1c", "#6d28d9", "#be185d", "#0891b2", "#65a30d"];
+
+  const { height = defaultHeight, title, width = defaultWidth, colors = defaultColors, legendIconComponents } = options;
+
+  const configOptions: PieChartOptions = {};
+  if (title !== undefined) {
+    configOptions.title = title;
+  }
+  configOptions.width = width;
+  configOptions.colors = colors;
+  if (legendIconComponents !== undefined) {
+    configOptions.legendIconComponents = legendIconComponents;
+  }
+
+  return {
+    data,
+    height,
+    labels,
+    options: configOptions,
+    type: "pie"
   };
 }
 

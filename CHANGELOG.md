@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-22
 
+### [v0.46.0] Door Status Pie Chart with Custom Legend Icons
+
+- **Door Status Visualization**: Added pie chart to data analysis report showing the prevalence of different door `isOpen` values (Open, Closed, Unknown) across all doors in all `rawScan.json` files.
+- **Custom Legend Icons**: Implemented custom SVG-based legend icons for door status:
+  - `DoorClosedIcon` and `DoorOpenIcon` components that load SVG files dynamically
+  - Icons automatically scale to match legend box size and use pie chart colors
+  - Unknown status uses default colored box fallback
+- **SVG Loading Utility**: Created `svgLoader.ts` utility to:
+  - Load SVG files from the filesystem
+  - Extract inner content (removes `<svg>` wrapper)
+  - Replace `currentColor` with dynamic colors for proper theming
+- **Component Organization**: Organized icon components into `legend-icons/` subfolder for better code organization.
+- **Test Coverage**: Added comprehensive test coverage for:
+  - `svgLoader.ts` - SVG loading and color replacement logic
+  - `DoorClosedIcon.tsx` - Component rendering and scaling
+  - `DoorOpenIcon.tsx` - Component rendering and scaling
+- **Chart Enhancements**: Pie chart improvements:
+  - Percentage labels displayed outside pie segments
+  - Legend horizontally centered with proper vertical alignment
+  - Dynamic padding when percentage labels appear near bottom
+  - Sorted from smallest to largest slice
+  - Darker color palette for better readability
+
 ### [v0.45.2] Code Refactoring: Extract Utilities from Data Analysis Report
 
 - **Raw Scan Data Extraction Utilities**: Extracted all raw scan data extraction functions to `utils/data/rawScanExtractor.ts`:

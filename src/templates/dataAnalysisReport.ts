@@ -4,6 +4,7 @@ import { ChartConfiguration } from "../utils/chartUtils";
 import {
   convertAreasToSquareFeet,
   getDoorAreas,
+  getDoorIsOpenCounts,
   getObjectConfidenceCounts,
   getOpeningAreas,
   getUnexpectedVersionArtifactDirs,
@@ -12,6 +13,8 @@ import {
 } from "../utils/data/rawScanExtractor";
 import { sortDeviceModels } from "../utils/deviceSorting";
 import { ReportData, ReportSection } from "../models/report";
+import { DoorClosedIcon } from "./components/charts/legend-icons/DoorClosedIcon";
+import { DoorOpenIcon } from "./components/charts/legend-icons/DoorOpenIcon";
 
 export interface CaptureCharts {
   ambient: ChartConfiguration;
@@ -33,6 +36,7 @@ export interface CaptureCharts {
   doorArea: ChartConfiguration;
   openingArea: ChartConfiguration;
   wallArea: ChartConfiguration;
+  doorIsOpen: ChartConfiguration;
 }
 
 // Helper interface for local chart data preparation
@@ -688,6 +692,27 @@ export function buildDataAnalysisReport(
       }
     );
 
+    // Door IsOpen Status
+    const doorIsOpenCounts = getDoorIsOpenCounts(artifactDirs);
+    // Sort by value (smallest to largest) so smallest slice is first
+    // Pie starts at top (-π/2) and goes clockwise
+    // With smallest first, it will start at the top
+    const doorIsOpenEntries = Object.entries(doorIsOpenCounts).sort(([, a], [, b]) => a - b);
+    const doorIsOpenLabels = doorIsOpenEntries.map(([label]) => label);
+    const doorIsOpenData = doorIsOpenEntries.map(([, value]) => value);
+
+    if (doorIsOpenData.length > INITIAL_COUNT) {
+      charts.doorIsOpen = ChartUtils.getPieChartConfig(doorIsOpenLabels, doorIsOpenData, {
+        height: HALF_CHART_HEIGHT,
+        legendIconComponents: {
+          Closed: DoorClosedIcon,
+          Open: DoorOpenIcon
+        },
+        title: "",
+        width: HALF_CHART_WIDTH
+      });
+    }
+
     // Opening Areas: 0-50 sq ft (similar to windows)
     const openingAreaKde = ChartUtils.calculateKde(openingAreasSqFt, { max: 50, min: 0, resolution: 200 });
     charts.openingArea = ChartUtils.getLineChartConfig(
@@ -876,6 +901,16 @@ export function buildDataAnalysisReport(
     chartSections.push({
       data: populatedCharts.doorArea,
       title: "Door Areas",
+      type: "chart"
+    });
+  }
+
+  // Door IsOpen Status
+  if (artifactDirs !== undefined && "doorIsOpen" in charts) {
+    const doorIsOpenChart = charts.doorIsOpen;
+    chartSections.push({
+      data: doorIsOpenChart,
+      title: "Door Open/Closed Status",
       type: "chart"
     });
   }

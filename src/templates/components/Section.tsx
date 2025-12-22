@@ -1,7 +1,7 @@
 import React from "react";
 import { ReportSection } from "../../models/report";
 import { ChartConfiguration } from "../../utils/chartUtils";
-import { BarChart, Histogram, LineChart, MixedChart } from "./charts";
+import { BarChart, Histogram, LineChart, MixedChart, PieChart } from "./charts";
 import { Table } from "./Table";
 
 interface SectionProps {
@@ -77,6 +77,7 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
           {chartConfig.type === "histogram" && <Histogram config={chartConfig} />}
           {chartConfig.type === "bar" && <BarChart config={chartConfig} />}
           {chartConfig.type === "mixed" && <MixedChart config={chartConfig} />}
+          {chartConfig.type === "pie" && <PieChart config={chartConfig} />}
         </div>
       );
     }
@@ -97,6 +98,7 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
                 {chart.data.type === "histogram" && <Histogram config={chart.data} />}
                 {chart.data.type === "bar" && <BarChart config={chart.data} />}
                 {chart.data.type === "mixed" && <MixedChart config={chart.data} />}
+                {chart.data.type === "pie" && <PieChart config={chart.data} />}
               </div>
             </div>
           ))}
