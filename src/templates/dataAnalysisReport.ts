@@ -1,4 +1,8 @@
+import * as fs from "fs";
+import * as path from "path";
+
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
+import { RawScan } from "../models/rawScan/rawScan";
 import * as ChartUtils from "../utils/chartUtils";
 import { ChartConfiguration } from "../utils/chartUtils";
 import { DEVICE_RELEASE_ORDER } from "../utils/deviceReleaseOrder";
@@ -29,10 +33,114 @@ interface ChartDef {
   label: string;
 }
 
+type ObjectConfidenceCounts = Record<string, [number, number, number]>; // [high, medium, low]
+
+function getObjectConfidenceCounts(artifactDirs: string[]): ObjectConfidenceCounts {
+  const counts: ObjectConfidenceCounts = {} as ObjectConfidenceCounts;
+  const confidenceZeroValue = 0;
+
+  const confidenceIndexHigh = 0;
+  const confidenceIndexMedium = 1;
+  const confidenceIndexLow = 2;
+
+  const incrementConfidence = (
+    objectType: string,
+    confidence: { high?: unknown; medium?: unknown; low?: unknown }
+  ): void => {
+    const defaultCounts: [number, number, number] = [confidenceZeroValue, confidenceZeroValue, confidenceZeroValue];
+    counts[objectType] ??= defaultCounts;
+    const currentCounts = counts[objectType];
+
+    // Count by confidence level: [high, medium, low]
+    if (confidence.high !== undefined) {
+      currentCounts[confidenceIndexHigh]++;
+    } else if (confidence.medium !== undefined) {
+      currentCounts[confidenceIndexMedium]++;
+    } else if (confidence.low !== undefined) {
+      currentCounts[confidenceIndexLow]++;
+    }
+  };
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+
+      // Count objects from rawScan.objects
+      for (const obj of rawScan.objects) {
+        // Determine object type (only objects, not doors/windows/openings)
+        let objectType: string | null = null;
+        if (obj.category.toilet !== undefined) {
+          objectType = "Toilet";
+        } else if (obj.category.storage !== undefined) {
+          objectType = "Storage";
+        } else if (obj.category.sink !== undefined) {
+          objectType = "Sink";
+        } else if (obj.category.bathtub !== undefined) {
+          objectType = "Bathtub";
+        } else if (obj.category.washerDryer !== undefined) {
+          objectType = "Washer/Dryer";
+        } else if (obj.category.stove !== undefined) {
+          objectType = "Stove";
+        } else if (obj.category.table !== undefined) {
+          objectType = "Table";
+        } else if (obj.category.chair !== undefined) {
+          objectType = "Chair";
+        } else if (obj.category.bed !== undefined) {
+          objectType = "Bed";
+        } else if (obj.category.sofa !== undefined) {
+          objectType = "Sofa";
+        } else if (obj.category.dishwasher !== undefined) {
+          objectType = "Dishwasher";
+        } else if (obj.category.oven !== undefined) {
+          objectType = "Oven";
+        } else if (obj.category.refrigerator !== undefined) {
+          objectType = "Refrigerator";
+        } else if (obj.category.stairs !== undefined) {
+          objectType = "Stairs";
+        } else if (obj.category.fireplace !== undefined) {
+          objectType = "Fireplace";
+        } else if (obj.category.television !== undefined) {
+          objectType = "Television";
+        }
+
+        if (objectType !== null) {
+          incrementConfidence(objectType, obj.confidence);
+        }
+      }
+
+      // Count doors, windows, and openings (they have confidence but are separate entities)
+      for (const door of rawScan.doors) {
+        incrementConfidence("Door", door.confidence);
+      }
+
+      for (const window of rawScan.windows) {
+        incrementConfidence("Window", window.confidence);
+      }
+
+      for (const opening of rawScan.openings) {
+        if (opening.confidence !== undefined) {
+          incrementConfidence("Opening", opening.confidence);
+        }
+      }
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return counts;
+}
+
 export function buildDataAnalysisReport(
   metadataList: ArtifactAnalysis[],
   avgDuration: number,
-  videoCount: number
+  videoCount: number,
+  artifactDirs?: string[]
 ): ReportData {
   const charts: Partial<CaptureCharts> = {};
   // A4 viewport at 96 DPI from reportGenerator; keep sizing as ratios
@@ -621,17 +729,95 @@ export function buildDataAnalysisReport(
     }
   );
 
-  charts.objects = ChartUtils.getBarChartConfig(
-    objectDefs.map((d) => d.label),
-    objectDefs.map((d) => d.count),
-    {
+  // Collect object confidence data if artifact directories are provided
+  const objectConfidenceCounts = artifactDirs !== undefined ? getObjectConfidenceCounts(artifactDirs) : null;
+
+  if (objectConfidenceCounts !== null) {
+    // Use stacked bars with confidence levels
+    const objectLabels = objectDefs.map((d) => d.label);
+    const confidenceZeroValue = 0;
+    const defaultConfidenceCounts: [number, number, number] = [
+      confidenceZeroValue,
+      confidenceZeroValue,
+      confidenceZeroValue
+    ];
+    // For stacked bars, we want the bar height to match the artifact count (which matches the percentage)
+    // but still show the confidence breakdown proportionally
+    // Map object labels to their artifact counts (number of artifacts that have this object type)
+    const artifactCountsPerLabel: Record<string, number> = {};
+    for (const def of objectDefs) {
+      artifactCountsPerLabel[def.label] = def.count;
+    }
+
+    const objectData: [number, number, number][] = [];
+    const initialSum = 0;
+    for (const label of objectLabels) {
+      // TypeScript's Record type inference treats dynamic key access as potentially unsafe
+      // We know from our type definition that values are [number, number, number], so we can safely access
+      const counts: [number, number, number] | undefined = objectConfidenceCounts[label];
+      const artifactCount = artifactCountsPerLabel[label] ?? initialSum;
+
+      if (counts !== undefined) {
+        // Scale confidence counts to sum to artifact count while maintaining proportions
+        const totalObjectCount = counts.reduce((sum, val) => sum + val, initialSum);
+        if (totalObjectCount > initialSum) {
+          // Scale each confidence level proportionally
+          const scaleFactor = artifactCount / totalObjectCount;
+          const confidenceIndexHigh = 0;
+          const confidenceIndexMedium = 1;
+          const confidenceIndexLow = 2;
+          const scaledCounts: [number, number, number] = [
+            Math.round(counts[confidenceIndexHigh] * scaleFactor),
+            Math.round(counts[confidenceIndexMedium] * scaleFactor),
+            Math.round(counts[confidenceIndexLow] * scaleFactor)
+          ];
+          // Adjust to ensure they sum exactly to artifactCount (handle rounding errors)
+          const scaledSum = scaledCounts.reduce((sum, val) => sum + val, initialSum);
+          const difference = artifactCount - scaledSum;
+          if (difference !== initialSum) {
+            // Add the difference to the largest segment
+            const maxValue = Math.max(...scaledCounts);
+            const maxIndex = scaledCounts.indexOf(maxValue);
+            const minValidIndex = 0;
+            if (maxIndex >= minValidIndex && maxIndex < scaledCounts.length) {
+              scaledCounts[maxIndex] = (scaledCounts[maxIndex] ?? initialSum) + difference;
+            }
+          }
+          objectData.push(scaledCounts);
+        } else {
+          // No objects, use zeros
+          objectData.push(defaultConfidenceCounts);
+        }
+      } else {
+        objectData.push(defaultConfidenceCounts);
+      }
+    }
+
+    charts.objects = ChartUtils.getBarChartConfig(objectLabels, objectData, {
+      artifactCountsPerLabel,
       height: getDynamicHeight(objectDefs.length, MIN_DYNAMIC_HEIGHT),
       horizontal: true,
+      stackColors: ["#10b981", "#f59e0b", "#ef4444"], // green-500, amber-500, red-500
+      stackLabels: ["High", "Medium", "Low"],
+      stacked: true,
       title: "",
       totalForPercentages: metadataList.length,
       width: DURATION_CHART_WIDTH
-    }
-  );
+    });
+  } else {
+    // Fallback to simple bars if confidence data not available
+    charts.objects = ChartUtils.getBarChartConfig(
+      objectDefs.map((d) => d.label),
+      objectDefs.map((d) => d.count),
+      {
+        height: getDynamicHeight(objectDefs.length, MIN_DYNAMIC_HEIGHT),
+        horizontal: true,
+        title: "",
+        totalForPercentages: metadataList.length,
+        width: DURATION_CHART_WIDTH
+      }
+    );
+  }
 
   charts.errors = ChartUtils.getBarChartConfig(
     errorDefs.map((d) => d.label),

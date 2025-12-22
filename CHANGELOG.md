@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-21
 
+### [v0.42.3] Object Distribution Chart with Confidence Levels
+
+- **Stacked Bar Charts for Object Distribution**: Object distribution chart now displays stacked bars showing confidence levels (High, Medium, Low) for detected objects from Roomplan data.
+- **Confidence-Based Visualization**: Each object type shows breakdown by confidence level with color-coded segments (green for High, amber for Medium, red for Low).
+- **Accurate Percentage Calculation**: Percentages now correctly represent "percentage of artifacts that have at least one instance of this object type" rather than total object counts.
+- **Bar Height Alignment**: Bar heights now match percentages by scaling confidence counts proportionally to artifact counts.
+- **Legend Support**: Added legend to stacked bar charts explaining the confidence level colors.
+- **Border Color Fix**: Stacked bar segments now use their own color for borders instead of a uniform green border, improving visual clarity.
+
 ### [v0.42.2] Chart Improvements and Bug Fixes
 
 - **Fixed Horizontal Bar Chart Sorting**: Corrected reversed sorting in horizontal bar charts - highest values now appear at the top as expected.

@@ -112,7 +112,7 @@ describe("inspectArtifacts Script", () => {
       await createInspectionReport(mockMeta, 10, 1, "report.pdf");
 
       expect(logger.info).toHaveBeenCalledWith("Generating PDF...");
-      expect(buildDataAnalysisReport).toHaveBeenCalledWith(mockMeta, 10, 1);
+      expect(buildDataAnalysisReport).toHaveBeenCalledWith(mockMeta, 10, 1, undefined);
       expect(generatePdfReport).toHaveBeenCalledWith(mockReportData, "report.pdf");
       expect(logger.info).toHaveBeenCalledWith("Report generated at: report.pdf");
     });
@@ -179,7 +179,8 @@ describe("inspectArtifacts Script", () => {
       expect(buildDataAnalysisReport).toHaveBeenCalledWith(
         expect.any(Array),
         20, // Avg duration
-        2 // Video count
+        2, // Video count
+        DIRS
       );
 
       expect(generatePdfReport).toHaveBeenCalledWith(mockReportData, "data-analysis.pdf");
@@ -200,7 +201,8 @@ describe("inspectArtifacts Script", () => {
       expect(buildDataAnalysisReport).toHaveBeenCalledWith(
         expect.any(Array),
         20,
-        3 // Total artifact count passed to report is still 3
+        3, // Total artifact count passed to report is still 3
+        ["/a", "/b", "/c"]
       );
     });
   });

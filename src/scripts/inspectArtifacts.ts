@@ -57,11 +57,12 @@ export async function createInspectionReport(
   metadataList: ArtifactAnalysis[],
   avgDuration: number,
   videoCount: number,
-  reportPath: string
+  reportPath: string,
+  artifactDirs?: string[]
 ): Promise<void> {
   logger.info("Generating PDF...");
 
-  const reportData = buildDataAnalysisReport(metadataList, avgDuration, videoCount);
+  const reportData = buildDataAnalysisReport(metadataList, avgDuration, videoCount, artifactDirs);
 
   await generatePdfReport(reportData, reportPath);
 
@@ -110,7 +111,7 @@ export async function main(): Promise<void> {
   // PDF Generation
   const videoCount = metadataList.length;
   const REPORT_FILE = "data-analysis.pdf";
-  await createInspectionReport(metadataList, avgDuration, videoCount, REPORT_FILE);
+  await createInspectionReport(metadataList, avgDuration, videoCount, REPORT_FILE, artifactDirs);
 }
 
 if (require.main === module) {

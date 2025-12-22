@@ -111,4 +111,112 @@ describe("BarChart Component", () => {
     const { getByTestId } = render(<BarChart config={config} />);
     expect(getByTestId("separator-line")).toBeInTheDocument();
   });
+
+  it("should render stacked bars horizontally", () => {
+    const highConfidence = 5;
+    const mediumConfidence = 3;
+    const lowConfidence = 2;
+    const highConfidence2 = 10;
+    const mediumConfidence2 = 5;
+    const lowConfidence2 = 5;
+    const highConfidence3 = 2;
+    const mediumConfidence3 = 1;
+    const lowConfidence3 = 1;
+    const stackedData: number[][] = [
+      [highConfidence, mediumConfidence, lowConfidence], // [high, medium, low] for first bar
+      [highConfidence2, mediumConfidence2, lowConfidence2], // [high, medium, low] for second bar
+      [highConfidence3, mediumConfidence3, lowConfidence3] // [high, medium, low] for third bar
+    ];
+    const segmentsPerBar = 3;
+    const barsCount = 3;
+    const totalBars = barsCount * segmentsPerBar;
+    const config: BarChartConfig = {
+      ...baseConfig,
+      data: stackedData,
+      labels: ["Object1", "Object2", "Object3"],
+      options: {
+        horizontal: true,
+        stackColors: ["#10b981", "#f59e0b", "#ef4444"],
+        stacked: true
+      }
+    };
+    const { getAllByTestId } = render(<BarChart config={config} />);
+    // Should render 3 bars * 3 segments each = 9 bars total
+    expect(getAllByTestId("visx-bar")).toHaveLength(totalBars);
+  });
+
+  it("should render stacked bars vertically", () => {
+    const highConfidence = 5;
+    const mediumConfidence = 3;
+    const lowConfidence = 2;
+    const highConfidence2 = 10;
+    const mediumConfidence2 = 5;
+    const lowConfidence2 = 5;
+    const segmentsPerBar = 3;
+    const barsCount = 2;
+    const totalBars = barsCount * segmentsPerBar;
+    const stackedData: number[][] = [
+      [highConfidence, mediumConfidence, lowConfidence],
+      [highConfidence2, mediumConfidence2, lowConfidence2]
+    ];
+    const config: BarChartConfig = {
+      ...baseConfig,
+      data: stackedData,
+      labels: ["Object1", "Object2"],
+      options: {
+        horizontal: false,
+        stackColors: ["#10b981", "#f59e0b", "#ef4444"],
+        stacked: true
+      }
+    };
+    const { getAllByTestId } = render(<BarChart config={config} />);
+    // Should render 2 bars * 3 segments each = 6 bars total
+    expect(getAllByTestId("visx-bar")).toHaveLength(totalBars);
+  });
+
+  it("should handle single value arrays as non-stacked", () => {
+    const value1 = 10;
+    const value2 = 20;
+    const value3 = 30;
+    const barsCount = 3;
+    const singleValueData: number[][] = [[value1], [value2], [value3]];
+    const config: BarChartConfig = {
+      ...baseConfig,
+      data: singleValueData,
+      labels: ["A", "B", "C"],
+      options: { horizontal: true }
+    };
+    const { getAllByTestId } = render(<BarChart config={config} />);
+    // Should render as regular bars (not stacked)
+    expect(getAllByTestId("visx-bar")).toHaveLength(barsCount);
+  });
+
+  it("should use default stack colors when not provided", () => {
+    const highConfidence = 5;
+    const mediumConfidence = 3;
+    const lowConfidence = 2;
+    const highConfidence2 = 10;
+    const mediumConfidence2 = 5;
+    const lowConfidence2 = 5;
+    const segmentsPerBar = 3;
+    const barsCount = 2;
+    const totalBars = barsCount * segmentsPerBar;
+    const stackedData: number[][] = [
+      [highConfidence, mediumConfidence, lowConfidence],
+      [highConfidence2, mediumConfidence2, lowConfidence2]
+    ];
+    const config: BarChartConfig = {
+      ...baseConfig,
+      data: stackedData,
+      labels: ["Object1", "Object2"],
+      options: {
+        horizontal: true,
+        stacked: true
+        // stackColors not provided, should use defaults
+      }
+    };
+    const { getAllByTestId } = render(<BarChart config={config} />);
+    // Should still render stacked bars with default colors
+    expect(getAllByTestId("visx-bar")).toHaveLength(totalBars);
+  });
 });

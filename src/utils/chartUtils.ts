@@ -44,6 +44,12 @@ export interface BarChartOptions {
   title?: string;
   showCount?: boolean;
   separatorLabel?: string;
+  stacked?: boolean;
+  stackLabels?: string[];
+  stackColors?: string[];
+  // For stacked bars: artifact counts per label (for percentage calculation)
+  // Maps label to number of artifacts that have this object type
+  artifactCountsPerLabel?: Record<string, number>;
 }
 
 export interface HistogramResult {
@@ -91,7 +97,7 @@ export interface HistogramConfig {
 export interface BarChartConfig {
   type: "bar";
   labels: string[];
-  data: number[];
+  data: number[] | number[][];
   options: BarChartOptions;
   height: number;
 }
@@ -395,9 +401,15 @@ export function getHistogramConfig(data: number[], options: HistogramOptions): C
   };
 }
 
-export function getBarChartConfig(labels: string[], data: number[], options: BarChartOptions = {}): ChartConfiguration {
-  if (labels.length !== data.length) {
-    throw new Error(`Labels length (${String(labels.length)}) does not match data length (${String(data.length)}).`);
+export function getBarChartConfig(
+  labels: string[],
+  data: number[] | number[][],
+  options: BarChartOptions = {}
+): ChartConfiguration {
+  const firstDataIndex = 0;
+  const dataLength = Array.isArray(data[firstDataIndex]) ? data.length : (data as number[]).length;
+  if (labels.length !== dataLength) {
+    throw new Error(`Labels length (${String(labels.length)}) does not match data length (${String(dataLength)}).`);
   }
 
   const defaultHeight = 300;
@@ -423,6 +435,18 @@ export function getBarChartConfig(labels: string[], data: number[], options: Bar
   }
   if (options.separatorLabel !== undefined) {
     configOptions.separatorLabel = options.separatorLabel;
+  }
+  if (options.stacked === true) {
+    configOptions.stacked = true;
+  }
+  if (options.stackLabels !== undefined) {
+    configOptions.stackLabels = options.stackLabels;
+  }
+  if (options.stackColors !== undefined) {
+    configOptions.stackColors = options.stackColors;
+  }
+  if (options.artifactCountsPerLabel !== undefined) {
+    configOptions.artifactCountsPerLabel = options.artifactCountsPerLabel;
   }
 
   return {
