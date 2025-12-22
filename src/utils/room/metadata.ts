@@ -43,6 +43,8 @@ export interface RawScanMetadata {
   hasToiletGapErrors: boolean;
   hasTubGapErrors: boolean;
   hasUnparentedEmbedded: boolean;
+  hasCurvedEmbedded: boolean;
+  hasNonRectangularEmbedded: boolean;
   hasWallGapErrors: boolean;
   hasColinearWallErrors: boolean;
   hasNibWalls: boolean;
@@ -96,6 +98,7 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
       const intersectionResults = checkIntersections(rawScan);
 
       const MIN_NON_RECT_CORNERS = 4;
+      const RECTANGULAR_CORNER_COUNT = 4;
       const DEFAULT_STORY_INDEX = 0;
 
       const stories = Array.from(new Set(rawScan.walls.map((w) => w.story ?? DEFAULT_STORY_INDEX))).sort(
@@ -112,6 +115,28 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
         hasChair: rawScan.objects.some((o) => o.category.chair !== undefined),
         hasColinearWallErrors: checkColinearWalls(rawScan),
         hasCrookedWallErrors: checkCrookedWalls(rawScan),
+        hasCurvedEmbedded:
+          rawScan.doors.some((d) => {
+            if (d.parentIdentifier === null) {
+              return false;
+            }
+            const curveValue = d.curve as unknown;
+            return curveValue !== null && curveValue !== undefined;
+          }) ||
+          rawScan.windows.some((w) => {
+            if (w.parentIdentifier === null) {
+              return false;
+            }
+            const curveValue = w.curve as unknown;
+            return curveValue !== null && curveValue !== undefined;
+          }) ||
+          rawScan.openings.some((o) => {
+            if (o.parentIdentifier === null || o.parentIdentifier === undefined) {
+              return false;
+            }
+            const curveValue = o.curve as unknown;
+            return curveValue !== null && curveValue !== undefined;
+          }),
         hasCurvedWall: rawScan.walls.some((w) => w.curve !== undefined && w.curve !== null),
         hasDishwasher: rawScan.objects.some((o) => o.category.dishwasher !== undefined),
         hasDoorBlockingError: checkDoorBlocking(rawScan),
@@ -120,6 +145,20 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
         hasMultipleStories: stories.length > SINGLE_STORY_COUNT,
         hasNibWalls: checkNibWalls(rawScan),
         hasNonRectWall: hasNonRectWall,
+        hasNonRectangularEmbedded:
+          rawScan.doors.some(
+            (d) => d.parentIdentifier !== null && d.polygonCorners.length !== RECTANGULAR_CORNER_COUNT
+          ) ||
+          rawScan.windows.some(
+            (w) => w.parentIdentifier !== null && w.polygonCorners.length !== RECTANGULAR_CORNER_COUNT
+          ) ||
+          rawScan.openings.some(
+            (o) =>
+              o.parentIdentifier !== null &&
+              o.parentIdentifier !== undefined &&
+              o.polygonCorners !== undefined &&
+              o.polygonCorners.length !== RECTANGULAR_CORNER_COUNT
+          ),
         hasObjectIntersectionErrors: intersectionResults.hasObjectIntersectionErrors,
         hasOven: rawScan.objects.some((o) => o.category.oven !== undefined),
         hasRefrigerator: rawScan.objects.some((o) => o.category.refrigerator !== undefined),

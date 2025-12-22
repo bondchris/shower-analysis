@@ -43,6 +43,8 @@ export class ArtifactAnalysis {
   public hasWasherDryer = false;
   public hasMultipleStories = false;
   public hasUnparentedEmbedded = false;
+  public hasCurvedEmbedded = false;
+  public hasNonRectangularEmbedded = false;
   public hasStove = false;
   public hasTable = false;
   public hasChair = false;

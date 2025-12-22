@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-21
 
+### [v0.43.0] Feature Extraction Chart Enhancements
+
+- **Curved Embedded Detection**: Added detection and reporting for curved embedded features (windows, doors, and openings with curve values embedded in walls).
+- **Non-Rectangular Embedded Detection**: Added detection and reporting for non-rectangular embedded features (windows, doors, and openings with polygon corners that are not 4 corners, embedded in walls).
+- **Feature Extraction Chart Updates**: Added two new lines to the feature extraction chart: "Curved Embedded" and "Non-Rectangular Embedded" to track these special embedded feature types.
+- **Test Coverage Improvements**: Added comprehensive test coverage for the new embedded feature detection functionality.
+
 ### [v0.42.3] Object Distribution Chart with Confidence Levels
 
 - **Stacked Bar Charts for Object Distribution**: Object distribution chart now displays stacked bars showing confidence levels (High, Medium, Low) for detected objects from Roomplan data.

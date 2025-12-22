@@ -109,7 +109,9 @@ describe("extractRawScanMetadata", () => {
   it("should return cached metadata if it exists and is valid", () => {
     const cachedData: Partial<RawScanMetadata> = {
       doorCount: 0,
+      hasCurvedEmbedded: false,
       hasMultipleStories: false,
+      hasNonRectangularEmbedded: false,
       hasUnparentedEmbedded: false,
       openingCount: 0,
       roomAreaSqFt: 500,
@@ -245,5 +247,521 @@ describe("extractRawScanMetadata", () => {
 
     const result = extractRawScanMetadata(mockDir);
     expect(result).not.toBeNull(); // Should still return computed data
+  });
+
+  it("should detect hasCurvedEmbedded if a door has curve value and parent", () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockRawScanPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const rawScanWithCurvedDoor = {
+      ...validRawScanData,
+      doors: [
+        {
+          category: { door: { isOpen: false } },
+          completedEdges: [],
+          confidence: { high: {} },
+          curve: { radius: 1.5 } as unknown as null, // Type says null but runtime can have curve
+          dimensions: [0.9, 2.1, 0.1],
+          identifier: "door1",
+          parentIdentifier: "wall1",
+          polygonCorners: [
+            [0, 0],
+            [0.9, 0],
+            [0.9, 2.1],
+            [0, 2.1]
+          ],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ],
+      walls: [
+        {
+          category: { wall: {} },
+          confidence: { high: {} },
+          dimensions: [5, 2, 0.2],
+          identifier: "wall1",
+          modelPosition: [0, 0, 0],
+          parentIdentifier: null,
+          polygonCorners: [
+            [0, 0],
+            [5, 0],
+            [5, 2],
+            [0, 2]
+          ],
+          segments: [],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ]
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(rawScanWithCurvedDoor));
+
+    const result = extractRawScanMetadata(mockDir);
+    expect(result?.hasCurvedEmbedded).toBe(true);
+  });
+
+  it("should detect hasCurvedEmbedded if a window has curve value and parent", () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockRawScanPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const rawScanWithCurvedWindow = {
+      ...validRawScanData,
+      walls: [
+        {
+          category: { wall: {} },
+          confidence: { high: {} },
+          dimensions: [5, 2, 0.2],
+          identifier: "wall1",
+          modelPosition: [0, 0, 0],
+          parentIdentifier: null,
+          polygonCorners: [
+            [0, 0],
+            [5, 0],
+            [5, 2],
+            [0, 2]
+          ],
+          segments: [],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ],
+      windows: [
+        {
+          category: { window: {} },
+          completedEdges: [],
+          confidence: { high: {} },
+          curve: { radius: 2.0 } as unknown as null,
+          dimensions: [1.2, 1.5, 0.1],
+          identifier: "window1",
+          parentIdentifier: "wall1",
+          polygonCorners: [
+            [0, 0],
+            [1.2, 0],
+            [1.2, 1.5],
+            [0, 1.5]
+          ],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ]
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(rawScanWithCurvedWindow));
+
+    const result = extractRawScanMetadata(mockDir);
+    expect(result?.hasCurvedEmbedded).toBe(true);
+  });
+
+  it("should detect hasCurvedEmbedded if an opening has curve value and parent", () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockRawScanPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const rawScanWithCurvedOpening = {
+      ...validRawScanData,
+      openings: [
+        {
+          category: { opening: {} },
+          completedEdges: [],
+          confidence: { high: {} },
+          curve: { radius: 1.8 },
+          dimensions: [1.0, 2.0, 0.1],
+          identifier: "opening1",
+          parentIdentifier: "wall1",
+          polygonCorners: [
+            [0, 0],
+            [1.0, 0],
+            [1.0, 2.0],
+            [0, 2.0]
+          ],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ],
+      walls: [
+        {
+          category: { wall: {} },
+          confidence: { high: {} },
+          dimensions: [5, 2, 0.2],
+          identifier: "wall1",
+          modelPosition: [0, 0, 0],
+          parentIdentifier: null,
+          polygonCorners: [
+            [0, 0],
+            [5, 0],
+            [5, 2],
+            [0, 2]
+          ],
+          segments: [],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ]
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(rawScanWithCurvedOpening));
+
+    const result = extractRawScanMetadata(mockDir);
+    expect(result?.hasCurvedEmbedded).toBe(true);
+  });
+
+  it("should not detect hasCurvedEmbedded if embedded items have null curve", () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockRawScanPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const rawScanWithoutCurved = {
+      ...validRawScanData,
+      doors: [
+        {
+          category: { door: { isOpen: false } },
+          completedEdges: [],
+          confidence: { high: {} },
+          curve: null,
+          dimensions: [0.9, 2.1, 0.1],
+          identifier: "door1",
+          parentIdentifier: "wall1",
+          polygonCorners: [
+            [0, 0],
+            [0.9, 0],
+            [0.9, 2.1],
+            [0, 2.1]
+          ],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ],
+      walls: [
+        {
+          category: { wall: {} },
+          confidence: { high: {} },
+          dimensions: [5, 2, 0.2],
+          identifier: "wall1",
+          modelPosition: [0, 0, 0],
+          parentIdentifier: null,
+          polygonCorners: [
+            [0, 0],
+            [5, 0],
+            [5, 2],
+            [0, 2]
+          ],
+          segments: [],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ]
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(rawScanWithoutCurved));
+
+    const result = extractRawScanMetadata(mockDir);
+    expect(result?.hasCurvedEmbedded).toBe(false);
+  });
+
+  it("should detect hasNonRectangularEmbedded if a door has non-4 corners and parent", () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockRawScanPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const rawScanWithNonRectDoor = {
+      ...validRawScanData,
+      doors: [
+        {
+          category: { door: { isOpen: false } },
+          completedEdges: [],
+          confidence: { high: {} },
+          curve: null,
+          dimensions: [0.9, 2.1, 0.1],
+          identifier: "door1",
+          parentIdentifier: "wall1",
+          polygonCorners: [
+            [0, 0],
+            [0.9, 0],
+            [0.9, 2.1],
+            [0, 2.1],
+            [0.1, 1.0] // 5 corners - non-rectangular
+          ],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ],
+      walls: [
+        {
+          category: { wall: {} },
+          confidence: { high: {} },
+          dimensions: [5, 2, 0.2],
+          identifier: "wall1",
+          modelPosition: [0, 0, 0],
+          parentIdentifier: null,
+          polygonCorners: [
+            [0, 0],
+            [5, 0],
+            [5, 2],
+            [0, 2]
+          ],
+          segments: [],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ]
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(rawScanWithNonRectDoor));
+
+    const result = extractRawScanMetadata(mockDir);
+    expect(result?.hasNonRectangularEmbedded).toBe(true);
+  });
+
+  it("should detect hasNonRectangularEmbedded if a window has non-4 corners and parent", () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockRawScanPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const rawScanWithNonRectWindow = {
+      ...validRawScanData,
+      walls: [
+        {
+          category: { wall: {} },
+          confidence: { high: {} },
+          dimensions: [5, 2, 0.2],
+          identifier: "wall1",
+          modelPosition: [0, 0, 0],
+          parentIdentifier: null,
+          polygonCorners: [
+            [0, 0],
+            [5, 0],
+            [5, 2],
+            [0, 2]
+          ],
+          segments: [],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ],
+      windows: [
+        {
+          category: { window: {} },
+          completedEdges: [],
+          confidence: { high: {} },
+          curve: null,
+          dimensions: [1.2, 1.5, 0.1],
+          identifier: "window1",
+          parentIdentifier: "wall1",
+          polygonCorners: [
+            [0, 0],
+            [1.2, 0],
+            [1.2, 1.5] // 3 corners - non-rectangular
+          ],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ]
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(rawScanWithNonRectWindow));
+
+    const result = extractRawScanMetadata(mockDir);
+    expect(result?.hasNonRectangularEmbedded).toBe(true);
+  });
+
+  it("should detect hasNonRectangularEmbedded if an opening has non-4 corners and parent", () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockRawScanPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const rawScanWithNonRectOpening = {
+      ...validRawScanData,
+      openings: [
+        {
+          category: { opening: {} },
+          completedEdges: [],
+          confidence: { high: {} },
+          curve: null,
+          dimensions: [1.0, 2.0, 0.1],
+          identifier: "opening1",
+          parentIdentifier: "wall1",
+          polygonCorners: [
+            [0, 0],
+            [1.0, 0],
+            [1.0, 2.0],
+            [0, 2.0],
+            [0.2, 1.0],
+            [0.1, 0.5] // 6 corners - non-rectangular
+          ],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ],
+      walls: [
+        {
+          category: { wall: {} },
+          confidence: { high: {} },
+          dimensions: [5, 2, 0.2],
+          identifier: "wall1",
+          modelPosition: [0, 0, 0],
+          parentIdentifier: null,
+          polygonCorners: [
+            [0, 0],
+            [5, 0],
+            [5, 2],
+            [0, 2]
+          ],
+          segments: [],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ]
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(rawScanWithNonRectOpening));
+
+    const result = extractRawScanMetadata(mockDir);
+    expect(result?.hasNonRectangularEmbedded).toBe(true);
+  });
+
+  it("should not detect hasNonRectangularEmbedded if embedded items have 4 corners", () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockRawScanPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const rawScanWithRectangular = {
+      ...validRawScanData,
+      doors: [
+        {
+          category: { door: { isOpen: false } },
+          completedEdges: [],
+          confidence: { high: {} },
+          curve: null,
+          dimensions: [0.9, 2.1, 0.1],
+          identifier: "door1",
+          parentIdentifier: "wall1",
+          polygonCorners: [
+            [0, 0],
+            [0.9, 0],
+            [0.9, 2.1],
+            [0, 2.1] // 4 corners - rectangular
+          ],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ],
+      walls: [
+        {
+          category: { wall: {} },
+          confidence: { high: {} },
+          dimensions: [5, 2, 0.2],
+          identifier: "wall1",
+          modelPosition: [0, 0, 0],
+          parentIdentifier: null,
+          polygonCorners: [
+            [0, 0],
+            [5, 0],
+            [5, 2],
+            [0, 2]
+          ],
+          segments: [],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ]
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(rawScanWithRectangular));
+
+    const result = extractRawScanMetadata(mockDir);
+    expect(result?.hasNonRectangularEmbedded).toBe(false);
+  });
+
+  it("should not detect hasCurvedEmbedded or hasNonRectangularEmbedded if items have null parent", () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockRawScanPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const rawScanWithUnparented = {
+      ...validRawScanData,
+      doors: [
+        {
+          category: { door: { isOpen: false } },
+          completedEdges: [],
+          confidence: { high: {} },
+          curve: { radius: 1.5 } as unknown as null,
+          dimensions: [0.9, 2.1, 0.1],
+          identifier: "door1",
+          parentIdentifier: null, // No parent
+          polygonCorners: [
+            [0, 0],
+            [0.9, 0],
+            [0.9, 2.1],
+            [0, 2.1],
+            [0.1, 1.0] // 5 corners
+          ],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }
+      ]
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(rawScanWithUnparented));
+
+    const result = extractRawScanMetadata(mockDir);
+    expect(result?.hasCurvedEmbedded).toBe(false);
+    expect(result?.hasNonRectangularEmbedded).toBe(false);
   });
 });

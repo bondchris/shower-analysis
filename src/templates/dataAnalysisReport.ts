@@ -659,6 +659,12 @@ export function buildDataAnalysisReport(
   const featureDefs: ChartDef[] = [
     { check: (m: ArtifactAnalysis) => m.hasNonRectWall, count: INITIAL_COUNT, label: "Non-Rectangular Walls" },
     { check: (m: ArtifactAnalysis) => m.hasCurvedWall, count: INITIAL_COUNT, label: "Curved Walls" },
+    { check: (m: ArtifactAnalysis) => m.hasCurvedEmbedded, count: INITIAL_COUNT, label: "Curved Embedded" },
+    {
+      check: (m: ArtifactAnalysis) => m.hasNonRectangularEmbedded,
+      count: INITIAL_COUNT,
+      label: "Non-Rectangular Embedded"
+    },
     { check: (m: ArtifactAnalysis) => m.toiletCount >= MIN_TOILETS, count: INITIAL_COUNT, label: "2+ Toilets" },
     { check: (m: ArtifactAnalysis) => m.tubCount >= MIN_TUBS, count: INITIAL_COUNT, label: "2+ Tubs" },
     {
