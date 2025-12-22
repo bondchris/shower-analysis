@@ -2,7 +2,7 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
-**Current Version:** v0.45.0
+**Current Version:** v0.45.1
 
 ## Overview
 
@@ -97,7 +97,7 @@ npm run filter-videos
 Standardizes JSON files for better diffing and readability.
 
 ```bash
-npm run format-ar-data
+npm run format-data
 ```
 
 **Features**:
@@ -197,7 +197,7 @@ Run the complete data processing pipeline:
 npm run full-pipeline
 ```
 
-This executes: validate → sync → clean-data → filter-videos → format-ar-data → inspect
+This executes: validate → sync → clean-data → filter-videos → format-data → inspect
 
 ## Directory Structure
 

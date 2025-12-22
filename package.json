@@ -1,6 +1,6 @@
 {
   "name": "shower-analysis",
-  "version": "0.45.0",
+  "version": "0.45.1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -13,13 +13,13 @@
     "clean-data": "ts-node src/scripts/cleanData.ts",
     "filter-videos": "ts-node src/scripts/filterNonBathrooms.ts",
     "format": "npm run format:ts && npm run format:md && npm run format:json && npm run format:css && npm run format:sh",
-    "format-ar-data": "ts-node src/scripts/formatArData.ts",
+    "format-data": "ts-node src/scripts/formatData.ts",
     "format:css": "prettier --write \"**/*.css\"",
     "format:json": "prettier --write \"**/*.json\"",
     "format:md": "prettier --write \"**/*.md\"",
     "format:sh": "prettier --write \"scripts/*.sh\"",
     "format:ts": "prettier --write \"**/*.{ts,tsx,js,cjs,mjs}\"",
-    "full-pipeline": "npm run validate && npm run sync && npm run clean-data && npm run filter-videos && npm run format-ar-data && npm run inspect",
+    "full-pipeline": "npm run validate && npm run sync && npm run clean-data && npm run filter-videos && npm run format-data && npm run inspect",
     "inspect": "ts-node src/scripts/inspectArtifacts.ts",
     "lint": "npm run lint:ts && npm run lint:md && npm run lint:sh && ./scripts/check-eslint-disable.sh && npm run check-format",
     "lint:fix": "eslint . --fix && markdownlint . --fix",

@@ -63,7 +63,7 @@ The entry points for different operations:
 - **`inspectArtifacts.ts`**: Performs deep analysis of metadata, lighting, and room features
 - **`cleanData.ts`**: Removes invalid or corrupt artifacts
 - **`filterNonBathrooms.ts`**: Uses Gemini AI to filter out non-bathroom videos
-- **`formatArData.ts`**: Standardizes JSON file formatting
+- **`formatData.ts`**: Standardizes JSON file formatting (arData.json and rawScan.json)
 
 ### Services (`src/services/`)
 

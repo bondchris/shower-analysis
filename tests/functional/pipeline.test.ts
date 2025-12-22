@@ -113,7 +113,7 @@ import { saveBadScans } from "../../src/utils/data/badScans";
 import { main as validateMain } from "../../src/scripts/validateArtifacts";
 import { main as syncMain } from "../../src/scripts/syncArtifacts";
 import { main as cleanMain } from "../../src/scripts/cleanData";
-import { run as formatRun } from "../../src/scripts/formatArData";
+import { run as formatRun } from "../../src/scripts/formatData";
 import { main as filterMain } from "../../src/scripts/filterNonBathrooms";
 import { main as inspectMain } from "../../src/scripts/inspectArtifacts";
 

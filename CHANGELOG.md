@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-22
 
+### [v0.45.1] General Data Formatting Script with Recursive Key Sorting
+
+- **Generalized Format Script**: Renamed `formatArData` to `formatData` to handle both `arData.json` and `rawScan.json` files.
+- **Recursive Key Sorting**: Implemented recursive sorting of object keys at all levels, not just top-level keys, for consistent JSON formatting.
+- **arData.json Formatting**: Maintains numeric sorting for timestamp keys in the `data` property while sorting all other keys alphabetically.
+- **rawScan.json Formatting**: Sorts all keys alphabetically at all nesting levels for improved diff readability.
+- **Output Files**: Generates `arDataFormatted.json` and `rawScanFormatted.json` files with consistently sorted keys.
+
 ### [v0.45.0] Low Ceiling Detection Fix and Non-Rectangular Embedded Detection Improvements
 
 - **Low Ceiling Detection**: Added detection for room with low ceilings (< 7.5 feet>)
