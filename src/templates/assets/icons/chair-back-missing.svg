@@ -1,0 +1,13 @@
+<svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g id="chair-no-back">
+    <rect x="50" y="100" width="100" height="20" fill="currentColor" stroke="currentColor" stroke-width="2"/>
+    <rect x="50" y="120" width="10" height="60" fill="currentColor" stroke="currentColor" stroke-width="2"/>
+    <rect x="140" y="120" width="10" height="60" fill="currentColor" stroke="currentColor" stroke-width="2"/>
+    <rect x="60" y="115" width="10" height="60" fill="currentColor" stroke="currentColor" stroke-width="2"/>
+    <rect x="130" y="115" width="10" height="60" fill="currentColor" stroke="currentColor" stroke-width="2"/>
+    <rect x="50" y="70" width="10" height="30" fill="currentColor" stroke="currentColor" stroke-width="2"/>
+    <rect x="40" y="60" width="30" height="10" fill="currentColor" stroke="currentColor" stroke-width="2"/>
+    <rect x="140" y="70" width="10" height="30" fill="currentColor" stroke="currentColor" stroke-width="2"/>
+    <rect x="130" y="60" width="30" height="10" fill="currentColor" stroke="currentColor" stroke-width="2"/>
+  </g>
+</svg>

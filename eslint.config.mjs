@@ -148,7 +148,7 @@ export default [
   },
   // Overrides for tests
   {
-    files: ["tests/**/*.ts", "tests/**/*.js"],
+    files: ["tests/**/*.ts*", "tests/**/*.js"],
     rules: {
       "@typescript-eslint/ban-ts-comment": "off",
       "@typescript-eslint/unbound-method": "off",

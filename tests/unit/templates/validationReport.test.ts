@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { EnvStats } from "../../../src/models/envStats";
 import { buildValidationReport } from "../../../src/templates/validationReport";
-import * as ChartUtils from "../../../src/utils/chartUtils";
+import { getBarChartConfig } from "../../../src/utils/chart/configBuilders";
 import { logger } from "../../../src/utils/logger";
 
 vi.mock("../../../src/utils/logger", () => ({
@@ -12,8 +12,8 @@ vi.mock("../../../src/utils/logger", () => ({
 }));
 
 // Mock ChartUtils
-vi.mock("../../../src/utils/chartUtils", async () => {
-  const actual = await vi.importActual("../../../src/utils/chartUtils");
+vi.mock("../../../src/utils/chart/configBuilders", async () => {
+  const actual = await vi.importActual("../../../src/utils/chart/configBuilders");
   return {
     ...actual,
     getBarChartConfig: vi.fn().mockReturnValue({ type: "bar" }),
@@ -132,7 +132,7 @@ describe("buildValidationReport", () => {
     ];
 
     // Spy and throw
-    const errorSpy = vi.spyOn(ChartUtils, "getBarChartConfig").mockImplementation(() => {
+    const errorSpy = vi.spyOn({ getBarChartConfig }, "getBarChartConfig").mockImplementation(() => {
       throw new Error("Chart Error");
     });
     const loggerSpy = vi.spyOn(logger, "error");

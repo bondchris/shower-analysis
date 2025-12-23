@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-22
 
+### [v0.47.0] Object Attribute Visualization and Icon System Refactoring
+
+- **Object Attribute Pie Charts**: Added 8 new pie charts to data analysis report showing distribution of object attributes:
+  - Chair Arm Type (existing/missing)
+  - Chair Back Type (existing/missing)
+  - Chair Leg Type (four legs/star base)
+  - Chair Type (stool/dining/swivel)
+  - Sofa Type (single seat)
+  - Storage Type (cabinet/shelf)
+  - Table Shape Type (rectangular/circular)
+  - Table Type
+- **Generalized Icon System**: Refactored icon components from specific implementations (`DoorClosedIcon`, `DoorOpenIcon`) to a generic, configurable system:
+  - Created `SVGIcon` component that handles all icon rendering with automatic scaling
+  - Added `iconConfig.tsx` with centralized icon configuration mapping icon names to SVG paths and viewBox sizes
+  - Added 17 new SVG icon assets for various object types (chairs, tables, sofas, storage, etc.)
+  - Icons automatically scale to match legend box size and use chart colors dynamically
+- **Enhanced SVG Loader**: Improved `svgLoader.ts` to handle complex SVG files:
+  - Added support for CSS classes in `<style>` tags by inlining fill/stroke attributes
+  - Removes style tags (which don't work when injected via `dangerouslySetInnerHTML`)
+  - Extracts class rules and applies colors directly to elements
+- **Chart Utilities Refactoring**: Reorganized chart utilities for better maintainability:
+  - Deleted monolithic `chartUtils.ts` (603 lines)
+  - Split into modular structure in `utils/chart/` directory:
+    - `configBuilders.ts` - Chart configuration builders
+    - `kde.ts` - Kernel density estimation
+    - `histogram.ts` - Histogram calculations
+    - `colors.ts` - Color utilities
+  - Moved chart type definitions to `models/chart/` directory
+- **Data Analysis Report Refactoring**: Significant code organization improvements:
+  - Split large report building function into focused helper functions:
+    - `computeLayoutConstants()` - Layout calculations
+    - `buildKdeCharts()` - Continuous data charts
+    - `buildDeviceAndCameraCharts()` - Device/camera metadata charts
+    - `buildErrorFeatureObjectCharts()` - Error, feature, and object charts
+    - `buildAreaCharts()` - Area distribution charts
+    - `buildAttributePieCharts()` - Object attribute pie charts
+  - Improved type safety with explicit interfaces and better separation of concerns
+- **New Utility Functions**: Added `getObjectAttributeCounts()` to `rawScanExtractor.ts` for extracting object attribute distributions from raw scan data
+- **Test Coverage**: Updated and expanded tests for new icon system, SVG loader enhancements, and refactored chart utilities
+
 ### [v0.46.0] Door Status Pie Chart with Custom Legend Icons
 
 - **Door Status Visualization**: Added pie chart to data analysis report showing the prevalence of different door `isOpen` values (Open, Closed, Unknown) across all doors in all `rawScan.json` files.

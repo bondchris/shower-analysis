@@ -1,14 +1,13 @@
 import { vi } from "vitest";
 
+import { calculateHistogramBinCenter, calculateHistogramBins } from "../../../src/utils/chart/histogram";
 import {
-  calculateHistogramBinCenter,
-  calculateHistogramBins,
   getBarChartConfig,
   getHistogramConfig,
   getLineChartConfig,
-  getMixedChartConfig,
-  kelvinToRgb
-} from "../../../src/utils/chartUtils";
+  getMixedChartConfig
+} from "../../../src/utils/chart/configBuilders";
+import { kelvinToRgb } from "../../../src/utils/chart/colors";
 
 describe("chartUtils", () => {
   beforeEach(() => {

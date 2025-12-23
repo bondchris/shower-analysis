@@ -7,7 +7,7 @@ import { curveLinear, curveMonotoneX } from "@visx/curve";
 import { AreaClosed, LinePath } from "@visx/shape";
 import React from "react";
 
-import { LineChartConfig } from "../../../utils/chartUtils";
+import { LineChartConfig } from "../../../models/chart/lineChartConfig";
 
 interface LineChartProps {
   config: LineChartConfig;

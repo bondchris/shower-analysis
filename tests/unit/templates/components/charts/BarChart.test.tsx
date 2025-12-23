@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { BarChart } from "../../../../../src/templates/components/charts/BarChart";
-import { BarChartConfig } from "../../../../../src/utils/chartUtils";
+import { BarChartConfig } from "../../../../../src/models/chart/barChartConfig";
 
 // Mock Visx components to isolate logic
 vi.mock("@visx/group", () => ({ Group: ({ children }: { children: React.ReactNode }) => <g>{children}</g> }));

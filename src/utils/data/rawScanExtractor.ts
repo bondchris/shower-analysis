@@ -387,3 +387,39 @@ export function getDoorIsOpenCounts(artifactDirs: string[]): Record<string, numb
   return counts;
 }
 
+/**
+ * Extracts object attribute counts from raw scan files.
+ * Returns a record mapping attribute type to a record of attribute values and their counts.
+ */
+export function getObjectAttributeCounts(
+  artifactDirs: string[],
+  attributeType: string
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  const initialCount = 0;
+  const increment = 1;
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+
+      for (const obj of rawScan.objects) {
+        const attributeValue = obj.attributes[attributeType];
+        if (attributeValue !== undefined && typeof attributeValue === "string") {
+          counts[attributeValue] = (counts[attributeValue] ?? initialCount) + increment;
+        }
+      }
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return counts;
+}
+

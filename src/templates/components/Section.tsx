@@ -1,6 +1,6 @@
 import React from "react";
+import { ChartConfiguration } from "../../models/chart/chartConfiguration";
 import { ReportSection } from "../../models/report";
-import { ChartConfiguration } from "../../utils/chartUtils";
 import { BarChart, Histogram, LineChart, MixedChart, PieChart } from "./charts";
 import { Table } from "./Table";
 
@@ -89,11 +89,11 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
       return (
         <div className="mb-2 flex justify-between gap-5 break-inside-avoid">
           {(section.data as { title?: string; data: ChartConfiguration }[]).map((chart, i) => (
-            <div key={i} className="flex-1 text-center min-w-0">
+            <div key={i} className="flex-1 text-center min-w-0 overflow-visible">
               {chart.title !== undefined && (
                 <h5 className="mb-2 text-center text-sm font-semibold text-gray-700">{chart.title}</h5>
               )}
-              <div className="flex w-full justify-center">
+              <div className="flex w-full justify-center overflow-visible">
                 {chart.data.type === "line" && <LineChart config={chart.data} />}
                 {chart.data.type === "histogram" && <Histogram config={chart.data} />}
                 {chart.data.type === "bar" && <BarChart config={chart.data} />}

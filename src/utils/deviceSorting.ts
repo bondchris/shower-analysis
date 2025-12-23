@@ -1,4 +1,4 @@
-import { DEVICE_RELEASE_ORDER } from "./deviceReleaseOrder";
+import { DEVICE_RELEASE_ORDER } from "../../config/deviceReleaseOrder";
 
 /**
  * Sorts device models into categories (iPhones, iPads, Others) and applies

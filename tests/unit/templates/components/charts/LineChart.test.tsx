@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 import React from "react";
 import { LineChart } from "../../../../../src/templates/components/charts/LineChart";
-import { LineChartConfig } from "../../../../../src/utils/chartUtils";
+import { LineChartConfig } from "../../../../../src/models/chart/lineChartConfig";
 
 // Mock Visx components to avoid complex SVG rendering issues
 vi.mock("@visx/group", () => ({ Group: ({ children }: { children: React.ReactNode }) => <g>{children}</g> }));

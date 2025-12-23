@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildSyncReport } from "../../../src/templates/syncReport";
 import { SyncStats } from "../../../src/models/syncStats";
 import { SyncFailureDatabase } from "../../../src/utils/data/syncFailures";
-import { LineChartConfig } from "../../../src/utils/chartUtils";
+import { LineChartConfig } from "../../../src/models/chart/lineChartConfig";
 
 describe("buildSyncReport", () => {
   it("should generate summary table and handle no failures", () => {
@@ -632,5 +632,176 @@ describe("buildSyncReport", () => {
     expect(Component).toBeDefined();
     const element = Component({});
     expect(element).toBeDefined();
+  });
+
+  describe("Error formatting branch coverage", () => {
+    it("should format single error per artifact (line 570)", () => {
+      const stats: SyncStats[] = [
+        {
+          arDataSize: 0,
+          dateMismatches: [],
+          env: "Production",
+          errors: [{ id: "scan1", reason: "Single Error" }],
+          failed: 1,
+          found: 1,
+          knownFailures: 0,
+          new: 1,
+          newArDataSize: 0,
+          newFailures: 1,
+          newRawScanSize: 0,
+          newVideoSize: 0,
+          processedIds: new Set(),
+          rawScanSize: 0,
+          skipped: 0,
+          videoHistory: {},
+          videoSize: 0
+        }
+      ];
+
+      const report = buildSyncReport(stats, {});
+      const listSection = report.sections.find((s) => s.title === "New Inaccessible");
+      const data = listSection?.data as string[];
+
+      // Single error should be formatted as "id - error" (line 570)
+      expect(data[0]).toContain("scan1");
+      expect(data[0]).toContain("Single Error");
+      expect(data[0]).toContain("-");
+    });
+
+    it("should format multiple errors per artifact (lines 572-575)", () => {
+      const stats: SyncStats[] = [
+        {
+          arDataSize: 0,
+          dateMismatches: [],
+          env: "Production",
+          errors: [
+            { id: "scan1", reason: "Error A" },
+            { id: "scan1", reason: "Error B" },
+            { id: "scan1", reason: "Error C" }
+          ],
+          failed: 1,
+          found: 1,
+          knownFailures: 0,
+          new: 1,
+          newArDataSize: 0,
+          newFailures: 1,
+          newRawScanSize: 0,
+          newVideoSize: 0,
+          processedIds: new Set(),
+          rawScanSize: 0,
+          skipped: 0,
+          videoHistory: {},
+          videoSize: 0
+        }
+      ];
+
+      const report = buildSyncReport(stats, {});
+      const listSection = report.sections.find((s) => s.title === "New Inaccessible");
+      const data = listSection?.data as string[];
+
+      // Multiple errors should be formatted as "id" followed by bulleted list (lines 572-575)
+      expect(data[0]).toContain("scan1");
+      expect(data[0]).not.toContain("- Error");
+      expect(data[1]).toContain("- Error A");
+      expect(data[2]).toContain("- Error B");
+      expect(data[3]).toContain("- Error C");
+    });
+
+    it("should format two error types with 'and' (line 552)", () => {
+      const stats: SyncStats[] = [
+        {
+          arDataSize: 0,
+          dateMismatches: [],
+          env: "Production",
+          errors: [
+            { id: "scan1", reason: "RawScan download failed (404)" },
+            { id: "scan1", reason: "Video download failed (404)" }
+          ],
+          failed: 1,
+          found: 1,
+          knownFailures: 0,
+          new: 1,
+          newArDataSize: 0,
+          newFailures: 1,
+          newRawScanSize: 0,
+          newVideoSize: 0,
+          processedIds: new Set(),
+          rawScanSize: 0,
+          skipped: 0,
+          videoHistory: {},
+          videoSize: 0
+        }
+      ];
+
+      const report = buildSyncReport(stats, {});
+      const listSection = report.sections.find((s) => s.title === "New Inaccessible");
+      const data = (listSection?.data as string[]).join(" ");
+
+      // Two types should use "and" (line 552)
+      expect(data).toContain("and");
+      expect(data).not.toContain(",");
+    });
+
+    it("should format single error type without 'and' (line 550)", () => {
+      const stats: SyncStats[] = [
+        {
+          arDataSize: 0,
+          dateMismatches: [],
+          env: "Production",
+          errors: [{ id: "scan1", reason: "RawScan download failed (404)" }],
+          failed: 1,
+          found: 1,
+          knownFailures: 0,
+          new: 1,
+          newArDataSize: 0,
+          newFailures: 1,
+          newRawScanSize: 0,
+          newVideoSize: 0,
+          processedIds: new Set(),
+          rawScanSize: 0,
+          skipped: 0,
+          videoHistory: {},
+          videoSize: 0
+        }
+      ];
+
+      const report = buildSyncReport(stats, {});
+      const listSection = report.sections.find((s) => s.title === "New Inaccessible");
+      const data = (listSection?.data as string[]).join(" ");
+
+      // Single type should not use "and" (line 550)
+      expect(data).toContain("Download failed (404) for RawScan");
+      expect(data).not.toContain("and");
+    });
+
+    it("should handle case where newErrors or knownErrors are empty (line 587)", () => {
+      const stats: SyncStats[] = [
+        {
+          arDataSize: 0,
+          dateMismatches: [],
+          env: "Production",
+          errors: [],
+          failed: 0,
+          found: 10,
+          knownFailures: 0,
+          new: 0,
+          newArDataSize: 0,
+          newFailures: 0,
+          newRawScanSize: 0,
+          newVideoSize: 0,
+          processedIds: new Set(),
+          rawScanSize: 0,
+          skipped: 0,
+          videoHistory: {},
+          videoSize: 0
+        }
+      ];
+
+      const report = buildSyncReport(stats, {});
+
+      // Should not have error sections when no errors
+      const errorSection = report.sections.find((s) => s.title === "Inaccessible Artifacts");
+      expect(errorSection).toBeUndefined();
+    });
   });
 });

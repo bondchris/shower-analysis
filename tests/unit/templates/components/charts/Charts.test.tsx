@@ -3,12 +3,10 @@ import { render } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { BarChart, Histogram, LineChart, MixedChart } from "../../../../../src/templates/components/charts";
-import {
-  BarChartConfig,
-  HistogramConfig,
-  LineChartConfig,
-  MixedChartConfig
-} from "../../../../../src/utils/chartUtils";
+import { BarChartConfig } from "../../../../../src/models/chart/barChartConfig";
+import { HistogramConfig } from "../../../../../src/models/chart/histogramConfig";
+import { LineChartConfig } from "../../../../../src/models/chart/lineChartConfig";
+import { MixedChartConfig } from "../../../../../src/models/chart/mixedChartConfig";
 
 // Mock Visx components to avoid complex SVG rendering issues in simple smoke tests
 // We just want to ensure our wrapper components render without crashing

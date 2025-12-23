@@ -6,7 +6,8 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MixedChart } from "../../../../../src/templates/components/charts/MixedChart";
-import { MixedChartConfig, MixedChartDataset } from "../../../../../src/utils/chartUtils";
+import { MixedChartConfig } from "../../../../../src/models/chart/mixedChartConfig";
+import { MixedChartDataset } from "../../../../../src/models/chart/mixedChartDataset";
 
 // Spy functions to capture props passed to Visx components
 const axisBottomSpy = vi.fn();

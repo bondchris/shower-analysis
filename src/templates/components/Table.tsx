@@ -13,11 +13,6 @@ export const Table: React.FC<TableProps> = ({ data, options }) => {
   const rowClasses = options?.rowClasses ?? {};
   const MIN_HEADERS = 0;
 
-  // For dangerouslySetInnerHTML usage in cells (if we want HTML in cells, which the original code seemed to allow implies simple strings but generated via TS code that expected HTML behavior? No, original was template strings.
-  // Wait, let's look at `renderTable` in original: `html += <td>${cell}</td>`.
-  // If `cell` contained HTML (e.g. badges), it would be rendered as HTML.
-  // We need to support HTML in cells for Badges.
-
   return (
     <table className="mb-5 w-full table-auto border-collapse text-[11px]">
       {headers.length > MIN_HEADERS && (

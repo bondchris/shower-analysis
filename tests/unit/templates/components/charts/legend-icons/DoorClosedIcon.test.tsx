@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { DoorClosedIcon } from "../../../../../../src/templates/components/charts/legend-icons/DoorClosedIcon";
+import { DoorClosedIcon } from "../../../../../../src/templates/components/charts/legend-icons/iconConfig";
 import * as svgLoader from "../../../../../../src/templates/components/charts/legend-icons/svgLoader";
 
 vi.mock("../../../../../../src/templates/components/charts/legend-icons/svgLoader", () => ({

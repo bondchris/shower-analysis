@@ -1,10 +1,13 @@
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
-import * as ChartUtils from "../utils/chartUtils";
-import { ChartConfiguration } from "../utils/chartUtils";
+import { ChartConfiguration } from "../models/chart/chartConfiguration";
+import { calculateKde } from "../utils/chart/kde";
+import { getBarChartConfig, getLineChartConfig, getPieChartConfig } from "../utils/chart/configBuilders";
+import { startCase } from "lodash";
 import {
   convertAreasToSquareFeet,
   getDoorAreas,
   getDoorIsOpenCounts,
+  getObjectAttributeCounts,
   getObjectConfidenceCounts,
   getOpeningAreas,
   getUnexpectedVersionArtifactDirs,
@@ -13,8 +16,25 @@ import {
 } from "../utils/data/rawScanExtractor";
 import { sortDeviceModels } from "../utils/deviceSorting";
 import { ReportData, ReportSection } from "../models/report";
-import { DoorClosedIcon } from "./components/charts/legend-icons/DoorClosedIcon";
-import { DoorOpenIcon } from "./components/charts/legend-icons/DoorOpenIcon";
+import {
+  CabinetIcon,
+  ChairArmExistingIcon,
+  ChairArmMissingIcon,
+  ChairBackMissingIcon,
+  CircularEllipticIcon,
+  DiningIcon,
+  DoorClosedIcon,
+  DoorOpenIcon,
+  ExistingIcon,
+  FourIcon,
+  RectangularIcon,
+  ShelfIcon,
+  SingleSeatIcon,
+  StarIcon,
+  StoolIcon,
+  SwivelIcon,
+  UnidentifiedIcon
+} from "./components/charts/legend-icons/iconConfig";
 
 export interface CaptureCharts {
   ambient: ChartConfiguration;
@@ -26,7 +46,7 @@ export interface CaptureCharts {
   objects: ChartConfiguration;
   fps: ChartConfiguration;
   iso: ChartConfiguration;
-  lens: ChartConfiguration;
+  deviceModel: ChartConfiguration;
   resolution: ChartConfiguration;
   temperature: ChartConfiguration;
   focalLength: ChartConfiguration;
@@ -37,22 +57,41 @@ export interface CaptureCharts {
   openingArea: ChartConfiguration;
   wallArea: ChartConfiguration;
   doorIsOpen: ChartConfiguration;
+  chairArmType: ChartConfiguration;
+  chairBackType: ChartConfiguration;
+  chairLegType: ChartConfiguration;
+  chairType: ChartConfiguration;
+  sofaType: ChartConfiguration;
+  storageType: ChartConfiguration;
+  tableShapeType: ChartConfiguration;
+  tableType: ChartConfiguration;
 }
 
-// Helper interface for local chart data preparation
-interface ChartDef {
-  check: (m: ArtifactAnalysis) => boolean;
-  count: number;
-  label: string;
+// Helper type for local chart data preparation
+type ChartDef =
+  | { check: (m: ArtifactAnalysis) => boolean; count: number; kind: "predicate"; label: string }
+  | { count: number; kind: "unexpectedVersion"; label: string };
+
+// Layout constants interface
+interface LayoutConstants {
+  PAGE_VIEWPORT_WIDTH: number;
+  PAGE_VIEWPORT_HEIGHT: number;
+  PAGE_MARGIN: number;
+  PAGE_CONTENT_WIDTH: number;
+  PAGE_CONTENT_HEIGHT: number;
+  DURATION_CHART_WIDTH: number;
+  HALF_CHART_WIDTH: number;
+  THIRD_CHART_WIDTH: number;
+  HISTO_CHART_WIDTH: number;
+  ERRORS_CHART_WIDTH: number;
+  DURATION_CHART_HEIGHT: number;
+  HALF_CHART_HEIGHT: number;
+  LENS_CHART_HEIGHT: number;
+  MIN_DYNAMIC_HEIGHT: number;
+  getDynamicHeight: (itemCount: number, minHeight?: number) => number;
 }
 
-export function buildDataAnalysisReport(
-  metadataList: ArtifactAnalysis[],
-  avgDuration: number,
-  videoCount: number,
-  artifactDirs?: string[]
-): ReportData {
-  const charts: Partial<CaptureCharts> = {};
+function computeLayoutConstants(): LayoutConstants {
   // A4 viewport at 96 DPI from reportGenerator; keep sizing as ratios
   const PAGE_VIEWPORT_WIDTH = 794;
   const PAGE_VIEWPORT_HEIGHT = 1123;
@@ -64,9 +103,9 @@ export function buildDataAnalysisReport(
 
   const FULL_WIDTH_RATIO = 0.9;
   const HALF_WIDTH_RATIO = 0.47;
+  const THIRD_WIDTH_RATIO = 0.23;
   const HISTO_WIDTH_RATIO = FULL_WIDTH_RATIO;
   const ERRORS_WIDTH_RATIO = 0.82;
-  const LENS_WIDTH_RATIO = 0.9;
   const DURATION_HEIGHT_RATIO = 0.32;
   const HALF_HEIGHT_RATIO = 0.26;
   const LENS_HEIGHT_RATIO = 0.35;
@@ -79,36 +118,52 @@ export function buildDataAnalysisReport(
 
   const DURATION_CHART_WIDTH = Math.round(PAGE_CONTENT_WIDTH * FULL_WIDTH_RATIO);
   const HALF_CHART_WIDTH = Math.round(PAGE_CONTENT_WIDTH * HALF_WIDTH_RATIO);
+  const THIRD_CHART_WIDTH = Math.round(PAGE_CONTENT_WIDTH * THIRD_WIDTH_RATIO);
   const HISTO_CHART_WIDTH = Math.round(PAGE_CONTENT_WIDTH * HISTO_WIDTH_RATIO);
   const ERRORS_CHART_WIDTH = Math.round(PAGE_CONTENT_WIDTH * ERRORS_WIDTH_RATIO);
   const DURATION_CHART_HEIGHT = Math.max(MIN_DURATION_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * DURATION_HEIGHT_RATIO));
   const HALF_CHART_HEIGHT = Math.max(MIN_HALF_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * HALF_HEIGHT_RATIO));
   const LENS_CHART_HEIGHT = Math.max(MIN_LENS_HEIGHT, Math.round(PAGE_CONTENT_HEIGHT * LENS_HEIGHT_RATIO));
 
-  const NOT_SET = "";
-  const INCREMENT_STEP = 1;
-  const INITIAL_COUNT = 0;
-  const NO_RESULTS = 0;
-
-  // Histogram Constants
-  const MIN_TOILETS = 2;
-  const MIN_TUBS = 2;
-  const MIN_WALLS = 4;
-
   // Helper for dynamic height
   const MIN_BAR_HEIGHT = 20;
   const HEADER_SPACE = 60;
-  const DECIMAL_PLACES_LENS = 1;
   function getDynamicHeight(itemCount: number, minHeight = HALF_CHART_HEIGHT): number {
     const contentHeight = itemCount * MIN_BAR_HEIGHT;
     return Math.max(minHeight, contentHeight + HEADER_SPACE);
   }
 
+  return {
+    DURATION_CHART_HEIGHT,
+    DURATION_CHART_WIDTH,
+    ERRORS_CHART_WIDTH,
+    HALF_CHART_HEIGHT,
+    HALF_CHART_WIDTH,
+    HISTO_CHART_WIDTH,
+    LENS_CHART_HEIGHT,
+    MIN_DYNAMIC_HEIGHT,
+    PAGE_CONTENT_HEIGHT,
+    PAGE_CONTENT_WIDTH,
+    PAGE_MARGIN,
+    PAGE_VIEWPORT_HEIGHT,
+    PAGE_VIEWPORT_WIDTH,
+    THIRD_CHART_WIDTH,
+    getDynamicHeight
+  };
+}
+
+function buildKdeCharts(
+  metadataList: ArtifactAnalysis[],
+  layout: LayoutConstants
+): Partial<Pick<CaptureCharts, "duration" | "ambient" | "temperature" | "iso" | "brightness" | "area">> {
+  const charts: Partial<Pick<CaptureCharts, "duration" | "ambient" | "temperature" | "iso" | "brightness" | "area">> =
+    {};
+  const NO_RESULTS = 0;
+
   // Duration
   const durations = metadataList.map((m) => m.duration);
-  // Rendered as KDE Smooth Area Chart
-  const durKde = ChartUtils.calculateKde(durations, { max: 120, min: 10, resolution: 200 });
-  charts.duration = ChartUtils.getLineChartConfig(
+  const durKde = calculateKde(durations, { max: 120, min: 10, resolution: 200 });
+  charts.duration = getLineChartConfig(
     durKde.labels,
     [
       {
@@ -121,14 +176,168 @@ export function buildDataAnalysisReport(
     ],
     {
       chartId: "duration",
-      height: DURATION_CHART_HEIGHT,
+      height: layout.DURATION_CHART_HEIGHT,
       smooth: true,
       title: "",
-      width: DURATION_CHART_WIDTH,
+      width: layout.DURATION_CHART_WIDTH,
       xLabel: "Seconds",
       yLabel: "Count"
     }
   );
+
+  // Lighting & Exposure Data
+  const intensityVals = metadataList.map((m) => m.avgAmbientIntensity).filter((v) => v > NO_RESULTS);
+  const tempVals = metadataList.map((m) => m.avgColorTemperature).filter((v) => v > NO_RESULTS);
+  const isoVals = metadataList.map((m) => m.avgIso).filter((v) => v > NO_RESULTS);
+  const briVals = metadataList.map((m) => m.avgBrightness).filter((v) => v !== NO_RESULTS);
+  const areaVals = metadataList.map((m) => m.roomAreaSqFt).filter((v) => v > NO_RESULTS);
+
+  // Ambient: 980-1040
+  const ambientKde = calculateKde(intensityVals, {
+    max: 1040,
+    min: 980,
+    resolution: 200
+  });
+  charts.ambient = getLineChartConfig(
+    ambientKde.labels,
+    [
+      {
+        borderColor: "#d97706",
+        borderWidth: 2,
+        data: ambientKde.values,
+        fill: true,
+        gradientDirection: "horizontal",
+        gradientFrom: "#1f2937",
+        gradientTo: "#fbbf24",
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "ambient",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: layout.HISTO_CHART_WIDTH,
+      xLabel: "Lux",
+      yLabel: "Count"
+    }
+  );
+
+  // Temp: 3500-6700
+  const tempKde = calculateKde(tempVals, { max: 6700, min: 3500, resolution: 200 });
+  charts.temperature = getLineChartConfig(
+    tempKde.labels,
+    [
+      {
+        borderColor: "#f59e0b",
+        borderWidth: 2,
+        data: tempKde.values,
+        fill: true,
+        gradientDirection: "horizontal",
+        gradientFrom: "#fbbf24", // Orange (3500K)
+        gradientTo: "#60a5fa", // Blue (6700K)
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "temperature",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: layout.HISTO_CHART_WIDTH,
+      xLabel: "Kelvin",
+      yLabel: "Count"
+    }
+  );
+
+  // ISO: 0-800
+  const isoKde = calculateKde(isoVals, { max: 800, min: 0, resolution: 200 });
+  charts.iso = getLineChartConfig(
+    isoKde.labels,
+    [
+      {
+        borderColor: "#6366f1",
+        borderWidth: 2,
+        data: isoKde.values,
+        fill: true,
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "iso",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: layout.HISTO_CHART_WIDTH,
+      xLabel: "ISO",
+      yLabel: "Count"
+    }
+  );
+
+  // Brightness: 0-6
+  const briKde = calculateKde(briVals, { max: 6, min: 0, resolution: 200 });
+  charts.brightness = getLineChartConfig(
+    briKde.labels,
+    [
+      {
+        borderColor: "#eab308",
+        borderWidth: 2,
+        data: briKde.values,
+        fill: true,
+        gradientDirection: "horizontal",
+        gradientFrom: "#1f2937",
+        gradientTo: "#fef08a",
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "brightness",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: layout.HISTO_CHART_WIDTH,
+      xLabel: "EV",
+      yLabel: "Count"
+    }
+  );
+
+  // Room Area: 0-150
+  const areaKde = calculateKde(areaVals, { max: 150, min: 0, resolution: 200 });
+  charts.area = getLineChartConfig(
+    areaKde.labels,
+    [
+      {
+        borderColor: "#10b981",
+        borderWidth: 2,
+        data: areaKde.values,
+        fill: true,
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "area",
+      height: layout.DURATION_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: layout.DURATION_CHART_WIDTH,
+      xLabel: "sq ft",
+      yLabel: "Count"
+    }
+  );
+
+  return charts;
+}
+
+function buildDeviceAndCameraCharts(
+  metadataList: ArtifactAnalysis[],
+  layout: LayoutConstants
+): Partial<Pick<CaptureCharts, "deviceModel" | "focalLength" | "aperture" | "fps" | "resolution">> {
+  const charts: Partial<Pick<CaptureCharts, "deviceModel" | "focalLength" | "aperture" | "fps" | "resolution">> = {};
+  const NOT_SET = "";
+  const INCREMENT_STEP = 1;
+  const INITIAL_COUNT = 0;
+  const DECIMAL_PLACES_LENS = 1;
+  const LENS_WIDTH_RATIO = 0.9;
 
   // Device Model
   const deviceMap: Record<string, number> = {};
@@ -139,13 +348,13 @@ export function buildDataAnalysisReport(
 
   const { deviceCounts, deviceLabels, separatorLabel } = sortDeviceModels(deviceMap);
 
-  charts.lens = ChartUtils.getBarChartConfig(deviceLabels, deviceCounts, {
-    height: getDynamicHeight(deviceLabels.length, LENS_CHART_HEIGHT),
+  charts.deviceModel = getBarChartConfig(deviceLabels, deviceCounts, {
+    height: layout.getDynamicHeight(deviceLabels.length, layout.LENS_CHART_HEIGHT),
     horizontal: true,
     ...(separatorLabel !== undefined ? { separatorLabel } : {}),
     title: "",
     totalForPercentages: metadataList.length,
-    width: Math.round(PAGE_CONTENT_WIDTH * LENS_WIDTH_RATIO)
+    width: Math.round(layout.PAGE_CONTENT_WIDTH * LENS_WIDTH_RATIO)
   });
 
   // Focal Length (aggregated & normalized)
@@ -153,7 +362,6 @@ export function buildDataAnalysisReport(
   for (const m of metadataList) {
     let key = "Unknown";
     if (m.lensFocalLength !== NOT_SET) {
-      // Normalize: "5.1 mm" -> 5.1
       const val = parseFloat(m.lensFocalLength);
       if (!isNaN(val)) {
         key = `${val.toFixed(DECIMAL_PLACES_LENS)} mm`;
@@ -163,7 +371,6 @@ export function buildDataAnalysisReport(
     }
     focalMap[key] = (focalMap[key] ?? INITIAL_COUNT) + INCREMENT_STEP;
   }
-  // Sort numerically
   const focalLabels = Object.keys(focalMap).sort((a, b) => parseFloat(a) - parseFloat(b));
   const focalCounts = focalLabels.map((l) => focalMap[l] ?? INITIAL_COUNT);
 
@@ -172,7 +379,6 @@ export function buildDataAnalysisReport(
   for (const m of metadataList) {
     let key = "Unknown";
     if (m.lensAperture !== NOT_SET) {
-      // Normalize f/1.6000 -> f/1.6
       const val = parseFloat(m.lensAperture.replace("f/", ""));
       if (!isNaN(val)) {
         key = `f/${val.toFixed(DECIMAL_PLACES_LENS)}`;
@@ -189,18 +395,18 @@ export function buildDataAnalysisReport(
   });
   const apertureCounts = apertureLabels.map((l) => apertureMap[l] ?? INITIAL_COUNT);
 
-  charts.focalLength = ChartUtils.getBarChartConfig(focalLabels, focalCounts, {
-    height: HALF_CHART_HEIGHT,
-    showCount: true,
-    title: "", // Title handled in section
-    width: HALF_CHART_WIDTH
-  });
-
-  charts.aperture = ChartUtils.getBarChartConfig(apertureLabels, apertureCounts, {
-    height: HALF_CHART_HEIGHT,
+  charts.focalLength = getBarChartConfig(focalLabels, focalCounts, {
+    height: layout.HALF_CHART_HEIGHT,
     showCount: true,
     title: "",
-    width: HALF_CHART_WIDTH
+    width: layout.HALF_CHART_WIDTH
+  });
+
+  charts.aperture = getBarChartConfig(apertureLabels, apertureCounts, {
+    height: layout.HALF_CHART_HEIGHT,
+    showCount: true,
+    title: "",
+    width: layout.HALF_CHART_WIDTH
   });
 
   // Framerate
@@ -211,11 +417,11 @@ export function buildDataAnalysisReport(
   }
   const fpsLabels = Object.keys(fpsMap).sort((a, b) => parseFloat(a) - parseFloat(b));
   const fpsCounts = fpsLabels.map((l) => fpsMap[l] ?? INITIAL_COUNT);
-  charts.fps = ChartUtils.getBarChartConfig(fpsLabels, fpsCounts, {
-    height: HALF_CHART_HEIGHT,
+  charts.fps = getBarChartConfig(fpsLabels, fpsCounts, {
+    height: layout.HALF_CHART_HEIGHT,
     showCount: true,
     title: "",
-    width: HALF_CHART_WIDTH
+    width: layout.HALF_CHART_WIDTH
   });
 
   // Resolution
@@ -226,158 +432,28 @@ export function buildDataAnalysisReport(
   }
   const resLabels = Object.keys(resMap).sort();
   const resCounts = resLabels.map((l) => resMap[l] ?? INITIAL_COUNT);
-  charts.resolution = ChartUtils.getBarChartConfig(resLabels, resCounts, {
-    height: HALF_CHART_HEIGHT,
+  charts.resolution = getBarChartConfig(resLabels, resCounts, {
+    height: layout.HALF_CHART_HEIGHT,
     showCount: true,
     title: "",
-    width: HALF_CHART_WIDTH
+    width: layout.HALF_CHART_WIDTH
   });
 
-  // Lighting & Exposure Data
-  const intensityVals = metadataList.map((m) => m.avgAmbientIntensity).filter((v) => v > NO_RESULTS);
-  const tempVals = metadataList.map((m) => m.avgColorTemperature).filter((v) => v > NO_RESULTS);
-  const isoVals = metadataList.map((m) => m.avgIso).filter((v) => v > NO_RESULTS);
-  const briVals = metadataList.map((m) => m.avgBrightness).filter((v) => v !== NO_RESULTS);
-  const areaVals = metadataList.map((m) => m.roomAreaSqFt).filter((v) => v > NO_RESULTS);
+  return charts;
+}
 
-  // Ambient: 980-1040
-  // Rendered as Kernel Density Estimation Smooth Area Chart
-  const ambientKde = ChartUtils.calculateKde(intensityVals, {
-    max: 1040,
-    min: 980,
-    resolution: 200
-  });
-
-  charts.ambient = ChartUtils.getLineChartConfig(
-    ambientKde.labels,
-    [
-      {
-        borderColor: "#d97706",
-        borderWidth: 2,
-        data: ambientKde.values,
-        fill: true,
-        gradientDirection: "horizontal",
-        gradientFrom: "#1f2937",
-        gradientTo: "#fbbf24",
-        label: "Density"
-      }
-    ],
-    {
-      chartId: "ambient",
-      height: HALF_CHART_HEIGHT,
-      smooth: true,
-      title: "",
-      width: HISTO_CHART_WIDTH,
-      xLabel: "Lux",
-      yLabel: "Count"
-    }
-  );
-
-  // Temp: 3500-6700
-  // Rendered as KDE Smooth Area Chart
-  const tempKde = ChartUtils.calculateKde(tempVals, { max: 6700, min: 3500, resolution: 200 });
-  charts.temperature = ChartUtils.getLineChartConfig(
-    tempKde.labels,
-    [
-      {
-        borderColor: "#f59e0b",
-        borderWidth: 2,
-        data: tempKde.values,
-        fill: true,
-        gradientDirection: "horizontal",
-        gradientFrom: "#fbbf24", // Orange (3500K)
-        gradientTo: "#60a5fa", // Blue (6700K)
-        label: "Density"
-      }
-    ],
-    {
-      chartId: "temperature",
-      height: HALF_CHART_HEIGHT,
-      smooth: true,
-      title: "",
-      width: HISTO_CHART_WIDTH,
-      xLabel: "Kelvin",
-      yLabel: "Count"
-    }
-  );
-
-  // ISO: 0-800
-  // Rendered as KDE Smooth Area Chart (Solid Fill)
-  const isoKde = ChartUtils.calculateKde(isoVals, { max: 800, min: 0, resolution: 200 });
-  charts.iso = ChartUtils.getLineChartConfig(
-    isoKde.labels,
-    [
-      {
-        borderColor: "#6366f1",
-        borderWidth: 2,
-        data: isoKde.values,
-        fill: true,
-        label: "Density"
-      }
-    ],
-    {
-      chartId: "iso",
-      height: HALF_CHART_HEIGHT,
-      smooth: true,
-      title: "",
-      width: HISTO_CHART_WIDTH,
-      xLabel: "ISO",
-      yLabel: "Count"
-    }
-  );
-
-  // Brightness: 0-6
-  // Rendered as KDE Smooth Area Chart
-  const briKde = ChartUtils.calculateKde(briVals, { max: 6, min: 0, resolution: 200 });
-  charts.brightness = ChartUtils.getLineChartConfig(
-    briKde.labels,
-    [
-      {
-        borderColor: "#eab308",
-        borderWidth: 2,
-        data: briKde.values,
-        fill: true,
-        gradientDirection: "horizontal",
-        gradientFrom: "#1f2937",
-        gradientTo: "#fef08a",
-        label: "Density"
-      }
-    ],
-    {
-      chartId: "brightness",
-      height: HALF_CHART_HEIGHT,
-      smooth: true,
-      title: "",
-      width: HISTO_CHART_WIDTH,
-      xLabel: "EV",
-      yLabel: "Count"
-    }
-  );
-
-  // Room Area: 0-150
-  // Rendered as KDE Smooth Area Chart (Solid Fill)
-  const areaKde = ChartUtils.calculateKde(areaVals, { max: 150, min: 0, resolution: 200 });
-  charts.area = ChartUtils.getLineChartConfig(
-    areaKde.labels,
-    [
-      {
-        borderColor: "#10b981",
-        borderWidth: 2,
-        data: areaKde.values,
-        fill: true,
-        label: "Density"
-      }
-    ],
-    {
-      chartId: "area",
-      height: DURATION_CHART_HEIGHT,
-      smooth: true,
-      title: "",
-      width: DURATION_CHART_WIDTH,
-      xLabel: "sq ft",
-      yLabel: "Count"
-    }
-  );
+function buildErrorFeatureObjectCharts(
+  metadataList: ArtifactAnalysis[],
+  artifactDirs: string[] | undefined,
+  layout: LayoutConstants
+): Partial<Pick<CaptureCharts, "errors" | "features" | "objects" | "sections">> {
+  const charts: Partial<Pick<CaptureCharts, "errors" | "features" | "objects" | "sections">> = {};
+  const INITIAL_COUNT = 0;
+  const INCREMENT_STEP = 1;
+  const NO_RESULTS = 0;
+  const MIN_TOILETS = 2;
+  const MIN_TUBS = 2;
+  const MIN_WALLS = 4;
 
   // Get set of artifact directories with unexpected versions
   const unexpectedVersionDirs =
@@ -385,83 +461,212 @@ export function buildDataAnalysisReport(
 
   // Capture Errors & Features
   const errorDefs: ChartDef[] = [
-    { check: (m: ArtifactAnalysis) => m.hasToiletGapErrors, count: INITIAL_COUNT, label: 'Toilet Gap > 1"' },
-    { check: (m: ArtifactAnalysis) => m.hasTubGapErrors, count: INITIAL_COUNT, label: 'Tub Gap 1"-6"' },
-    { check: (m: ArtifactAnalysis) => m.hasWallGapErrors, count: INITIAL_COUNT, label: 'Wall Gaps 1"-12"' },
-    { check: (m: ArtifactAnalysis) => m.hasColinearWallErrors, count: INITIAL_COUNT, label: "Colinear Walls" },
+    {
+      check: (m: ArtifactAnalysis) => m.hasToiletGapErrors,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: 'Toilet Gap > 1"'
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.hasTubGapErrors,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: 'Tub Gap 1"-6"'
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.hasWallGapErrors,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: 'Wall Gaps 1"-12"'
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.hasColinearWallErrors,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Colinear Walls"
+    },
     {
       check: (m: ArtifactAnalysis) => m.hasObjectIntersectionErrors,
       count: INITIAL_COUNT,
+      kind: "predicate",
       label: "Object Intersections"
     },
     {
       check: (m: ArtifactAnalysis) => m.hasWallObjectIntersectionErrors,
       count: INITIAL_COUNT,
+      kind: "predicate",
       label: "Wall <-> Object Intersections"
     },
     {
       check: (m: ArtifactAnalysis) => m.hasWallWallIntersectionErrors,
       count: INITIAL_COUNT,
+      kind: "predicate",
       label: "Wall <-> Wall Intersections"
     },
-    { check: (m: ArtifactAnalysis) => m.hasCrookedWallErrors, count: INITIAL_COUNT, label: "Crooked Walls" },
-    { check: (m: ArtifactAnalysis) => m.hasDoorBlockingError, count: INITIAL_COUNT, label: "Door Blocked" },
-    { check: (m: ArtifactAnalysis) => m.wallCount < MIN_WALLS, count: INITIAL_COUNT, label: "< 4 Walls" },
-    { check: (m: ArtifactAnalysis) => m.hasUnparentedEmbedded, count: INITIAL_COUNT, label: "Unparented Embedded" }
+    {
+      check: (m: ArtifactAnalysis) => m.hasCrookedWallErrors,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Crooked Walls"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.hasDoorBlockingError,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Door Blocked"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.wallCount < MIN_WALLS,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "< 4 Walls"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.hasUnparentedEmbedded,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Unparented Embedded"
+    }
   ];
 
-  // Add unexpected version error if artifact directories are provided
   if (artifactDirs !== undefined) {
     errorDefs.push({
-      check: () => false, // Will be handled separately in counting loop
       count: INITIAL_COUNT,
+      kind: "unexpectedVersion",
       label: "Unexpected Version"
     });
   }
 
   const featureDefs: ChartDef[] = [
-    { check: (m: ArtifactAnalysis) => m.hasNonRectWall, count: INITIAL_COUNT, label: "Non-Rectangular Walls" },
-    { check: (m: ArtifactAnalysis) => m.hasCurvedWall, count: INITIAL_COUNT, label: "Curved Walls" },
-    { check: (m: ArtifactAnalysis) => m.hasCurvedEmbedded, count: INITIAL_COUNT, label: "Curved Embedded" },
+    {
+      check: (m: ArtifactAnalysis) => m.hasNonRectWall,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Non-Rectangular Walls"
+    },
+    { check: (m: ArtifactAnalysis) => m.hasCurvedWall, count: INITIAL_COUNT, kind: "predicate", label: "Curved Walls" },
+    {
+      check: (m: ArtifactAnalysis) => m.hasCurvedEmbedded,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Curved Embedded"
+    },
     {
       check: (m: ArtifactAnalysis) => m.hasNonRectangularEmbedded,
       count: INITIAL_COUNT,
+      kind: "predicate",
       label: "Non-Rectangular Embedded"
     },
-    { check: (m: ArtifactAnalysis) => m.toiletCount >= MIN_TOILETS, count: INITIAL_COUNT, label: "2+ Toilets" },
-    { check: (m: ArtifactAnalysis) => m.tubCount >= MIN_TUBS, count: INITIAL_COUNT, label: "2+ Tubs" },
+    {
+      check: (m: ArtifactAnalysis) => m.toiletCount >= MIN_TOILETS,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "2+ Toilets"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.tubCount >= MIN_TUBS,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "2+ Tubs"
+    },
     {
       check: (m: ArtifactAnalysis) => m.sinkCount === INITIAL_COUNT && m.storageCount === INITIAL_COUNT,
       count: INITIAL_COUNT,
+      kind: "predicate",
       label: "No Vanity"
     },
-    { check: (m: ArtifactAnalysis) => m.hasExternalOpening, count: INITIAL_COUNT, label: "External Opening" },
-    { check: (m: ArtifactAnalysis) => m.hasSoffit, count: INITIAL_COUNT, label: "Soffit" },
-    { check: (m: ArtifactAnalysis) => m.hasLowCeiling, count: INITIAL_COUNT, label: "Low Ceiling (< 7.5ft)" },
-    { check: (m: ArtifactAnalysis) => m.hasNibWalls, count: INITIAL_COUNT, label: "Nib Walls (< 1ft)" },
-    { check: (m: ArtifactAnalysis) => m.hasMultipleStories, count: INITIAL_COUNT, label: "Multiple Stories" }
+    {
+      check: (m: ArtifactAnalysis) => m.hasExternalOpening,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "External Opening"
+    },
+    { check: (m: ArtifactAnalysis) => m.hasSoffit, count: INITIAL_COUNT, kind: "predicate", label: "Soffit" },
+    {
+      check: (m: ArtifactAnalysis) => m.hasLowCeiling,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Low Ceiling (< 7.5ft)"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.hasNibWalls,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Nib Walls (< 1ft)"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.hasMultipleStories,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Multiple Stories"
+    }
   ];
 
   const objectDefs: ChartDef[] = [
-    { check: (m: ArtifactAnalysis) => m.toiletCount > NO_RESULTS, count: INITIAL_COUNT, label: "Toilet" },
-    { check: (m: ArtifactAnalysis) => m.doorCount > NO_RESULTS, count: INITIAL_COUNT, label: "Door" },
-    { check: (m: ArtifactAnalysis) => m.windowCount > NO_RESULTS, count: INITIAL_COUNT, label: "Window" },
-    { check: (m: ArtifactAnalysis) => m.storageCount > NO_RESULTS, count: INITIAL_COUNT, label: "Storage" },
-    { check: (m: ArtifactAnalysis) => m.sinkCount > NO_RESULTS, count: INITIAL_COUNT, label: "Sink" },
-    { check: (m: ArtifactAnalysis) => m.tubCount > NO_RESULTS, count: INITIAL_COUNT, label: "Bathtub" },
-    { check: (m: ArtifactAnalysis) => m.openingCount > NO_RESULTS, count: INITIAL_COUNT, label: "Opening" },
-    { check: (m: ArtifactAnalysis) => m.hasWasherDryer, count: INITIAL_COUNT, label: "Washer/Dryer" },
-    { check: (m: ArtifactAnalysis) => m.hasStove, count: INITIAL_COUNT, label: "Stove" },
-    { check: (m: ArtifactAnalysis) => m.hasTable, count: INITIAL_COUNT, label: "Table" },
-    { check: (m: ArtifactAnalysis) => m.hasChair, count: INITIAL_COUNT, label: "Chair" },
-    { check: (m: ArtifactAnalysis) => m.hasBed, count: INITIAL_COUNT, label: "Bed" },
-    { check: (m: ArtifactAnalysis) => m.hasSofa, count: INITIAL_COUNT, label: "Sofa" },
-    { check: (m: ArtifactAnalysis) => m.hasDishwasher, count: INITIAL_COUNT, label: "Dishwasher" },
-    { check: (m: ArtifactAnalysis) => m.hasOven, count: INITIAL_COUNT, label: "Oven" },
-    { check: (m: ArtifactAnalysis) => m.hasRefrigerator, count: INITIAL_COUNT, label: "Refrigerator" },
-    { check: (m: ArtifactAnalysis) => m.hasStairs, count: INITIAL_COUNT, label: "Stairs" },
-    { check: (m: ArtifactAnalysis) => m.hasFireplace, count: INITIAL_COUNT, label: "Fireplace" },
-    { check: (m: ArtifactAnalysis) => m.hasTelevision, count: INITIAL_COUNT, label: "Television" }
+    {
+      check: (m: ArtifactAnalysis) => m.toiletCount > NO_RESULTS,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Toilet"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.doorCount > NO_RESULTS,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Door"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.windowCount > NO_RESULTS,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Window"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.storageCount > NO_RESULTS,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Storage"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.sinkCount > NO_RESULTS,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Sink"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.tubCount > NO_RESULTS,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Bathtub"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.openingCount > NO_RESULTS,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Opening"
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.hasWasherDryer,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Washer/Dryer"
+    },
+    { check: (m: ArtifactAnalysis) => m.hasStove, count: INITIAL_COUNT, kind: "predicate", label: "Stove" },
+    { check: (m: ArtifactAnalysis) => m.hasTable, count: INITIAL_COUNT, kind: "predicate", label: "Table" },
+    { check: (m: ArtifactAnalysis) => m.hasChair, count: INITIAL_COUNT, kind: "predicate", label: "Chair" },
+    { check: (m: ArtifactAnalysis) => m.hasBed, count: INITIAL_COUNT, kind: "predicate", label: "Bed" },
+    { check: (m: ArtifactAnalysis) => m.hasSofa, count: INITIAL_COUNT, kind: "predicate", label: "Sofa" },
+    { check: (m: ArtifactAnalysis) => m.hasDishwasher, count: INITIAL_COUNT, kind: "predicate", label: "Dishwasher" },
+    { check: (m: ArtifactAnalysis) => m.hasOven, count: INITIAL_COUNT, kind: "predicate", label: "Oven" },
+    {
+      check: (m: ArtifactAnalysis) => m.hasRefrigerator,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Refrigerator"
+    },
+    { check: (m: ArtifactAnalysis) => m.hasStairs, count: INITIAL_COUNT, kind: "predicate", label: "Stairs" },
+    { check: (m: ArtifactAnalysis) => m.hasFireplace, count: INITIAL_COUNT, kind: "predicate", label: "Fireplace" },
+    { check: (m: ArtifactAnalysis) => m.hasTelevision, count: INITIAL_COUNT, kind: "predicate", label: "Television" }
   ];
 
   for (let i = 0; i < metadataList.length; i++) {
@@ -472,49 +677,50 @@ export function buildDataAnalysisReport(
     const currentDir = artifactDirs !== undefined && i < artifactDirs.length ? artifactDirs[i] : undefined;
 
     for (const d of errorDefs) {
-      if (d.label === "Unexpected Version") {
-        // Special handling for unexpected version: check if current directory is in the set
-        if (currentDir !== undefined && unexpectedVersionDirs.has(currentDir)) {
-          d.count++;
-        }
-      } else if (d.check(m)) {
-        d.count++;
+      switch (d.kind) {
+        case "unexpectedVersion":
+          if (currentDir !== undefined && unexpectedVersionDirs.has(currentDir)) {
+            d.count++;
+          }
+          break;
+        case "predicate":
+          if (d.check(m)) {
+            d.count++;
+          }
+          break;
       }
     }
     for (const d of featureDefs) {
-      if (d.check(m)) {
+      if (d.kind === "predicate" && d.check(m)) {
         d.count++;
       }
     }
     for (const d of objectDefs) {
-      if (d.check(m)) {
+      if (d.kind === "predicate" && d.check(m)) {
         d.count++;
       }
     }
   }
 
-  // Sort objects by frequency (most common at top)
   objectDefs.sort((a, b) => b.count - a.count);
   errorDefs.sort((a, b) => b.count - a.count);
   featureDefs.sort((a, b) => b.count - a.count);
 
-  charts.features = ChartUtils.getBarChartConfig(
+  charts.features = getBarChartConfig(
     featureDefs.map((d) => d.label),
     featureDefs.map((d) => d.count),
     {
-      height: getDynamicHeight(featureDefs.length, MIN_DYNAMIC_HEIGHT),
+      height: layout.getDynamicHeight(featureDefs.length, layout.MIN_DYNAMIC_HEIGHT),
       horizontal: true,
       title: "",
       totalForPercentages: metadataList.length,
-      width: DURATION_CHART_WIDTH
+      width: layout.DURATION_CHART_WIDTH
     }
   );
 
-  // Collect object confidence data if artifact directories are provided
   const objectConfidenceCounts = artifactDirs !== undefined ? getObjectConfidenceCounts(artifactDirs) : null;
 
   if (objectConfidenceCounts !== null) {
-    // Use stacked bars with confidence levels
     const objectLabels = objectDefs.map((d) => d.label);
     const confidenceZeroValue = 0;
     const defaultConfidenceCounts: [number, number, number] = [
@@ -522,9 +728,6 @@ export function buildDataAnalysisReport(
       confidenceZeroValue,
       confidenceZeroValue
     ];
-    // For stacked bars, we want the bar height to match the artifact count (which matches the percentage)
-    // but still show the confidence breakdown proportionally
-    // Map object labels to their artifact counts (number of artifacts that have this object type)
     const artifactCountsPerLabel: Record<string, number> = {};
     for (const def of objectDefs) {
       artifactCountsPerLabel[def.label] = def.count;
@@ -533,16 +736,12 @@ export function buildDataAnalysisReport(
     const objectData: [number, number, number][] = [];
     const initialSum = 0;
     for (const label of objectLabels) {
-      // TypeScript's Record type inference treats dynamic key access as potentially unsafe
-      // We know from our type definition that values are [number, number, number], so we can safely access
       const counts: [number, number, number] | undefined = objectConfidenceCounts[label];
       const artifactCount = artifactCountsPerLabel[label] ?? initialSum;
 
       if (counts !== undefined) {
-        // Scale confidence counts to sum to artifact count while maintaining proportions
         const totalObjectCount = counts.reduce((sum, val) => sum + val, initialSum);
         if (totalObjectCount > initialSum) {
-          // Scale each confidence level proportionally
           const scaleFactor = artifactCount / totalObjectCount;
           const confidenceIndexHigh = 0;
           const confidenceIndexMedium = 1;
@@ -552,11 +751,9 @@ export function buildDataAnalysisReport(
             Math.round(counts[confidenceIndexMedium] * scaleFactor),
             Math.round(counts[confidenceIndexLow] * scaleFactor)
           ];
-          // Adjust to ensure they sum exactly to artifactCount (handle rounding errors)
           const scaledSum = scaledCounts.reduce((sum, val) => sum + val, initialSum);
           const difference = artifactCount - scaledSum;
           if (difference !== initialSum) {
-            // Add the difference to the largest segment
             const maxValue = Math.max(...scaledCounts);
             const maxIndex = scaledCounts.indexOf(maxValue);
             const minValidIndex = 0;
@@ -566,7 +763,6 @@ export function buildDataAnalysisReport(
           }
           objectData.push(scaledCounts);
         } else {
-          // No objects, use zeros
           objectData.push(defaultConfidenceCounts);
         }
       } else {
@@ -574,41 +770,40 @@ export function buildDataAnalysisReport(
       }
     }
 
-    charts.objects = ChartUtils.getBarChartConfig(objectLabels, objectData, {
+    charts.objects = getBarChartConfig(objectLabels, objectData, {
       artifactCountsPerLabel,
-      height: getDynamicHeight(objectDefs.length, MIN_DYNAMIC_HEIGHT),
+      height: layout.getDynamicHeight(objectDefs.length, layout.MIN_DYNAMIC_HEIGHT),
       horizontal: true,
-      stackColors: ["#10b981", "#f59e0b", "#ef4444"], // green-500, amber-500, red-500
+      stackColors: ["#10b981", "#f59e0b", "#ef4444"],
       stackLabels: ["High", "Medium", "Low"],
       stacked: true,
       title: "",
       totalForPercentages: metadataList.length,
-      width: DURATION_CHART_WIDTH
+      width: layout.DURATION_CHART_WIDTH
     });
   } else {
-    // Fallback to simple bars if confidence data not available
-    charts.objects = ChartUtils.getBarChartConfig(
+    charts.objects = getBarChartConfig(
       objectDefs.map((d) => d.label),
       objectDefs.map((d) => d.count),
       {
-        height: getDynamicHeight(objectDefs.length, MIN_DYNAMIC_HEIGHT),
+        height: layout.getDynamicHeight(objectDefs.length, layout.MIN_DYNAMIC_HEIGHT),
         horizontal: true,
         title: "",
         totalForPercentages: metadataList.length,
-        width: DURATION_CHART_WIDTH
+        width: layout.DURATION_CHART_WIDTH
       }
     );
   }
 
-  charts.errors = ChartUtils.getBarChartConfig(
+  charts.errors = getBarChartConfig(
     errorDefs.map((d) => d.label),
     errorDefs.map((d) => d.count),
     {
-      height: getDynamicHeight(errorDefs.length, MIN_DYNAMIC_HEIGHT),
+      height: layout.getDynamicHeight(errorDefs.length, layout.MIN_DYNAMIC_HEIGHT),
       horizontal: true,
       title: "",
       totalForPercentages: metadataList.length,
-      width: ERRORS_CHART_WIDTH
+      width: layout.ERRORS_CHART_WIDTH
     }
   );
 
@@ -624,313 +819,614 @@ export function buildDataAnalysisReport(
   );
   const sectionCounts = sectionLabels.map((l) => sectionMap[l] ?? INITIAL_COUNT);
 
-  charts.sections = ChartUtils.getBarChartConfig(sectionLabels, sectionCounts, {
-    height: getDynamicHeight(sectionLabels.length, MIN_DYNAMIC_HEIGHT),
+  charts.sections = getBarChartConfig(sectionLabels, sectionCounts, {
+    height: layout.getDynamicHeight(sectionLabels.length, layout.MIN_DYNAMIC_HEIGHT),
     horizontal: true,
     title: "",
     totalForPercentages: metadataList.length,
-    width: DURATION_CHART_WIDTH
+    width: layout.DURATION_CHART_WIDTH
   });
 
-  // Window, Door, Opening, and Wall Areas
-  if (artifactDirs !== undefined) {
-    const windowAreasSqM = getWindowAreas(artifactDirs);
-    const doorAreasSqM = getDoorAreas(artifactDirs);
-    const openingAreasSqM = getOpeningAreas(artifactDirs);
-    const wallAreasSqM = getWallAreas(artifactDirs);
+  return charts;
+}
 
-    const windowAreasSqFt = convertAreasToSquareFeet(windowAreasSqM);
-    const doorAreasSqFt = convertAreasToSquareFeet(doorAreasSqM);
-    const openingAreasSqFt = convertAreasToSquareFeet(openingAreasSqM);
-    const wallAreasSqFt = convertAreasToSquareFeet(wallAreasSqM);
+function buildAreaCharts(
+  artifactDirs: string[],
+  layout: LayoutConstants
+): Partial<Pick<CaptureCharts, "windowArea" | "doorArea" | "openingArea" | "wallArea">> {
+  const charts: Partial<Pick<CaptureCharts, "windowArea" | "doorArea" | "openingArea" | "wallArea">> = {};
 
-    // Window Areas: 0-50 sq ft (typical window sizes)
-    const windowAreaKde = ChartUtils.calculateKde(windowAreasSqFt, { max: 50, min: 0, resolution: 200 });
-    charts.windowArea = ChartUtils.getLineChartConfig(
-      windowAreaKde.labels,
-      [
-        {
-          borderColor: "#3b82f6",
-          borderWidth: 2,
-          data: windowAreaKde.values,
-          fill: true,
-          label: "Density"
-        }
-      ],
+  const windowAreasSqM = getWindowAreas(artifactDirs);
+  const doorAreasSqM = getDoorAreas(artifactDirs);
+  const openingAreasSqM = getOpeningAreas(artifactDirs);
+  const wallAreasSqM = getWallAreas(artifactDirs);
+
+  const windowAreasSqFt = convertAreasToSquareFeet(windowAreasSqM);
+  const doorAreasSqFt = convertAreasToSquareFeet(doorAreasSqM);
+  const openingAreasSqFt = convertAreasToSquareFeet(openingAreasSqM);
+  const wallAreasSqFt = convertAreasToSquareFeet(wallAreasSqM);
+
+  const windowAreaKde = calculateKde(windowAreasSqFt, { max: 50, min: 0, resolution: 200 });
+  charts.windowArea = getLineChartConfig(
+    windowAreaKde.labels,
+    [
       {
-        chartId: "windowArea",
-        height: HALF_CHART_HEIGHT,
-        smooth: true,
-        title: "",
-        width: HISTO_CHART_WIDTH,
-        xLabel: "sq ft",
-        yLabel: "Count"
+        borderColor: "#3b82f6",
+        borderWidth: 2,
+        data: windowAreaKde.values,
+        fill: true,
+        label: "Density"
       }
-    );
-
-    // Door Areas: 0-30 sq ft (typical door sizes)
-    const doorAreaKde = ChartUtils.calculateKde(doorAreasSqFt, { max: 30, min: 0, resolution: 200 });
-    charts.doorArea = ChartUtils.getLineChartConfig(
-      doorAreaKde.labels,
-      [
-        {
-          borderColor: "#8b5cf6",
-          borderWidth: 2,
-          data: doorAreaKde.values,
-          fill: true,
-          label: "Density"
-        }
-      ],
-      {
-        chartId: "doorArea",
-        height: HALF_CHART_HEIGHT,
-        smooth: true,
-        title: "",
-        width: HISTO_CHART_WIDTH,
-        xLabel: "sq ft",
-        yLabel: "Count"
-      }
-    );
-
-    // Door IsOpen Status
-    const doorIsOpenCounts = getDoorIsOpenCounts(artifactDirs);
-    // Sort by value (smallest to largest) so smallest slice is first
-    // Pie starts at top (-π/2) and goes clockwise
-    // With smallest first, it will start at the top
-    const doorIsOpenEntries = Object.entries(doorIsOpenCounts).sort(([, a], [, b]) => a - b);
-    const doorIsOpenLabels = doorIsOpenEntries.map(([label]) => label);
-    const doorIsOpenData = doorIsOpenEntries.map(([, value]) => value);
-
-    if (doorIsOpenData.length > INITIAL_COUNT) {
-      charts.doorIsOpen = ChartUtils.getPieChartConfig(doorIsOpenLabels, doorIsOpenData, {
-        height: HALF_CHART_HEIGHT,
-        legendIconComponents: {
-          Closed: DoorClosedIcon,
-          Open: DoorOpenIcon
-        },
-        title: "",
-        width: HALF_CHART_WIDTH
-      });
+    ],
+    {
+      chartId: "windowArea",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: layout.HISTO_CHART_WIDTH,
+      xLabel: "sq ft",
+      yLabel: "Count"
     }
+  );
 
-    // Opening Areas: 0-50 sq ft (similar to windows)
-    const openingAreaKde = ChartUtils.calculateKde(openingAreasSqFt, { max: 50, min: 0, resolution: 200 });
-    charts.openingArea = ChartUtils.getLineChartConfig(
-      openingAreaKde.labels,
-      [
-        {
-          borderColor: "#f59e0b",
-          borderWidth: 2,
-          data: openingAreaKde.values,
-          fill: true,
-          label: "Density"
-        }
-      ],
+  const doorAreaKde = calculateKde(doorAreasSqFt, { max: 30, min: 0, resolution: 200 });
+  charts.doorArea = getLineChartConfig(
+    doorAreaKde.labels,
+    [
       {
-        chartId: "openingArea",
-        height: HALF_CHART_HEIGHT,
-        smooth: true,
-        title: "",
-        width: HISTO_CHART_WIDTH,
-        xLabel: "sq ft",
-        yLabel: "Count"
+        borderColor: "#8b5cf6",
+        borderWidth: 2,
+        data: doorAreaKde.values,
+        fill: true,
+        label: "Density"
       }
-    );
+    ],
+    {
+      chartId: "doorArea",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: layout.HISTO_CHART_WIDTH,
+      xLabel: "sq ft",
+      yLabel: "Count"
+    }
+  );
 
-    // Wall Areas: 0-200 sq ft (typical wall sizes)
-    const wallAreaKde = ChartUtils.calculateKde(wallAreasSqFt, { max: 200, min: 0, resolution: 200 });
-    charts.wallArea = ChartUtils.getLineChartConfig(
-      wallAreaKde.labels,
-      [
-        {
-          borderColor: "#ef4444",
-          borderWidth: 2,
-          data: wallAreaKde.values,
-          fill: true,
-          label: "Density"
-        }
-      ],
+  const openingAreaKde = calculateKde(openingAreasSqFt, { max: 50, min: 0, resolution: 200 });
+  charts.openingArea = getLineChartConfig(
+    openingAreaKde.labels,
+    [
       {
-        chartId: "wallArea",
-        height: HALF_CHART_HEIGHT,
-        smooth: true,
-        title: "",
-        width: HISTO_CHART_WIDTH,
-        xLabel: "sq ft",
-        yLabel: "Count"
+        borderColor: "#f59e0b",
+        borderWidth: 2,
+        data: openingAreaKde.values,
+        fill: true,
+        label: "Density"
       }
-    );
+    ],
+    {
+      chartId: "openingArea",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: layout.HISTO_CHART_WIDTH,
+      xLabel: "sq ft",
+      yLabel: "Count"
+    }
+  );
+
+  const wallAreaKde = calculateKde(wallAreasSqFt, { max: 200, min: 0, resolution: 200 });
+  charts.wallArea = getLineChartConfig(
+    wallAreaKde.labels,
+    [
+      {
+        borderColor: "#ef4444",
+        borderWidth: 2,
+        data: wallAreaKde.values,
+        fill: true,
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "wallArea",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: layout.HISTO_CHART_WIDTH,
+      xLabel: "sq ft",
+      yLabel: "Count"
+    }
+  );
+
+  return charts;
+}
+
+function buildAttributePieCharts(
+  artifactDirs: string[],
+  layout: LayoutConstants
+): Partial<
+  Pick<
+    CaptureCharts,
+    | "doorIsOpen"
+    | "chairArmType"
+    | "chairBackType"
+    | "chairLegType"
+    | "chairType"
+    | "sofaType"
+    | "storageType"
+    | "tableShapeType"
+    | "tableType"
+  >
+> {
+  const charts: Partial<
+    Pick<
+      CaptureCharts,
+      | "doorIsOpen"
+      | "chairArmType"
+      | "chairBackType"
+      | "chairLegType"
+      | "chairType"
+      | "sofaType"
+      | "storageType"
+      | "tableShapeType"
+      | "tableType"
+    >
+  > = {};
+  const INITIAL_COUNT = 0;
+  const INCREMENT_STEP = 1;
+
+  const distinctColors = [
+    "#4E79A7", // Blue
+    "#F28E2B", // Orange
+    "#E15759", // Red
+    "#76B7B2", // Cyan/Teal
+    "#59A14F", // Green
+    "#EDC948", // Yellow
+    "#B07AA1", // Purple
+    "#BAB0AC", // Gray
+    "#FF9DA7", // Light Pink/Red
+    "#9C755F" // Brown
+  ];
+
+  const labelChartCount = new Map<string, number>();
+
+  const doorIsOpenCounts = getDoorIsOpenCounts(artifactDirs);
+  Object.keys(doorIsOpenCounts).forEach((label) => {
+    const currentCount = labelChartCount.get(label) ?? INITIAL_COUNT;
+    labelChartCount.set(label, currentCount + INCREMENT_STEP);
+  });
+
+  const attributeTypeMap: Record<string, keyof CaptureCharts> = {
+    ChairArmType: "chairArmType",
+    ChairBackType: "chairBackType",
+    ChairLegType: "chairLegType",
+    ChairType: "chairType",
+    SofaType: "sofaType",
+    StorageType: "storageType",
+    TableShapeType: "tableShapeType",
+    TableType: "tableType"
+  };
+
+  for (const [attributeType] of Object.entries(attributeTypeMap)) {
+    const attributeCounts = getObjectAttributeCounts(artifactDirs, attributeType);
+    Object.keys(attributeCounts).forEach((label) => {
+      const currentCount = labelChartCount.get(label) ?? INITIAL_COUNT;
+      labelChartCount.set(label, currentCount + INCREMENT_STEP);
+    });
   }
 
-  const populatedCharts = charts as CaptureCharts;
+  const sharedLabels: string[] = [];
+  const minChartsForShared = 2;
+  for (const [label, count] of labelChartCount.entries()) {
+    if (count >= minChartsForShared) {
+      sharedLabels.push(label);
+    }
+  }
 
+  sharedLabels.sort();
+
+  const labelColorMap = new Map<string, string>();
+  const firstColorIndex = 0;
+  const defaultFallbackColor = distinctColors[firstColorIndex] ?? "#4E79A7";
+  const decrement = 1;
+  let sharedColorIndex = distinctColors.length - decrement;
+
+  for (const label of sharedLabels) {
+    if (sharedColorIndex >= firstColorIndex) {
+      const color = distinctColors[sharedColorIndex];
+      if (color !== undefined) {
+        labelColorMap.set(label, color);
+        sharedColorIndex -= decrement;
+      }
+    }
+  }
+
+  const getColorsForLabels = (labels: string[]): string[] => {
+    let rotationIndex = firstColorIndex;
+    const result: string[] = [];
+    for (const label of labels) {
+      const existingColor = labelColorMap.get(label);
+      if (existingColor !== undefined) {
+        result.push(existingColor);
+        continue;
+      }
+
+      const colorIndex = rotationIndex % distinctColors.length;
+      const color = distinctColors[colorIndex];
+      rotationIndex++;
+      if (color !== undefined) {
+        result.push(color);
+      } else {
+        result.push(defaultFallbackColor);
+      }
+    }
+    return result;
+  };
+
+  const doorIsOpenEntries = Object.entries(doorIsOpenCounts).sort(([, a], [, b]) => a - b);
+  const doorIsOpenLabels = doorIsOpenEntries.map(([label]) => label);
+  const doorIsOpenData = doorIsOpenEntries.map(([, value]) => value);
+
+  if (doorIsOpenData.length > INITIAL_COUNT) {
+    const doorColors = getColorsForLabels(doorIsOpenLabels);
+    charts.doorIsOpen = getPieChartConfig(doorIsOpenLabels, doorIsOpenData, {
+      colors: doorColors,
+      height: layout.HALF_CHART_HEIGHT,
+      legendIconComponents: {
+        Closed: DoorClosedIcon,
+        Open: DoorOpenIcon
+      },
+      title: "",
+      width: layout.THIRD_CHART_WIDTH
+    });
+  }
+
+  for (const [attributeType, chartKey] of Object.entries(attributeTypeMap)) {
+    const attributeCounts = getObjectAttributeCounts(artifactDirs, attributeType);
+    const attributeEntries = Object.entries(attributeCounts).sort(([, a], [, b]) => a - b);
+    const originalLabels = attributeEntries.map(([label]) => label);
+    const attributeData = attributeEntries.map(([, value]) => value);
+
+    if (attributeData.length > INITIAL_COUNT) {
+      const attributeLabels = originalLabels.map((label) => startCase(label));
+
+      const circularEllipticLabel = "circularElliptic";
+      const circularDisplayLabel = "Circular";
+      const notFoundIndex = -1;
+      const circularEllipticIndex = originalLabels.indexOf(circularEllipticLabel);
+      if (circularEllipticIndex !== notFoundIndex) {
+        attributeLabels[circularEllipticIndex] = circularDisplayLabel;
+      }
+
+      const labelMap = new Map<string, string>();
+      originalLabels.forEach((original, index) => {
+        labelMap.set(original, attributeLabels[index] ?? "");
+      });
+
+      const pieChartOptions: {
+        colors: string[];
+        height: number;
+        legendIconComponents?: Record<
+          string,
+          React.ComponentType<{ color: string; x: number; y: number; legendBoxSize: number }>
+        >;
+        title: string;
+        width: number;
+      } = {
+        colors: getColorsForLabels(originalLabels),
+        height: layout.HALF_CHART_HEIGHT,
+        title: "",
+        width: layout.THIRD_CHART_WIDTH
+      };
+
+      const legendIconComponents: Record<
+        string,
+        React.ComponentType<{ color: string; x: number; y: number; legendBoxSize: number }>
+      > = {};
+
+      if (chartKey === "tableShapeType") {
+        if (originalLabels.includes("circularElliptic")) {
+          const displayLabel = labelMap.get("circularElliptic");
+          if (displayLabel !== undefined) {
+            legendIconComponents[displayLabel] = CircularEllipticIcon;
+          }
+        }
+        if (originalLabels.includes("rectangular")) {
+          const displayLabel = labelMap.get("rectangular");
+          if (displayLabel !== undefined) {
+            legendIconComponents[displayLabel] = RectangularIcon;
+          }
+        }
+      }
+
+      if (chartKey === "sofaType" && originalLabels.includes("singleSeat")) {
+        const displayLabel = labelMap.get("singleSeat");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = SingleSeatIcon;
+        }
+      }
+
+      if (chartKey === "chairType" && originalLabels.includes("stool")) {
+        const displayLabel = labelMap.get("stool");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = StoolIcon;
+        }
+      }
+
+      if (chartKey === "chairType" && originalLabels.includes("dining")) {
+        const displayLabel = labelMap.get("dining");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = DiningIcon;
+        }
+      }
+
+      if (chartKey === "chairType" && originalLabels.includes("swivel")) {
+        const displayLabel = labelMap.get("swivel");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = SwivelIcon;
+        }
+      }
+
+      if (chartKey === "chairLegType" && originalLabels.includes("four")) {
+        const displayLabel = labelMap.get("four");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = FourIcon;
+        }
+      }
+
+      if (chartKey === "chairLegType" && originalLabels.includes("star")) {
+        const displayLabel = labelMap.get("star");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = StarIcon;
+        }
+      }
+
+      if (chartKey === "chairArmType" && originalLabels.includes("missing")) {
+        const displayLabel = labelMap.get("missing");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = ChairArmMissingIcon;
+        }
+      }
+
+      if (chartKey === "chairArmType" && originalLabels.includes("existing")) {
+        const displayLabel = labelMap.get("existing");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = ChairArmExistingIcon;
+        }
+      }
+
+      if (chartKey === "chairBackType" && originalLabels.includes("missing")) {
+        const displayLabel = labelMap.get("missing");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = ChairBackMissingIcon;
+        }
+      }
+
+      if (chartKey === "chairBackType" && originalLabels.includes("existing")) {
+        const displayLabel = labelMap.get("existing");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = ExistingIcon;
+        }
+      }
+
+      if (chartKey === "storageType" && originalLabels.includes("shelf")) {
+        const displayLabel = labelMap.get("shelf");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = ShelfIcon;
+        }
+      }
+
+      if (chartKey === "storageType" && originalLabels.includes("cabinet")) {
+        const displayLabel = labelMap.get("cabinet");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = CabinetIcon;
+        }
+      }
+
+      if (originalLabels.includes("unidentified")) {
+        const displayLabel = labelMap.get("unidentified");
+        if (displayLabel !== undefined) {
+          legendIconComponents[displayLabel] = UnidentifiedIcon;
+        }
+      }
+
+      if (Object.keys(legendIconComponents).length > INITIAL_COUNT) {
+        pieChartOptions.legendIconComponents = legendIconComponents;
+      }
+
+      (charts as Record<string, ChartConfiguration>)[chartKey] = getPieChartConfig(
+        attributeLabels,
+        attributeData,
+        pieChartOptions
+      );
+    }
+  }
+
+  return charts;
+}
+
+function buildReportSections(
+  charts: CaptureCharts,
+  artifactDirs: string[] | undefined,
+  avgDuration: number,
+  videoCount: number
+): ReportData {
   const sections: ReportSection[] = [];
-
-  // Metadata
+  const INITIAL_COUNT = 0;
   const DECIMAL_PLACES_AVG = 1;
   const subtitle = `Avg Duration: ${avgDuration.toFixed(DECIMAL_PLACES_AVG)}s | Artifacts: ${videoCount.toString()}`;
 
-  // Charts
   const chartSections: ReportSection[] = [];
 
-  // Duration
   chartSections.push({
-    data: populatedCharts.duration,
+    data: charts.duration,
     title: "Duration",
     type: "chart"
   });
 
-  // Framerate & Resolution Side-by-Side (move up to appear earlier)
   chartSections.push({
     data: [
       {
-        data: populatedCharts.fps,
+        data: charts.fps,
         title: "Framerate"
       },
       {
-        data: populatedCharts.resolution,
+        data: charts.resolution,
         title: "Resolution"
       }
     ],
     type: "chart-row"
   });
 
-  // Page break before Lens Model so it starts on page 2
   chartSections.push({
     data: "",
     title: "",
     type: "page-break"
   });
 
-  // Device Model (dedicated page)
   chartSections.push({
-    data: populatedCharts.lens,
+    data: charts.deviceModel,
     title: "Device Model",
     type: "chart"
   });
 
-  // Focal Length & Aperture Side-by-Side
   chartSections.push({
     data: [
       {
-        data: populatedCharts.focalLength,
+        data: charts.focalLength,
         title: "Focal Length"
       },
       {
-        data: populatedCharts.aperture,
+        data: charts.aperture,
         title: "Max Aperture"
       }
     ],
     type: "chart-row"
   });
 
-  // Ambient Intensity (full-width)
   chartSections.push({
-    data: populatedCharts.ambient,
+    data: charts.ambient,
     title: "Ambient Intensity",
     type: "chart"
   });
 
-  // Color Temperature (full-width)
   chartSections.push({
-    data: populatedCharts.temperature,
+    data: charts.temperature,
     title: "Color Temperature",
     type: "chart"
   });
 
-  // ISO Speed (full-width)
   chartSections.push({
-    data: populatedCharts.iso,
+    data: charts.iso,
     title: "ISO Speed",
     type: "chart"
   });
 
-  // Brightness Value (full-width)
   chartSections.push({
-    data: populatedCharts.brightness,
+    data: charts.brightness,
     title: "Brightness Value",
     type: "chart"
   });
 
-  // Room Area
   chartSections.push({
-    data: populatedCharts.area,
+    data: charts.area,
     title: "Room Area",
     type: "chart"
   });
 
-  // Capture Errors
   chartSections.push({
-    data: populatedCharts.errors,
+    data: charts.errors,
     title: "Capture Errors",
     type: "chart"
   });
 
-  // Feature Prevalence
   chartSections.push({
-    data: populatedCharts.features,
+    data: charts.features,
     title: "Feature Prevalence",
     type: "chart"
   });
 
-  // Object Distribution
   chartSections.push({
-    data: populatedCharts.objects,
+    data: charts.objects,
     title: "Object Distribution",
     type: "chart"
   });
 
-  // Section Types
   chartSections.push({
-    data: populatedCharts.sections,
+    data: charts.sections,
     title: "Section Types",
     type: "chart"
   });
 
-  // Window Areas
   if (artifactDirs !== undefined) {
     chartSections.push({
-      data: populatedCharts.windowArea,
+      data: charts.windowArea,
       title: "Window Areas",
       type: "chart"
     });
   }
 
-  // Door Areas
   if (artifactDirs !== undefined) {
     chartSections.push({
-      data: populatedCharts.doorArea,
+      data: charts.doorArea,
       title: "Door Areas",
       type: "chart"
     });
   }
 
-  // Door IsOpen Status
-  if (artifactDirs !== undefined && "doorIsOpen" in charts) {
-    const doorIsOpenChart = charts.doorIsOpen;
-    chartSections.push({
-      data: doorIsOpenChart,
-      title: "Door Open/Closed Status",
-      type: "chart"
-    });
-  }
-
-  // Opening Areas
   if (artifactDirs !== undefined) {
     chartSections.push({
-      data: populatedCharts.openingArea,
+      data: charts.openingArea,
       title: "Opening Areas",
       type: "chart"
     });
   }
 
-  // Wall Areas
   if (artifactDirs !== undefined) {
     chartSections.push({
-      data: populatedCharts.wallArea,
+      data: charts.wallArea,
       title: "Wall Areas",
       type: "chart"
     });
+  }
+
+  if (artifactDirs !== undefined) {
+    const attributeChartMap: { chartKey: keyof CaptureCharts; title: string }[] = [
+      { chartKey: "doorIsOpen", title: "Door Open/Closed" },
+      { chartKey: "chairArmType", title: "Chair Arm Type" },
+      { chartKey: "chairBackType", title: "Chair Back Type" },
+      { chartKey: "chairLegType", title: "Chair Base Type" },
+      { chartKey: "chairType", title: "Chair Type" },
+      { chartKey: "sofaType", title: "Sofa Type" },
+      { chartKey: "storageType", title: "Storage Type" },
+      { chartKey: "tableShapeType", title: "Table Shape Type" },
+      { chartKey: "tableType", title: "Table Type" }
+    ];
+
+    const availableCharts: { data: ChartConfiguration; title: string }[] = [];
+    for (const { chartKey, title } of attributeChartMap) {
+      const chart = (charts as unknown as Record<string, ChartConfiguration | undefined>)[chartKey];
+      if (chart !== undefined) {
+        availableCharts.push({ data: chart, title });
+      }
+    }
+
+    if (availableCharts.length > INITIAL_COUNT) {
+      chartSections.push({
+        data: "",
+        title: "Object Attributes",
+        type: "header"
+      });
+
+      const chartsPerRow = 3;
+      for (let i = INITIAL_COUNT; i < availableCharts.length; i += chartsPerRow) {
+        const rowCharts = availableCharts.slice(i, i + chartsPerRow);
+        chartSections.push({
+          data: rowCharts,
+          type: "chart-row"
+        });
+      }
+    }
   }
 
   const reportData: ReportData = {
@@ -939,4 +1435,26 @@ export function buildDataAnalysisReport(
     title: "Artifact Data Analysis"
   };
   return reportData;
+}
+
+export function buildDataAnalysisReport(
+  metadataList: ArtifactAnalysis[],
+  avgDuration: number,
+  videoCount: number,
+  artifactDirs?: string[]
+): ReportData {
+  const layout = computeLayoutConstants();
+  const charts: Partial<CaptureCharts> = {};
+
+  Object.assign(charts, buildKdeCharts(metadataList, layout));
+  Object.assign(charts, buildDeviceAndCameraCharts(metadataList, layout));
+  Object.assign(charts, buildErrorFeatureObjectCharts(metadataList, artifactDirs, layout));
+
+  if (artifactDirs !== undefined) {
+    Object.assign(charts, buildAreaCharts(artifactDirs, layout));
+    Object.assign(charts, buildAttributePieCharts(artifactDirs, layout));
+  }
+
+  const populatedCharts = charts as CaptureCharts;
+  return buildReportSections(populatedCharts, artifactDirs, avgDuration, videoCount);
 }

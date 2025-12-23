@@ -3,7 +3,7 @@ import { SyncFailureDatabase } from "../utils/data/syncFailures";
 import React from "react";
 import { ReportData, ReportSection } from "../models/report";
 import { LineChart } from "./components/charts/LineChart";
-import { LineChartConfig } from "../utils/chartUtils";
+import { LineChartConfig } from "../models/chart/lineChartConfig";
 
 export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailureDatabase): ReportData {
   const sections: ReportSection[] = [];

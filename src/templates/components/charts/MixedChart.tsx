@@ -5,7 +5,7 @@ import { scaleLinear, scalePoint } from "@visx/scale";
 import { AreaClosed, Bar, LinePath } from "@visx/shape";
 import React from "react";
 
-import { MixedChartConfig } from "../../../utils/chartUtils";
+import { MixedChartConfig } from "../../../models/chart/mixedChartConfig";
 
 interface MixedChartProps {
   config: MixedChartConfig;

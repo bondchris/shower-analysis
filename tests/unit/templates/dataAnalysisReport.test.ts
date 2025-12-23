@@ -2,17 +2,25 @@ import * as fs from "fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildDataAnalysisReport } from "../../../src/templates/dataAnalysisReport";
 import { ArtifactAnalysis } from "../../../src/models/artifactAnalysis";
-import * as ChartUtils from "../../../src/utils/chartUtils";
+import { calculateKde } from "../../../src/utils/chart/kde";
+import { getBarChartConfig, getLineChartConfig, getPieChartConfig } from "../../../src/utils/chart/configBuilders";
 
 // Mock ChartUtils to isolate test
-vi.mock("../../../src/utils/chartUtils", async () => {
-  const actual = await vi.importActual("../../../src/utils/chartUtils");
+vi.mock("../../../src/utils/chart/kde", async () => {
+  const actual = await vi.importActual("../../../src/utils/chart/kde");
   return {
     ...actual,
-    calculateKde: vi.fn().mockReturnValue({ labels: [0, 1, 2], values: [0, 1, 0] }),
+    calculateKde: vi.fn().mockReturnValue({ labels: [0, 1, 2], values: [0, 1, 0] })
+  };
+});
+vi.mock("../../../src/utils/chart/configBuilders", async () => {
+  const actual = await vi.importActual("../../../src/utils/chart/configBuilders");
+  return {
+    ...actual,
     getBarChartConfig: vi.fn().mockReturnValue({ type: "bar" }),
     getHistogramConfig: vi.fn().mockReturnValue({ type: "histogram" }),
-    getLineChartConfig: vi.fn().mockReturnValue({ type: "line" })
+    getLineChartConfig: vi.fn().mockReturnValue({ type: "line" }),
+    getPieChartConfig: vi.fn().mockReturnValue({ type: "pie" })
   };
 });
 
@@ -189,9 +197,7 @@ describe("buildDataAnalysisReport", () => {
     expect(sectionTitles).toContain("Section Types");
 
     // Verify "Multiple Stories" feature is included in Feature Prevalence
-    const featuresChartCall = vi
-      .mocked(ChartUtils.getBarChartConfig)
-      .mock.calls.find((c) => c[0].includes("Multiple Stories"));
+    const featuresChartCall = vi.mocked(getBarChartConfig).mock.calls.find((c) => c[0].includes("Multiple Stories"));
     expect(featuresChartCall).toBeDefined();
   });
 
@@ -220,9 +226,7 @@ describe("buildDataAnalysisReport", () => {
       );
       buildDataAnalysisReport(meta, 1, 1);
 
-      const chartCall = vi
-        .mocked(ChartUtils.getBarChartConfig)
-        .mock.calls.find((c) => c[0].some((l) => l.includes("iPhone")));
+      const chartCall = vi.mocked(getBarChartConfig).mock.calls.find((c) => c[0].some((l) => l.includes("iPhone")));
       const labels = chartCall ? chartCall[0] : [];
 
       // Expected: 15 Pro Max -> 15 Pro -> 13 -> 11
@@ -249,9 +253,7 @@ describe("buildDataAnalysisReport", () => {
       );
       buildDataAnalysisReport(meta, 1, 1);
 
-      const chartCall = vi
-        .mocked(ChartUtils.getBarChartConfig)
-        .mock.calls.find((c) => c[0].some((l) => l.includes("iPad")));
+      const chartCall = vi.mocked(getBarChartConfig).mock.calls.find((c) => c[0].some((l) => l.includes("iPad")));
       const labels = chartCall ? chartCall[0] : [];
 
       // Expected: M4 -> 12.9 -> 11 -> Air
@@ -273,7 +275,7 @@ describe("buildDataAnalysisReport", () => {
 
       buildDataAnalysisReport(meta, 1, 1);
 
-      const chartCall = vi.mocked(ChartUtils.getBarChartConfig).mock.calls.find((c) => c[0].includes("iPhone 14"));
+      const chartCall = vi.mocked(getBarChartConfig).mock.calls.find((c) => c[0].includes("iPhone 14"));
       const labels = chartCall?.[0] ?? [];
       const counts = chartCall?.[1] ?? [];
 
@@ -299,7 +301,7 @@ describe("buildDataAnalysisReport", () => {
 
       buildDataAnalysisReport(meta, 1, 1);
 
-      const chartCall = vi.mocked(ChartUtils.getBarChartConfig).mock.calls.find((c) => c[0].includes("iPhone 14"));
+      const chartCall = vi.mocked(getBarChartConfig).mock.calls.find((c) => c[0].includes("iPhone 14"));
       const labels = chartCall?.[0] ?? [];
       expect(labels).not.toContain("---");
     });
@@ -316,9 +318,7 @@ describe("buildDataAnalysisReport", () => {
       );
       buildDataAnalysisReport(meta, 1, 1);
 
-      const chartCall = vi
-        .mocked(ChartUtils.getBarChartConfig)
-        .mock.calls.find((c) => c[0].some((l) => l.includes("iPhone")));
+      const chartCall = vi.mocked(getBarChartConfig).mock.calls.find((c) => c[0].some((l) => l.includes("iPhone")));
       const labels = chartCall?.[0] ?? [];
 
       expect(labels).toEqual(["iPhone B", "iPhone A"]);
@@ -337,9 +337,7 @@ describe("buildDataAnalysisReport", () => {
       );
       buildDataAnalysisReport(meta, 1, 1);
 
-      const chartCall = vi
-        .mocked(ChartUtils.getBarChartConfig)
-        .mock.calls.find((c) => c[0].some((l) => l.includes("iPad")));
+      const chartCall = vi.mocked(getBarChartConfig).mock.calls.find((c) => c[0].some((l) => l.includes("iPad")));
       const labels = chartCall?.[0] ?? [];
 
       // Expected Rank Order:
@@ -378,9 +376,7 @@ describe("buildDataAnalysisReport", () => {
       );
       buildDataAnalysisReport(meta, 1, 1);
 
-      const chartCall = vi
-        .mocked(ChartUtils.getBarChartConfig)
-        .mock.calls.find((c) => c[0].some((l) => l.includes("iPad")));
+      const chartCall = vi.mocked(getBarChartConfig).mock.calls.find((c) => c[0].some((l) => l.includes("iPad")));
       const labels = chartCall?.[0] ?? [];
 
       expect(labels).toEqual(["iPad B", "iPad A"]);
@@ -405,7 +401,7 @@ describe("buildDataAnalysisReport", () => {
       // Check Focal Length Config
       // Should contain "invalid-focal" directly (fallback) and "24.0 mm" (parsed)
       const focalCall = vi
-        .mocked(ChartUtils.getBarChartConfig)
+        .mocked(getBarChartConfig)
         .mock.calls.find((c) => c[0].includes("invalid-focal") || c[0].includes("24.00 mm"));
       const focalLabels = focalCall?.[0] ?? [];
       expect(focalLabels).toContain("invalid-focal");
@@ -413,7 +409,7 @@ describe("buildDataAnalysisReport", () => {
 
       // Check Aperture Config
       // Should contain "f/unknown" (fallback)
-      const apertureCall = vi.mocked(ChartUtils.getBarChartConfig).mock.calls.find((c) => c[0].includes("f/unknown"));
+      const apertureCall = vi.mocked(getBarChartConfig).mock.calls.find((c) => c[0].includes("f/unknown"));
       const apertureLabels = apertureCall?.[0] ?? [];
       expect(apertureLabels).toContain("f/unknown");
     });
@@ -429,8 +425,8 @@ describe("buildDataAnalysisReport", () => {
       const report = buildDataAnalysisReport(mockMetadata, 60, 1);
       const objectsSection = report.sections.find((s) => s.title === "Object Distribution");
       expect(objectsSection).toBeDefined();
-      expect(ChartUtils.getBarChartConfig).toHaveBeenCalled();
-      const calls = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      expect(getBarChartConfig).toHaveBeenCalled();
+      const calls = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls;
       const lastCallIndex = calls.length - 1;
       const lastCall = calls[lastCallIndex];
       expect(lastCall).toBeDefined();
@@ -482,12 +478,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata, 60, 1, artifactDirs);
 
       // Verify getBarChartConfig was called with stacked data
-      const objectsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const options = call[2] as { stacked?: boolean };
-          return options.stacked === true;
-        }
-      );
+      const objectsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { stacked?: boolean };
+        return options.stacked === true;
+      });
 
       expect(objectsChartCall).toBeDefined();
       if (objectsChartCall !== undefined) {
@@ -562,12 +556,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata, 60, 1, artifactDirs);
 
       // Verify stacked chart was created
-      const objectsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const options = call[2] as { stacked?: boolean };
-          return options.stacked === true;
-        }
-      );
+      const objectsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { stacked?: boolean };
+        return options.stacked === true;
+      });
       expect(objectsChartCall).toBeDefined();
     });
 
@@ -592,12 +584,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata, 60, 1, artifactDirs);
 
       // Verify stacked chart was created
-      const objectsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const options = call[2] as { stacked?: boolean };
-          return options.stacked === true;
-        }
-      );
+      const objectsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { stacked?: boolean };
+        return options.stacked === true;
+      });
       expect(objectsChartCall).toBeDefined();
     });
 
@@ -625,12 +615,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata, 60, 1, artifactDirs);
 
       // Should still create stacked chart
-      const objectsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const options = call[2] as { stacked?: boolean };
-          return options.stacked === true;
-        }
-      );
+      const objectsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { stacked?: boolean };
+        return options.stacked === true;
+      });
       expect(objectsChartCall).toBeDefined();
     });
 
@@ -658,12 +646,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata, 60, 1, artifactDirs);
 
       // Should still create stacked chart (unknown categories are skipped)
-      const objectsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const options = call[2] as { stacked?: boolean };
-          return options.stacked === true;
-        }
-      );
+      const objectsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { stacked?: boolean };
+        return options.stacked === true;
+      });
       expect(objectsChartCall).toBeDefined();
     });
 
@@ -703,12 +689,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata, 60, 1, artifactDirs);
 
       // Should aggregate confidence counts from multiple directories
-      const objectsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const options = call[2] as { stacked?: boolean };
-          return options.stacked === true;
-        }
-      );
+      const objectsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { stacked?: boolean };
+        return options.stacked === true;
+      });
       expect(objectsChartCall).toBeDefined();
     });
 
@@ -735,12 +719,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata, 60, 1, artifactDirs);
 
       // Should still create stacked chart with data from dir1
-      const objectsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const options = call[2] as { stacked?: boolean };
-          return options.stacked === true;
-        }
-      );
+      const objectsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { stacked?: boolean };
+        return options.stacked === true;
+      });
       expect(objectsChartCall).toBeDefined();
     });
 
@@ -769,12 +751,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata, 60, 1, artifactDirs);
 
       // Should aggregate multiple objects of same type
-      const objectsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const options = call[2] as { stacked?: boolean };
-          return options.stacked === true;
-        }
-      );
+      const objectsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { stacked?: boolean };
+        return options.stacked === true;
+      });
       expect(objectsChartCall).toBeDefined();
     });
 
@@ -801,12 +781,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata, 60, 1, artifactDirs);
 
       // Should still create stacked chart (object type is counted, confidence is ignored)
-      const objectsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const options = call[2] as { stacked?: boolean };
-          return options.stacked === true;
-        }
-      );
+      const objectsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { stacked?: boolean };
+        return options.stacked === true;
+      });
       expect(objectsChartCall).toBeDefined();
     });
 
@@ -835,12 +813,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata, 60, 1, artifactDirs);
 
       // Verify all confidence branches were exercised
-      const objectsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const options = call[2] as { stacked?: boolean };
-          return options.stacked === true;
-        }
-      );
+      const objectsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { stacked?: boolean };
+        return options.stacked === true;
+      });
       expect(objectsChartCall).toBeDefined();
     });
 
@@ -869,12 +845,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata, 60, 1, artifactDirs);
 
       // First object creates the entry, subsequent ones use existing entry (tests ??= false branch)
-      const objectsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const options = call[2] as { stacked?: boolean };
-          return options.stacked === true;
-        }
-      );
+      const objectsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { stacked?: boolean };
+        return options.stacked === true;
+      });
       expect(objectsChartCall).toBeDefined();
     });
 
@@ -891,7 +865,7 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(metaWithUnknownIpad, 60, 1);
 
       // Should still generate report without errors
-      expect(ChartUtils.getBarChartConfig).toHaveBeenCalled();
+      expect(getBarChartConfig).toHaveBeenCalled();
     });
 
     it("should handle section labels with potential undefined values", () => {
@@ -921,12 +895,10 @@ describe("buildDataAnalysisReport", () => {
       expect(errorsSection).toBeDefined();
 
       // Find the errors chart call
-      const errorsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const labels = call[0] as string[];
-          return labels.includes("Unexpected Version");
-        }
-      );
+      const errorsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const labels = call[0] as string[];
+        return labels.includes("Unexpected Version");
+      });
       expect(errorsChartCall).toBeUndefined();
     });
 
@@ -1002,12 +974,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(metadataForTest, 60, 1, artifactDirs);
 
       // Find the errors chart call
-      const errorsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const labels = call[0] as string[];
-          return labels.includes("Unexpected Version");
-        }
-      );
+      const errorsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const labels = call[0] as string[];
+        return labels.includes("Unexpected Version");
+      });
 
       expect(errorsChartCall).toBeDefined();
       if (errorsChartCall !== undefined) {
@@ -1043,12 +1013,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata.slice(0, 2), 60, 1, artifactDirs);
 
       // Find the errors chart call
-      const errorsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const labels = call[0] as string[];
-          return labels.includes("Unexpected Version");
-        }
-      );
+      const errorsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const labels = call[0] as string[];
+        return labels.includes("Unexpected Version");
+      });
 
       expect(errorsChartCall).toBeDefined();
       if (errorsChartCall !== undefined) {
@@ -1068,12 +1036,10 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
 
       // Find the errors chart call
-      const errorsChartCall = (ChartUtils.getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => {
-          const labels = call[0] as string[];
-          return labels.includes("Unexpected Version");
-        }
-      );
+      const errorsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const labels = call[0] as string[];
+        return labels.includes("Unexpected Version");
+      });
 
       expect(errorsChartCall).toBeDefined();
       if (errorsChartCall !== undefined) {
@@ -1152,7 +1118,7 @@ describe("buildDataAnalysisReport", () => {
       expect(sectionTitles).toContain("Wall Areas");
 
       // Verify line charts were created for area charts
-      const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const lineChartCalls = (getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
       const windowAreaCall = lineChartCalls.find((call: unknown[]) => {
         const options = call[2] as { chartId?: string };
         return options.chartId === "windowArea";
@@ -1236,7 +1202,7 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
 
       // Verify that getLineChartConfig was called for wallArea
-      const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const lineChartCalls = (getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
       const wallAreaCall = lineChartCalls.find((call: unknown[]) => {
         const options = call[2] as { chartId?: string };
         return options.chartId === "wallArea";
@@ -1280,7 +1246,7 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
 
       // Verify that getLineChartConfig was called for wallArea
-      const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const lineChartCalls = (getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
       const wallAreaCall = lineChartCalls.find((call: unknown[]) => {
         const options = call[2] as { chartId?: string };
         return options.chartId === "wallArea";
@@ -1334,7 +1300,7 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
 
       // Should still create the chart section even if some walls are invalid
-      const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const lineChartCalls = (getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
       const wallAreaCall = lineChartCalls.find((call: unknown[]) => {
         const options = call[2] as { chartId?: string };
         return options.chartId === "wallArea";
@@ -1373,7 +1339,7 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
 
       // Should still create the chart section
-      const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const lineChartCalls = (getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
       const wallAreaCall = lineChartCalls.find((call: unknown[]) => {
         const options = call[2] as { chartId?: string };
         return options.chartId === "wallArea";
@@ -1415,7 +1381,7 @@ describe("buildDataAnalysisReport", () => {
       buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
 
       // Should still create the chart section
-      const lineChartCalls = (ChartUtils.getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const lineChartCalls = (getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
       const wallAreaCall = lineChartCalls.find((call: unknown[]) => {
         const options = call[2] as { chartId?: string };
         return options.chartId === "wallArea";
@@ -1471,6 +1437,250 @@ describe("buildDataAnalysisReport", () => {
       // Should still create charts
       const sectionTitles = report.sections.map((s) => s.title);
       expect(sectionTitles).toContain("Wall Areas");
+    });
+  });
+
+  describe("Object Attributes and Door Status Pie Charts", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    });
+
+    it("should generate object attributes pie charts when artifact directories provided", () => {
+      const mockRawScanData = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [
+          {
+            attributes: {
+              ChairArmType: "armless",
+              ChairBackType: "high",
+              ChairLegType: "four",
+              ChairType: "dining",
+              SofaType: "sectional",
+              StorageType: "cabinet",
+              TableShapeType: "rectangular",
+              TableType: "dining"
+            }
+          }
+        ],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+
+      const artifactDirs = ["/test/dir1"];
+      const report = buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      const sectionTitles = report.sections.map((s) => s.title);
+      expect(sectionTitles).toContain("Object Attributes");
+
+      // Verify pie chart configs were created
+      const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      expect(pieChartCalls.length).toBeGreaterThan(0);
+    });
+
+    it("should generate door status pie chart when artifact directories provided", () => {
+      const mockRawScanData = {
+        coreModel: "test",
+        doors: [
+          {
+            category: {
+              door: {
+                isOpen: true
+              }
+            }
+          },
+          {
+            category: {
+              door: {
+                isOpen: false
+              }
+            }
+          },
+          {
+            category: {
+              door: {
+                isOpen: false
+              }
+            }
+          }
+        ],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+
+      const artifactDirs = ["/test/dir1"];
+      buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Verify door status chart was created - check for any pie chart calls
+      const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      expect(pieChartCalls.length).toBeGreaterThan(0);
+
+      // Check if any call has legendIconComponents with Closed/Open
+      const doorChartCall = pieChartCalls.find((call: unknown[]) => {
+        const options = call[2] as { legendIconComponents?: Record<string, unknown> };
+        if (options.legendIconComponents === undefined) {
+          return false;
+        }
+        const icons = options.legendIconComponents;
+        return "Closed" in icons || "Open" in icons;
+      });
+      expect(doorChartCall).toBeDefined();
+    });
+
+    it("should handle circularElliptic with CircularEllipticIcon", () => {
+      const mockRawScanData = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [
+          {
+            attributes: {
+              TableShapeType: "circularElliptic"
+            }
+          }
+        ],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+
+      const artifactDirs = ["/test/dir1"];
+      buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Verify CircularEllipticIcon was added for "Circular" (converted from circularElliptic)
+      const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const tableShapeCall = pieChartCalls.find((call: unknown[]) => {
+        const options = call[2] as { legendIconComponents?: Record<string, unknown> };
+        return options.legendIconComponents?.["Circular"] !== undefined;
+      });
+      expect(tableShapeCall).toBeDefined();
+    });
+
+    it("should handle unidentified labels with UnidentifiedIcon", () => {
+      const mockRawScanData = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [
+          {
+            attributes: {
+              ChairType: "unidentified"
+            }
+          }
+        ],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+
+      const artifactDirs = ["/test/dir1"];
+      buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Verify UnidentifiedIcon was added for "Unidentified" (converted from unidentified)
+      const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const unidentifiedCall = pieChartCalls.find((call: unknown[]) => {
+        const options = call[2] as { legendIconComponents?: Record<string, unknown> };
+        return options.legendIconComponents?.["Unidentified"] !== undefined;
+      });
+      expect(unidentifiedCall).toBeDefined();
+    });
+  });
+
+  describe("Aperture label fallback coverage", () => {
+    it("should handle aperture labels that don't exist in map (line 204)", () => {
+      // Create metadata with aperture values that will be sorted but may have missing entries
+      const metaWithAperture = [
+        Object.assign({}, mockMetadata[0], {
+          lensAperture: "f/2.8"
+        }) as ArtifactAnalysis
+      ];
+
+      buildDataAnalysisReport(metaWithAperture, 60, 1);
+
+      // Verify aperture chart was created
+      expect(getBarChartConfig).toHaveBeenCalled();
+    });
+  });
+
+  describe("Resolution and KDE coverage", () => {
+    it("should handle resolution calculation (line 234)", () => {
+      const metaWithRes = [
+        Object.assign({}, mockMetadata[0], {
+          height: 1080,
+          width: 1920
+        }) as ArtifactAnalysis
+      ];
+
+      buildDataAnalysisReport(metaWithRes, 60, 1);
+
+      // Verify resolution chart was created
+      expect(getBarChartConfig).toHaveBeenCalled();
+    });
+
+    it("should handle ambient KDE with resolution parameter (line 261)", () => {
+      const metaWithAmbient = [
+        Object.assign({}, mockMetadata[0], {
+          avgAmbientIntensity: 1000
+        }) as ArtifactAnalysis
+      ];
+
+      buildDataAnalysisReport(metaWithAmbient, 60, 1);
+
+      // Verify ambient chart was created with KDE
+      expect(calculateKde).toHaveBeenCalled();
+      expect(getLineChartConfig).toHaveBeenCalled();
+    });
+
+    it("should handle temperature KDE (line 288)", () => {
+      const metaWithTemp = [
+        Object.assign({}, mockMetadata[0], {
+          avgColorTemperature: 5000
+        }) as ArtifactAnalysis
+      ];
+
+      buildDataAnalysisReport(metaWithTemp, 60, 1);
+
+      // Verify temperature chart was created with KDE
+      expect(calculateKde).toHaveBeenCalled();
+      expect(getLineChartConfig).toHaveBeenCalled();
     });
   });
 });

@@ -5,7 +5,7 @@ import { scaleBand, scaleLinear } from "@visx/scale";
 import { Bar, Line } from "@visx/shape";
 import React from "react";
 
-import { BarChartConfig } from "../../../utils/chartUtils";
+import { BarChartConfig } from "../../../models/chart/barChartConfig";
 
 interface BarChartProps {
   config: BarChartConfig;

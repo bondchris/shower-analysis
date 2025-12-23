@@ -1,10 +1,11 @@
 import { sumBy } from "lodash";
 
 import { EnvStats } from "../models/envStats";
-import * as ChartUtils from "../utils/chartUtils";
-import { ChartConfiguration } from "../utils/chartUtils";
+import { ChartConfiguration } from "../models/chart/chartConfiguration";
+import { MixedChartDataset } from "../models/chart/mixedChartDataset";
 import { logger } from "../utils/logger";
 import { ReportData, ReportSection } from "../models/report";
+import { getBarChartConfig, getLineChartConfig, getMixedChartConfig } from "../utils/chart/configBuilders";
 
 export interface ValidationCharts {
   propertyPresence?: ChartConfiguration;
@@ -52,7 +53,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
       const dynamicHeight = Math.max(MIN_CHART_HEIGHT, contentHeight + HEADER_FOOTER_SPACE);
 
       const propertyChartWidth = Math.round(PAGE_CONTENT_WIDTH * PROPERTY_WIDTH_RATIO);
-      charts.propertyPresence = ChartUtils.getBarChartConfig(chartLabels, chartData, {
+      charts.propertyPresence = getBarChartConfig(chartLabels, chartData, {
         height: dynamicHeight,
         horizontal: true,
         title: "",
@@ -136,7 +137,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
 
     const BASE_LAYER_ORDER = 100;
 
-    const volumeDatasets: ChartUtils.MixedChartDataset[] = [
+    const volumeDatasets: MixedChartDataset[] = [
       {
         backgroundColor: "rgba(0, 0, 0, 0.4)",
         borderColor: "black",
@@ -194,7 +195,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
 
     try {
       const SCAN_VOLUME_CHART_HEIGHT = 420;
-      charts.scanVolume = ChartUtils.getMixedChartConfig(sortedDates, volumeDatasets, {
+      charts.scanVolume = getMixedChartConfig(sortedDates, volumeDatasets, {
         height: SCAN_VOLUME_CHART_HEIGHT,
         title: "",
         yLabelLeft: "Total Scans (Cumulative)",
@@ -226,7 +227,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
     });
 
     try {
-      charts.success = ChartUtils.getLineChartConfig(sortedDates, successDatasets, {
+      charts.success = getLineChartConfig(sortedDates, successDatasets, {
         title: "",
         yLabel: "Success %"
       });
@@ -253,7 +254,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
     });
 
     try {
-      charts.errors = ChartUtils.getLineChartConfig(sortedDates, errorDatasets, {
+      charts.errors = getLineChartConfig(sortedDates, errorDatasets, {
         title: "",
         yLabel: "Error Count"
       });
@@ -280,7 +281,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
     });
 
     try {
-      charts.warnings = ChartUtils.getLineChartConfig(sortedDates, warningDatasets, {
+      charts.warnings = getLineChartConfig(sortedDates, warningDatasets, {
         title: "",
         yLabel: "Warning Count"
       });

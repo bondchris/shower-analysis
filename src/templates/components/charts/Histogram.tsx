@@ -5,7 +5,7 @@ import { scaleBand, scaleLinear } from "@visx/scale";
 import { Bar } from "@visx/shape";
 import React from "react";
 
-import { HistogramConfig } from "../../../utils/chartUtils";
+import { HistogramConfig } from "../../../models/chart/histogramConfig";
 
 interface HistogramProps {
   config: HistogramConfig;

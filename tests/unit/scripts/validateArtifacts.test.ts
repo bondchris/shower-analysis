@@ -3,7 +3,7 @@ import { applyArtifactToStats, generateReport, validateEnvironment } from "../..
 import { ArtifactResponse, SpatialService } from "../../../src/services/spatialService";
 import { EnvStats } from "../../../src/models/envStats";
 // ChartUtils Mock
-vi.mock("../../../src/utils/chartUtils", () => ({
+vi.mock("../../../src/utils/chart", () => ({
   getBarChartConfig: vi.fn().mockReturnValue({ type: "bar" }),
   getLineChartConfig: vi.fn().mockReturnValue({ type: "line" }),
   getMixedChartConfig: vi.fn().mockReturnValue({ type: "bar" })
