@@ -350,6 +350,58 @@ export function convertAreasToSquareFeet(areasInSquareMeters: number[]): number[
 }
 
 /**
+ * Converts lengths from meters to feet.
+ */
+export function convertLengthsToFeet(lengthsInMeters: number[]): number[] {
+  return lengthsInMeters.map((length) => convert(length).from("m").to("ft"));
+}
+
+/**
+ * Converts lengths from meters to inches.
+ */
+export function convertLengthsToInches(lengthsInMeters: number[]): number[] {
+  return lengthsInMeters.map((length) => convert(length).from("m").to("in"));
+}
+
+/**
+ * Extracts tub lengths from raw scan files.
+ * Returns lengths in meters.
+ */
+export function getTubLengths(artifactDirs: string[]): number[] {
+  const lengths: number[] = [];
+  const dimensionIndexLength = 0;
+  const minDimensionsLength = 1;
+  const minLengthValue = 0;
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+
+      for (const obj of rawScan.objects) {
+        if (obj.category.bathtub !== undefined) {
+          if (Array.isArray(obj.dimensions) && obj.dimensions.length >= minDimensionsLength) {
+            const length = obj.dimensions[dimensionIndexLength];
+            if (length !== undefined && length > minLengthValue) {
+              lengths.push(length);
+            }
+          }
+        }
+      }
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return lengths;
+}
+
+/**
  * Extracts door isOpen values from raw scan files.
  * Returns a record mapping isOpen values (as strings) to their counts.
  */
@@ -421,5 +473,74 @@ export function getObjectAttributeCounts(
   }
 
   return counts;
+}
+
+/**
+ * Counts walls with windows, doors, and openings across all raw scan files.
+ * Returns counts for walls that have at least one window, door, or opening.
+ */
+export function getWallEmbeddedCounts(artifactDirs: string[]): {
+  wallsWithWindows: number;
+  wallsWithDoors: number;
+  wallsWithOpenings: number;
+  totalWalls: number;
+} {
+  const initialCount = 0;
+  let wallsWithWindows = initialCount;
+  let wallsWithDoors = initialCount;
+  let wallsWithOpenings = initialCount;
+  let totalWalls = initialCount;
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+
+      // Create sets of wall identifiers that have windows, doors, or openings
+      const wallsWithWindowsSet = new Set<string>();
+      const wallsWithDoorsSet = new Set<string>();
+      const wallsWithOpeningsSet = new Set<string>();
+
+      // Count walls with windows
+      for (const window of rawScan.windows) {
+        if (window.parentIdentifier !== null) {
+          wallsWithWindowsSet.add(window.parentIdentifier);
+        }
+      }
+
+      // Count walls with doors
+      for (const door of rawScan.doors) {
+        if (door.parentIdentifier !== null) {
+          wallsWithDoorsSet.add(door.parentIdentifier);
+        }
+      }
+
+      // Count walls with openings
+      for (const opening of rawScan.openings) {
+        if (opening.parentIdentifier !== null && opening.parentIdentifier !== undefined) {
+          wallsWithOpeningsSet.add(opening.parentIdentifier);
+        }
+      }
+
+      wallsWithWindows += wallsWithWindowsSet.size;
+      wallsWithDoors += wallsWithDoorsSet.size;
+      wallsWithOpenings += wallsWithOpeningsSet.size;
+      totalWalls += rawScan.walls.length;
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return {
+    totalWalls,
+    wallsWithDoors,
+    wallsWithOpenings,
+    wallsWithWindows
+  };
 }
 

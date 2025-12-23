@@ -2,16 +2,20 @@ import { ArtifactAnalysis } from "../models/artifactAnalysis";
 import { ChartConfiguration } from "../models/chart/chartConfiguration";
 import { calculateKde } from "../utils/chart/kde";
 import { getBarChartConfig, getLineChartConfig, getPieChartConfig } from "../utils/chart/configBuilders";
+import { scaleLinear } from "@visx/scale";
 import { startCase } from "lodash";
 import {
   convertAreasToSquareFeet,
+  convertLengthsToInches,
   getDoorAreas,
   getDoorIsOpenCounts,
   getObjectAttributeCounts,
   getObjectConfidenceCounts,
   getOpeningAreas,
+  getTubLengths,
   getUnexpectedVersionArtifactDirs,
   getWallAreas,
+  getWallEmbeddedCounts,
   getWindowAreas
 } from "../utils/data/rawScanExtractor";
 import { sortDeviceModels } from "../utils/deviceSorting";
@@ -65,6 +69,10 @@ export interface CaptureCharts {
   storageType: ChartConfiguration;
   tableShapeType: ChartConfiguration;
   tableType: ChartConfiguration;
+  wallsWithWindows: ChartConfiguration;
+  wallsWithDoors: ChartConfiguration;
+  wallsWithOpenings: ChartConfiguration;
+  tubLength: ChartConfiguration;
 }
 
 // Helper type for local chart data preparation
@@ -162,14 +170,44 @@ function buildKdeCharts(
 
   // Duration
   const durations = metadataList.map((m) => m.duration);
-  const durKde = calculateKde(durations, { max: 120, min: 10, resolution: 200 });
+  const durationInitialMin = 10;
+  const durationInitialMax = 120;
+  const durationKdeResolution = 200;
+  const durationDynamicBounds = calculateDynamicKdeBounds(
+    durations,
+    durationInitialMin,
+    durationInitialMax,
+    durationKdeResolution
+  );
+  let durationKde = calculateKde(durations, {
+    max: durationDynamicBounds.max,
+    min: durationDynamicBounds.min,
+    resolution: durationKdeResolution
+  });
+  const durationRefinedBounds = calculateDynamicKdeBounds(
+    durations,
+    durationDynamicBounds.min,
+    durationDynamicBounds.max,
+    durationKdeResolution
+  );
+  const durationBoundsDiffThreshold = 0.1;
+  if (
+    Math.abs(durationRefinedBounds.min - durationDynamicBounds.min) > durationBoundsDiffThreshold ||
+    Math.abs(durationRefinedBounds.max - durationDynamicBounds.max) > durationBoundsDiffThreshold
+  ) {
+    durationKde = calculateKde(durations, {
+      max: durationRefinedBounds.max,
+      min: durationRefinedBounds.min,
+      resolution: durationKdeResolution
+    });
+  }
   charts.duration = getLineChartConfig(
-    durKde.labels,
+    durationKde.labels,
     [
       {
         borderColor: "#06b6d4", // Cyan-500
         borderWidth: 2,
-        data: durKde.values,
+        data: durationKde.values,
         fill: true,
         label: "Density"
       }
@@ -193,11 +231,37 @@ function buildKdeCharts(
   const areaVals = metadataList.map((m) => m.roomAreaSqFt).filter((v) => v > NO_RESULTS);
 
   // Ambient: 980-1040
-  const ambientKde = calculateKde(intensityVals, {
-    max: 1040,
-    min: 980,
-    resolution: 200
+  const ambientInitialMin = 980;
+  const ambientInitialMax = 1040;
+  const ambientKdeResolution = 200;
+  const ambientDynamicBounds = calculateDynamicKdeBounds(
+    intensityVals,
+    ambientInitialMin,
+    ambientInitialMax,
+    ambientKdeResolution
+  );
+  let ambientKde = calculateKde(intensityVals, {
+    max: ambientDynamicBounds.max,
+    min: ambientDynamicBounds.min,
+    resolution: ambientKdeResolution
   });
+  const ambientRefinedBounds = calculateDynamicKdeBounds(
+    intensityVals,
+    ambientDynamicBounds.min,
+    ambientDynamicBounds.max,
+    ambientKdeResolution
+  );
+  const ambientBoundsDiffThreshold = 0.1;
+  if (
+    Math.abs(ambientRefinedBounds.min - ambientDynamicBounds.min) > ambientBoundsDiffThreshold ||
+    Math.abs(ambientRefinedBounds.max - ambientDynamicBounds.max) > ambientBoundsDiffThreshold
+  ) {
+    ambientKde = calculateKde(intensityVals, {
+      max: ambientRefinedBounds.max,
+      min: ambientRefinedBounds.min,
+      resolution: ambientKdeResolution
+    });
+  }
   charts.ambient = getLineChartConfig(
     ambientKde.labels,
     [
@@ -224,7 +288,32 @@ function buildKdeCharts(
   );
 
   // Temp: 3500-6700
-  const tempKde = calculateKde(tempVals, { max: 6700, min: 3500, resolution: 200 });
+  const tempInitialMin = 3500;
+  const tempInitialMax = 6700;
+  const tempKdeResolution = 200;
+  const tempDynamicBounds = calculateDynamicKdeBounds(tempVals, tempInitialMin, tempInitialMax, tempKdeResolution);
+  let tempKde = calculateKde(tempVals, {
+    max: tempDynamicBounds.max,
+    min: tempDynamicBounds.min,
+    resolution: tempKdeResolution
+  });
+  const tempRefinedBounds = calculateDynamicKdeBounds(
+    tempVals,
+    tempDynamicBounds.min,
+    tempDynamicBounds.max,
+    tempKdeResolution
+  );
+  const tempBoundsDiffThreshold = 0.1;
+  if (
+    Math.abs(tempRefinedBounds.min - tempDynamicBounds.min) > tempBoundsDiffThreshold ||
+    Math.abs(tempRefinedBounds.max - tempDynamicBounds.max) > tempBoundsDiffThreshold
+  ) {
+    tempKde = calculateKde(tempVals, {
+      max: tempRefinedBounds.max,
+      min: tempRefinedBounds.min,
+      resolution: tempKdeResolution
+    });
+  }
   charts.temperature = getLineChartConfig(
     tempKde.labels,
     [
@@ -251,7 +340,32 @@ function buildKdeCharts(
   );
 
   // ISO: 0-800
-  const isoKde = calculateKde(isoVals, { max: 800, min: 0, resolution: 200 });
+  const isoInitialMin = 0;
+  const isoInitialMax = 800;
+  const isoKdeResolution = 200;
+  const isoDynamicBounds = calculateDynamicKdeBounds(isoVals, isoInitialMin, isoInitialMax, isoKdeResolution);
+  let isoKde = calculateKde(isoVals, {
+    max: isoDynamicBounds.max,
+    min: isoDynamicBounds.min,
+    resolution: isoKdeResolution
+  });
+  const isoRefinedBounds = calculateDynamicKdeBounds(
+    isoVals,
+    isoDynamicBounds.min,
+    isoDynamicBounds.max,
+    isoKdeResolution
+  );
+  const isoBoundsDiffThreshold = 0.1;
+  if (
+    Math.abs(isoRefinedBounds.min - isoDynamicBounds.min) > isoBoundsDiffThreshold ||
+    Math.abs(isoRefinedBounds.max - isoDynamicBounds.max) > isoBoundsDiffThreshold
+  ) {
+    isoKde = calculateKde(isoVals, {
+      max: isoRefinedBounds.max,
+      min: isoRefinedBounds.min,
+      resolution: isoKdeResolution
+    });
+  }
   charts.iso = getLineChartConfig(
     isoKde.labels,
     [
@@ -275,7 +389,32 @@ function buildKdeCharts(
   );
 
   // Brightness: 0-6
-  const briKde = calculateKde(briVals, { max: 6, min: 0, resolution: 200 });
+  const briInitialMin = 0;
+  const briInitialMax = 6;
+  const briKdeResolution = 200;
+  const briDynamicBounds = calculateDynamicKdeBounds(briVals, briInitialMin, briInitialMax, briKdeResolution);
+  let briKde = calculateKde(briVals, {
+    max: briDynamicBounds.max,
+    min: briDynamicBounds.min,
+    resolution: briKdeResolution
+  });
+  const briRefinedBounds = calculateDynamicKdeBounds(
+    briVals,
+    briDynamicBounds.min,
+    briDynamicBounds.max,
+    briKdeResolution
+  );
+  const briBoundsDiff = 0.1;
+  if (
+    Math.abs(briRefinedBounds.min - briDynamicBounds.min) > briBoundsDiff ||
+    Math.abs(briRefinedBounds.max - briDynamicBounds.max) > briBoundsDiff
+  ) {
+    briKde = calculateKde(briVals, {
+      max: briRefinedBounds.max,
+      min: briRefinedBounds.min,
+      resolution: briKdeResolution
+    });
+  }
   charts.brightness = getLineChartConfig(
     briKde.labels,
     [
@@ -302,7 +441,32 @@ function buildKdeCharts(
   );
 
   // Room Area: 0-150
-  const areaKde = calculateKde(areaVals, { max: 150, min: 0, resolution: 200 });
+  const areaInitialMin = 0;
+  const areaInitialMax = 150;
+  const areaKdeResolution = 200;
+  const areaDynamicBounds = calculateDynamicKdeBounds(areaVals, areaInitialMin, areaInitialMax, areaKdeResolution);
+  let areaKde = calculateKde(areaVals, {
+    max: areaDynamicBounds.max,
+    min: areaDynamicBounds.min,
+    resolution: areaKdeResolution
+  });
+  const areaRefinedBounds = calculateDynamicKdeBounds(
+    areaVals,
+    areaDynamicBounds.min,
+    areaDynamicBounds.max,
+    areaKdeResolution
+  );
+  const areaBoundsDiff = 0.1;
+  if (
+    Math.abs(areaRefinedBounds.min - areaDynamicBounds.min) > areaBoundsDiff ||
+    Math.abs(areaRefinedBounds.max - areaDynamicBounds.max) > areaBoundsDiff
+  ) {
+    areaKde = calculateKde(areaVals, {
+      max: areaRefinedBounds.max,
+      min: areaRefinedBounds.min,
+      resolution: areaKdeResolution
+    });
+  }
   charts.area = getLineChartConfig(
     areaKde.labels,
     [
@@ -830,11 +994,135 @@ function buildErrorFeatureObjectCharts(
   return charts;
 }
 
+/**
+ * Calculates dynamic min/max bounds for a KDE chart based on the data.
+ * Finds the range where values are above half of the first meaningful y-axis tick.
+ */
+function calculateDynamicKdeBounds(
+  data: number[],
+  initialMin: number,
+  initialMax: number,
+  resolution: number
+): { max: number; min: number } {
+  const zeroValue = 0;
+  const thresholdDivisor = 2;
+  const resolutionOffset = 1;
+  const paddingRatio = 0.05;
+  const decrementStep = 1;
+
+  const validData = data.filter((d) => Number.isFinite(d) && d > zeroValue);
+  if (validData.length === zeroValue) {
+    return { max: initialMax, min: initialMin };
+  }
+
+  // Get actual data range as a sanity check
+  const actualDataMin = Math.min(...validData);
+  const actualDataMax = Math.max(...validData);
+
+  // Calculate KDE with initial wide range
+  const initialKde = calculateKde(data, { max: initialMax, min: initialMin, resolution });
+
+  // Calculate the first y-axis tick using the actual scale library (same as chart)
+  // The yScale uses domain [0, maxDataValue] with nice: true
+  const maxKdeValue = Math.max(...initialKde.values.filter((v) => Number.isFinite(v)));
+  if (maxKdeValue <= zeroValue) {
+    return { max: initialMax, min: initialMin };
+  }
+
+  // Use the actual scale library to calculate ticks (same as LineChart component)
+  const yScale = scaleLinear<number>({
+    domain: [zeroValue, maxKdeValue],
+    nice: true
+  });
+
+  // Get the actual ticks that would be generated (default ~10 ticks)
+  const ticks: number[] = yScale.ticks();
+
+  // Find the first tick above zero
+  const firstTickAboveZero = ticks.find((t: number) => t > zeroValue);
+  const indexOffset = 1;
+  const lastTickIndex = ticks.length - indexOffset;
+  const firstTickValue = firstTickAboveZero ?? ticks[lastTickIndex] ?? maxKdeValue;
+  const threshold = firstTickValue / thresholdDivisor;
+
+  // Find where data starts: look for the first crossing from below threshold to above threshold
+  // This is where the line first crosses half a tick going up
+  let minIndex = zeroValue;
+  let foundMinCrossing = false;
+  for (let i = zeroValue; i < initialKde.values.length - decrementStep; i++) {
+    const currentValue = initialKde.values[i];
+    const nextValue = initialKde.values[i + decrementStep];
+    if (currentValue !== undefined && nextValue !== undefined) {
+      // Check if we're crossing from below threshold to above threshold
+      if (currentValue < threshold && nextValue >= threshold) {
+        minIndex = i + decrementStep;
+        foundMinCrossing = true;
+        break;
+      }
+    }
+  }
+
+  // Find where data ends: look for the last crossing from above threshold to below threshold
+  // This is where the line last crosses half a tick going down
+  const lastIndex = initialKde.values.length - decrementStep;
+  let maxIndex = lastIndex;
+  let foundMaxCrossing = false;
+  for (let i = lastIndex; i >= decrementStep; i--) {
+    const currentValue = initialKde.values[i];
+    const prevValue = initialKde.values[i - decrementStep];
+    if (currentValue !== undefined && prevValue !== undefined) {
+      // Check if we're crossing from above threshold to below threshold
+      // (prevValue is above, currentValue is below - going right to left, this is the last crossing down)
+      if (prevValue >= threshold && currentValue < threshold) {
+        maxIndex = i - decrementStep;
+        foundMaxCrossing = true;
+        break;
+      }
+    }
+  }
+
+  // If we didn't find meaningful bounds (all values below threshold or edge cases),
+  // fall back to using the actual data range
+  const minKdeLengthForFallback = 10;
+  if (
+    minIndex >= maxIndex ||
+    (!foundMinCrossing && !foundMaxCrossing && initialKde.values.length > minKdeLengthForFallback)
+  ) {
+    const dataRange = actualDataMax - actualDataMin;
+    const dataPadding = dataRange * paddingRatio;
+    const fallbackBounds = {
+      max: Math.min(initialMax, actualDataMax + dataPadding),
+      min: Math.max(initialMin, actualDataMin - dataPadding)
+    };
+    return fallbackBounds;
+  }
+
+  // Convert indices back to actual values
+  const resolutionMinusOne = resolution - resolutionOffset;
+  const step = (initialMax - initialMin) / resolutionMinusOne;
+  const minIndexTimesStep = minIndex * step;
+  const maxIndexTimesStep = maxIndex * step;
+  const calculatedMin = initialMin + minIndexTimesStep;
+  const calculatedMax = initialMin + maxIndexTimesStep;
+
+  // Use the calculated bounds from crossings (where KDE crosses threshold)
+  // Don't clamp to data range - the crossings tell us where the density is meaningful
+  const finalMin = calculatedMin;
+  const finalMax = calculatedMax;
+
+  // Add a small padding to ensure we show the full range
+  const range = finalMax - finalMin;
+  const padding = range * paddingRatio;
+  const paddedMin = Math.max(initialMin, finalMin - padding);
+  const paddedMax = Math.min(initialMax, finalMax + padding);
+  return { max: paddedMax, min: paddedMin };
+}
+
 function buildAreaCharts(
   artifactDirs: string[],
   layout: LayoutConstants
-): Partial<Pick<CaptureCharts, "windowArea" | "doorArea" | "openingArea" | "wallArea">> {
-  const charts: Partial<Pick<CaptureCharts, "windowArea" | "doorArea" | "openingArea" | "wallArea">> = {};
+): Partial<Pick<CaptureCharts, "windowArea" | "doorArea" | "openingArea" | "wallArea" | "tubLength">> {
+  const charts: Partial<Pick<CaptureCharts, "windowArea" | "doorArea" | "openingArea" | "wallArea" | "tubLength">> = {};
 
   const windowAreasSqM = getWindowAreas(artifactDirs);
   const doorAreasSqM = getDoorAreas(artifactDirs);
@@ -846,7 +1134,37 @@ function buildAreaCharts(
   const openingAreasSqFt = convertAreasToSquareFeet(openingAreasSqM);
   const wallAreasSqFt = convertAreasToSquareFeet(wallAreasSqM);
 
-  const windowAreaKde = calculateKde(windowAreasSqFt, { max: 50, min: 0, resolution: 200 });
+  const windowAreaInitialMin = 0;
+  const windowAreaInitialMax = 50;
+  const windowAreaKdeResolution = 200;
+  const windowAreaDynamicBounds = calculateDynamicKdeBounds(
+    windowAreasSqFt,
+    windowAreaInitialMin,
+    windowAreaInitialMax,
+    windowAreaKdeResolution
+  );
+  let windowAreaKde = calculateKde(windowAreasSqFt, {
+    max: windowAreaDynamicBounds.max,
+    min: windowAreaDynamicBounds.min,
+    resolution: windowAreaKdeResolution
+  });
+  const windowAreaRefinedBounds = calculateDynamicKdeBounds(
+    windowAreasSqFt,
+    windowAreaDynamicBounds.min,
+    windowAreaDynamicBounds.max,
+    windowAreaKdeResolution
+  );
+  const windowAreaBoundsDiff = 0.1;
+  if (
+    Math.abs(windowAreaRefinedBounds.min - windowAreaDynamicBounds.min) > windowAreaBoundsDiff ||
+    Math.abs(windowAreaRefinedBounds.max - windowAreaDynamicBounds.max) > windowAreaBoundsDiff
+  ) {
+    windowAreaKde = calculateKde(windowAreasSqFt, {
+      max: windowAreaRefinedBounds.max,
+      min: windowAreaRefinedBounds.min,
+      resolution: windowAreaKdeResolution
+    });
+  }
   charts.windowArea = getLineChartConfig(
     windowAreaKde.labels,
     [
@@ -869,7 +1187,37 @@ function buildAreaCharts(
     }
   );
 
-  const doorAreaKde = calculateKde(doorAreasSqFt, { max: 30, min: 0, resolution: 200 });
+  const doorAreaInitialMin = 0;
+  const doorAreaInitialMax = 30;
+  const doorAreaKdeResolution = 200;
+  const doorAreaDynamicBounds = calculateDynamicKdeBounds(
+    doorAreasSqFt,
+    doorAreaInitialMin,
+    doorAreaInitialMax,
+    doorAreaKdeResolution
+  );
+  let doorAreaKde = calculateKde(doorAreasSqFt, {
+    max: doorAreaDynamicBounds.max,
+    min: doorAreaDynamicBounds.min,
+    resolution: doorAreaKdeResolution
+  });
+  const doorAreaRefinedBounds = calculateDynamicKdeBounds(
+    doorAreasSqFt,
+    doorAreaDynamicBounds.min,
+    doorAreaDynamicBounds.max,
+    doorAreaKdeResolution
+  );
+  const doorAreaBoundsDiff = 0.1;
+  if (
+    Math.abs(doorAreaRefinedBounds.min - doorAreaDynamicBounds.min) > doorAreaBoundsDiff ||
+    Math.abs(doorAreaRefinedBounds.max - doorAreaDynamicBounds.max) > doorAreaBoundsDiff
+  ) {
+    doorAreaKde = calculateKde(doorAreasSqFt, {
+      max: doorAreaRefinedBounds.max,
+      min: doorAreaRefinedBounds.min,
+      resolution: doorAreaKdeResolution
+    });
+  }
   charts.doorArea = getLineChartConfig(
     doorAreaKde.labels,
     [
@@ -892,7 +1240,37 @@ function buildAreaCharts(
     }
   );
 
-  const openingAreaKde = calculateKde(openingAreasSqFt, { max: 50, min: 0, resolution: 200 });
+  const openingAreaInitialMin = 0;
+  const openingAreaInitialMax = 50;
+  const openingAreaKdeResolution = 200;
+  const openingAreaDynamicBounds = calculateDynamicKdeBounds(
+    openingAreasSqFt,
+    openingAreaInitialMin,
+    openingAreaInitialMax,
+    openingAreaKdeResolution
+  );
+  let openingAreaKde = calculateKde(openingAreasSqFt, {
+    max: openingAreaDynamicBounds.max,
+    min: openingAreaDynamicBounds.min,
+    resolution: openingAreaKdeResolution
+  });
+  const openingAreaRefinedBounds = calculateDynamicKdeBounds(
+    openingAreasSqFt,
+    openingAreaDynamicBounds.min,
+    openingAreaDynamicBounds.max,
+    openingAreaKdeResolution
+  );
+  const openingAreaBoundsDiff = 0.1;
+  if (
+    Math.abs(openingAreaRefinedBounds.min - openingAreaDynamicBounds.min) > openingAreaBoundsDiff ||
+    Math.abs(openingAreaRefinedBounds.max - openingAreaDynamicBounds.max) > openingAreaBoundsDiff
+  ) {
+    openingAreaKde = calculateKde(openingAreasSqFt, {
+      max: openingAreaRefinedBounds.max,
+      min: openingAreaRefinedBounds.min,
+      resolution: openingAreaKdeResolution
+    });
+  }
   charts.openingArea = getLineChartConfig(
     openingAreaKde.labels,
     [
@@ -915,7 +1293,37 @@ function buildAreaCharts(
     }
   );
 
-  const wallAreaKde = calculateKde(wallAreasSqFt, { max: 200, min: 0, resolution: 200 });
+  const wallAreaInitialMin = 0;
+  const wallAreaInitialMax = 200;
+  const wallAreaKdeResolution = 200;
+  const wallAreaDynamicBounds = calculateDynamicKdeBounds(
+    wallAreasSqFt,
+    wallAreaInitialMin,
+    wallAreaInitialMax,
+    wallAreaKdeResolution
+  );
+  let wallAreaKde = calculateKde(wallAreasSqFt, {
+    max: wallAreaDynamicBounds.max,
+    min: wallAreaDynamicBounds.min,
+    resolution: wallAreaKdeResolution
+  });
+  const wallAreaRefinedBounds = calculateDynamicKdeBounds(
+    wallAreasSqFt,
+    wallAreaDynamicBounds.min,
+    wallAreaDynamicBounds.max,
+    wallAreaKdeResolution
+  );
+  const wallAreaBoundsDiff = 0.1;
+  if (
+    Math.abs(wallAreaRefinedBounds.min - wallAreaDynamicBounds.min) > wallAreaBoundsDiff ||
+    Math.abs(wallAreaRefinedBounds.max - wallAreaDynamicBounds.max) > wallAreaBoundsDiff
+  ) {
+    wallAreaKde = calculateKde(wallAreasSqFt, {
+      max: wallAreaRefinedBounds.max,
+      min: wallAreaRefinedBounds.min,
+      resolution: wallAreaKdeResolution
+    });
+  }
   charts.wallArea = getLineChartConfig(
     wallAreaKde.labels,
     [
@@ -937,6 +1345,66 @@ function buildAreaCharts(
       yLabel: "Count"
     }
   );
+
+  const tubLengthsM = getTubLengths(artifactDirs);
+  const tubLengthsIn = convertLengthsToInches(tubLengthsM);
+  const initialMaxTubLengthInches = 120;
+  const initialMinTubLengthInches = 0;
+  const kdeResolution = 200;
+  // First pass: calculate initial bounds based on full range KDE
+  let dynamicBounds = calculateDynamicKdeBounds(
+    tubLengthsIn,
+    initialMinTubLengthInches,
+    initialMaxTubLengthInches,
+    kdeResolution
+  );
+
+  // Recalculate KDE with initial bounds
+  let tubLengthKde = calculateKde(tubLengthsIn, {
+    max: dynamicBounds.max,
+    min: dynamicBounds.min,
+    resolution: kdeResolution
+  });
+
+  // Second pass: refine bounds based on the recalculated KDE's y-axis
+  // This ensures the threshold is based on the actual chart's y-axis scale
+  const refinedBounds = calculateDynamicKdeBounds(tubLengthsIn, dynamicBounds.min, dynamicBounds.max, kdeResolution);
+
+  // Use refined bounds if they're different (more precise)
+  const boundsDifferenceThreshold = 0.1;
+  if (
+    Math.abs(refinedBounds.min - dynamicBounds.min) > boundsDifferenceThreshold ||
+    Math.abs(refinedBounds.max - dynamicBounds.max) > boundsDifferenceThreshold
+  ) {
+    dynamicBounds = refinedBounds;
+    tubLengthKde = calculateKde(tubLengthsIn, {
+      max: dynamicBounds.max,
+      min: dynamicBounds.min,
+      resolution: kdeResolution
+    });
+  }
+  const tubLengthChartConfig = getLineChartConfig(
+    tubLengthKde.labels,
+    [
+      {
+        borderColor: "#06b6d4",
+        borderWidth: 2,
+        data: tubLengthKde.values,
+        fill: true,
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "tubLength",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: layout.HISTO_CHART_WIDTH,
+      xLabel: "in",
+      yLabel: "Count"
+    }
+  );
+  charts.tubLength = tubLengthChartConfig;
 
   return charts;
 }
@@ -1245,6 +1713,88 @@ function buildAttributePieCharts(
   return charts;
 }
 
+function buildWallEmbeddedPieCharts(
+  artifactDirs: string[],
+  layout: LayoutConstants
+): Partial<Pick<CaptureCharts, "wallsWithWindows" | "wallsWithDoors" | "wallsWithOpenings">> {
+  const charts: Partial<Pick<CaptureCharts, "wallsWithWindows" | "wallsWithDoors" | "wallsWithOpenings">> = {};
+  const INITIAL_COUNT = 0;
+
+  const embeddedCounts = getWallEmbeddedCounts(artifactDirs);
+  const { totalWalls, wallsWithDoors, wallsWithOpenings, wallsWithWindows } = embeddedCounts;
+
+  const distinctColors = [
+    "#4E79A7", // Blue
+    "#F28E2B", // Orange
+    "#E15759", // Red
+    "#76B7B2", // Cyan/Teal
+    "#59A14F", // Green
+    "#EDC948", // Yellow
+    "#B07AA1", // Purple
+    "#BAB0AC", // Gray
+    "#FF9DA7", // Light Pink/Red
+    "#9C755F" // Brown
+  ];
+
+  const colorIndexBlue = 0;
+  const colorIndexOrange = 1;
+  const colorIndexRed = 2;
+  const colorIndexGray = 6;
+  const defaultBlueColor = "#4E79A7";
+  const defaultOrangeColor = "#F28E2B";
+  const defaultRedColor = "#E15759";
+  const defaultGrayColor = "#BAB0AC";
+
+  // Walls with Windows pie chart
+  const wallsWithoutWindows = totalWalls - wallsWithWindows;
+  if (totalWalls > INITIAL_COUNT) {
+    charts.wallsWithWindows = getPieChartConfig(
+      ["With Windows", "Without Windows"],
+      [wallsWithWindows, wallsWithoutWindows],
+      {
+        colors: [
+          distinctColors[colorIndexBlue] ?? defaultBlueColor,
+          distinctColors[colorIndexGray] ?? defaultGrayColor
+        ],
+        height: layout.HALF_CHART_HEIGHT,
+        title: "",
+        width: layout.THIRD_CHART_WIDTH
+      }
+    );
+  }
+
+  // Walls with Doors pie chart
+  const wallsWithoutDoors = totalWalls - wallsWithDoors;
+  if (totalWalls > INITIAL_COUNT) {
+    charts.wallsWithDoors = getPieChartConfig(["With Doors", "Without Doors"], [wallsWithDoors, wallsWithoutDoors], {
+      colors: [
+        distinctColors[colorIndexOrange] ?? defaultOrangeColor,
+        distinctColors[colorIndexGray] ?? defaultGrayColor
+      ],
+      height: layout.HALF_CHART_HEIGHT,
+      title: "",
+      width: layout.THIRD_CHART_WIDTH
+    });
+  }
+
+  // Walls with Openings pie chart
+  const wallsWithoutOpenings = totalWalls - wallsWithOpenings;
+  if (totalWalls > INITIAL_COUNT) {
+    charts.wallsWithOpenings = getPieChartConfig(
+      ["With Openings", "Without Openings"],
+      [wallsWithOpenings, wallsWithoutOpenings],
+      {
+        colors: [distinctColors[colorIndexRed] ?? defaultRedColor, distinctColors[colorIndexGray] ?? defaultGrayColor],
+        height: layout.HALF_CHART_HEIGHT,
+        title: "",
+        width: layout.THIRD_CHART_WIDTH
+      }
+    );
+  }
+
+  return charts;
+}
+
 function buildReportSections(
   charts: CaptureCharts,
   artifactDirs: string[] | undefined,
@@ -1346,6 +1896,36 @@ function buildReportSections(
     type: "chart"
   });
 
+  if (artifactDirs !== undefined) {
+    const embeddedCharts: { data: ChartConfiguration; title: string }[] = [];
+    const chartsRecord = charts as unknown as Record<string, ChartConfiguration | undefined>;
+    const wallsWithWindowsChart = chartsRecord["wallsWithWindows"];
+    if (wallsWithWindowsChart !== undefined) {
+      embeddedCharts.push({ data: wallsWithWindowsChart, title: "Walls with Windows" });
+    }
+    const wallsWithDoorsChart = chartsRecord["wallsWithDoors"];
+    if (wallsWithDoorsChart !== undefined) {
+      embeddedCharts.push({ data: wallsWithDoorsChart, title: "Walls with Doors" });
+    }
+    const wallsWithOpeningsChart = chartsRecord["wallsWithOpenings"];
+    if (wallsWithOpeningsChart !== undefined) {
+      embeddedCharts.push({ data: wallsWithOpeningsChart, title: "Walls with Openings" });
+    }
+
+    if (embeddedCharts.length > INITIAL_COUNT) {
+      chartSections.push({
+        data: "",
+        title: "Embedded Prevalence",
+        type: "header"
+      });
+
+      chartSections.push({
+        data: embeddedCharts,
+        type: "chart-row"
+      });
+    }
+  }
+
   chartSections.push({
     data: charts.objects,
     title: "Object Distribution",
@@ -1386,6 +1966,14 @@ function buildReportSections(
     chartSections.push({
       data: charts.wallArea,
       title: "Wall Areas",
+      type: "chart"
+    });
+  }
+
+  if (artifactDirs !== undefined) {
+    chartSections.push({
+      data: charts.tubLength,
+      title: "Tub Length Distribution",
       type: "chart"
     });
   }
@@ -1453,6 +2041,7 @@ export function buildDataAnalysisReport(
   if (artifactDirs !== undefined) {
     Object.assign(charts, buildAreaCharts(artifactDirs, layout));
     Object.assign(charts, buildAttributePieCharts(artifactDirs, layout));
+    Object.assign(charts, buildWallEmbeddedPieCharts(artifactDirs, layout));
   }
 
   const populatedCharts = charts as CaptureCharts;

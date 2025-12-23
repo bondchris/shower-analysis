@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-22
 
+### [v0.48.0] Dynamic X-Axis Bounds for KDE Charts, Embedded Prevalence Visualization, and Tub Length Distribution
+
+- **Dynamic X-Axis Range Calculation**: Implemented intelligent x-axis bounds calculation for all KDE (Kernel Density Estimation) charts that automatically adjusts the displayed range to show only meaningful data:
+  - Calculates the first y-axis tick using the same scale library as the chart component
+  - Finds where the KDE density line crosses half of the first tick (threshold) going up and down
+  - Returns bounds based on these crossings instead of the full data range, eliminating empty space at chart edges
+- **Two-Pass Refinement**: Enhanced bounds calculation with a two-pass approach:
+  - First pass calculates initial bounds from the full range KDE
+  - Second pass refines bounds based on the recalculated KDE's y-axis for improved accuracy
+- **Applied to All KDE Charts**: Dynamic bounds now applied to all continuous data distribution charts:
+  - Duration (seconds)
+  - Ambient intensity (lux)
+  - Color temperature (kelvin)
+  - ISO speed
+  - Brightness value (EV)
+  - Room area (sq ft)
+  - Window area (sq ft)
+  - Door area (sq ft)
+  - Opening area (sq ft)
+  - Wall area (sq ft)
+  - Tub length (inches)
+- **Embedded Prevalence Pie Charts**: Added three new pie charts to data analysis report showing the prevalence of embedded features in walls:
+  - Walls with Windows (vs. without windows)
+  - Walls with Doors (vs. without doors)
+  - Walls with Openings (vs. without openings)
+  - Charts appear in a single row under the "Embedded Prevalence" section heading
+- **Tub Length Distribution Chart**: Added new KDE chart showing the distribution of bathtub lengths:
+  - Displays tub lengths in inches
+  - Uses dynamic x-axis bounds to focus on meaningful data range
+  - Appears in the area distribution section when artifact directories are provided
+- **New Data Extraction Functions**: Added utility functions to `rawScanExtractor.ts`:
+  - `getWallEmbeddedCounts()` - counts walls with windows, doors, and openings
+  - `getTubLengths()` - extracts bathtub length measurements
+  - `convertLengthsToInches()` and `convertLengthsToFeet()` - unit conversion utilities
+- **Improved Chart Readability**: Charts now focus on the meaningful data range, making it easier to see distribution patterns without empty space at the edges
+
 ### [v0.47.0] Object Attribute Visualization and Icon System Refactoring
 
 - **Object Attribute Pie Charts**: Added 8 new pie charts to data analysis report showing distribution of object attributes:
