@@ -2,7 +2,12 @@ import * as fs from "fs";
 import * as path from "path";
 import convert from "convert-units";
 
+import { Point } from "../../models/point";
 import { RawScan } from "../../models/rawScan/rawScan";
+import { extractRawScanMetadata } from "../room/metadata";
+import { TRANSFORM_SIZE } from "../math/constants";
+import { doPolygonsIntersect } from "../math/polygon";
+import { transformPoint } from "../math/transform";
 
 type ObjectConfidenceCounts = Record<string, [number, number, number]>; // [high, medium, low]
 
@@ -136,6 +141,105 @@ export function getUnexpectedVersionArtifactDirs(artifactDirs: string[]): Set<st
   }
 
   return unexpectedDirs;
+}
+
+/**
+ * Returns a set of artifact directories that have at least one wall with area less than 1.5 sq ft.
+ * Areas are calculated in square meters and compared against the threshold (approximately 0.139 sq m).
+ */
+export function getArtifactsWithSmallWalls(artifactDirs: string[]): Set<string> {
+  const artifactsWithSmallWalls = new Set<string>();
+  const minWallAreaSqFt = 1.5;
+  const minWallAreaSqM = convert(minWallAreaSqFt).from("ft2").to("m2");
+  const dimensionIndexLength = 0;
+  const dimensionIndexHeight = 1;
+  const minDimensionsLength = 2;
+  const minAreaValue = 0;
+  const minPolygonCorners = 3;
+  const pointIndexX = 0;
+  const pointIndexZ = 1;
+  const initialCount = 0;
+  const nextOffset = 1;
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+
+      for (const wall of rawScan.walls) {
+        const hasPolygonCorners =
+          wall.polygonCorners !== undefined &&
+          Array.isArray(wall.polygonCorners) &&
+          wall.polygonCorners.length >= minPolygonCorners;
+
+        if (hasPolygonCorners && wall.polygonCorners !== undefined) {
+          // Calculate wall area from polygon corners: perimeter * height
+          const corners = wall.polygonCorners;
+          let perimeter = initialCount;
+
+          for (let i = initialCount; i < corners.length; i++) {
+            const j = (i + nextOffset) % corners.length;
+            const p1 = corners[i];
+            const p2 = corners[j];
+
+            if (
+              p1 !== undefined &&
+              p2 !== undefined &&
+              p1.length >= minPolygonCorners &&
+              p2.length >= minPolygonCorners
+            ) {
+              const x1 = p1[pointIndexX] ?? initialCount;
+              const z1 = p1[pointIndexZ] ?? initialCount;
+              const x2 = p2[pointIndexX] ?? initialCount;
+              const z2 = p2[pointIndexZ] ?? initialCount;
+
+              const dx = x2 - x1;
+              const dz = z2 - z1;
+              const dxSquared = dx * dx;
+              const dzSquared = dz * dz;
+              const segmentLength = Math.sqrt(dxSquared + dzSquared);
+              perimeter += segmentLength;
+            }
+          }
+
+          // Get height from dimensions
+          const height =
+            Array.isArray(wall.dimensions) && wall.dimensions.length > dimensionIndexHeight
+              ? wall.dimensions[dimensionIndexHeight]
+              : undefined;
+
+          if (height !== undefined && height > minAreaValue && perimeter > minAreaValue) {
+            const area = perimeter * height;
+            if (area < minWallAreaSqM) {
+              artifactsWithSmallWalls.add(dir);
+              break; // Found one small wall, no need to check more walls in this artifact
+            }
+          }
+        } else if (Array.isArray(wall.dimensions) && wall.dimensions.length >= minDimensionsLength) {
+          // Calculate wall area from dimensions: length * height
+          const length = wall.dimensions[dimensionIndexLength];
+          const height = wall.dimensions[dimensionIndexHeight];
+
+          if (length !== undefined && height !== undefined && length > minAreaValue && height > minAreaValue) {
+            const area = length * height;
+            if (area < minWallAreaSqM) {
+              artifactsWithSmallWalls.add(dir);
+              break; // Found one small wall, no need to check more walls in this artifact
+            }
+          }
+        }
+      }
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return artifactsWithSmallWalls;
 }
 
 /**
@@ -399,6 +503,355 @@ export function getTubLengths(artifactDirs: string[]): number[] {
   }
 
   return lengths;
+}
+
+/**
+ * Extracts vanity lengths from raw scan files.
+ * Returns lengths in meters.
+ * Vanity detection logic:
+ * 1. If there's a storage object intersecting with a sink, use that storage object.
+ * 2. If there's not, then look for a sink and use that.
+ * 3. If there's no sink in the room at all, then look for the largest storage object.
+ * 4. If there are no sink and no storage objects, then the room has no vanity.
+ */
+export function getVanityLengths(artifactDirs: string[]): number[] {
+  const lengths: number[] = [];
+  const dimensionIndexLength = 0;
+  const minDimensionsLength = 1;
+  const minLengthValue = 0;
+  const dimX = 0;
+  const dimZ = 2;
+  const half = 2;
+  const defaultDim = 0;
+  const zero = 0;
+  const dimSize = 3;
+  const tolerance = 0.0254; // 1 inch
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+
+      // Build bounding boxes for all objects
+      type ObjectItem = typeof rawScan.objects[number];
+      interface ObjectBoundingBox {
+        corners: Point[];
+        innerCorners: Point[];
+        isSink: boolean;
+        isStorage: boolean;
+        object: ObjectItem;
+        story: number;
+      }
+
+      const objectBoxes: ObjectBoundingBox[] = [];
+      const sinks: ObjectItem[] = [];
+      const storages: ObjectItem[] = [];
+
+      for (const obj of rawScan.objects) {
+        const isSink = obj.category.sink !== undefined;
+        const isStorage = obj.category.storage !== undefined;
+
+        if (isSink) {
+          sinks.push(obj);
+        }
+        if (isStorage) {
+          storages.push(obj);
+        }
+
+        // Skip invalid objects
+        if (
+          obj.dimensions.every((d) => d === zero) ||
+          obj.transform.length !== TRANSFORM_SIZE ||
+          obj.dimensions.length !== dimSize
+        ) {
+          continue;
+        }
+
+        const halfW = (obj.dimensions[dimX] ?? defaultDim) / half;
+        const halfD = (obj.dimensions[dimZ] ?? defaultDim) / half;
+
+        // Local corners (y is ignored for floor plan)
+        const corners = [
+          new Point(-halfW, -halfD),
+          new Point(halfW, -halfD),
+          new Point(halfW, halfD),
+          new Point(-halfW, halfD)
+        ];
+
+        // Inner corners (shrunk by tolerance)
+        const innerHalfW = Math.max(zero, halfW - tolerance);
+        const innerHalfD = Math.max(zero, halfD - tolerance);
+        const innerCornersLocal = [
+          new Point(-innerHalfW, -innerHalfD),
+          new Point(innerHalfW, -innerHalfD),
+          new Point(innerHalfW, innerHalfD),
+          new Point(-innerHalfW, innerHalfD)
+        ];
+
+        const worldCorners = corners.map((c) => transformPoint(c, obj.transform));
+        const worldInnerCorners = innerCornersLocal.map((c) => transformPoint(c, obj.transform));
+
+        objectBoxes.push({
+          corners: worldCorners,
+          innerCorners: worldInnerCorners,
+          isSink,
+          isStorage,
+          object: obj,
+          story: obj.story
+        });
+      }
+
+      // Step 1: Check for storage objects intersecting with sinks
+      let vanityObject: ObjectItem | null = null;
+
+      for (const storageBox of objectBoxes) {
+        if (!storageBox.isStorage) {
+          continue;
+        }
+
+        for (const sinkBox of objectBoxes) {
+          if (!sinkBox.isSink) {
+            continue;
+          }
+
+          // Check if on same story
+          if (storageBox.story !== sinkBox.story) {
+            continue;
+          }
+
+          // Check intersection using polygon intersection
+          if (doPolygonsIntersect(storageBox.innerCorners, sinkBox.innerCorners)) {
+            vanityObject = storageBox.object;
+            break;
+          }
+        }
+
+        if (vanityObject !== null) {
+          break;
+        }
+      }
+
+      // Step 2: If no storage+sink intersection, use sink
+      const firstSinkIndex = 0;
+      if (vanityObject === null && sinks.length > zero) {
+        const firstSink = sinks[firstSinkIndex];
+        if (firstSink !== undefined) {
+          vanityObject = firstSink;
+        }
+      }
+
+      // Step 3: If no sink, use largest storage object
+      if (vanityObject === null && storages.length > zero) {
+        let largestStorage: ObjectItem | null = null;
+        let largestLength = minLengthValue;
+
+        for (const storage of storages) {
+          if (
+            Array.isArray(storage.dimensions) &&
+            storage.dimensions.length >= minDimensionsLength
+          ) {
+            const length = storage.dimensions[dimensionIndexLength];
+            if (length !== undefined && length > largestLength) {
+              largestLength = length;
+              largestStorage = storage;
+            }
+          }
+        }
+
+        vanityObject = largestStorage;
+      }
+
+      // Step 4: Extract length if vanity found
+      if (vanityObject !== null) {
+        if (
+          Array.isArray(vanityObject.dimensions) &&
+          vanityObject.dimensions.length >= minDimensionsLength
+        ) {
+          const length = vanityObject.dimensions[dimensionIndexLength];
+          if (length !== undefined && length > minLengthValue) {
+            lengths.push(length);
+          }
+        }
+      }
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return lengths;
+}
+
+/**
+ * Extracts sink counts per artifact from metadata files.
+ * Returns a record mapping sink count (as string) to number of artifacts with that count.
+ * Uses extractRawScanMetadata to ensure consistency and generate metadata if missing.
+ */
+export function getSinkCounts(artifactDirs: string[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  const initialCount = 0;
+  const increment = 1;
+
+  for (const dir of artifactDirs) {
+    const metadata = extractRawScanMetadata(dir);
+    if (metadata === null) {
+      continue;
+    }
+
+    const sinkCountKey = metadata.sinkCount.toString();
+    counts[sinkCountKey] = (counts[sinkCountKey] ?? initialCount) + increment;
+  }
+
+  return counts;
+}
+
+/**
+ * Extracts vanity type classifications from raw scan files.
+ * Returns a record mapping vanity type to number of scans.
+ * Vanity types: "normal" (storage + sink intersecting), "sink only", "storage only", "no vanity"
+ */
+export function getVanityTypes(artifactDirs: string[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  const initialCount = 0;
+  const increment = 1;
+  const dimX = 0;
+  const dimZ = 2;
+  const half = 2;
+  const defaultDim = 0;
+  const zero = 0;
+  const dimSize = 3;
+  const tolerance = 0.0254; // 1 inch
+
+  for (const dir of artifactDirs) {
+    const rawScanPath = path.join(dir, "rawScan.json");
+    if (!fs.existsSync(rawScanPath)) {
+      continue;
+    }
+
+    try {
+      const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+      const rawScan = new RawScan(JSON.parse(rawContent));
+
+      // Build bounding boxes for all objects
+      type ObjectItem = typeof rawScan.objects[number];
+      interface ObjectBoundingBox {
+        corners: Point[];
+        innerCorners: Point[];
+        isSink: boolean;
+        isStorage: boolean;
+        object: ObjectItem;
+        story: number;
+      }
+
+      const objectBoxes: ObjectBoundingBox[] = [];
+      const sinks: ObjectItem[] = [];
+      const storages: ObjectItem[] = [];
+
+      for (const obj of rawScan.objects) {
+        const isSink = obj.category.sink !== undefined;
+        const isStorage = obj.category.storage !== undefined;
+
+        if (isSink) {
+          sinks.push(obj);
+        }
+        if (isStorage) {
+          storages.push(obj);
+        }
+
+        // Skip invalid objects
+        if (
+          obj.dimensions.every((d) => d === zero) ||
+          obj.transform.length !== TRANSFORM_SIZE ||
+          obj.dimensions.length !== dimSize
+        ) {
+          continue;
+        }
+
+        const halfW = (obj.dimensions[dimX] ?? defaultDim) / half;
+        const halfD = (obj.dimensions[dimZ] ?? defaultDim) / half;
+
+        // Local corners (y is ignored for floor plan)
+        const corners = [
+          new Point(-halfW, -halfD),
+          new Point(halfW, -halfD),
+          new Point(halfW, halfD),
+          new Point(-halfW, halfD)
+        ];
+
+        // Inner corners (shrunk by tolerance)
+        const innerHalfW = Math.max(zero, halfW - tolerance);
+        const innerHalfD = Math.max(zero, halfD - tolerance);
+        const innerCornersLocal = [
+          new Point(-innerHalfW, -innerHalfD),
+          new Point(innerHalfW, -innerHalfD),
+          new Point(innerHalfW, innerHalfD),
+          new Point(-innerHalfW, innerHalfD)
+        ];
+
+        const worldCorners = corners.map((c) => transformPoint(c, obj.transform));
+        const worldInnerCorners = innerCornersLocal.map((c) => transformPoint(c, obj.transform));
+
+        objectBoxes.push({
+          corners: worldCorners,
+          innerCorners: worldInnerCorners,
+          isSink,
+          isStorage,
+          object: obj,
+          story: obj.story
+        });
+      }
+
+      // Check for storage objects intersecting with sinks
+      let hasStorageSinkIntersection = false;
+
+      for (const storageBox of objectBoxes) {
+        if (!storageBox.isStorage) {
+          continue;
+        }
+
+        for (const sinkBox of objectBoxes) {
+          if (!sinkBox.isSink) {
+            continue;
+          }
+
+          // Check if on same story
+          if (storageBox.story !== sinkBox.story) {
+            continue;
+          }
+
+          // Check intersection using polygon intersection
+          if (doPolygonsIntersect(storageBox.innerCorners, sinkBox.innerCorners)) {
+            hasStorageSinkIntersection = true;
+            break;
+          }
+        }
+
+        if (hasStorageSinkIntersection) {
+          break;
+        }
+      }
+
+      // Classify vanity type
+      let vanityType = "no vanity";
+      if (hasStorageSinkIntersection) {
+        vanityType = "normal";
+      } else if (sinks.length > zero) {
+        vanityType = "sink only";
+      } else if (storages.length > zero) {
+        vanityType = "storage only";
+      }
+
+      counts[vanityType] = (counts[vanityType] ?? initialCount) + increment;
+    } catch {
+      // Skip invalid rawScan files
+    }
+  }
+
+  return counts;
 }
 
 /**

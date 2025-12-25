@@ -58,6 +58,8 @@ export class ArtifactAnalysis {
   public hasFireplace = false;
   public hasTelevision = false;
   public hasDoorBlockingError = false;
+  public hasFloorsWithParentId = false;
+  public hasNonEmptyCompletedEdges = false;
   public sectionLabels: string[] = [];
   public stories: number[] = [];
 }

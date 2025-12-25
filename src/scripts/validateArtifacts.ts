@@ -35,6 +35,26 @@ export function applyArtifactToStats(stats: EnvStats, item: ArtifactResponse): v
     issues.push("scanDate (invalid)");
   }
 
+  // Check for floors with parent ids set
+  if (typeof item.rawScan === "string" && item.rawScan.length > NO_MISSING_FIELDS) {
+    try {
+      const rawScanData = JSON.parse(item.rawScan) as { floors?: { parentIdentifier?: string | null }[] };
+      if (Array.isArray(rawScanData.floors)) {
+        const hasFloorWithParentId = rawScanData.floors.some(
+          (floor) => floor.parentIdentifier !== null && floor.parentIdentifier !== undefined
+        );
+        if (hasFloorWithParentId) {
+          const errorKey = "floors with parent id";
+          if (!issues.includes(errorKey)) {
+            issues.push(errorKey);
+          }
+        }
+      }
+    } catch {
+      // Ignore JSON parse errors - rawScan validation will catch this separately
+    }
+  }
+
   const missingWarnings = WARNING_FIELDS.filter((field) => item[field] === undefined || item[field] === null);
 
   // Track property presence dynamically

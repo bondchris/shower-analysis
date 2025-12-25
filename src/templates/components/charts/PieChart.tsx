@@ -125,6 +125,59 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
     );
   }
 
+  // Ensure every non-zero value gets at least a minimum slice size for visibility
+  // Store original values for percentage calculations
+  const originalData = [...data];
+  const adjustedData = [...data];
+  const minimumSlicePercentage = 0.015; // 1.5% of total for minimum visibility
+  const minimumValue = total * minimumSlicePercentage;
+
+  // Boost values that are too small to be visible
+  let hasSmallValues = false;
+  for (let i = 0; i < adjustedData.length; i++) {
+    const value = adjustedData[i];
+    if (value !== undefined && value > zeroValue && value < minimumValue) {
+      adjustedData[i] = minimumValue;
+      hasSmallValues = true;
+    }
+  }
+
+  // If we boosted any small values, scale down the larger values proportionally
+  // to maintain visual proportions while ensuring all values are visible
+  if (hasSmallValues) {
+    const adjustedTotal = adjustedData.reduce((sum, val) => sum + val, zeroValue);
+    const totalIncrease = adjustedTotal - total;
+
+    // Find values that weren't boosted (they're >= minimumValue originally)
+    const nonBoostedIndices: number[] = [];
+    let nonBoostedSum = zeroValue;
+    for (let i = 0; i < adjustedData.length; i++) {
+      const originalVal = originalData[i];
+      if (originalVal !== undefined && originalVal >= minimumValue) {
+        nonBoostedIndices.push(i);
+        const adjustedVal = adjustedData[i];
+        if (adjustedVal !== undefined) {
+          nonBoostedSum += adjustedVal;
+        }
+      }
+    }
+
+    // Scale down non-boosted values to compensate for the boost
+    // This maintains relative proportions among large values
+    if (nonBoostedSum > zeroValue && totalIncrease > zeroValue) {
+      const scaleFactor = (nonBoostedSum - totalIncrease) / nonBoostedSum;
+      for (const index of nonBoostedIndices) {
+        const currentValue = adjustedData[index];
+        if (currentValue !== undefined) {
+          adjustedData[index] = currentValue * scaleFactor;
+        }
+      }
+    }
+  }
+
+  // Use adjusted data for rendering, but original data for percentage calculations
+  const renderData = adjustedData;
+
   const getColor = (index: number): string => {
     // Colors are passed in the config and should match the label order
     const firstColorIndex = 0;
@@ -141,7 +194,7 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
   const legendBoxSize = 12;
   const legendLabelGap = 4;
   const legendItemGap = 8;
-  const legendRowGap = 4;
+  const legendRowGap = 12;
   const legendFontSize = 11;
   const legendTopMargin = 20;
   const legendMaxWidth = width;
@@ -162,10 +215,21 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
   }
   const legendItems: LegendItem[] = [];
 
-  // Create sorted indices array for alphabetical ordering
+  // Create sorted indices array sorted by label value (numerically if possible, otherwise alphabetically)
+  // This ensures legend shows labels in a logical order (0, 1, 2, 3) rather than by data value
   const sortedIndices = labels
-    .map((label, index) => ({ index, label: typeof label === "string" ? label : "" }))
-    .sort((a, b) => a.label.localeCompare(b.label))
+    .map((label, index) => {
+      const labelText = typeof label === "string" ? label : "";
+      const numericValue = Number.parseFloat(labelText);
+      const isNumeric = !Number.isNaN(numericValue);
+      return { index, isNumeric, label: labelText, numericValue };
+    })
+    .sort((a, b) => {
+      if (a.isNumeric && b.isNumeric) {
+        return a.numericValue - b.numericValue;
+      }
+      return a.label.localeCompare(b.label);
+    })
     .map((item) => item.index);
 
   // Use pre-calculated label widths from opentype.js (or fallback estimates)
@@ -245,17 +309,16 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
   // Calculate the actual height needed: from legend start to end of last row
   const legendHeightOffset = currentY - legendStartY;
   const legendHeight = legendHeightOffset + maxRowHeight;
-  // Total height is the legend start position plus legend height
-  // This gives us the exact height needed without extra padding
-  // But ensure it's at least the base height to prevent clipping
-  const totalHeight = Math.max(paddedHeight, legendStartY + legendHeight);
+  const legendEndY = legendStartY + legendHeight;
+  const shrinkToLegend = options.shrinkToLegend ?? false;
+  const totalHeight = shrinkToLegend ? legendEndY : Math.max(legendEndY, height);
 
   return (
     <svg height={totalHeight} width={width}>
       <Group left={centerX} top={centerY}>
         <Pie
           cornerRadius={3}
-          data={data}
+          data={renderData}
           innerRadius={innerRadius}
           outerRadius={outerRadius}
           padAngle={padAngle}
@@ -273,6 +336,8 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
               labelX: number;
               labelY: number;
               percentageText: string;
+              originalIndex: number;
+              labelText: string;
             }
 
             const labelInfos: LabelInfo[] = [];
@@ -281,15 +346,66 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
             const percentageBase = 100;
             const decimalPlaces = 1;
 
-            for (const arc of pie.arcs) {
+            // Create mapping from renderData value to original index to get correct label
+            // Since pieSortValues sorts arcs, arc.index is the sorted position in renderData, not original
+            // We need to map arc.data (the adjusted value) back to the original index
+            // For duplicate values, we need to track all occurrences
+            // Since renderData[i] corresponds to originalData[i], we track original indices by renderData value
+            const valueToIndexMap = new Map<number, number[]>();
+            for (let i = 0; i < renderData.length; i++) {
+              const renderValue = renderData[i];
+              if (renderValue !== undefined) {
+                const existing = valueToIndexMap.get(renderValue);
+                if (existing === undefined) {
+                  valueToIndexMap.set(renderValue, [i]);
+                } else {
+                  existing.push(i);
+                }
+              }
+            }
+
+            // Track which indices we've used for duplicate values
+            const usedIndices = new Set<number>();
+
+            // Build labelInfos in visual order (sorted by startAngle) to match slice rendering order
+            // Overlap detection compares all pairs, so order doesn't matter for detection
+            // But building in visual order ensures positions match visual slice order
+            // Store this sorted array to reuse for rendering
+            const arcsInVisualOrder = [...pie.arcs].sort((a, b) => a.startAngle - b.startAngle);
+            const arcsForRendering = arcsInVisualOrder;
+
+            for (const arc of arcsInVisualOrder) {
               const hasSpaceForLabel = arc.endAngle - arc.startAngle >= minAngleForLabel;
               if (!hasSpaceForLabel) {
                 continue;
               }
 
               const [centroidX, centroidY] = pie.path.centroid(arc);
-              const percentage = ((arc.value / total) * percentageBase).toFixed(decimalPlaces);
+
+              // Map arc value back to original index to get the correct label text
+              // For duplicate values, use the first unused index
+              const indicesForValue = valueToIndexMap.get(arc.data);
+              const firstIndexFallback = 0;
+              let originalIndex: number | undefined = undefined;
+              if (indicesForValue !== undefined) {
+                // Find first unused index for this value
+                originalIndex = indicesForValue.find((idx) => !usedIndices.has(idx));
+                if (originalIndex !== undefined) {
+                  usedIndices.add(originalIndex);
+                } else {
+                  // Fallback to first index if all are used (shouldn't happen)
+                  originalIndex = indicesForValue[firstIndexFallback];
+                }
+              }
+
+              // Calculate percentage based on original data, not adjusted render data
+              const originalValue =
+                originalIndex !== undefined ? (originalData[originalIndex] ?? zeroValue) : arc.value;
+              const percentage = ((originalValue / total) * percentageBase).toFixed(decimalPlaces);
               const percentageText = `${percentage}%`;
+
+              const labelText = originalIndex !== undefined ? labels[originalIndex] : undefined;
+              const displayLabel = typeof labelText === "string" ? labelText : "";
 
               // Normalize centroid to unit vector
               const centroidXSquared = centroidX * centroidX;
@@ -308,133 +424,212 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
                 arc,
                 centroidX,
                 centroidY,
+                labelText: displayLabel,
                 labelX,
                 labelY,
                 normalizedX,
                 normalizedY,
+                originalIndex: originalIndex ?? arc.index,
                 percentageText
               });
             }
 
-            // Detect overlaps and adjust positions
-            const minLabelSpacing = 25; // Minimum distance between labels to avoid overlap
-            const perpendicularOffset = 15; // Offset perpendicular to radius to avoid overlap
-            const evenIndexModulo = 2;
-            const evenIndexRemainder = 0;
-            const adjustedLabels = labelInfos.map((info, index) => {
-              let adjustedX = info.labelX;
-              let adjustedY = info.labelY;
-              let needsLine = false;
+            // Detect overlaps and adjust positions by moving labels around the circle
+            // Labels maintain a constant distance from the center (same radius)
+            // When overlapping, labels are offset angularly (tangentially) while preserving visual order
+            // Calculate minimum angular spacing based on label width and distance from center
+            // Arc length = radius * angle, so angle = arc_length / radius
+            // For labels ~35px wide at ~77px distance: 35/77 ≈ 0.45 radians
+            const estimatedLabelWidth = 35;
+            const minAngularSpacing = estimatedLabelWidth / labelDistance;
 
-              // Check for overlaps with other labels
-              for (const other of labelInfos) {
-                if (other === info) {
-                  continue;
-                }
-
-                const dx = info.labelX - other.labelX;
-                const dy = info.labelY - other.labelY;
-                const dxSquared = dx * dx;
-                const dySquared = dy * dy;
-                const distance = Math.sqrt(dxSquared + dySquared);
-
-                if (distance < minLabelSpacing) {
-                  // Labels overlap, offset them in opposite directions
-                  // Alternate direction based on index: even indices go clockwise, odd go counterclockwise
-                  // The perpendicular vector rotated 90 degrees clockwise is (y, -x)
-                  // For counterclockwise it would be (-y, x)
-                  const useClockwise = index % evenIndexModulo === evenIndexRemainder;
-                  const perpendicularX = useClockwise
-                    ? info.normalizedY * perpendicularOffset
-                    : -info.normalizedY * perpendicularOffset;
-                  const perpendicularY = useClockwise
-                    ? -info.normalizedX * perpendicularOffset
-                    : info.normalizedX * perpendicularOffset;
-                  adjustedX = info.labelX + perpendicularX;
-                  adjustedY = info.labelY + perpendicularY;
-                  needsLine = true;
-                  break; // Only offset once per label
-                }
-              }
-
+            // Calculate the angle for each label based on its centroid position
+            // and store as adjustedAngle which we'll modify to resolve overlaps
+            const adjustedLabels = labelInfos.map((info) => {
+              const angle = Math.atan2(info.labelY, info.labelX);
               return {
                 ...info,
-                adjustedX,
-                adjustedY,
-                needsLine
+                adjustedAngle: angle,
+                adjustedX: info.labelX,
+                adjustedY: info.labelY,
+                needsLine: false,
+                originalAngle: angle
               };
             });
 
-            // Render arcs and labels
+            // Sort labels by their arc's startAngle to process them in visual order
+            type AdjustedLabelInfo = (typeof adjustedLabels)[number];
+            const sortedLabels: AdjustedLabelInfo[] = adjustedLabels
+              .slice()
+              .sort((a, b) => a.arc.startAngle - b.arc.startAngle);
+
+            // Resolve overlaps by ensuring minimum angular spacing between consecutive labels
+            // When labels overlap, spread them apart symmetrically:
+            // - First label moves counterclockwise (decreasing angle)
+            // - Second label moves clockwise (increasing angle)
+            const startIndex = 1;
+            const divisorForHalf = 2;
+            const zeroAngle = 0;
+            const fullCircleMultiplier = 2;
+            const twoPi = fullCircleMultiplier * Math.PI;
+            for (let i = startIndex; i < sortedLabels.length; i++) {
+              const prev = sortedLabels[i - startIndex];
+              const curr = sortedLabels[i];
+              if (prev !== undefined && curr !== undefined) {
+                // Calculate angular difference (curr - prev, should be positive in clockwise order)
+                let angleDiff = curr.adjustedAngle - prev.adjustedAngle;
+
+                // Normalize angle difference to handle wrap-around
+                while (angleDiff < zeroAngle) {
+                  angleDiff += twoPi;
+                }
+                while (angleDiff > twoPi) {
+                  angleDiff -= twoPi;
+                }
+
+                // If labels are too close angularly, spread them apart symmetrically
+                if (angleDiff < minAngularSpacing) {
+                  // Calculate how much total adjustment is needed
+                  const totalAdjustment = minAngularSpacing - angleDiff;
+                  const halfAdjustment = totalAdjustment / divisorForHalf;
+
+                  // Move first label counterclockwise (decrease angle)
+                  prev.adjustedAngle -= halfAdjustment;
+                  prev.needsLine = true;
+
+                  // Move second label clockwise (increase angle)
+                  curr.adjustedAngle += halfAdjustment;
+                  curr.needsLine = true;
+                }
+              }
+            }
+
+            // Convert adjusted angles back to X, Y positions
+            // Use the same radius (labelDistance) for all labels
+            for (const label of adjustedLabels) {
+              if (label.adjustedAngle !== label.originalAngle) {
+                label.adjustedX = Math.cos(label.adjustedAngle) * labelDistance;
+                label.adjustedY = Math.sin(label.adjustedAngle) * labelDistance;
+                label.needsLine = true;
+              }
+            }
+
             return (
               <>
-                {pie.arcs.map((arc, i) => {
-                  const arcKey = `arc-${String(i)}`;
+                {arcsForRendering.map((arc, i) => {
+                  const arcKey = `arc-${String(i)}-${String(arc.data)}-${String(arc.index)}`;
+                  // Map arc value back to original index for correct color
+                  // For duplicate values, we need to find the matching index
+                  const indicesForValue = valueToIndexMap.get(arc.data);
+                  const firstColorIndex = 0;
+                  let originalIndexForColor: number | undefined = undefined;
+                  if (indicesForValue !== undefined) {
+                    // Use the first index for this value (colors should match the first occurrence)
+                    originalIndexForColor = indicesForValue[firstColorIndex];
+                  }
+                  const colorIndex = originalIndexForColor ?? arc.index;
                   return (
                     <path
                       key={arcKey}
                       d={pie.path(arc) ?? undefined}
-                      fill={getColor(arc.index)}
+                      fill={getColor(colorIndex)}
                       stroke="#ffffff"
                       strokeWidth={2}
                     />
                   );
                 })}
-                {adjustedLabels.map((labelInfo, i) => {
-                  const labelKey = `label-${String(i)}`;
-                  const lineStartX = labelInfo.normalizedX * outerRadius;
-                  const lineStartY = labelInfo.normalizedY * outerRadius;
+                {/* Render labels in the same visual order as slices */}
+                {(() => {
+                  // Use the same sorted arcs as used for rendering slices
+                  const sortedArcs = arcsForRendering;
 
-                  // Calculate text dimensions to position line end at text edge
-                  const textFontSize = 10;
-                  const estimatedCharWidth = 6; // Approximate character width
-                  const textWidth = labelInfo.percentageText.length * estimatedCharWidth;
-                  const halfTextWidth = textWidth / divisorForDimensions;
+                  // Create a map from arc (data+index) to labelInfo for O(1) lookup
+                  // We can't use index matching because some arcs are skipped when building labelInfos
+                  // (arcs that are too small don't get labels)
+                  type LabelInfoType = (typeof adjustedLabels)[number];
+                  const arcToLabelMap = new Map<string, LabelInfoType>();
+                  for (const labelInfo of adjustedLabels) {
+                    const arcKey = `${String(labelInfo.arc.data)}-${String(labelInfo.arc.index)}`;
+                    arcToLabelMap.set(arcKey, labelInfo);
+                  }
 
-                  // Calculate direction from pie center to label
-                  const directionX = labelInfo.adjustedX - lineStartX;
-                  const directionY = labelInfo.adjustedY - lineStartY;
-                  const directionXSquared = directionX * directionX;
-                  const directionYSquared = directionY * directionY;
-                  const directionLength = Math.sqrt(directionXSquared + directionYSquared);
+                  return sortedArcs.map((arc) => {
+                    // Match using the map by arc data and index
+                    // This handles cases where some arcs are skipped (too small for labels)
+                    const arcKey = `${String(arc.data)}-${String(arc.index)}`;
+                    const labelInfo = arcToLabelMap.get(arcKey);
+                    if (labelInfo === undefined) {
+                      // Arc doesn't have a label (probably too small), skip it
+                      return null;
+                    }
 
-                  // Normalize direction and extend to text edge
-                  const normalizedDirX = directionLength > zeroValue ? directionX / directionLength : zeroValue;
-                  const normalizedDirY = directionLength > zeroValue ? directionY / directionLength : zeroValue;
+                    const finalLabelInfo = labelInfo;
 
-                  // Line ends at the edge of the text (half text width from center)
-                  const offsetX = normalizedDirX * halfTextWidth;
-                  const offsetY = normalizedDirY * halfTextWidth;
-                  const lineEndX = labelInfo.adjustedX - offsetX;
-                  const lineEndY = labelInfo.adjustedY - offsetY;
+                    const labelKey = `label-${String(finalLabelInfo.originalIndex)}-${String(arc.index)}`;
+                    // Recalculate centroid from the current arc to ensure it matches
+                    // This ensures the line starts from the correct slice position
+                    const [currentCentroidX, currentCentroidY] = pie.path.centroid(arc);
+                    const xSquared = currentCentroidX * currentCentroidX;
+                    const ySquared = currentCentroidY * currentCentroidY;
+                    const currentCentroidLength = Math.sqrt(xSquared + ySquared);
+                    const currentNormalizedX =
+                      currentCentroidLength > zeroValue ? currentCentroidX / currentCentroidLength : zeroValue;
+                    const currentNormalizedY =
+                      currentCentroidLength > zeroValue ? currentCentroidY / currentCentroidLength : zeroValue;
+                    const lineStartX = currentNormalizedX * outerRadius;
+                    const lineStartY = currentNormalizedY * outerRadius;
 
-                  return (
-                    <g key={labelKey}>
-                      {labelInfo.needsLine && (
-                        <line
-                          stroke="#9ca3af"
-                          strokeDasharray="2,2"
-                          strokeWidth={1}
-                          x1={lineStartX}
-                          x2={lineEndX}
-                          y1={lineStartY}
-                          y2={lineEndY}
-                        />
-                      )}
-                      <Text
-                        dominantBaseline="middle"
-                        fill="#374151"
-                        fontSize={textFontSize}
-                        fontWeight={500}
-                        textAnchor="middle"
-                        x={labelInfo.adjustedX}
-                        y={labelInfo.adjustedY}
-                      >
-                        {labelInfo.percentageText}
-                      </Text>
-                    </g>
-                  );
-                })}
+                    // Calculate text dimensions to position line end at text edge
+                    const textFontSize = 10;
+                    const estimatedCharWidth = 6; // Approximate character width
+                    const textWidth = finalLabelInfo.percentageText.length * estimatedCharWidth;
+                    const halfTextWidth = textWidth / divisorForDimensions;
+
+                    // Calculate direction from pie center to label
+                    const directionX = finalLabelInfo.adjustedX - lineStartX;
+                    const directionY = finalLabelInfo.adjustedY - lineStartY;
+                    const directionXSquared = directionX * directionX;
+                    const directionYSquared = directionY * directionY;
+                    const directionLength = Math.sqrt(directionXSquared + directionYSquared);
+
+                    // Normalize direction and extend to text edge
+                    const normalizedDirX = directionLength > zeroValue ? directionX / directionLength : zeroValue;
+                    const normalizedDirY = directionLength > zeroValue ? directionY / directionLength : zeroValue;
+
+                    // Line ends at the edge of the text (half text width from center)
+                    const offsetX = normalizedDirX * halfTextWidth;
+                    const offsetY = normalizedDirY * halfTextWidth;
+                    const lineEndX = finalLabelInfo.adjustedX - offsetX;
+                    const lineEndY = finalLabelInfo.adjustedY - offsetY;
+
+                    return (
+                      <g key={labelKey}>
+                        {finalLabelInfo.needsLine && (
+                          <line
+                            stroke="#9ca3af"
+                            strokeDasharray="2,2"
+                            strokeWidth={1}
+                            x1={lineStartX}
+                            x2={lineEndX}
+                            y1={lineStartY}
+                            y2={lineEndY}
+                          />
+                        )}
+                        <Text
+                          dominantBaseline="middle"
+                          fill="#374151"
+                          fontSize={textFontSize}
+                          fontWeight={500}
+                          textAnchor="middle"
+                          x={finalLabelInfo.adjustedX}
+                          y={finalLabelInfo.adjustedY}
+                        >
+                          {finalLabelInfo.percentageText}
+                        </Text>
+                      </g>
+                    );
+                  });
+                })()}
               </>
             );
           }}

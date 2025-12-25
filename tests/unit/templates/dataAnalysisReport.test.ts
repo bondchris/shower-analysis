@@ -1051,6 +1051,155 @@ describe("buildDataAnalysisReport", () => {
         expect(counts[unexpectedVersionIndex]).toBe(0);
       }
     });
+
+    it("should count artifacts with walls smaller than 1.5 sq ft", () => {
+      // Wall with area < 1.5 sq ft: length 0.3m * height 0.3m = 0.09 sq m = ~0.97 sq ft
+      const mockRawScanWithSmallWall = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [
+          {
+            category: { wall: {} },
+            confidence: { high: {} },
+            dimensions: [0.3, 0.3, 0.2], // length, height, width
+            identifier: "w1",
+            parentIdentifier: null,
+            story: 1,
+            transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+          }
+        ],
+        windows: []
+      };
+
+      // Wall with area >= 1.5 sq ft: length 2m * height 2m = 4 sq m = ~43 sq ft
+      const mockRawScanWithLargeWall = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [
+          {
+            category: { wall: {} },
+            confidence: { high: {} },
+            dimensions: [2, 2, 0.2],
+            identifier: "w1",
+            parentIdentifier: null,
+            story: 1,
+            transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+          }
+        ],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        const normalizedPath = filePath.replace(/\\/g, "/");
+        if (normalizedPath.includes("/dir1/")) {
+          return JSON.stringify(mockRawScanWithSmallWall);
+        }
+        if (normalizedPath.includes("/dir2/")) {
+          return JSON.stringify(mockRawScanWithLargeWall);
+        }
+        return JSON.stringify(mockRawScanWithSmallWall);
+      });
+
+      const metadataForTest: ArtifactAnalysis[] = [
+        Object.assign({}, mockMetadata[0]),
+        Object.assign({}, mockMetadata[0])
+      ];
+      const artifactDirs = ["/test/dir1", "/test/dir2"];
+      buildDataAnalysisReport(metadataForTest, 60, 1, artifactDirs);
+
+      // Find the errors chart call
+      const errorsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const labels = call[0] as string[];
+        return labels.includes("Walls < 1.5 sq ft");
+      });
+
+      expect(errorsChartCall).toBeDefined();
+      if (errorsChartCall !== undefined) {
+        const labels = errorsChartCall[0] as string[];
+        const counts = errorsChartCall[1] as number[];
+        const smallWallsIndex = labels.indexOf("Walls < 1.5 sq ft");
+        expect(smallWallsIndex).toBeGreaterThanOrEqual(0);
+        // Should count 1 artifact with small walls (dir1)
+        expect(counts[smallWallsIndex]).toBe(1);
+      }
+    });
+
+    it("should count zero artifacts with small walls when all walls are large", () => {
+      const mockRawScanWithLargeWall = {
+        coreModel: "test",
+        doors: [],
+        floors: [],
+        objects: [],
+        openings: [],
+        sections: [],
+        story: 1,
+        version: 2,
+        walls: [
+          {
+            category: { wall: {} },
+            confidence: { high: {} },
+            dimensions: [2, 2, 0.2], // Large wall
+            identifier: "w1",
+            parentIdentifier: null,
+            story: 1,
+            transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+          }
+        ],
+        windows: []
+      };
+
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        return filePath.endsWith("rawScan.json");
+      });
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanWithLargeWall));
+
+      const artifactDirs = ["/test/dir1"];
+      buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
+
+      // Find the errors chart call
+      const errorsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const labels = call[0] as string[];
+        return labels.includes("Walls < 1.5 sq ft");
+      });
+
+      expect(errorsChartCall).toBeDefined();
+      if (errorsChartCall !== undefined) {
+        const labels = errorsChartCall[0] as string[];
+        const counts = errorsChartCall[1] as number[];
+        const smallWallsIndex = labels.indexOf("Walls < 1.5 sq ft");
+        expect(smallWallsIndex).toBeGreaterThanOrEqual(0);
+        // Should count 0 when all walls are large
+        expect(counts[smallWallsIndex]).toBe(0);
+      }
+    });
+
+    it("should not include small walls error when artifact directories not provided", () => {
+      buildDataAnalysisReport(mockMetadata, 60, 1);
+
+      // Find the errors chart call
+      const errorsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const labels = call[0] as string[];
+        return labels.includes("Walls < 1.5 sq ft");
+      });
+
+      expect(errorsChartCall).toBeUndefined();
+    });
   });
 
   describe("window, door, opening, and wall area charts", () => {

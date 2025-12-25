@@ -4,9 +4,44 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-22
 
+### [v0.48.1] Data Analysis Report Refactoring, Pie Chart Enhancements, and Validation Improvements
+
+- **Data Analysis Report Modularization**: Refactored `dataAnalysisReport.ts` from a monolithic 2000+ line file into a modular structure:
+  - Split chart building logic into focused helper modules in `src/templates/dataAnalysisReport/charts/`:
+    - `kdeCharts.ts` - Continuous data distribution charts
+    - `deviceAndCameraCharts.ts` - Device and camera metadata charts
+    - `prevalenceCharts.ts` - Error, feature, and object charts
+    - `areaCharts.ts` - Area distribution charts
+    - `attributePieCharts.ts` - Object attribute pie charts
+    - `wallEmbeddedPieCharts.ts` - Wall embedded feature pie charts
+    - `vanityAttributesCharts.ts` - Vanity attribute charts
+  - Added separate utility modules: `layout.ts` (layout constants), `kdeBounds.ts` (KDE bounds utilities), `reportSections.ts` (section building), `types.ts` (type definitions)
+  - Improved maintainability and code organization with better separation of concerns
+- **Pie Chart Enhancements**:
+  - **Small Slice Visibility**: Enhanced pie charts to ensure small slices (below 1.5% of total) are visible by applying minimum slice size while maintaining accurate percentage calculations
+  - **Numeric Label Sorting**: Improved legend label sorting to handle numeric values correctly (0, 1, 2, 3) rather than alphabetically (0, 1, 10, 2, 3)
+  - **Legend Spacing**: Increased legend row gap from 4px to 12px for better readability
+  - **Shrink to Legend**: Added `shrinkToLegend` option to automatically adjust chart height based on legend size
+  - **Accurate Percentages**: Fixed percentage calculations to use original data values even when visual slices are adjusted for visibility
+- **KDE Bounds Calculation**: Enhanced dynamic KDE bounds calculation in `utils/chart/kde.ts`:
+  - Added `calculateDynamicKdeBounds()` function for intelligent x-axis range calculation
+  - Improved threshold detection using actual y-axis tick values from the chart scale library
+  - Better handling of edge cases when data doesn't cross threshold values
+- **Small Wall Detection**: Added `getArtifactsWithSmallWalls()` function to `rawScanExtractor.ts`:
+  - Detects artifacts with walls having area less than 1.5 sq ft
+  - Supports both rectangular walls (using dimensions) and non-rectangular walls (using polygon corner perimeter calculations)
+  - Calculates wall area from polygon corners by computing perimeter and multiplying by height
+- **Validation Enhancements**:
+  - **Floor Parent ID Detection**: Added detection and reporting for floors with parent identifiers set (added to validation report error table)
+  - **Completed Edges Tracking**: Added metadata tracking for `hasNonEmptyCompletedEdges` to detect doors, floors, openings, walls, and windows with non-empty `completedEdges` arrays
+  - Updated `ArtifactAnalysis` model and `extractRawScanMetadata()` to track these new validation flags
+  - Enhanced cache validation to include new metadata fields
+- **Test Coverage**: Expanded test coverage for new pie chart features, validation enhancements, and metadata tracking improvements
+
 ### [v0.48.0] Dynamic X-Axis Bounds for KDE Charts, Embedded Prevalence Visualization, and Tub Length Distribution
 
-- **Dynamic X-Axis Range Calculation**: Implemented intelligent x-axis bounds calculation for all KDE (Kernel Density Estimation) charts that automatically adjusts the displayed range to show only meaningful data:
+- **Dynamic X-Axis Range Calculation**: Implemented intelligent x-axis bounds calculation for all KDE (Kernel Density
+  Estimation) charts that automatically adjusts the displayed range to show only meaningful data:
   - Calculates the first y-axis tick using the same scale library as the chart component
   - Finds where the KDE density line crosses half of the first tick (threshold) going up and down
   - Returns bounds based on these crossings instead of the full data range, eliminating empty space at chart edges

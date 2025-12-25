@@ -138,6 +138,106 @@ describe("validateArtifacts script", () => {
       expect(stats.propertyCounts).toHaveProperty("extraField", 1);
       expect(stats.propertyCounts).toHaveProperty("pointCloud", 1);
     });
+
+    it("should handle non-string scanDate (null/undefined/number)", () => {
+      const artifact = createArtifact({ scanDate: null } as unknown as Partial<ArtifactResponse>);
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.processed).toBe(1);
+      expect(stats.artifactsWithIssues).toBe(1);
+      expect(stats.missingCounts).toHaveProperty("scanDate", 1);
+      expect(Object.keys(stats.totalScansByDate).length).toBe(0);
+    });
+
+    it("should detect floors with parentIdentifier set", () => {
+      const rawScanWithParentId = JSON.stringify({
+        floors: [{ parentIdentifier: "some-parent-id" }]
+      });
+      const artifact = createArtifact({ rawScan: rawScanWithParentId });
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.artifactsWithIssues).toBe(1);
+      expect(stats.missingCounts).toHaveProperty("floors with parent id", 1);
+    });
+
+    it("should not duplicate floors with parent id issue when multiple floors have parentIdentifier", () => {
+      const rawScanWithMultipleParentIds = JSON.stringify({
+        floors: [{ parentIdentifier: "parent-1" }, { parentIdentifier: "parent-2" }]
+      });
+      const artifact = createArtifact({ rawScan: rawScanWithMultipleParentIds });
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.artifactsWithIssues).toBe(1);
+      expect(stats.missingCounts).toHaveProperty("floors with parent id", 1);
+    });
+
+    it("should not flag floors without parentIdentifier", () => {
+      const rawScanWithoutParentId = JSON.stringify({
+        floors: [{ parentIdentifier: null }, { parentIdentifier: undefined }]
+      });
+      const artifact = createArtifact({ rawScan: rawScanWithoutParentId });
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.artifactsWithIssues).toBe(0);
+      expect(stats.missingCounts["floors with parent id"]).toBeUndefined();
+    });
+
+    it("should handle rawScan with empty floors array", () => {
+      const rawScanEmptyFloors = JSON.stringify({ floors: [] });
+      const artifact = createArtifact({ rawScan: rawScanEmptyFloors });
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.artifactsWithIssues).toBe(0);
+    });
+
+    it("should handle rawScan with non-array floors", () => {
+      const rawScanNonArrayFloors = JSON.stringify({ floors: "not-an-array" });
+      const artifact = createArtifact({ rawScan: rawScanNonArrayFloors });
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.artifactsWithIssues).toBe(0);
+    });
+
+    it("should handle invalid rawScan JSON gracefully", () => {
+      const artifact = createArtifact({ rawScan: "invalid json {{{" });
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.processed).toBe(1);
+      expect(stats.missingCounts["floors with parent id"]).toBeUndefined();
+    });
+
+    it("should track warningsByDate when artifact has warnings and valid date", () => {
+      const artifact = createArtifact({
+        projectId: undefined,
+        scanDate: "2025-06-15T12:00:00Z"
+      } as unknown as Partial<ArtifactResponse>);
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.artifactsWithWarnings).toBe(1);
+      expect(stats.warningsByDate).toHaveProperty("2025-06-15", 1);
+    });
+
+    it("should not track warningsByDate when scanDate is invalid (non-string)", () => {
+      const artifact = createArtifact({
+        projectId: undefined,
+        scanDate: 12345
+      } as unknown as Partial<ArtifactResponse>);
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.artifactsWithWarnings).toBe(1);
+      expect(Object.keys(stats.warningsByDate).length).toBe(0);
+    });
+
+    it("should skip null/undefined property values in propertyCounts", () => {
+      const artifact = createArtifact({
+        extraNull: null,
+        extraUndefined: undefined
+      } as unknown as Partial<ArtifactResponse>);
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.propertyCounts["extraNull"]).toBeUndefined();
+      expect(stats.propertyCounts["extraUndefined"]).toBeUndefined();
+    });
   });
 
   describe("validateEnvironment", () => {
@@ -176,6 +276,68 @@ describe("validateArtifacts script", () => {
       expect(stats.processed).toBe(1);
       expect(stats.totalArtifacts).toBe(2);
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Error fetching page"));
+    });
+
+    it("should handle fetch errors that are not Error instances", async () => {
+      mockFetchScanArtifacts
+        .mockResolvedValueOnce({
+          data: [{ arData: "a", id: "1", projectId: "p1", rawScan: "r", scanDate: "2025-01-01T10:00:00Z", video: "v" }],
+          pagination: { lastPage: 2, total: 2 }
+        })
+        .mockRejectedValueOnce("string error");
+
+      const stats = await validateEnvironment({ domain: "test.com", name: "Test Env" });
+
+      expect(stats.processed).toBe(1);
+      expect(stats.pageErrors[2]).toBe("string error");
+    });
+
+    it("should handle single page result with no remaining pages", async () => {
+      mockFetchScanArtifacts.mockResolvedValueOnce({
+        data: [{ arData: "a", id: "1", projectId: "p1", rawScan: "r", scanDate: "2025-01-01T10:00:00Z", video: "v" }],
+        pagination: { lastPage: 1, total: 1 }
+      });
+
+      const stats = await validateEnvironment({ domain: "test.com", name: "Test Env" });
+
+      expect(stats.processed).toBe(1);
+      expect(stats.totalArtifacts).toBe(1);
+      expect(mockFetchScanArtifacts).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle initial fetch failure", async () => {
+      mockFetchScanArtifacts.mockRejectedValueOnce(new Error("Initial fetch failed"));
+
+      const stats = await validateEnvironment({ domain: "test.com", name: "Test Env" });
+
+      expect(stats.processed).toBe(0);
+      expect(stats.totalArtifacts).toBe(0);
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch"));
+    });
+
+    it("should process multiple pages with concurrency", async () => {
+      mockFetchScanArtifacts
+        .mockResolvedValueOnce({
+          data: [{ arData: "a", id: "1", projectId: "p1", rawScan: "r", scanDate: "2025-01-01T10:00:00Z", video: "v" }],
+          pagination: { lastPage: 4, total: 4 }
+        })
+        .mockResolvedValueOnce({
+          data: [{ arData: "a", id: "2", projectId: "p1", rawScan: "r", scanDate: "2025-01-02T10:00:00Z", video: "v" }],
+          pagination: { lastPage: 4, total: 4 }
+        })
+        .mockResolvedValueOnce({
+          data: [{ arData: "a", id: "3", projectId: "p1", rawScan: "r", scanDate: "2025-01-03T10:00:00Z", video: "v" }],
+          pagination: { lastPage: 4, total: 4 }
+        })
+        .mockResolvedValueOnce({
+          data: [{ arData: "a", id: "4", projectId: "p1", rawScan: "r", scanDate: "2025-01-04T10:00:00Z", video: "v" }],
+          pagination: { lastPage: 4, total: 4 }
+        });
+
+      const stats = await validateEnvironment({ domain: "test.com", name: "Test Env" });
+
+      expect(stats.processed).toBe(4);
+      expect(mockFetchScanArtifacts).toHaveBeenCalledTimes(4);
     });
   });
 

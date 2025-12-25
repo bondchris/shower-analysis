@@ -1,12 +1,19 @@
 import convert from "convert-units";
+import { afterEach, vi } from "vitest";
 
 import { Point } from "../../../../src/models/point";
+import * as segmentModule from "../../../../src/utils/math/segment";
+import * as transformModule from "../../../../src/utils/math/transform";
 import { dotProduct } from "../../../../src/utils/math/vector";
 import { checkTubGaps } from "../../../../src/utils/room/checkTubGaps";
 import { createDoor, createExternalWall, createMockScan, createTub } from "./testHelpers";
 
 describe("checkTubGaps", () => {
   const INCH = convert(1).from("in").to("m");
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   const createGapScan = (gapMeters: number) => {
     // Tub default: 1.5, 0.5, 0.7.
@@ -291,6 +298,103 @@ describe("checkTubGaps", () => {
 
       const scan = createMockScan({ objects: [t1], walls: [wBad] });
       expect(checkTubGaps(scan)).toBe(false);
+    });
+
+    it("should handle missing polygon corners and dimensions via defaults", () => {
+      const tub = createTub("tMissingDims", { dimensions: [] as unknown as number[] });
+      const wallNoGeometry = createExternalWall("wNoGeom", {
+        dimensions: undefined as unknown as number[],
+        polygonCorners: undefined as unknown as number[][],
+        story: undefined as unknown as number
+      });
+
+      const scan = createMockScan({ objects: [tub], walls: [wallNoGeometry] });
+      expect(checkTubGaps(scan)).toBe(false);
+    });
+
+    it("should default missing wall corner coordinates to zero", () => {
+      const tub = createTub("tDefaulted", { dimensions: [] as unknown as number[] });
+      const wallMissingCoords = createExternalWall("wMissingCoords", {
+        polygonCorners: [
+          [undefined as unknown as number, undefined as unknown as number],
+          [undefined as unknown as number, undefined as unknown as number]
+        ],
+        story: undefined as unknown as number
+      });
+
+      const scan = createMockScan({ objects: [tub], walls: [wallMissingCoords] });
+      expect(checkTubGaps(scan)).toBe(false);
+    });
+
+    it("should skip gap calculation when a wall corner is undefined", () => {
+      const originalTransformPoint = transformModule.transformPoint;
+      let wallCornerCall = 0;
+      const sentinelOffset = 123;
+
+      vi.spyOn(transformModule, "transformPoint").mockImplementation((point, matrix) => {
+        if (matrix.includes(sentinelOffset) && wallCornerCall === 0) {
+          wallCornerCall += 1;
+          return undefined as unknown as Point;
+        }
+        return originalTransformPoint(point, matrix);
+      });
+
+      vi.spyOn(segmentModule, "distToSegment").mockImplementation(() => Number.MAX_VALUE);
+
+      const wUndefined = createExternalWall("wUndefined");
+      if (wUndefined.transform) {
+        wUndefined.transform[12] = sentinelOffset;
+      }
+      const scan = createMockScan({ objects: [createTub("tUndefined")], walls: [wUndefined] });
+
+      expect(checkTubGaps(scan)).toBe(false);
+    });
+
+    it("should skip tub segment when a transformed corner is undefined", () => {
+      const originalTransformPoint = transformModule.transformPoint;
+      const tubSentinel = 321;
+      let tubCornerCall = 0;
+
+      vi.spyOn(transformModule, "transformPoint").mockImplementation((point, matrix) => {
+        if (matrix.includes(tubSentinel)) {
+          tubCornerCall += 1;
+          if (tubCornerCall === 1) {
+            return undefined as unknown as Point;
+          }
+        }
+        return originalTransformPoint(point, matrix);
+      });
+
+      vi.spyOn(segmentModule, "distToSegment").mockImplementation(() => convert(3).from("in").to("m"));
+
+      const tub = createTub("tMissing");
+      tub.transform[12] = tubSentinel;
+      const wall = createExternalWall("wValid");
+      if (wall.transform) {
+        const gap = 3 * INCH;
+        wall.transform[14] = 0.35 + gap;
+      }
+
+      const scan = createMockScan({ objects: [tub], walls: [wall] });
+      expect(checkTubGaps(scan)).toBe(true);
+    });
+
+    it("should update minDist when wall corner projection is closer on second pass", () => {
+      const farDistance = convert(12).from("in").to("m");
+      const closeDistance = convert(2).from("in").to("m");
+      let callIndex = 0;
+
+      vi.spyOn(segmentModule, "distToSegment").mockImplementation(() => {
+        callIndex += 1;
+        if (callIndex <= 8) {
+          return farDistance;
+        }
+        return closeDistance;
+      });
+
+      const scan = createMockScan({ objects: [createTub("tClose")], walls: [createExternalWall("wClose")] });
+
+      expect(checkTubGaps(scan)).toBe(true);
     });
   });
 });

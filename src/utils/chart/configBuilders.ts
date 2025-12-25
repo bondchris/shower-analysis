@@ -188,7 +188,14 @@ export function getPieChartConfig(labels: string[], data: number[], options: Pie
   const defaultWidth = 300;
   const defaultColors = ["#1e40af", "#047857", "#b45309", "#b91c1c", "#6d28d9", "#be185d", "#0891b2", "#65a30d"];
 
-  const { height = defaultHeight, title, width = defaultWidth, colors = defaultColors, legendIconComponents } = options;
+  const {
+    height = defaultHeight,
+    title,
+    width = defaultWidth,
+    colors = defaultColors,
+    legendIconComponents,
+    shrinkToLegend
+  } = options;
 
   const configOptions: PieChartOptions = {};
   if (title !== undefined) {
@@ -198,6 +205,9 @@ export function getPieChartConfig(labels: string[], data: number[], options: Pie
   configOptions.colors = colors;
   if (legendIconComponents !== undefined) {
     configOptions.legendIconComponents = legendIconComponents;
+  }
+  if (shrinkToLegend !== undefined) {
+    configOptions.shrinkToLegend = shrinkToLegend;
   }
 
   return {

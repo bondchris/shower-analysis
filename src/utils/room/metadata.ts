@@ -54,6 +54,8 @@ export interface RawScanMetadata {
   hasWallWallIntersectionErrors: boolean;
   hasCrookedWallErrors: boolean;
   hasDoorBlockingError: boolean;
+  hasFloorsWithParentId: boolean;
+  hasNonEmptyCompletedEdges: boolean;
   sectionLabels: string[];
   stories: number[];
   hasMultipleStories: boolean;
@@ -67,6 +69,7 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
   const metaCachePath = path.join(dirPath, "rawScanMetadata.json");
   const JSON_INDENT = 2;
   const SINGLE_STORY_COUNT = 1;
+  const INITIAL_COUNT = 0;
 
   // 1. Check Cache
   if (fs.existsSync(metaCachePath)) {
@@ -79,7 +82,9 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
         cached.windowCount !== undefined &&
         cached.openingCount !== undefined &&
         cached.hasLowCeiling !== undefined &&
-        cached.hasNonRectangularEmbedded !== undefined;
+        cached.hasNonRectangularEmbedded !== undefined &&
+        cached.hasFloorsWithParentId !== undefined &&
+        cached.hasNonEmptyCompletedEdges !== undefined;
 
       if (isValid) {
         return cached as RawScanMetadata;
@@ -152,9 +157,16 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
         hasDoorBlockingError: checkDoorBlocking(rawScan),
         hasExternalOpening: checkExternalOpening(rawScan),
         hasFireplace: rawScan.objects.some((o) => o.category.fireplace !== undefined),
+        hasFloorsWithParentId: rawScan.floors.some((f) => f.parentIdentifier !== null),
         hasLowCeiling: hasLowCeiling,
         hasMultipleStories: stories.length > SINGLE_STORY_COUNT,
         hasNibWalls: checkNibWalls(rawScan),
+        hasNonEmptyCompletedEdges:
+          rawScan.doors.some((d) => d.completedEdges.length > INITIAL_COUNT) ||
+          rawScan.floors.some((f) => f.completedEdges !== undefined && f.completedEdges.length > INITIAL_COUNT) ||
+          rawScan.openings.some((o) => o.completedEdges !== undefined && o.completedEdges.length > INITIAL_COUNT) ||
+          rawScan.walls.some((w) => w.completedEdges !== undefined && w.completedEdges.length > INITIAL_COUNT) ||
+          rawScan.windows.some((w) => w.completedEdges.length > INITIAL_COUNT),
         hasNonRectWall: hasNonRectWall,
         hasNonRectangularEmbedded:
           rawScan.doors.some(
