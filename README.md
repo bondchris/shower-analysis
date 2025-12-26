@@ -2,7 +2,13 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
-**Current Version:** v0.50.0
+**Current Version:** v0.51.0
+
+## What's New (v0.51.0)
+
+- Validation report includes a cumulative Property Presence Over Time chart that tracks field coverage by scan date.
+- Line charts wrap legends and adjust margins to keep axis labels readable across reports, including duplicate video trends.
+- Data cleaning skips hidden files/folders, cleans up stale checked-scan entries, and geometry utilities now guard against NaN/Infinity inputs.
 
 ## Overview
 

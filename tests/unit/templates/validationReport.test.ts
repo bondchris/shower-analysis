@@ -34,6 +34,7 @@ describe("buildValidationReport", () => {
       pageErrors: {},
       processed: 10,
       propertyCounts: {},
+      propertyCountsByDate: {},
       totalArtifacts: 10,
       totalScansByDate: {},
       warningCounts: {},
@@ -60,6 +61,7 @@ describe("buildValidationReport", () => {
         pageErrors: {},
         processed: 100,
         propertyCounts: {},
+        propertyCountsByDate: {},
         totalArtifacts: 100,
         totalScansByDate: { "2023-01-01": 50, "2023-01-02": 50 },
         warningCounts: {},
@@ -75,6 +77,7 @@ describe("buildValidationReport", () => {
         pageErrors: {},
         processed: 5,
         propertyCounts: {},
+        propertyCountsByDate: {},
         totalArtifacts: 5,
         totalScansByDate: {},
         warningCounts: {},
@@ -142,5 +145,34 @@ describe("buildValidationReport", () => {
     expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to generate property chart"));
 
     errorSpy.mockRestore();
+  });
+
+  it("should generate property presence over time chart when data is available", () => {
+    const stats: EnvStats[] = [
+      {
+        artifactsWithIssues: 0,
+        artifactsWithWarnings: 0,
+        cleanScansByDate: { "2023-01-01": 50, "2023-01-02": 50 },
+        errorsByDate: {},
+        missingCounts: {},
+        name: "Production",
+        pageErrors: {},
+        processed: 100,
+        propertyCounts: { id: 100, video: 80 },
+        propertyCountsByDate: {
+          "2023-01-01": { id: 50, video: 40 },
+          "2023-01-02": { id: 50, video: 40 }
+        },
+        totalArtifacts: 100,
+        totalScansByDate: { "2023-01-01": 50, "2023-01-02": 50 },
+        warningCounts: {},
+        warningsByDate: {}
+      }
+    ];
+
+    const report = buildValidationReport(stats);
+
+    const chartTitles = report.sections.map((s) => s.title);
+    expect(chartTitles).toContain("Property Presence Over Time");
   });
 });

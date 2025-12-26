@@ -72,6 +72,7 @@ describe("validateArtifacts script", () => {
         pageErrors: {},
         processed: 0,
         propertyCounts: {},
+        propertyCountsByDate: {},
         totalArtifacts: 0,
         totalScansByDate: {},
         warningCounts: {},
@@ -137,6 +138,28 @@ describe("validateArtifacts script", () => {
       expect(stats.propertyCounts).toHaveProperty("id", 1);
       expect(stats.propertyCounts).toHaveProperty("extraField", 1);
       expect(stats.propertyCounts).toHaveProperty("pointCloud", 1);
+    });
+
+    it("should track property counts by date", () => {
+      const artifact = createArtifact({
+        extraField: "some value",
+        scanDate: "2025-06-15T12:00:00Z"
+      } as unknown as Partial<ArtifactResponse>);
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.propertyCountsByDate).toHaveProperty("2025-06-15");
+      expect(stats.propertyCountsByDate["2025-06-15"]).toHaveProperty("id", 1);
+      expect(stats.propertyCountsByDate["2025-06-15"]).toHaveProperty("extraField", 1);
+    });
+
+    it("should not track property counts by date when scanDate is invalid", () => {
+      const artifact = createArtifact({
+        extraField: "some value",
+        scanDate: null
+      } as unknown as Partial<ArtifactResponse>);
+      applyArtifactToStats(stats, artifact);
+
+      expect(Object.keys(stats.propertyCountsByDate).length).toBe(0);
     });
 
     it("should handle non-string scanDate (null/undefined/number)", () => {
@@ -346,15 +369,19 @@ describe("validateArtifacts script", () => {
       const stats: EnvStats = {
         artifactsWithIssues: 1,
         artifactsWithWarnings: 1,
-        cleanScansByDate: { "2025-01-01": 1 },
+        cleanScansByDate: { "2025-01-01": 1, "2025-01-02": 1 },
         errorsByDate: { "2025-01-01": 1 },
         missingCounts: { id: 1 },
         name: "Env 1",
         pageErrors: {},
-        processed: 2,
-        propertyCounts: { id: 2 },
-        totalArtifacts: 2,
-        totalScansByDate: { "2025-01-01": 2 },
+        processed: 4,
+        propertyCounts: { id: 4, pointCloud: 2 },
+        propertyCountsByDate: {
+          "2025-01-01": { id: 2 },
+          "2025-01-02": { id: 2, pointCloud: 2 }
+        },
+        totalArtifacts: 4,
+        totalScansByDate: { "2025-01-01": 2, "2025-01-02": 2 },
         warningCounts: { projectId: 1 },
         warningsByDate: { "2025-01-01": 1 }
       };
@@ -374,6 +401,7 @@ describe("validateArtifacts script", () => {
             type: "table"
           }),
           expect.objectContaining({ title: "Property Presence", type: "chart" }),
+          expect.objectContaining({ title: "Property Presence Over Time", type: "chart" }),
           expect.objectContaining({ title: "Scan Volume (All Environments)", type: "chart" }),
           expect.objectContaining({ title: "Scan Success Percentage Over Time", type: "chart" }),
           expect.objectContaining({ title: "Upload Failures Over Time", type: "chart" }),

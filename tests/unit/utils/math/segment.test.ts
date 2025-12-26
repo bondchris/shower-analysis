@@ -10,6 +10,22 @@ describe("segment utils", () => {
     it("should return false for non-crossing segments", () => {
       expect(doSegmentsIntersect(new Point(0, 0), new Point(1, 0), new Point(0, 1), new Point(1, 1))).toBe(false);
     });
+
+    it("should return false for NaN coordinates", () => {
+      expect(doSegmentsIntersect(new Point(NaN, 0), new Point(1, 0), new Point(0, 1), new Point(1, 1))).toBe(false);
+    });
+
+    it("should return false for Infinity coordinates", () => {
+      expect(doSegmentsIntersect(new Point(Infinity, 0), new Point(1, 0), new Point(0, 1), new Point(1, 1))).toBe(
+        false
+      );
+    });
+
+    it("should return false for negative Infinity coordinates", () => {
+      expect(doSegmentsIntersect(new Point(0, 0), new Point(1, -Infinity), new Point(0, 1), new Point(1, 1))).toBe(
+        false
+      );
+    });
   });
 
   describe("getSegmentIntersection (Strict)", () => {
@@ -52,6 +68,22 @@ describe("segment utils", () => {
       // T-junction touching at (1,0)
       const p = getSegmentIntersection(new Point(0, 0), new Point(2, 0), new Point(1, 0), new Point(1, 1));
       expect(p).toBeNull();
+    });
+
+    it("should return null for NaN coordinates", () => {
+      expect(getSegmentIntersection(new Point(NaN, 0), new Point(1, 0), new Point(0, 1), new Point(1, 1))).toBeNull();
+    });
+
+    it("should return null for Infinity coordinates", () => {
+      expect(
+        getSegmentIntersection(new Point(0, Infinity), new Point(1, 0), new Point(0, 1), new Point(1, 1))
+      ).toBeNull();
+    });
+
+    it("should return null for negative Infinity coordinates", () => {
+      expect(
+        getSegmentIntersection(new Point(0, 0), new Point(1, 0), new Point(-Infinity, 1), new Point(1, 1))
+      ).toBeNull();
     });
   });
 

@@ -32,29 +32,20 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
   const xLabelDyCandidate = xLabelDyScaled + xLabelDyBase;
   const xLabelDyPx = Math.max(xLabelDyMin, xLabelDyCandidate);
 
-  // Margins: extra space at bottom for rotated date labels, x-axis label, and legend
+  // Margins: space for axis labels and tick marks
   const topMargin = 15;
   const rightMargin = 40;
-  const bottomMarginDefault = 60;
   const textOffsetFromLine = 8;
-  // Calculate bottom margin: need space for rotated tick labels and x-axis label
-  // For rotated labels at -45 degrees, estimate vertical space needed
+  // Calculate bottom margin for rotated tick labels at -45 degrees
   const charWidthEstimate = 4.5;
   const rotationSin = 0.707; // sin(45°)
   const tickLabelFontSize = 9;
-  const rotatedLabelPadding = 0;
-  const xAxisLabelPadding = 2;
-  // Estimate space needed for rotated tick labels (font size accounts for text height)
-  const rotatedLabelWidth = maxTickLength * charWidthEstimate * rotationSin;
-  const rotatedLabelHeight = tickLabelFontSize + rotatedLabelPadding;
-  const rotatedLabelTotal = rotatedLabelWidth + rotatedLabelHeight;
-  const rotatedLabelSpace = maxTickLength > zeroValue ? Math.max(rotatedLabelPadding, rotatedLabelTotal) : zeroValue;
-  const xAxisLabelSpace = options.xLabel !== undefined && options.xLabel !== "" ? xAxisLabelPadding : zeroValue;
-  // Bottom margin: base + rotated labels + x-axis label space
-  // Cap it to prevent excessive margins
-  const maxBottomMargin = 90;
-  const calculatedBottomMargin = bottomMarginDefault + rotatedLabelSpace + xAxisLabelSpace;
-  const bottomMargin = Math.min(maxBottomMargin, Math.max(bottomMarginDefault, calculatedBottomMargin));
+  const axisLineAndTickSpace = 20;
+  const xAxisLabelHeight = 16;
+  // Estimate vertical space needed for rotated tick labels
+  const rotatedLabelVerticalSpace = maxTickLength * charWidthEstimate * rotationSin;
+  const xAxisLabelSpace = options.xLabel !== undefined && options.xLabel !== "" ? xAxisLabelHeight : zeroValue;
+  const bottomMargin = axisLineAndTickSpace + rotatedLabelVerticalSpace + tickLabelFontSize + xAxisLabelSpace;
   const leftMargin = 60;
 
   const margin = { bottom: bottomMargin, left: leftMargin, right: rightMargin, top: topMargin };
@@ -81,7 +72,6 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
   const colorPalette = ["#4F46E5", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6"];
   const oneDataset = 1;
   const defaultBorderWidth = 2;
-  const legendBottomOffset = 0;
   const maxXTicks = 15; // Limit x-axis ticks to prevent date label crowding
   const legendBoxSize = 10;
   const legendLabelGap = 5;
@@ -91,9 +81,25 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
   const legendPadMultiplier = 2;
   const legendHorizontalPad = 24;
   const legendHorizontalPadDouble = legendHorizontalPad * legendPadMultiplier;
-  const legendRows = oneDataset;
-  const legendHeight = legendRows * legendRowHeight;
-  const legendYPosition = height - legendBottomOffset - legendHeight;
+  const legendTopPadding = 8;
+
+  const charWidth = 6;
+  const itemPaddingEstimate = legendBoxSize + legendLabelGap + legendItemGap;
+  const totalLabelChars = datasets.reduce((sum, ds) => sum + ds.label.length, zeroValue);
+  const avgItemWidth = totalLabelChars / Math.max(datasets.length, oneDataset);
+  const avgItemLabelWidth = avgItemWidth * charWidth;
+  const estimatedItemWidth = avgItemLabelWidth + itemPaddingEstimate;
+  const availableLegendWidth = xMax + legendHorizontalPadDouble;
+  const itemsPerRow = Math.max(oneDataset, Math.floor(availableLegendWidth / estimatedItemWidth));
+  const legendRows = Math.ceil(datasets.length / itemsPerRow);
+  const rowsAboveFirst = legendRows - oneDataset;
+  const baseRowsHeight = legendRows * legendRowHeight;
+  const gapHeight = rowsAboveFirst * legendRowGap;
+  const legendHeight = baseRowsHeight + gapHeight;
+  const hasLegend = datasets.length > oneDataset;
+  const legendSpace = hasLegend ? legendHeight + legendTopPadding : zeroValue;
+  const totalSvgHeight = height + legendSpace;
+  const legendYPosition = height + legendTopPadding;
 
   const curveType = options.smooth === true ? curveMonotoneX : curveLinear;
 
@@ -135,7 +141,7 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
   }
 
   return (
-    <svg height={height} width={width}>
+    <svg height={totalSvgHeight} width={width}>
       <Group left={margin.left} top={margin.top}>
         <GridRows height={yMax} scale={yScale} stroke="#e5e7eb" width={xMax} />
 
@@ -289,15 +295,14 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
               color: "#374151",
               columnGap: legendItemGap,
               display: "flex",
-              flexWrap: "nowrap",
+              flexWrap: "wrap",
               fontSize: 10,
               justifyContent: "center",
               overflow: "visible",
               paddingLeft: 8,
               paddingRight: 8,
               rowGap: legendRowGap,
-              userSelect: "none",
-              whiteSpace: "nowrap"
+              userSelect: "none"
             }}
           >
             {datasets.map((dataset, idx) => {
@@ -310,8 +315,7 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
                     columnGap: legendLabelGap,
                     display: "inline-flex",
                     flex: "0 0 auto",
-                    lineHeight: 1,
-                    whiteSpace: "nowrap"
+                    lineHeight: 1
                   }}
                 >
                   <div

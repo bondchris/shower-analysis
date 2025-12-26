@@ -682,6 +682,49 @@ describe("buildSyncReport", () => {
     expect(element).toBeDefined();
   });
 
+  it("pads mismatch difference only for single-digit day deltas", () => {
+    const stats: SyncStats[] = [
+      {
+        arDataSize: 0,
+        dateMismatches: [
+          {
+            diffHours: 240, // 10 days
+            environment: "Production",
+            id: "late",
+            isNew: true,
+            scanDate: "2023-04-01T00:00:00Z",
+            videoDate: "2023-03-22T00:00:00Z"
+          }
+        ],
+        duplicateCount: 0,
+        duplicates: [],
+        env: "Production",
+        errors: [],
+        failed: 0,
+        found: 1,
+        knownFailures: 0,
+        new: 0,
+        newArDataSize: 0,
+        newDuplicateCount: 0,
+        newFailures: 0,
+        newRawScanSize: 0,
+        newVideoSize: 0,
+        processedIds: new Set(),
+        rawScanSize: 0,
+        skipped: 0,
+        videoHistory: {},
+        videoSize: 0
+      }
+    ];
+
+    const report = buildSyncReport(stats, {});
+    const mismatchSection = report.sections.find((s) => s.title === "Mismatches");
+    const mismatchData = (mismatchSection?.data as string[]).join(" ");
+
+    expect(mismatchData).toContain("10.0 days");
+    expect(mismatchData).not.toContain("&nbsp;");
+  });
+
   describe("Error formatting branch coverage", () => {
     it("should format single error per artifact (line 570)", () => {
       const stats: SyncStats[] = [
@@ -916,6 +959,52 @@ describe("buildSyncReport", () => {
       const data = tableSection?.data as string[][];
       expect(data[0]?.[1]).toBe("3");
       expect(data[0]?.[2]).toContain("3"); // Total column (HTML)
+    });
+
+    it("should include months without duplicates in the trend chart", () => {
+      const stats: SyncStats[] = [
+        {
+          arDataSize: 0,
+          dateMismatches: [],
+          duplicateCount: 1,
+          duplicates: [
+            {
+              artifactId: "artifact1",
+              duplicateIds: ["artifact2"],
+              environment: "Production",
+              hash: "hash123",
+              scanDate: "2023-01-15"
+            }
+          ],
+          env: "Production",
+          errors: [],
+          failed: 0,
+          found: 2,
+          knownFailures: 0,
+          new: 0,
+          newArDataSize: 0,
+          newDuplicateCount: 0,
+          newFailures: 0,
+          newRawScanSize: 0,
+          newVideoSize: 0,
+          processedIds: new Set(),
+          rawScanSize: 0,
+          skipped: 0,
+          videoHistory: {
+            "2023-01": { count: 1, totalSize: 100 },
+            "2023-02": { count: 1, totalSize: 200 }
+          },
+          videoSize: 0
+        }
+      ];
+
+      const report = buildSyncReport(stats, {});
+      const chartSection = report.sections.find((s) => s.title === "Duplicate Videos Trend");
+      expect(chartSection).toBeDefined();
+      const config = chartSection?.data as LineChartConfig;
+
+      expect(config.labels).toEqual(["2023-01", "2023-02"]);
+      expect(config.datasets[0]?.data).toEqual([1, 0]);
     });
 
     it("should generate detailed Duplicate Videos list", () => {

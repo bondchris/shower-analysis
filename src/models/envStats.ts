@@ -10,6 +10,7 @@ export interface EnvStats {
   processed: number;
   totalArtifacts: number;
   propertyCounts: Record<string, number>;
+  propertyCountsByDate: Record<string, Record<string, number>>;
   name: string;
   pageErrors: Record<number, string>;
 }

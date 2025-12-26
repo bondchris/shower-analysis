@@ -8,6 +8,7 @@ import { computeLayoutConstants } from "../../../../../src/templates/dataAnalysi
 import {
   convertLengthsToFeet,
   getDoorWidthHeightPairs,
+  getFloorWidthHeightPairs,
   getOpeningWidthHeightPairs,
   getWallWidthHeightPairs,
   getWindowWidthHeightPairs
@@ -314,6 +315,42 @@ describe("buildAreaCharts", () => {
     if (scatterCall !== undefined) {
       const datasets = scatterCall[0] as { data: ScatterPoint[] }[];
       // Should only have 1 point (the one with both width and height defined)
+      expect(datasets[0]?.data).toHaveLength(1);
+    }
+  });
+
+  it("should filter out points with undefined width or height for floors", () => {
+    const layout = computeLayoutConstants();
+    // Create 3 pairs, but second one will have undefined width and third will have undefined height
+    const mockPairs = [
+      { height: 5, width: 10 },
+      { height: 10, width: 20 },
+      { height: 15, width: 30 }
+    ];
+    const mockWidthsFt = [10, undefined, 30];
+    const mockHeightsFt = [5, 10, undefined];
+
+    (getFloorWidthHeightPairs as ReturnType<typeof vi.fn>).mockReturnValue(mockPairs);
+    // For floors, it's calls 9 and 10 (after windows, doors, openings, and walls)
+    const callSequence: (number | undefined)[][] = [[], [], [], [], [], [], [], [], mockWidthsFt, mockHeightsFt];
+    let callIndex = 0;
+    (convertLengthsToFeet as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      const result = callSequence[callIndex] ?? [];
+      callIndex++;
+      return result;
+    });
+
+    buildAreaCharts(["/test/dir"], layout);
+
+    expect(getScatterChartConfig).toHaveBeenCalled();
+    const scatterCall = (getScatterChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+      const config = call[1] as { chartId?: string };
+      return config.chartId === "floorAspectRatio";
+    });
+    expect(scatterCall).toBeDefined();
+    if (scatterCall !== undefined) {
+      const datasets = scatterCall[0] as { data: ScatterPoint[] }[];
+      // Should only have 1 point (the first one with both width and height defined)
       expect(datasets[0]?.data).toHaveLength(1);
     }
   });

@@ -243,9 +243,6 @@
       max-width: 96rem;
     }
   }
-  .my-0 {
-    margin-block: calc(var(--spacing) * 0);
-  }
   .mt-0 {
     margin-top: calc(var(--spacing) * 0);
   }
@@ -258,6 +255,12 @@
   .mt-6 {
     margin-top: calc(var(--spacing) * 6);
   }
+  .mt-8 {
+    margin-top: calc(var(--spacing) * 8);
+  }
+  .mb-0 {
+    margin-bottom: calc(var(--spacing) * 0);
+  }
   .mb-1 {
     margin-bottom: calc(var(--spacing) * 1);
   }
@@ -269,6 +272,9 @@
   }
   .mb-5 {
     margin-bottom: calc(var(--spacing) * 5);
+  }
+  .mb-6 {
+    margin-bottom: calc(var(--spacing) * 6);
   }
   .mb-10 {
     margin-bottom: calc(var(--spacing) * 10);

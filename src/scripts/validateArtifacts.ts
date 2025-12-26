@@ -57,12 +57,19 @@ export function applyArtifactToStats(stats: EnvStats, item: ArtifactResponse): v
 
   const missingWarnings = WARNING_FIELDS.filter((field) => item[field] === undefined || item[field] === null);
 
-  // Track property presence dynamically
+  // Track property presence dynamically (both total and by date)
+  const propertyDate = getValidDateKey(item.scanDate);
   for (const key in item) {
     if (Object.prototype.hasOwnProperty.call(item, key)) {
       const val = (item as unknown as Record<string, unknown>)[key];
       if (val !== undefined && val !== null) {
         stats.propertyCounts[key] = (stats.propertyCounts[key] ?? INITIAL_ERROR_COUNT) + ERROR_INCREMENT;
+
+        if (propertyDate !== null) {
+          stats.propertyCountsByDate[propertyDate] ??= {};
+          const dateCounts = stats.propertyCountsByDate[propertyDate];
+          dateCounts[key] = (dateCounts[key] ?? INITIAL_ERROR_COUNT) + ERROR_INCREMENT;
+        }
       }
     }
   }
@@ -125,6 +132,7 @@ export async function validateEnvironment(env: { domain: string; name: string })
     pageErrors: {},
     processed: 0,
     propertyCounts: {},
+    propertyCountsByDate: {},
     totalArtifacts: 0,
     totalScansByDate: {},
     warningCounts: {},

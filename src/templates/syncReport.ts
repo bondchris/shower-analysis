@@ -4,6 +4,7 @@ import React from "react";
 import { ReportData, ReportSection } from "../models/report";
 import { LineChart } from "./components/charts/LineChart";
 import { LineChartConfig } from "../models/chart/lineChartConfig";
+import { LineChartDataset } from "../models/chart/lineChartDataset";
 
 export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailureDatabase): ReportData {
   const sections: ReportSection[] = [];
@@ -86,13 +87,9 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
         const month = err.date.substring(ZERO, DATE_SUBSTRING_LENGTH); // YYYY-MM
         allErrorMonths.add(month);
 
-        if (!errorHistory.has(month)) {
-          errorHistory.set(month, {});
-        }
-        const monthData = errorHistory.get(month);
-        if (monthData !== undefined) {
-          monthData[stats.env] = (monthData[stats.env] ?? ZERO) + ONE;
-        }
+        const monthData = errorHistory.get(month) ?? {};
+        monthData[stats.env] = (monthData[stats.env] ?? ZERO) + ONE;
+        errorHistory.set(month, monthData);
       }
     });
   });
@@ -107,21 +104,23 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       "Lowe's Production": "rgba(1, 33, 105, 1)",
       "Lowe's Staging": "rgba(0, 117, 206, 1)"
     };
-    const defaultColors = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
+    const defaultColors: [string, string, string, string] = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
 
-    const errorDatasets = sortedStats.map((stats, index) => {
+    const errorDatasets: LineChartDataset[] = sortedStats.map((stats, index) => {
       const data = sortedErrorMonths.map((month) => {
         const count = errorHistory.get(month)?.[stats.env] ?? ZERO;
         return count;
       });
 
-      const borderColor = envColors[stats.env] ?? defaultColors[index % defaultColors.length] ?? "#000000";
+      const colorIndex = index % defaultColors.length;
+      const defaultColor = defaultColors[colorIndex] ?? "#000000";
+      const borderColor = envColors[stats.env] ?? defaultColor;
 
       return {
         borderColor,
         data,
         label: stats.env
-      };
+      } satisfies LineChartDataset;
     });
 
     const errorChartConfig: LineChartConfig = {
@@ -152,10 +151,15 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       return "0 B";
     }
     const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const sizes: [string, string, string, string, string] = ["B", "KB", "MB", "GB", "TB"];
+    const exponent = Math.floor(Math.log(bytes) / Math.log(k));
+    const SIZE_INDEX_OFFSET = 1;
+    const lastSizeIndex = sizes.length - SIZE_INDEX_OFFSET;
+    const index = Math.min(lastSizeIndex, exponent);
     const DIGITS = 2;
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(DIGITS)).toString()} ${sizes[i] ?? ""}`;
+    const value = parseFloat((bytes / Math.pow(k, index)).toFixed(DIGITS)).toString();
+    const unit = sizes[index];
+    return `${value} ${String(unit)}`;
   };
 
   const totalVideoSize = allStats.reduce((sum, s) => sum + s.videoSize, ZERO);
@@ -264,9 +268,9 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       "Lowe's Production": "rgba(1, 33, 105, 1)",
       "Lowe's Staging": "rgba(0, 117, 206, 1)"
     };
-    const defaultColors = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
+    const defaultColors: [string, string, string, string] = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
 
-    const datasets = descStats.map((stats, index) => {
+    const datasets: LineChartDataset[] = descStats.map((stats, index) => {
       const data = sortedMonths.map((month) => {
         const history = stats.videoHistory[month];
         const ZERO_COUNT = 0;
@@ -276,13 +280,15 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
         return null;
       });
 
-      const borderColor = envColors[stats.env] ?? defaultColors[index % defaultColors.length] ?? "#000000";
+      const colorIndex = index % defaultColors.length;
+      const defaultColor = defaultColors[colorIndex] ?? "#000000";
+      const borderColor = envColors[stats.env] ?? defaultColor;
 
       return {
         borderColor,
         data,
         label: stats.env
-      };
+      } satisfies LineChartDataset;
     });
 
     const chartConfig: LineChartConfig = {
@@ -355,13 +361,9 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
           const month = m.scanDate.substring(ZERO, DATE_SUBSTRING_LENGTH); // YYYY-MM
           allMismatchMonths.add(month);
 
-          if (!mismatchHistory.has(month)) {
-            mismatchHistory.set(month, {});
-          }
-          const monthData = mismatchHistory.get(month);
-          if (monthData !== undefined) {
-            monthData[stats.env] = (monthData[stats.env] ?? ZERO) + ONE;
-          }
+          const monthData = mismatchHistory.get(month) ?? {};
+          monthData[stats.env] = (monthData[stats.env] ?? ZERO) + ONE;
+          mismatchHistory.set(month, monthData);
         }
       });
     });
@@ -376,21 +378,23 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
         "Lowe's Production": "rgba(1, 33, 105, 1)",
         "Lowe's Staging": "rgba(0, 117, 206, 1)"
       };
-      const defaultColors = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
+      const defaultColors: [string, string, string, string] = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
 
-      const mismatchDatasets = sortedStats.map((stats, index) => {
+      const mismatchDatasets: LineChartDataset[] = sortedStats.map((stats, index) => {
         const data = sortedMismatchMonths.map((month) => {
           const count = mismatchHistory.get(month)?.[stats.env] ?? ZERO;
           return count;
         });
 
-        const borderColor = envColors[stats.env] ?? defaultColors[index % defaultColors.length] ?? "#000000";
+        const colorIndex = index % defaultColors.length;
+        const defaultColor = defaultColors[colorIndex] ?? "#000000";
+        const borderColor = envColors[stats.env] ?? defaultColor;
 
         return {
           borderColor,
           data,
           label: stats.env
-        };
+        } satisfies LineChartDataset;
       });
 
       const mismatchChartConfig: LineChartConfig = {
@@ -462,13 +466,9 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
           const month = dup.scanDate.substring(ZERO, DATE_SUBSTRING_LENGTH); // YYYY-MM
           allDuplicateMonths.add(month);
 
-          if (!duplicateHistory.has(month)) {
-            duplicateHistory.set(month, {});
-          }
-          const monthData = duplicateHistory.get(month);
-          if (monthData !== undefined) {
-            monthData[stats.env] = (monthData[stats.env] ?? ZERO) + ONE;
-          }
+          const monthData = duplicateHistory.get(month) ?? {};
+          monthData[stats.env] = (monthData[stats.env] ?? ZERO) + ONE;
+          duplicateHistory.set(month, monthData);
         }
       });
     });
@@ -483,21 +483,23 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
         "Lowe's Production": "rgba(1, 33, 105, 1)",
         "Lowe's Staging": "rgba(0, 117, 206, 1)"
       };
-      const defaultColors = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
+      const defaultColors: [string, string, string, string] = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
 
-      const duplicateDatasets = sortedStats.map((stats, index) => {
+      const duplicateDatasets: LineChartDataset[] = sortedStats.map((stats, index) => {
         const data = sortedDuplicateMonths.map((month) => {
           const count = duplicateHistory.get(month)?.[stats.env] ?? ZERO;
           return count;
         });
 
-        const borderColor = envColors[stats.env] ?? defaultColors[index % defaultColors.length] ?? "#000000";
+        const colorIndex = index % defaultColors.length;
+        const defaultColor = defaultColors[colorIndex] ?? "#000000";
+        const borderColor = envColors[stats.env] ?? defaultColor;
 
         return {
           borderColor,
           data,
           label: stats.env
-        };
+        } satisfies LineChartDataset;
       });
 
       const duplicateChartConfig: LineChartConfig = {
@@ -544,8 +546,9 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
                 break;
               }
             }
-            // If not found, use the current entry's environment as fallback
-            artifactToEnvironment.set(id, foundEnv ?? dup.environment);
+            if (foundEnv !== undefined) {
+              artifactToEnvironment.set(id, foundEnv);
+            }
           }
         });
       });
@@ -554,23 +557,21 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
     // Second pass: group by hash and collect all artifact IDs
     allStats.forEach((stats) => {
       stats.duplicates.forEach((dup) => {
-        if (!duplicatesByHash.has(dup.hash)) {
-          duplicatesByHash.set(dup.hash, []);
+        const hashGroup = duplicatesByHash.get(dup.hash) ?? [];
+
+        if (!hashGroup.some((a) => a.artifactId === dup.artifactId)) {
+          hashGroup.push({ artifactId: dup.artifactId, environment: dup.environment });
         }
-        const hashGroup = duplicatesByHash.get(dup.hash);
-        if (hashGroup !== undefined) {
-          // Add the main artifact if not already present
-          if (!hashGroup.some((a) => a.artifactId === dup.artifactId)) {
-            hashGroup.push({ artifactId: dup.artifactId, environment: dup.environment });
+
+        dup.duplicateIds.forEach((id) => {
+          if (!hashGroup.some((a) => a.artifactId === id)) {
+            const env = artifactToEnvironment.get(id) ?? dup.environment;
+            artifactToEnvironment.set(id, env);
+            hashGroup.push({ artifactId: id, environment: env });
           }
-          // Add all duplicate IDs if not already present
-          dup.duplicateIds.forEach((id) => {
-            if (!hashGroup.some((a) => a.artifactId === id)) {
-              const env = artifactToEnvironment.get(id) ?? dup.environment;
-              hashGroup.push({ artifactId: id, environment: env });
-            }
-          });
-        }
+        });
+
+        duplicatesByHash.set(dup.hash, hashGroup);
       });
     });
 
@@ -653,9 +654,23 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
             timeZone: "America/New_York",
             year: "2-digit"
           };
+          interface DateParts {
+            day: string;
+            hour: string;
+            minute: string;
+            month: string;
+            year: string;
+          }
           const parts = new Intl.DateTimeFormat("en-US", options).formatToParts(d);
-          const find = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
-          return `${find("year")}-${find("month")}-${find("day")} ${find("hour")}:${find("minute")}`;
+          const partLookup: DateParts = { day: "00", hour: "00", minute: "00", month: "00", year: "00" };
+          const datePartKeys: (keyof DateParts)[] = ["day", "hour", "minute", "month", "year"];
+          parts.forEach((part) => {
+            if (datePartKeys.includes(part.type as keyof DateParts)) {
+              const key = part.type as keyof DateParts;
+              partLookup[key] = part.value;
+            }
+          });
+          return `${partLookup.year}-${partLookup.month}-${partLookup.day} ${partLookup.hour}:${partLookup.minute}`;
         } catch {
           return dateStr;
         }
@@ -691,115 +706,106 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
     sections.push({ title: "Inaccessible Artifacts", type: "header" });
 
     failedStats.forEach((stats) => {
-      if (stats.errors.length > ZERO_FAILURES) {
-        // Classify errors
-        const newErrors: SyncError[] = [];
-        const knownErrors: SyncError[] = [];
+      // Classify errors
+      const newErrors: SyncError[] = [];
+      const knownErrors: SyncError[] = [];
 
-        stats.errors.forEach((err) => {
-          if (Object.prototype.hasOwnProperty.call(knownFailures, err.id)) {
-            knownErrors.push(err);
+      stats.errors.forEach((err) => {
+        if (Object.prototype.hasOwnProperty.call(knownFailures, err.id)) {
+          knownErrors.push(err);
+        } else {
+          newErrors.push(err);
+        }
+      });
+
+      // Helper to render error list
+      const renderErrorList = (errors: SyncError[], title: string) => {
+        if (errors.length === ZERO_FAILURES) {
+          return;
+        }
+
+        // Group errors by ID and deduplicate reasons
+        const errorsById = new Map<string, Set<string>>();
+        errors.forEach((err) => {
+          if (!errorsById.has(err.id)) {
+            errorsById.set(err.id, new Set());
+          }
+          errorsById.get(err.id)?.add(err.reason);
+        });
+
+        // Print grouped errors
+        const errorLines: string[] = [];
+        errorsById.forEach((reasons, id) => {
+          const currentArtifactErrors: string[] = [];
+
+          // Group failures logic
+          const groupedFailures = new Map<string, string[]>(); // status -> types[]
+          const miscFailures: string[] = [];
+
+          reasons.forEach((reason) => {
+            const regex = /^(.+) download failed \((.+)\)$/;
+            const match = regex.exec(reason);
+            if (match !== null) {
+              const [, type = "", status = ""] = match;
+              if (!groupedFailures.has(status)) {
+                groupedFailures.set(status, []);
+              }
+              groupedFailures.get(status)?.push(type);
+            } else {
+              miscFailures.push(reason);
+            }
+          });
+
+          // Collect grouped failures
+          groupedFailures.forEach((types, status) => {
+            const sortedTypes = types.sort();
+            let typeStr = "";
+            const ONE_ITEM = 1;
+            const TWO_ITEMS = 2;
+            const [firstType = "", secondType = ""] = sortedTypes;
+
+            if (sortedTypes.length === ONE_ITEM) {
+              typeStr = firstType;
+            } else if (sortedTypes.length === TWO_ITEMS) {
+              typeStr = `${firstType} and ${secondType}`;
+            } else {
+              const last = sortedTypes.pop() ?? "";
+              typeStr = `${sortedTypes.join(", ")}, and ${last}`;
+            }
+            currentArtifactErrors.push(`Download failed (${status}) for ${typeStr}`);
+          });
+
+          // Collect misc failures
+          miscFailures.forEach((reason) => {
+            currentArtifactErrors.push(reason);
+          });
+
+          // Print to errorLines based on count
+          const SINGLE_FAILURE = 1;
+          const FIRST_ERROR = 0;
+          const monoId = `<span class="font-mono">${id}</span>`;
+          if (currentArtifactErrors.length === SINGLE_FAILURE) {
+            const firstError = String(currentArtifactErrors[FIRST_ERROR]);
+            errorLines.push(`${monoId} - ${firstError}`);
           } else {
-            newErrors.push(err);
+            errorLines.push(monoId);
+            currentArtifactErrors.forEach((err) => {
+              errorLines.push(`  - ${err}`);
+            });
           }
         });
 
-        // Helper to render error list
-        const renderErrorList = (errors: SyncError[], title: string) => {
-          if (errors.length === ZERO_FAILURES) {
-            return;
-          }
+        sections.push({
+          data: errorLines,
+          level: 4,
+          title: title,
+          type: "list"
+        });
+      };
 
-          // Group errors by ID and deduplicate reasons
-          const errorsById = new Map<string, Set<string>>();
-          errors.forEach((err) => {
-            if (!errorsById.has(err.id)) {
-              errorsById.set(err.id, new Set());
-            }
-            errorsById.get(err.id)?.add(err.reason);
-          });
-
-          // Print grouped errors
-          const errorLines: string[] = [];
-          errorsById.forEach((reasons, id) => {
-            const currentArtifactErrors: string[] = [];
-
-            // Group failures logic
-            const groupedFailures = new Map<string, string[]>(); // status -> types[]
-            const miscFailures: string[] = [];
-
-            reasons.forEach((reason) => {
-              const regex = /^(.+) download failed \((.+)\)$/;
-              const match = regex.exec(reason);
-              if (match !== null) {
-                const MATCH_TYPE_INDEX = 1;
-                const MATCH_STATUS_INDEX = 2;
-                const type = match[MATCH_TYPE_INDEX];
-                const status = match[MATCH_STATUS_INDEX];
-                if (type !== undefined && status !== undefined) {
-                  if (!groupedFailures.has(status)) {
-                    groupedFailures.set(status, []);
-                  }
-                  groupedFailures.get(status)?.push(type);
-                }
-              } else {
-                miscFailures.push(reason);
-              }
-            });
-
-            // Collect grouped failures
-            groupedFailures.forEach((types, status) => {
-              const sortedTypes = types.sort();
-              let typeStr = "";
-              const ONE_ITEM = 1;
-              const TWO_ITEMS = 2;
-              const FIRST_ITEM = 0;
-              const SECOND_ITEM = 1;
-
-              if (sortedTypes.length === ONE_ITEM) {
-                typeStr = sortedTypes[FIRST_ITEM] ?? "";
-              } else if (sortedTypes.length === TWO_ITEMS) {
-                typeStr = `${sortedTypes[FIRST_ITEM] ?? ""} and ${sortedTypes[SECOND_ITEM] ?? ""}`;
-              } else {
-                const last = sortedTypes.pop();
-                typeStr = `${sortedTypes.join(", ")}, and ${String(last)}`;
-              }
-              currentArtifactErrors.push(`Download failed (${status}) for ${typeStr}`);
-            });
-
-            // Collect misc failures
-            miscFailures.forEach((reason) => {
-              currentArtifactErrors.push(reason);
-            });
-
-            // Print to errorLines based on count
-            const SINGLE_FAILURE = 1;
-            const FIRST_ERROR = 0;
-            const monoId = `<span class="font-mono">${id}</span>`;
-            if (currentArtifactErrors.length === SINGLE_FAILURE) {
-              errorLines.push(`${monoId} - ${currentArtifactErrors[FIRST_ERROR] ?? ""}`);
-            } else {
-              errorLines.push(monoId);
-              currentArtifactErrors.forEach((err) => {
-                errorLines.push(`  - ${err}`);
-              });
-            }
-          });
-
-          sections.push({
-            data: errorLines,
-            level: 4,
-            title: title,
-            type: "list"
-          });
-        };
-
-        if (newErrors.length > ZERO_FAILURES || knownErrors.length > ZERO_FAILURES) {
-          sections.push({ level: 3, title: `Environment: ${stats.env}`, type: "header" });
-          renderErrorList(newErrors, "New Inaccessible");
-          renderErrorList(knownErrors, "Known Inaccessible");
-        }
-      }
+      sections.push({ level: 3, title: `Environment: ${stats.env}`, type: "header" });
+      renderErrorList(newErrors, "New Inaccessible");
+      renderErrorList(knownErrors, "Known Inaccessible");
     });
   } else {
     sections.push({

@@ -299,5 +299,98 @@ describe("cleanData", () => {
 
       expect(mockBadScans["artifact_bad"].reason).toBe("Missing video.mp4");
     });
+
+    it("skips .DS_Store files", async () => {
+      const dsStoreFile = path.join(dataDir, ".DS_Store");
+      fs.writeFileSync(dsStoreFile, "");
+
+      const stats = await main({
+        badScansFile,
+        checkedScansFile,
+        dataDir,
+        fs,
+        logger: mockLogger
+      });
+
+      // Should not have processed it as an artifact
+      expect(stats.removedCount).toBe(0);
+      expect(mockBadScans[".DS_Store"]).toBeUndefined();
+    });
+
+    it("skips hidden directories starting with dot", async () => {
+      const hiddenDir = path.join(dataDir, ".hidden_folder");
+      fs.mkdirSync(hiddenDir);
+      fs.writeFileSync(path.join(hiddenDir, "meta.json"), "{}");
+
+      const stats = await main({
+        badScansFile,
+        checkedScansFile,
+        dataDir,
+        fs,
+        logger: mockLogger
+      });
+
+      // Should not have processed it as an artifact
+      expect(stats.removedCount).toBe(0);
+      expect(mockBadScans[".hidden_folder"]).toBeUndefined();
+      // Folder should still exist
+      expect(fs.existsSync(hiddenDir)).toBe(true);
+    });
+
+    it("handles error during folder removal", async () => {
+      const artifactDir = path.join(dataDir, "artifact_error");
+      fs.mkdirSync(artifactDir);
+      fs.writeFileSync(path.join(artifactDir, "meta.json"), "{}");
+      // Missing video - will trigger deletion
+
+      // Mock fs with throwing rmSync
+      const mockFs = {
+        existsSync: fs.existsSync,
+        readdirSync: fs.readdirSync,
+        renameSync: fs.renameSync,
+        rmSync: vi.fn().mockImplementation(() => {
+          throw new Error("Permission denied");
+        }),
+        statSync: fs.statSync
+      };
+
+      const stats = await main({
+        badScansFile,
+        checkedScansFile,
+        dataDir,
+        ffprobe: mockFfmpeg as unknown as typeof ffmpeg.ffprobe,
+        fs: mockFs,
+        logger: mockLogger
+      });
+
+      // Should have failed to delete
+      expect(stats.failedDeletes).toContain("artifact_error");
+    });
+
+    it("removes checked scan entry when artifact is deleted", async () => {
+      const artifactDir = path.join(dataDir, "artifact_checked");
+      fs.mkdirSync(artifactDir);
+      fs.writeFileSync(path.join(artifactDir, "meta.json"), "{}");
+      // Missing video - will trigger deletion
+
+      // Add to checked scans
+      mockCheckedScans["artifact_checked"] = { cleanedDate: "2025-01-01" };
+      // But force reprocessing by not having cleanedDate or making it stale
+      // Actually the checked scan will be skipped. Let's test the removal path differently.
+      // Remove the cleanedDate so it gets processed
+      mockCheckedScans["artifact_checked"] = {};
+
+      const stats = await main({
+        badScansFile,
+        checkedScansFile,
+        dataDir,
+        fs,
+        logger: mockLogger
+      });
+
+      expect(stats.removedCount).toBe(1);
+      // Checked scan entry should be removed
+      expect(mockCheckedScans["artifact_checked"]).toBeUndefined();
+    });
   });
 });

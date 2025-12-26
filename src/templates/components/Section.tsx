@@ -29,7 +29,7 @@ export const Section: React.FC<SectionProps> = ({ section }) => {
     6: "text-xs font-semibold mb-1 text-gray-500"
   };
 
-  const chartTitleClass = "text-sm font-semibold text-center my-0 text-gray-700";
+  const chartTitleClass = "text-sm font-semibold text-center mb-0 mt-8 text-gray-700";
 
   const getTitleClassName = () => {
     if (section.type === "header") {
@@ -86,7 +86,7 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
       const isScatterChart = chartConfig.type === "scatter";
       const justifyClass = isScatterChart ? "justify-center" : "justify-start";
       return (
-        <div className={`mb-2 mt-0 flex w-full ${justifyClass} break-inside-avoid [&>svg]:block`}>
+        <div className={`mb-6 mt-0 flex w-full ${justifyClass} break-inside-avoid [&>svg]:block`}>
           {chartConfig.type === "line" && <LineChart config={chartConfig} />}
           {chartConfig.type === "histogram" && <Histogram config={chartConfig} />}
           {chartConfig.type === "bar" && <BarChart config={chartConfig} />}
@@ -106,7 +106,7 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
           {(section.data as { title?: string; data: ChartConfiguration }[]).map((chart, i) => (
             <div key={i} className="flex-1 text-center min-w-0 overflow-visible">
               {chart.title !== undefined && (
-                <h5 className="mb-2 text-center text-sm font-semibold text-gray-700">{chart.title}</h5>
+                <h5 className="mb-2 mt-8 text-center text-sm font-semibold text-gray-700">{chart.title}</h5>
               )}
               <div className="flex w-full justify-center overflow-visible">
                 {chart.data.type === "line" && <LineChart config={chart.data} />}

@@ -9,6 +9,7 @@ import { getBarChartConfig, getLineChartConfig, getMixedChartConfig } from "../u
 
 export interface ValidationCharts {
   propertyPresence?: ChartConfiguration;
+  propertyPresenceOverTime?: ChartConfiguration;
   scanVolume?: ChartConfiguration;
   success?: ChartConfiguration;
   errors?: ChartConfiguration;
@@ -288,6 +289,112 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
     } catch (e: unknown) {
       logger.error(`Failed to generate warning chart: ${String(e)}`);
     }
+
+    // --- 5. Property Presence Over Time Chart (Cumulative) ---
+    const aggregatedPropertyCountsByDate: Record<string, Record<string, number>> = {};
+    allStats.forEach((stats) => {
+      Object.entries(stats.propertyCountsByDate).forEach(([date, propertyCounts]) => {
+        aggregatedPropertyCountsByDate[date] ??= {};
+        const dateCounts = aggregatedPropertyCountsByDate[date];
+        Object.entries(propertyCounts).forEach(([property, count]) => {
+          dateCounts[property] = (dateCounts[property] ?? INITIAL_ERROR_COUNT) + count;
+        });
+      });
+    });
+
+    const allProperties = new Set<string>();
+    Object.values(aggregatedPropertyCountsByDate).forEach((propertyCounts) => {
+      Object.keys(propertyCounts).forEach((property) => allProperties.add(property));
+    });
+
+    const sortedProperties = Array.from(allProperties).sort();
+    const PERCENTAGE_MULTIPLIER = 100;
+    const FULL_PRESENCE_THRESHOLD = 100;
+    const LAST_ELEMENT_OFFSET = 1;
+
+    const propertyColors: string[] = [
+      "rgba(1, 33, 105, 1)",
+      "rgb(255, 0, 0)",
+      "rgb(255, 128, 0)",
+      "rgb(255, 208, 0)",
+      "rgb(0, 255, 8)",
+      "rgb(0, 247, 255)",
+      "rgb(21, 0, 255)",
+      "rgb(157, 0, 255)",
+      "rgb(255, 0, 242)",
+      "rgb(112, 3, 3)",
+      "rgb(128, 68, 0)",
+      "rgb(0, 0, 0)",
+      "rgb(115, 130, 0)",
+      "rgb(0, 117, 25)",
+      "rgb(51, 0, 96)",
+      "rgba(80, 0, 220, 1)",
+      "rgb(247, 105, 105)",
+      "rgba(220, 140, 0, 1)",
+      "rgb(43, 207, 163)",
+      "rgb(167, 90, 212)"
+    ];
+
+    // Calculate cumulative totals for scans and each property
+    const cumulativeTotalByDate: Record<string, number> = {};
+    const cumulativePropertyByDate: Record<string, Record<string, number>> = {};
+    let runningTotal = INITIAL_ERROR_COUNT;
+    const runningPropertyTotals: Record<string, number> = {};
+
+    sortedDates.forEach((date) => {
+      const dailyScans = aggregatedScansByDate[date] ?? INITIAL_ERROR_COUNT;
+      runningTotal += dailyScans;
+      cumulativeTotalByDate[date] = runningTotal;
+
+      const dateCumulativeProps: Record<string, number> = {};
+      cumulativePropertyByDate[date] = dateCumulativeProps;
+      const dailyPropertyCounts = aggregatedPropertyCountsByDate[date];
+      sortedProperties.forEach((property) => {
+        const dailyCount = dailyPropertyCounts?.[property] ?? INITIAL_ERROR_COUNT;
+        runningPropertyTotals[property] = (runningPropertyTotals[property] ?? INITIAL_ERROR_COUNT) + dailyCount;
+        dateCumulativeProps[property] = runningPropertyTotals[property];
+      });
+    });
+
+    // Build datasets with cumulative percentages
+    const propertyDatasets = sortedProperties
+      .map((property, index) => {
+        const colorIndex = index % propertyColors.length;
+        const color = propertyColors[colorIndex] ?? "rgba(0, 0, 0, 1)";
+        const data = sortedDates.map((date) => {
+          const cumulativeTotal = cumulativeTotalByDate[date] ?? INITIAL_ERROR_COUNT;
+          if (cumulativeTotal === INITIAL_ERROR_COUNT) {
+            return null;
+          }
+          const cumulativePropertyCount = cumulativePropertyByDate[date]?.[property] ?? INITIAL_ERROR_COUNT;
+          return Math.round((cumulativePropertyCount / cumulativeTotal) * PERCENTAGE_MULTIPLIER);
+        });
+        return {
+          borderColor: color,
+          borderWidth: CHART_BORDER_WIDTH_NORMAL,
+          data,
+          label: property
+        };
+      })
+      .filter((dataset) => {
+        // Exclude properties with 100% presence throughout
+        const lastIndex = dataset.data.length - LAST_ELEMENT_OFFSET;
+        const lastValue = dataset.data[lastIndex];
+        return lastValue !== FULL_PRESENCE_THRESHOLD;
+      });
+
+    if (propertyDatasets.length > INITIAL_ERROR_COUNT) {
+      try {
+        const PROPERTY_OVER_TIME_CHART_HEIGHT = 400;
+        charts.propertyPresenceOverTime = getLineChartConfig(sortedDates, propertyDatasets, {
+          height: PROPERTY_OVER_TIME_CHART_HEIGHT,
+          title: "",
+          yLabel: "Presence %"
+        });
+      } catch (e: unknown) {
+        logger.error(`Failed to generate property presence over time chart: ${String(e)}`);
+      }
+    }
   }
 
   return charts;
@@ -420,6 +527,14 @@ export function buildValidationReport(allStats: EnvStats[]): ReportData {
     sections.push({
       data: charts.propertyPresence,
       title: "Property Presence",
+      type: "chart"
+    });
+  }
+
+  if (charts.propertyPresenceOverTime) {
+    sections.push({
+      data: charts.propertyPresenceOverTime,
+      title: "Property Presence Over Time",
       type: "chart"
     });
   }

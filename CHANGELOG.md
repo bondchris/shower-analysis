@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-26
 
+### [v0.51.0] Property Presence Trends, Resilient Sync Charts, and Cleaning Hardening
+
+- **Property Presence Trends**: Track property availability by date during validation and add a
+  cumulative "Property Presence Over Time" chart that visualizes coverage percentages while filtering
+  out fields already at 100%.
+- **Line Chart Layout & Legends**: Reworked line chart margins and legend layout to support wrapping,
+  multi-row legends so axis labels and ticks remain readable when many datasets are shown.
+- **Sync Report Robustness**: Duplicate video trend charts now include months with zero duplicates,
+  duplicate groups deduplicate artifacts, and mismatch day deltas render cleanly without padding
+  artifacts; file size and date formatting are more defensive.
+- **Data Cleaning Hardening**: `cleanData` skips hidden files and dot directories, cleans up stale
+  checked-scan entries when deleting artifacts, and records failed deletions instead of crashing.
+- **Geometry & Chart Data Quality**: Floor aspect ratio points ignore undefined width/height pairs,
+  and polygon/segment utilities guard against NaN/Infinity inputs to avoid false intersections in
+  downstream checks.
+
 ### [v0.50.0] Video Hashing, Duplicate Reporting, and SSR-Safe Charts
 
 - **Duplicate Video Detection**: Compute BLAKE3 hashes for downloaded videos, cache per-artifact
