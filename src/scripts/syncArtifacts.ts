@@ -5,10 +5,18 @@ import { ENVIRONMENTS } from "../../config/config";
 import { BadScanDatabase } from "../models/badScanRecord";
 import { SyncError, SyncStats } from "../models/syncStats";
 import { extractVideoMetadata } from "../utils/video/metadata";
+import { hashVideoInDirectory } from "../utils/video/hash";
 import { ArtifactResponse, SpatialService } from "../services/spatialService";
 import { buildSyncReport } from "../templates/syncReport";
 import { getBadScans } from "../utils/data/badScans";
 import { SyncFailureDatabase, getSyncFailures, saveSyncFailures } from "../utils/data/syncFailures";
+import {
+  type VideoHashDatabase,
+  addVideoHash,
+  findDuplicateArtifacts,
+  getVideoHashes,
+  saveVideoHashes
+} from "../utils/data/videoHashes";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
 import { generatePdfReport } from "../utils/reportGenerator";
@@ -87,6 +95,8 @@ interface ArtifactResult {
   arDataSize: number;
   rawScanSize: number;
   scanDate?: string;
+  videoHash?: string;
+  duplicateIds?: string[];
   dateMismatch?: {
     scanDate: string;
     videoDate: string;
@@ -99,7 +109,8 @@ interface ArtifactResult {
 async function processArtifact(
   artifact: ArtifactResponse,
   dataDir: string,
-  badScans: BadScanDatabase
+  badScans: BadScanDatabase,
+  videoHashes: VideoHashDatabase
 ): Promise<ArtifactResult> {
   const result: ArtifactResult = {
     arDataSize: 0,
@@ -199,6 +210,23 @@ async function processArtifact(
         result.rawScanSize = rawScanStats.size;
         result.arDataSize = arDataStats.size;
 
+        // Hash video for duplicate detection
+        try {
+          const hash = await hashVideoInDirectory(artifactDir);
+          if (hash !== null) {
+            result.videoHash = hash;
+            const duplicateIds = findDuplicateArtifacts(videoHashes, hash, artifact.id);
+            const NO_DUPLICATES = 0;
+            if (duplicateIds.length > NO_DUPLICATES) {
+              result.duplicateIds = duplicateIds;
+            }
+            // Add this artifact to the hash database
+            addVideoHash(videoHashes, hash, artifact.id);
+          }
+        } catch (e) {
+          logger.warn(`Failed to hash video for artifact ${artifact.id}: ${String(e)}`);
+        }
+
         // Date Mismatch Check
         if (artifact.scanDate !== undefined) {
           const vidMeta = await extractVideoMetadata(artifactDir);
@@ -239,6 +267,8 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
   const stats: SyncStats = {
     arDataSize: 0,
     dateMismatches: [],
+    duplicateCount: 0,
+    duplicates: [],
     env: env.name,
     errors: [],
     failed: 0,
@@ -246,6 +276,7 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
     knownFailures: 0,
     new: 0,
     newArDataSize: 0,
+    newDuplicateCount: 0,
     newFailures: 0,
     newRawScanSize: 0,
     newVideoSize: 0,
@@ -269,6 +300,9 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
 
   const badScans = getBadScans();
   logger.info(`Loaded ${Object.keys(badScans).length.toString()} known bad scans to skip.`);
+
+  const videoHashes = getVideoHashes();
+  logger.info(`Loaded ${Object.keys(videoHashes).length.toString()} video hashes for duplicate detection.`);
 
   const service = new SpatialService(env.domain, env.name);
 
@@ -300,7 +334,7 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
         const pageResults = await Promise.all(
           artifacts.map(async (a) => {
             const r = await limitArtifact(async () => {
-              const pa = await processArtifact(a, dataDir, badScans);
+              const pa = await processArtifact(a, dataDir, badScans, videoHashes);
               return pa;
             });
             return r;
@@ -331,11 +365,39 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
             });
           }
 
+          // Track duplicates
+          const NO_DUPLICATES = 0;
+          const ONE_NEW = 1;
+          if (r.videoHash !== undefined && r.duplicateIds !== undefined && r.duplicateIds.length > NO_DUPLICATES) {
+            const isNewDuplicate = r.new >= ONE_NEW;
+            const duplicateEntry: {
+              artifactId: string;
+              duplicateIds: string[];
+              environment: string;
+              hash: string;
+              isNew: boolean;
+              scanDate?: string;
+            } = {
+              artifactId: a.id,
+              duplicateIds: r.duplicateIds,
+              environment: env.name,
+              hash: r.videoHash,
+              isNew: isNewDuplicate
+            };
+            if (r.scanDate !== undefined) {
+              duplicateEntry.scanDate = r.scanDate;
+            }
+            stats.duplicates.push(duplicateEntry);
+            stats.duplicateCount += r.duplicateIds.length;
+            if (isNewDuplicate) {
+              stats.newDuplicateCount += r.duplicateIds.length;
+            }
+          }
+
           stats.videoSize += r.videoSize;
           stats.arDataSize += r.arDataSize;
           stats.rawScanSize += r.rawScanSize;
 
-          const ONE_NEW = 1;
           if (r.new >= ONE_NEW) {
             stats.newArDataSize += r.arDataSize;
             stats.newRawScanSize += r.rawScanSize;
@@ -391,6 +453,10 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
         stats.newFailures++;
       }
     });
+
+    // Save video hash database
+    saveVideoHashes(videoHashes);
+    logger.info(`Saved ${Object.keys(videoHashes).length.toString()} video hashes.`);
   } catch (e) {
     logger.error(`Failed to sync ${env.name}: ${String(e)}`);
   }

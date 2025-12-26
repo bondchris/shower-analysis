@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2025-12-26
+
+### [v0.50.0] Video Hashing, Duplicate Reporting, and SSR-Safe Charts
+
+- **Duplicate Video Detection**: Compute BLAKE3 hashes for downloaded videos, cache per-artifact
+  `videoHash.json`, and maintain `config/videoHashes.json` so syncs flag duplicates (including newly
+  seen copies) across environments.
+- **Sync Report Enhancements**: Added duplicate video summary tables, trend visualizations, and
+  detailed hash → artifact listings with environment context, plus consistent environment ordering in
+  file size tables.
+- **Report Rendering Reliability**: Added an SSR-safe DOM shim and replaced `@visx/text` with native
+  SVG text to keep chart rendering stable when generating PDFs via Playwright; improved vertical
+  reference line selection in line charts for accurate overlays.
+
 ## 2025-12-25
 
 ### [v0.49.0] Dimension & Aspect Ratio Visualizations, Vanity Detection, and Enhanced Capture Checks

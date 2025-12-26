@@ -24,6 +24,7 @@ export function buildKdeCharts(
     durationInitialMax,
     durationKdeResolution
   );
+
   const durationChartOptions: {
     chartId: string;
     height: number;

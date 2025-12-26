@@ -2,7 +2,6 @@ import * as fs from "fs";
 import * as path from "path";
 import { Group } from "@visx/group";
 import { Pie } from "@visx/shape";
-import { Text } from "@visx/text";
 import opentype from "opentype.js";
 import React from "react";
 
@@ -118,9 +117,9 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
   if (total === zeroValue) {
     return (
       <svg height={paddedHeight} width={width}>
-        <Text fill="#6b7280" fontSize={14} textAnchor="middle" x={centerX} y={centerY}>
+        <text fill="#6b7280" fontSize={14} textAnchor="middle" x={centerX} y={centerY}>
           No data
-        </Text>
+        </text>
       </svg>
     );
   }
@@ -615,7 +614,7 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
                             y2={lineEndY}
                           />
                         )}
-                        <Text
+                        <text
                           dominantBaseline="middle"
                           fill="#374151"
                           fontSize={textFontSize}
@@ -625,7 +624,7 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
                           y={finalLabelInfo.adjustedY}
                         >
                           {finalLabelInfo.percentageText}
-                        </Text>
+                        </text>
                       </g>
                     );
                   });
@@ -670,7 +669,7 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
         return (
           <g key={legendKey}>
             {iconElement}
-            <Text
+            <text
               dominantBaseline="middle"
               fill="#374151"
               fontFamily="Roboto, Arial, sans-serif"
@@ -680,7 +679,7 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
               y={textY}
             >
               {item.label}
-            </Text>
+            </text>
           </g>
         );
       })}

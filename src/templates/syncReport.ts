@@ -178,49 +178,49 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
     // Video
     [
       "Video (Total)",
-      ...allStats.map((s) => formatBytes(s.videoSize)),
+      ...sortedStats.map((s) => formatBytes(s.videoSize)),
       `<span style="font-weight:normal;color:#6b7280">${formatBytes(totalVideoSize)}</span>`
     ],
     [
       "Video (Avg)",
-      ...allStats.map((s) => formatBytes(safeAvg(s.videoSize, s.found))),
+      ...sortedStats.map((s) => formatBytes(safeAvg(s.videoSize, s.found))),
       `<span style="font-weight:normal;color:#6b7280">${formatBytes(safeAvg(totalVideoSize, totalFound))}</span>`
     ],
     [
       "Video (New)",
-      ...allStats.map((s) => formatBytes(s.newVideoSize)),
+      ...sortedStats.map((s) => formatBytes(s.newVideoSize)),
       `<span style="font-weight:normal;color:#6b7280">${formatBytes(totalNewVideoSize)}</span>`
     ],
     // ArData
     [
       "AR Data (Total)",
-      ...allStats.map((s) => formatBytes(s.arDataSize)),
+      ...sortedStats.map((s) => formatBytes(s.arDataSize)),
       `<span style="font-weight:normal;color:#6b7280">${formatBytes(totalArDataSize)}</span>`
     ],
     [
       "AR Data (Avg)",
-      ...allStats.map((s) => formatBytes(safeAvg(s.arDataSize, s.found))),
+      ...sortedStats.map((s) => formatBytes(safeAvg(s.arDataSize, s.found))),
       `<span style="font-weight:normal;color:#6b7280">${formatBytes(safeAvg(totalArDataSize, totalFound))}</span>`
     ],
     [
       "AR Data (New)",
-      ...allStats.map((s) => formatBytes(s.newArDataSize)),
+      ...sortedStats.map((s) => formatBytes(s.newArDataSize)),
       `<span style="font-weight:normal;color:#6b7280">${formatBytes(totalNewArDataSize)}</span>`
     ],
     // RawScan
     [
       "RawScan (Total)",
-      ...allStats.map((s) => formatBytes(s.rawScanSize)),
+      ...sortedStats.map((s) => formatBytes(s.rawScanSize)),
       `<span style="font-weight:normal;color:#6b7280">${formatBytes(totalRawScanSize)}</span>`
     ],
     [
       "RawScan (Avg)",
-      ...allStats.map((s) => formatBytes(safeAvg(s.rawScanSize, s.found))),
+      ...sortedStats.map((s) => formatBytes(safeAvg(s.rawScanSize, s.found))),
       `<span style="font-weight:normal;color:#6b7280">${formatBytes(safeAvg(totalRawScanSize, totalFound))}</span>`
     ],
     [
       "RawScan (New)",
-      ...allStats.map((s) => formatBytes(s.newRawScanSize)),
+      ...sortedStats.map((s) => formatBytes(s.newRawScanSize)),
       `<span style="font-weight:normal;color:#6b7280">${formatBytes(totalNewRawScanSize)}</span>`
     ]
   ];
@@ -412,6 +412,216 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
         data: mismatchChartConfig,
         title: "Date Mismatches Trend",
         type: "react-component"
+      });
+    }
+  }
+
+  // Duplicate Videos Section
+  const ZERO_DUPLICATES = 0;
+  const totalDuplicates = allStats.reduce((sum, s) => sum + s.duplicateCount, ZERO);
+
+  if (totalDuplicates > ZERO_DUPLICATES) {
+    const duplicateHeaders = ["", ...sortedStats.map((s) => s.env), "Total"];
+    const totalNewDuplicatesForTable = allStats.reduce((sum, s) => sum + s.newDuplicateCount, ZERO);
+    const duplicateTableData = [
+      [
+        "Total Duplicates",
+        ...sortedStats.map((s) => s.duplicateCount.toString()),
+        `<span style="font-weight:normal;color:#6b7280">${totalDuplicates.toString()}</span>`
+      ],
+      [
+        "New Duplicates",
+        ...sortedStats.map((s) => s.newDuplicateCount.toString()),
+        `<span style="font-weight:normal;color:#6b7280">${totalNewDuplicatesForTable.toString()}</span>`
+      ]
+    ];
+
+    const duplicateRowClasses: Record<number, string> = {
+      0: "bg-purple-100 font-semibold text-purple-800 print:print-color-adjust-exact",
+      1: "bg-purple-50 text-purple-800 print:print-color-adjust-exact"
+    };
+
+    sections.push({
+      data: duplicateTableData,
+      options: { headers: duplicateHeaders, rowClasses: duplicateRowClasses },
+      title: "Duplicate Videos Summary",
+      type: "table"
+    });
+
+    // Duplicate Videos Trend Chart
+    const duplicateHistory = new Map<string, Record<string, number>>(); // Month -> Env -> Count
+    const allDuplicateMonths = new Set<string>();
+
+    sortedStats.forEach((stats) => {
+      // Add months from video history for full timeline context
+      Object.keys(stats.videoHistory).forEach((month) => allDuplicateMonths.add(month));
+
+      stats.duplicates.forEach((dup) => {
+        if (dup.scanDate !== undefined && dup.scanDate !== "") {
+          const DATE_SUBSTRING_LENGTH = 7;
+          const month = dup.scanDate.substring(ZERO, DATE_SUBSTRING_LENGTH); // YYYY-MM
+          allDuplicateMonths.add(month);
+
+          if (!duplicateHistory.has(month)) {
+            duplicateHistory.set(month, {});
+          }
+          const monthData = duplicateHistory.get(month);
+          if (monthData !== undefined) {
+            monthData[stats.env] = (monthData[stats.env] ?? ZERO) + ONE;
+          }
+        }
+      });
+    });
+
+    const sortedDuplicateMonths = Array.from(allDuplicateMonths).sort();
+    const MIN_DUPLICATE_MONTHS = 0;
+
+    if (sortedDuplicateMonths.length > MIN_DUPLICATE_MONTHS) {
+      const envColors: Record<string, string> = {
+        "Bond Demo": "rgba(127, 24, 127, 1)",
+        "Bond Production": "rgba(0, 100, 0, 1)",
+        "Lowe's Production": "rgba(1, 33, 105, 1)",
+        "Lowe's Staging": "rgba(0, 117, 206, 1)"
+      };
+      const defaultColors = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
+
+      const duplicateDatasets = sortedStats.map((stats, index) => {
+        const data = sortedDuplicateMonths.map((month) => {
+          const count = duplicateHistory.get(month)?.[stats.env] ?? ZERO;
+          return count;
+        });
+
+        const borderColor = envColors[stats.env] ?? defaultColors[index % defaultColors.length] ?? "#000000";
+
+        return {
+          borderColor,
+          data,
+          label: stats.env
+        };
+      });
+
+      const duplicateChartConfig: LineChartConfig = {
+        datasets: duplicateDatasets,
+        height: 350,
+        labels: sortedDuplicateMonths,
+        options: {
+          title: "Duplicate Videos Over Time",
+          yLabel: "Count"
+        },
+        type: "line"
+      };
+
+      const DuplicateChartComponent = (): React.ReactElement =>
+        React.createElement(LineChart, { config: duplicateChartConfig });
+
+      sections.push({
+        component: DuplicateChartComponent,
+        data: duplicateChartConfig,
+        title: "Duplicate Videos Trend",
+        type: "react-component"
+      });
+    }
+
+    // Detailed Duplicates List
+    // Group duplicates by hash (since videos can be duplicated across environments)
+    const duplicatesByHash = new Map<string, { artifactId: string; environment: string }[]>();
+    const artifactToEnvironment = new Map<string, string>();
+
+    // First pass: build a map of artifact ID to environment by looking through all duplicate entries
+    allStats.forEach((stats) => {
+      stats.duplicates.forEach((dup) => {
+        // The artifactId always has a known environment
+        artifactToEnvironment.set(dup.artifactId, dup.environment);
+        // For duplicateIds, try to find their environment by looking for them as artifactIds in other entries
+        dup.duplicateIds.forEach((id) => {
+          if (!artifactToEnvironment.has(id)) {
+            // Try to find this ID as an artifactId in any duplicate entry
+            let foundEnv: string | undefined = undefined;
+            for (const s of allStats) {
+              const found = s.duplicates.find((d) => d.artifactId === id);
+              if (found !== undefined) {
+                foundEnv = found.environment;
+                break;
+              }
+            }
+            // If not found, use the current entry's environment as fallback
+            artifactToEnvironment.set(id, foundEnv ?? dup.environment);
+          }
+        });
+      });
+    });
+
+    // Second pass: group by hash and collect all artifact IDs
+    allStats.forEach((stats) => {
+      stats.duplicates.forEach((dup) => {
+        if (!duplicatesByHash.has(dup.hash)) {
+          duplicatesByHash.set(dup.hash, []);
+        }
+        const hashGroup = duplicatesByHash.get(dup.hash);
+        if (hashGroup !== undefined) {
+          // Add the main artifact if not already present
+          if (!hashGroup.some((a) => a.artifactId === dup.artifactId)) {
+            hashGroup.push({ artifactId: dup.artifactId, environment: dup.environment });
+          }
+          // Add all duplicate IDs if not already present
+          dup.duplicateIds.forEach((id) => {
+            if (!hashGroup.some((a) => a.artifactId === id)) {
+              const env = artifactToEnvironment.get(id) ?? dup.environment;
+              hashGroup.push({ artifactId: id, environment: env });
+            }
+          });
+        }
+      });
+    });
+
+    if (duplicatesByHash.size > ZERO_DUPLICATES) {
+      sections.push({ title: "Duplicate Videos", type: "header" });
+      sections.push({
+        data: "Format: Video Hash → Artifact IDs (sub-bullets with environment in parentheses)",
+        type: "text"
+      });
+
+      // Sort hashes by number of artifacts (descending)
+      const ARRAY_VALUE_INDEX = 1;
+      const sortedHashes = Array.from(duplicatesByHash.entries()).sort(
+        (a, b) => b[ARRAY_VALUE_INDEX].length - a[ARRAY_VALUE_INDEX].length
+      );
+
+      const duplicateLines: string[] = [];
+
+      sortedHashes.forEach(([hash, artifacts]) => {
+        const monoHash = `<span class="font-mono">${hash}</span>`;
+
+        // Sort artifacts by environment, then by ID for consistent ordering
+        const sortedArtifacts = [...artifacts].sort((a, b) => {
+          if (a.environment !== b.environment) {
+            return a.environment.localeCompare(b.environment);
+          }
+          return a.artifactId.localeCompare(b.artifactId);
+        });
+
+        // Build nested HTML list structure
+        const subItems = sortedArtifacts
+          .map((artifact) => {
+            const monoId = `<span class="font-mono">${artifact.artifactId}</span>`;
+            return `<li>${monoId} (${artifact.environment})</li>`;
+          })
+          .join("");
+
+        // Create main list item with nested sub-list
+        // Ensure the ul has proper list styling with bullets and indentation
+        // list-style-type: disc shows bullets, padding-left creates space for them
+        // margin-left indents the list, but we keep it minimal for proper nesting
+        duplicateLines.push(
+          `${monoHash}<ul style="list-style-type: disc; margin-top: 0.25rem; margin-bottom: 0.25rem; margin-left: 0.25rem; padding-left: 1rem;">${subItems}</ul>`
+        );
+      });
+
+      sections.push({
+        data: duplicateLines,
+        level: 4,
+        title: "Duplicates",
+        type: "list"
       });
     }
   }

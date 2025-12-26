@@ -8,7 +8,84 @@ import { ReportData } from "../models/report";
 import { ReportShell } from "../templates/components/ReportShell";
 import { logger } from "./logger";
 
+// Ensure a minimal DOM is available during server-side rendering so that
+// visx text measurement code does not blow up when accessing `document`.
+interface SsrSvgTextElement {
+  textContent: string;
+  style: Record<string, unknown>;
+  setAttribute: (name: string, value: string) => void;
+  getComputedTextLength: () => number;
+}
+
+interface SsrSvgElement {
+  style: Record<string, unknown>;
+  setAttribute: (name: string, value: string) => void;
+  appendChild: (el: SsrSvgTextElement) => void;
+}
+
+interface SsrDocument {
+  body: { appendChild: (el: SsrSvgElement) => void };
+  createElementNS: (ns: string, tag: string) => SsrSvgElement | SsrSvgTextElement;
+  getElementById: (id: string) => SsrSvgTextElement | null;
+}
+
+let ssrDomInitialized = false;
+function ensureSsrDom(): void {
+  if (ssrDomInitialized || typeof document !== "undefined") {
+    ssrDomInitialized = true;
+    return;
+  }
+
+  const measurementId = "__react_svg_text_measurement_id";
+  let measurementEl: SsrSvgTextElement | null = null;
+
+  const createTextElement = (): SsrSvgTextElement => ({
+    getComputedTextLength: () => {
+      const averageCharWidthPx = 6;
+      const emptyLength = 0;
+      if (measurementEl === null) {
+        return emptyLength;
+      }
+      return measurementEl.textContent.length * averageCharWidthPx;
+    },
+    setAttribute: () => undefined,
+    style: {},
+    textContent: ""
+  });
+
+  const doc: SsrDocument = {
+    body: { appendChild: () => undefined },
+    createElementNS: (_ns: string, tag: string) => {
+      if (tag === "text") {
+        measurementEl = createTextElement();
+        return measurementEl;
+      }
+      return {
+        appendChild: (el: SsrSvgTextElement) => {
+          measurementEl = el;
+        },
+        setAttribute: () => undefined,
+        style: {}
+      };
+    },
+    getElementById: (id: string) => (id === measurementId ? measurementEl : null)
+  };
+
+  const globalAny = globalThis as typeof globalThis & {
+    document?: Document;
+    window?: Window & typeof globalThis;
+  };
+  const fakeDocument = doc as unknown as Document;
+  const fakeWindow = { document: doc } as unknown as Window & typeof globalThis;
+  globalAny.document = fakeDocument;
+  globalAny.window = fakeWindow;
+
+  ssrDomInitialized = true;
+}
+
 export async function generatePdfReport(data: ReportData, filename: string): Promise<void> {
+  ensureSsrDom();
+
   const cssPath = path.join(process.cwd(), "src", "templates", "styles", "print.css");
   let css = "";
   try {

@@ -102,23 +102,32 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
   if (options.verticalReferenceLine !== undefined) {
     const refValue = options.verticalReferenceLine.value;
     // Find the closest label to the reference value
-    const numericLabels = labels.map((label) => {
+    const numericLabels = labels.map((label: string) => {
       const num = Number.parseFloat(label);
       return Number.isNaN(num) ? null : num;
     });
-    const validLabels = numericLabels.filter((v): v is number => v !== null);
-    if (validLabels.length > zeroValue) {
-      const closestLabelIndex = validLabels.reduce((closestIdx, val, idx) => {
-        const currentDiff = Math.abs(val - refValue);
-        const closestVal = validLabels[closestIdx];
-        if (closestVal === undefined) {
-          return idx;
-        }
-        const closestDiff = Math.abs(closestVal - refValue);
-        return currentDiff < closestDiff ? idx : closestIdx;
-      }, zeroValue);
-      const closestLabel = String(validLabels[closestLabelIndex]);
-      const xPos = xScale(closestLabel);
+
+    let bestLabelString: string | null = null;
+    let bestDiff = Number.POSITIVE_INFINITY;
+    const startIndex = 0;
+    const incrementStep = 1;
+    for (let i = startIndex; i < labels.length; i += incrementStep) {
+      const numericValue = numericLabels[i];
+      if (numericValue === null || numericValue === undefined) {
+        continue;
+      }
+      const labelValue = labels[i];
+      if (labelValue === undefined) {
+        continue;
+      }
+      const diff = Math.abs(numericValue - refValue);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestLabelString = labelValue;
+      }
+    }
+    if (bestLabelString !== null) {
+      const xPos = xScale(bestLabelString);
       if (typeof xPos === "number") {
         referenceLineX = xPos;
       }

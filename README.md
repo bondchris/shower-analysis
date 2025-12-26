@@ -2,7 +2,7 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
-**Current Version:** v0.49.0
+**Current Version:** v0.50.0
 
 ## Overview
 
@@ -44,10 +44,11 @@ npm run sync
 - Creates `data/artifacts/{environment}/{id}/` directories.
 - Caches API responses to `data/api_cache/` to minimize network requests.
 - Skips existing files and "bad scans" listed in `config/badScans.json`.
+- Hashes videos with BLAKE3, caches results in `videoHash.json`, and updates `config/videoHashes.json` to detect duplicate videos across environments.
 
 **Output**:
 
-- `reports/sync-report.pdf`: Includes Date Mismatch Analysis, Video Size Trends, Inaccessible Artifacts Over Time, and download stats.
+- `reports/sync-report.pdf`: Includes Date Mismatch Analysis, Video Size Trends, Inaccessible Artifacts Over Time, download stats, and duplicate video summary/trend views with per-hash details.
 
 ### 2. Validate Artifacts
 
@@ -142,6 +143,7 @@ npm run inspect
 - **`.env`**: API keys (e.g., `GEMINI_API_KEY`).
 - **`config/badScans.json`**: Artifact IDs known to be bad/invalid. Automatically updated by `clean` and `filter-videos`.
 - **`config/checkedScans.json`**: Cache of Gemini classification results to prevent re-processing.
+- **`config/videoHashes.json`**: Auto-generated mapping of BLAKE3 video hashes to artifact IDs for duplicate detection during sync.
 
 ## Development
 

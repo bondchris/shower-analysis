@@ -1,891 +1,891 @@
 {
   "010c1c21-0f51-4021-906e-052b82b3567b": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "video download failed (403)"
   },
   "01c3ee3e-9c23-458c-98be-1ba7932ad67a": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "0227290a-46b2-44b4-b7cc-9783fe8f44ca": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "060fa132-527c-4eb2-bf87-13e4e2d81adb": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "08af4072-f163-41e5-b915-06b2561b35a7": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
-  "08d97f36-f385-4f6a-93ea-c76ecb01c0bf": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
-  "0aab041f-8e6f-4747-bb60-d10a9d183916": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
-  "0ae5ce1a-c8c1-4633-929f-0eb60e23fad7": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
-  "0b340d26-7600-4f0c-afde-0dc140088130": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
-  "0f03a537-c3e8-4fa5-b875-e6bb1fe25112": {
-    "date": "2025-12-25T03:06:28.821Z",
+  "08d97f36-f385-4f6a-93ea-c76ecb01c0bf": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "video download failed (403)"
+  },
+  "0aab041f-8e6f-4747-bb60-d10a9d183916": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
+  "0ae5ce1a-c8c1-4633-929f-0eb60e23fad7": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "video download failed (403)"
+  },
+  "0b340d26-7600-4f0c-afde-0dc140088130": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
+  "0f03a537-c3e8-4fa5-b875-e6bb1fe25112": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "video download failed (403)"
+  },
   "113d2f69-39a3-4681-bae4-3d9943817783": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "11a0410c-54e4-4f6f-b920-a60b5967e7fa": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "13fd9a76-7fb1-4357-b480-30ba2f994c57": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "1568712f-e407-4352-a23f-df11f45fff71": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "17eee62f-ee72-47f7-bbe2-ca19713f285c": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
-  "1869c009-baca-4e2f-a42c-2b4651a79aca": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
+  "1869c009-baca-4e2f-a42c-2b4651a79aca": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
   "1c174d7f-a278-4822-b4d2-c2bb8a56620c": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "228cd642-0032-45f6-a8a9-028439f7734a": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "232bfcc4-ea41-4da1-93cf-08ac9c1c9a66": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "24267de9-825a-4504-acf1-40db68ec0752": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "24564622-861a-46bb-aa54-6874ed1b612a": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "video download failed (403)"
-  },
-  "24711bf1-3839-41a8-9308-7443ecb22c6c": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
+  "24711bf1-3839-41a8-9308-7443ecb22c6c": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "video download failed (403)"
+  },
   "25037e8f-6ee6-421f-8a1a-f41954def75f": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "25bff7e9-2e53-405a-bb20-707459029c00": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "26e0ab1d-3dc8-47e0-977e-428e243484f5": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "rawScan download failed (403)"
+  },
+  "2e9fa9e8-a7c5-4c49-a468-9f391d5ea54a": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "video download failed (403)"
+  },
+  "3526ea34-bd05-4913-bb2c-55d642081596": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
-  "2e9fa9e8-a7c5-4c49-a468-9f391d5ea54a": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
-  "3526ea34-bd05-4913-bb2c-55d642081596": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
   "361e6b4b-6038-45c2-99bd-b77ea6d51ef6": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "3677560d-2c6a-47de-8506-bf4c5d92bbc4": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "38079f74-19e8-4207-b8eb-8a648dd7de55": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "3814cb3e-562f-474e-8932-4143fe176bc9": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
   "3a69dcdb-4afa-4ed5-a9cc-d55b1be201af": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "video download failed (403)"
   },
   "3a6dd62a-8a33-442a-af1c-1a7fca7bfc93": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "3b2e4dfc-6f78-4c42-8744-c7a6adb0a3c1": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "video download failed (403)"
   },
   "3bbebdc2-c5ae-4978-9a38-921de77529ee": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "3edfc11d-a1c4-4988-aa6c-f78a2bbb28f4": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "3fde9fd8-ff88-48cb-9d21-0feb6b8fe6eb": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "video download failed (403)"
-  },
-  "413463dd-a430-4a1c-bb01-4572370018ff": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "video download failed (403)"
-  },
-  "4156880c-f84b-4342-a6c8-54a3e77fd375": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
-  "42b1c950-a4b7-4e9e-b1f7-6f7b0cd19c5a": {
-    "date": "2025-12-25T03:06:28.821Z",
+  "413463dd-a430-4a1c-bb01-4572370018ff": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
+  "4156880c-f84b-4342-a6c8-54a3e77fd375": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "video download failed (403)"
+  },
+  "42b1c950-a4b7-4e9e-b1f7-6f7b0cd19c5a": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
   "42b657a9-8793-419e-9a7b-47a6c785dd4e": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "43b319e6-9fa5-4b25-b2a7-fa3b36f55610": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "445f36c7-b5f5-4920-b243-b1fed7747fec": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "45335588-db33-46fc-9d61-ca7c9f722448": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "video download failed (403)"
   },
   "4578e5d5-6a2d-40e1-b9ec-a00a47e83363": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "460fe566-8bf3-4886-82af-41d9f598b4fc": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "46ac9158-d707-43b3-921e-503728bcd9cb": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
-  "48d986c6-a12f-4b47-8b41-aed5d190e093": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
-  "4a68c9ec-d0cc-4ad9-b306-8e20013ce0c7": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
-  "4be66cf2-6138-4371-90f6-08c3d361fa01": {
-    "date": "2025-12-25T03:06:28.821Z",
+  "48d986c6-a12f-4b47-8b41-aed5d190e093": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "arData download failed (403)"
+  },
+  "4a68c9ec-d0cc-4ad9-b306-8e20013ce0c7": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "video download failed (403)"
+  },
+  "4be66cf2-6138-4371-90f6-08c3d361fa01": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
   },
   "4c52eea8-f854-43dc-b895-21be6b2f148e": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "video download failed (403)"
   },
   "4d4675cb-6efb-4fd0-be7e-f9eadf41b811": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "4e94e9ea-b106-4110-a673-6450c6bfdd3a": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
-  "4f367cff-89dc-42b1-8fe1-ac8817a95a8f": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
-  "50b77256-f91c-4582-bb79-cbf44b0a3c96": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
-  "5156b6bb-0b60-41b2-802c-c98f2ed9220f": {
-    "date": "2025-12-25T03:06:28.821Z",
+  "4f367cff-89dc-42b1-8fe1-ac8817a95a8f": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "rawScan download failed (403)"
+  },
+  "50b77256-f91c-4582-bb79-cbf44b0a3c96": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
-  "520cedd5-e4ac-4966-9208-de03a3625657": {
-    "date": "2025-12-25T03:06:28.821Z",
+  "5156b6bb-0b60-41b2-802c-c98f2ed9220f": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
-  "52e11d4f-8634-4676-a53b-0d86a8deed01": {
-    "date": "2025-12-25T03:06:28.821Z",
+  "520cedd5-e4ac-4966-9208-de03a3625657": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
+  },
+  "52e11d4f-8634-4676-a53b-0d86a8deed01": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "video download failed (403)"
   },
   "550035cd-3f9c-4856-88ea-8aaf66125524": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "video download failed (403)"
   },
   "56ffeb69-aead-4f14-b526-1862ec4532ef": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
   "5727e449-1e93-4d1a-87c6-2731535ada17": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
-  "5987ee05-bf23-4e1c-b99f-9885e6eca3c3": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
+  "5987ee05-bf23-4e1c-b99f-9885e6eca3c3": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
   "5ac571a8-cce4-43b8-a70e-edbb64ecd002": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "5c70e376-66fc-496e-8a28-0df7cc767a71": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "5f8e6b84-06c9-47fe-94df-9bb1dfc78fd8": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
-  "630024c6-2c63-4857-b359-2e22d0091072": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "video download failed (403)"
-  },
-  "630a52f8-a191-474f-8cf8-92501c7c20bc": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
-  "65b1a6a1-4b84-4f7a-ab21-3b5b362bb702": {
-    "date": "2025-12-25T03:06:28.821Z",
+  "630024c6-2c63-4857-b359-2e22d0091072": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "video download failed (403)"
+    "reason": "arData download failed (403)"
+  },
+  "630a52f8-a191-474f-8cf8-92501c7c20bc": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
+  "65b1a6a1-4b84-4f7a-ab21-3b5b362bb702": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
   },
   "65cd6d29-0f19-4ef4-afe3-7b67927ca1a8": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "666724be-40b2-4f8a-835a-b609cc1ef658": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
-  "677c7e23-2f6a-4091-a036-0bc1e3998c49": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
+  "677c7e23-2f6a-4091-a036-0bc1e3998c49": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "rawScan download failed (403)"
+  },
   "688fa104-3381-44e2-ba62-435e6b37ba65": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "68cbade5-f47f-4b48-bf62-0ad7ac4f7842": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "video download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "6a883dd6-c34e-4569-9c9e-039b7a2da2d4": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "6ac6b446-7285-439d-9965-b028737d9545": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "6b83845f-ddea-45e6-89c6-80edc36340b0": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "743495c2-b454-4744-b170-f8ae4a0fb8c4": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "77def2ed-9748-4393-8257-5e9e2735770c": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "video download failed (403)"
   },
   "7afe6b07-f97b-40fd-ad70-edd905b6f9ab": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "7b4c357c-5d09-46b8-ad84-5ab7b2901362": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "7fc89c18-a564-4944-9f96-899a6c184923": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "video download failed (403)"
   },
   "80c1679b-c10d-4e22-8806-e5f8f3796236": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "8289bffe-aa3a-41da-bd1c-8072be64d320": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "84f51ed5-6b5e-406c-b609-faa0b35e1d5e": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "video download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "85ffe233-50c6-426e-8fc7-43c371ab418f": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "870a3282-5083-47ac-a3de-45809c2daf7b": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "video download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "8a365b21-cc6f-4a40-b834-a0a5cc1a14d7": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
   "8a643f5b-36eb-4c47-8eb3-cba906277a42": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
+  "8b643c6a-4874-4945-8e2e-d3e2ac4bf2d4": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
-  "8b643c6a-4874-4945-8e2e-d3e2ac4bf2d4": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "video download failed (403)"
-  },
   "8b8e4dba-84b7-4115-88f0-0e1a5cc447a1": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
   "8c4d8854-1981-439b-9cd5-fc44657e25c8": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "8de7888b-6f14-47f7-8c70-37b74f44172b": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
-  "92a3cc76-09b6-4987-960a-7aeaccee1479": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
+  "92a3cc76-09b6-4987-960a-7aeaccee1479": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "video download failed (403)"
+  },
   "93727549-b637-4f16-bbe0-9a689651e609": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "9474f880-c231-4a3e-a16f-9436a600c09c": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "video download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "94ef5eb2-5892-4e61-83c2-f8aaf33ef3e6": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "99293d80-e556-4124-ac6e-ab1fa54c39b0": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
-  "996bd41d-885b-4f2f-8e8e-b5cadaae260d": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
-  "9b31dca0-88ed-4c50-844c-7140b9a2c834": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
-  "9e23ba7b-8289-4693-b3bc-c409590e328e": {
-    "date": "2025-12-25T03:06:28.821Z",
+  "996bd41d-885b-4f2f-8e8e-b5cadaae260d": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
+  "9b31dca0-88ed-4c50-844c-7140b9a2c834": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
+  "9e23ba7b-8289-4693-b3bc-c409590e328e": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
   "9e7a7e82-5808-462a-8645-1a75c472d917": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
+  "a0ce487b-af8e-4594-8294-39eebb8cb5a2": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
-  "a0ce487b-af8e-4594-8294-39eebb8cb5a2": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
   "a174998d-08e7-4d55-81d7-f01d242eb5e0": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "a20d51b2-833b-4bf5-9b97-4793f3528142": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "a25e4861-3417-443f-b1df-d2e8c141fdb0": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "a3ba00c1-bcc4-4175-b001-a714db4891c4": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "a4407c09-d822-4793-8d1a-37587659923e": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
   "a4797cd8-2efe-4664-946b-cb1c2f4e0246": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "video download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "a4eff2e4-8a52-4a32-9947-e1702f885397": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "a957450a-034c-4460-9314-95e1599eded6": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
+  "a976f6bf-36ae-4b69-8aba-86411913c6b2": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "video download failed (403)"
+  },
+  "aaaa0f5f-e8bc-4619-bb94-790f193c22c7": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
-  "a976f6bf-36ae-4b69-8aba-86411913c6b2": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
-  "aaaa0f5f-e8bc-4619-bb94-790f193c22c7": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
   "ad32875c-03e2-49f7-aa80-f289da4910c4": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "ae3ebddb-7a83-4c41-8ff3-8f8022f4da17": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "af3582ef-a1f0-4cd4-a7ce-26df0cdb7b38": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
   "b23d8584-eaaa-4941-87c2-0472d9b8624c": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "b270ec0e-8ca9-4a58-9ac5-3e102dc2febe": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "b387b317-be05-414b-867d-cd06a2f5436d": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "b5a989ff-dac9-4464-9572-47e0b3a2a126": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
+  "b6e321e9-5ed9-4f0b-b284-d405b7527bda": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
-  "b6e321e9-5ed9-4f0b-b284-d405b7527bda": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "video download failed (403)"
-  },
   "b83291d2-dc8f-4d8a-a827-e82925167800": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "b965b143-37c5-4368-b29c-0932d6f1f0a6": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "video download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "bb15f637-4499-429b-bb7e-0cddc928abbf": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "be1a1b0b-d235-4fea-a824-c62ae6513dca": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "c0c5e7d8-c3fe-4946-9869-46d640bd50e5": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "video download failed (403)"
   },
   "c2fcce08-a6f1-4ea5-bbc5-a361cb486674": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "c488fca6-5e2b-4002-af98-a996b1bbf5f0": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "c8dcb927-3b8a-4d16-a03a-4d4651f4e05b": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "cb7ac65c-cb28-4941-994a-c547583eac90": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "cbc62f95-a68b-4352-8ae6-d60ed7394450": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "video download failed (403)"
   },
   "ccc732cf-d447-4b73-8bdd-69dd4e22ed52": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "cd9d1dd2-db20-4274-b8cb-c28007347378": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "cf1b5988-e8df-4305-9133-459fbaf07f9c": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "cfde3d61-45f2-4121-b0fe-ff8e563099e7": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "d025650e-2d8d-4e0d-8e40-78c424c9e14f": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
-  "d03d6a85-68ef-48f8-8c14-2d4bb7e81f04": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
-  "d1953d66-bb25-40d8-8c7c-0d18599ec04d": {
-    "date": "2025-12-25T03:06:28.821Z",
+  "d03d6a85-68ef-48f8-8c14-2d4bb7e81f04": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "video download failed (403)"
+  },
+  "d1953d66-bb25-40d8-8c7c-0d18599ec04d": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
   },
   "d346be02-7b7a-4d88-b750-07d91442eeb9": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "d351723a-6a82-4d1a-a185-08c6209687ca": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "video download failed (403)"
   },
   "d58f2520-426c-48e8-9036-44d840fbbd9c": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
-  "d654770e-721c-444e-89f5-9318d89e11c7": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
-  "d662779a-6260-4759-ab85-4b9ef27d6502": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
+  "d654770e-721c-444e-89f5-9318d89e11c7": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
+  "d662779a-6260-4759-ab85-4b9ef27d6502": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "rawScan download failed (403)"
+  },
   "d6656713-9cf2-451b-a47a-08c4ee5d5c97": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "d6f5fe64-3b3a-4c73-9595-b1e0b046835f": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
+  "d76b52c9-cc0f-4de5-811e-b0d43ed824ae": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
-  "d76b52c9-cc0f-4de5-811e-b0d43ed824ae": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
   "d809ade0-50d1-4713-94f0-7c4bd020372b": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "daac58a7-67f8-4006-9888-26655bc64e9a": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "dc49c2d4-204f-4de4-9335-590e44e6c37f": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "dc576e73-50ce-4044-8294-8db1c8208141": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "video download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "dc5f0f74-f215-487d-b614-08bbdb10fc3a": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "e0a7c62a-13a0-4ab3-9399-11c98804aa77": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "video download failed (403)"
+    "reason": "arData download failed (403)"
   },
   "e2085f9b-cdd6-4ebe-af47-1bd9e20c6344": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "e3b0161f-e46d-4282-83fb-58549293eee5": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "video download failed (403)"
+  },
+  "e417ad3c-3cbb-40c5-81fb-35234d61e36d": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
-  "e417ad3c-3cbb-40c5-81fb-35234d61e36d": {
-    "date": "2025-12-25T03:06:28.821Z",
+  "e502e6bb-abf9-4e9d-9da3-f6bff54f668e": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
-  "e502e6bb-abf9-4e9d-9da3-f6bff54f668e": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
   "e513fb15-b4ad-406f-81ef-347080b81cdd": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "video download failed (403)"
   },
   "e5672e0a-f9f7-44f0-8867-7bc7ea0745b2": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "video download failed (403)"
   },
   "e7c2c40c-c866-4e4d-aebd-c0db7e9dc35c": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "e7c6adfc-0128-4a94-9e3d-a8bd77adccc9": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "e87f5b36-241d-4c0e-a4e3-285a677e0f50": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "e91d55e2-5bb7-4052-8398-164f34408c5e": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "eac779df-1f3d-4b97-8ba2-9e356e6cb97f": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "edd01c17-b492-48e7-82b6-81637b8c082f": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
-  "ef5384bd-f3bc-403a-933c-3f5ac2f89471": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
-  },
-  "f07742f6-9b56-4e3e-8455-4a4dcfda00bb": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
+  "ef5384bd-f3bc-403a-933c-3f5ac2f89471": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
+  "f07742f6-9b56-4e3e-8455-4a4dcfda00bb": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "arData download failed (403)"
+  },
   "f2848c10-0348-40b6-9e55-9a07c0141e65": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "f530c098-1f2b-4d78-9c0b-02f5c21bfecc": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "video download failed (403)"
   },
   "f533e912-1f3d-4060-b4a0-d356efd61579": {
-    "date": "2025-12-25T03:06:28.821Z",
-    "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
-  },
-  "f7246469-4384-4bc6-b432-e9a74f581209": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
-  "f78481b5-2029-4bf9-9b29-a20631e136db": {
-    "date": "2025-12-25T03:06:28.821Z",
+  "f7246469-4384-4bc6-b432-e9a74f581209": {
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "video download failed (403)"
+  },
+  "f78481b5-2029-4bf9-9b29-a20631e136db": {
+    "date": "2025-12-26T16:05:41.253Z",
+    "environment": "Bond Demo",
+    "reason": "video download failed (403)"
   },
   "f797080f-b283-43ca-a88d-2a884d699b5d": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "f7a6fe1f-9bda-4410-bbb9-c8eeb7e4e56d": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "f92d80b0-ee26-4359-a602-67a09b4896bc": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   },
   "f9751db2-4910-40fb-a717-0765cef99194": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "video download failed (403)"
   },
   "f9fa209c-0b98-4869-833f-0dd829d9744b": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "arData download failed (403)"
+    "reason": "rawScan download failed (403)"
   },
   "fa6630af-9bbb-40f7-9ef8-cc53c01aed83": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "arData download failed (403)"
   },
   "fd6d31ee-a8c6-4f68-ac33-46d7b5b74541": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
-    "reason": "rawScan download failed (403)"
+    "reason": "video download failed (403)"
   },
   "ff97492f-6a88-43c7-8061-711edd3f4d7d": {
-    "date": "2025-12-25T03:06:28.821Z",
+    "date": "2025-12-26T16:05:41.253Z",
     "environment": "Bond Demo",
     "reason": "rawScan download failed (403)"
   }
