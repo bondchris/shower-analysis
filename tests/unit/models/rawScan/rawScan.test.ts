@@ -88,6 +88,18 @@ describe("RawScan Model", () => {
       const scan = new RawScan(VALID_PAYLOAD);
       expect(scan.referenceOriginTransform).toEqual([]);
     });
+
+    it("should handle missing optional fields (windows, doors, openings)", () => {
+      const minimalPayload: Record<string, unknown> = { ...VALID_PAYLOAD };
+      delete minimalPayload["windows"];
+      delete minimalPayload["doors"];
+      delete minimalPayload["openings"];
+
+      const scan = new RawScan(minimalPayload);
+      expect(scan.windows).toEqual([]);
+      expect(scan.doors).toEqual([]);
+      expect(scan.openings).toEqual([]);
+    });
   });
 
   describe("Top-level Validation", () => {

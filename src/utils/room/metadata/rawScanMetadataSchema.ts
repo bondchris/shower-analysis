@@ -1,0 +1,87 @@
+import { RawScanMetadata } from "../metadata";
+
+/**
+ * Required fields for RawScanMetadata interface.
+ * Used to validate cached metadata files have all expected fields.
+ */
+export const REQUIRED_RAW_SCAN_METADATA_FIELDS: (keyof RawScanMetadata)[] = [
+  "roomAreaSqFt",
+  "wallCount",
+  "hasNonRectWall",
+  "hasCurvedWall",
+  "toiletCount",
+  "tubCount",
+  "sinkCount",
+  "storageCount",
+  "doorCount",
+  "windowCount",
+  "openingCount",
+  "hasWasherDryer",
+  "hasStove",
+  "hasTable",
+  "hasChair",
+  "hasBed",
+  "hasSofa",
+  "hasDishwasher",
+  "hasOven",
+  "hasRefrigerator",
+  "hasStairs",
+  "hasFireplace",
+  "hasTelevision",
+  "hasExternalOpening",
+  "hasSoffit",
+  "hasLowCeiling",
+  "hasToiletGapErrors",
+  "hasTubGapErrors",
+  "hasUnparentedEmbedded",
+  "hasCurvedEmbedded",
+  "hasNonRectangularEmbedded",
+  "hasWallGapErrors",
+  "hasColinearWallErrors",
+  "hasNibWalls",
+  "hasObjectIntersectionErrors",
+  "hasWallObjectIntersectionErrors",
+  "hasWallWallIntersectionErrors",
+  "hasEmbeddedObjectIntersectionErrors",
+  "hasCrookedWallErrors",
+  "hasDoorBlockingError",
+  "hasFloorsWithParentId",
+  "hasNonEmptyCompletedEdges",
+  "sectionLabels",
+  "stories",
+  "hasMultipleStories",
+  "wallHeights",
+  "wallWidths",
+  "wallAreas",
+  "wallWidthHeightPairs",
+  "windowHeights",
+  "windowWidths",
+  "windowAreas",
+  "windowWidthHeightPairs",
+  "doorHeights",
+  "doorWidths",
+  "doorAreas",
+  "doorWidthHeightPairs",
+  "openingHeights",
+  "openingWidths",
+  "openingAreas",
+  "openingWidthHeightPairs",
+  "floorLengths",
+  "floorWidths",
+  "floorWidthHeightPairs",
+  "tubLengths",
+  "vanityLengths",
+  "doorIsOpenCounts",
+  "objectAttributeCounts",
+  "wallsWithWindows",
+  "wallsWithDoors",
+  "wallsWithOpenings",
+  "vanityType"
+];
+
+/**
+ * Validates that a cached metadata object contains all required fields.
+ */
+export function isValidCachedMetadata(cached: Partial<RawScanMetadata>): cached is RawScanMetadata {
+  return REQUIRED_RAW_SCAN_METADATA_FIELDS.every((field) => cached[field] !== undefined);
+}

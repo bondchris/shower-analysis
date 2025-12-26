@@ -5,7 +5,7 @@ import { Point } from "../../../../src/models/point";
 import * as segmentModule from "../../../../src/utils/math/segment";
 import * as transformModule from "../../../../src/utils/math/transform";
 import { dotProduct } from "../../../../src/utils/math/vector";
-import { checkTubGaps } from "../../../../src/utils/room/checkTubGaps";
+import { checkTubGaps } from "../../../../src/utils/room/analysis/checkTubGaps";
 import { createDoor, createExternalWall, createMockScan, createTub } from "./testHelpers";
 
 describe("checkTubGaps", () => {

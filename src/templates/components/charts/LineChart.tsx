@@ -33,16 +33,17 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
   const xLabelDyPx = Math.max(xLabelDyMin, xLabelDyCandidate);
 
   // Margins: extra space at bottom for rotated date labels, x-axis label, and legend
-  const topMargin = 30;
+  const topMargin = 15;
   const rightMargin = 40;
   const bottomMarginDefault = 60;
+  const textOffsetFromLine = 8;
   // Calculate bottom margin: need space for rotated tick labels and x-axis label
   // For rotated labels at -45 degrees, estimate vertical space needed
   const charWidthEstimate = 4.5;
   const rotationSin = 0.707; // sin(45°)
   const tickLabelFontSize = 9;
-  const rotatedLabelPadding = 5;
-  const xAxisLabelPadding = 5;
+  const rotatedLabelPadding = 0;
+  const xAxisLabelPadding = 2;
   // Estimate space needed for rotated tick labels (font size accounts for text height)
   const rotatedLabelWidth = maxTickLength * charWidthEstimate * rotationSin;
   const rotatedLabelHeight = tickLabelFontSize + rotatedLabelPadding;
@@ -95,6 +96,34 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
   const legendYPosition = height - legendBottomOffset - legendHeight;
 
   const curveType = options.smooth === true ? curveMonotoneX : curveLinear;
+
+  // Calculate vertical reference line position if provided
+  let referenceLineX: number | null = null;
+  if (options.verticalReferenceLine !== undefined) {
+    const refValue = options.verticalReferenceLine.value;
+    // Find the closest label to the reference value
+    const numericLabels = labels.map((label) => {
+      const num = Number.parseFloat(label);
+      return Number.isNaN(num) ? null : num;
+    });
+    const validLabels = numericLabels.filter((v): v is number => v !== null);
+    if (validLabels.length > zeroValue) {
+      const closestLabelIndex = validLabels.reduce((closestIdx, val, idx) => {
+        const currentDiff = Math.abs(val - refValue);
+        const closestVal = validLabels[closestIdx];
+        if (closestVal === undefined) {
+          return idx;
+        }
+        const closestDiff = Math.abs(closestVal - refValue);
+        return currentDiff < closestDiff ? idx : closestIdx;
+      }, zeroValue);
+      const closestLabel = String(validLabels[closestLabelIndex]);
+      const xPos = xScale(closestLabel);
+      if (typeof xPos === "number") {
+        referenceLineX = xPos;
+      }
+    }
+  }
 
   return (
     <svg height={height} width={width}>
@@ -179,6 +208,23 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
             </React.Fragment>
           );
         })}
+
+        {referenceLineX !== null && options.verticalReferenceLine !== undefined && (
+          <>
+            <line
+              stroke="#6b7280"
+              strokeDasharray="4 4"
+              strokeWidth={1.5}
+              x1={referenceLineX}
+              x2={referenceLineX}
+              y1={zeroValue}
+              y2={yMax}
+            />
+            <text fill="#374151" fontSize={10} fontWeight="500" x={referenceLineX + textOffsetFromLine} y={12}>
+              {options.verticalReferenceLine.label}
+            </text>
+          </>
+        )}
 
         <AxisBottom
           label={options.xLabel ?? ""}

@@ -35,7 +35,7 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
   const defaultStackColors = ["#10b981", "#f59e0b", "#ef4444"]; // green-500, amber-500, red-500
   const colors = stackColors ?? defaultStackColors;
 
-  const topMargin = 30;
+  const topMargin = 12;
   const bottomMarginMin = 50;
   const bottomMarginRatio = 0.1;
   // Legend constants

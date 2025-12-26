@@ -1,6 +1,8 @@
 import * as fs from "fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildDataAnalysisReport } from "../../../src/templates/dataAnalysisReport";
+import { buildKdeCharts } from "../../../src/templates/dataAnalysisReport/charts/kdeCharts";
+import { computeLayoutConstants } from "../../../src/templates/dataAnalysisReport/layout";
 import { ArtifactAnalysis } from "../../../src/models/artifactAnalysis";
 import { calculateKde } from "../../../src/utils/chart/kde";
 import { getBarChartConfig, getLineChartConfig, getPieChartConfig } from "../../../src/utils/chart/configBuilders";
@@ -27,7 +29,8 @@ vi.mock("../../../src/utils/chart/configBuilders", async () => {
 // Mock fs for confidence counting tests
 vi.mock("fs", () => ({
   existsSync: vi.fn(),
-  readFileSync: vi.fn()
+  readFileSync: vi.fn(),
+  writeFileSync: vi.fn()
 }));
 
 describe("buildDataAnalysisReport", () => {
@@ -63,6 +66,7 @@ describe("buildDataAnalysisReport", () => {
       hasCurvedWall: false,
       hasDishwasher: false,
       hasDoorBlockingError: false,
+      hasDoorFloorContactError: false,
       hasExternalOpening: false,
       hasFireplace: false,
       hasMultipleStories: false,
@@ -178,18 +182,26 @@ describe("buildDataAnalysisReport", () => {
     const report = buildDataAnalysisReport(mockMetadata, 60, 1);
 
     expect(report.title).toBe("Artifact Data Analysis");
-    expect(report.subtitle).toContain("Avg Duration: 60");
+    expect(report.subtitle).toBe("Artifacts: 1");
 
-    // Duration, Frame/Res Row, Page Break, Device, Focal/Aperture Row, Ambient, Temp, ISO, Brightness, Area, Errors, Features, Objects, Sections
-    // 14 (window/door/opening area charts only added when artifactDirs provided)
-    const EXPECTED_SECTION_COUNT = 14;
+    // Video Analysis (H2), Duration, Frame/Res Row, Page Break, AR Data Analysis (H2), Device, Focal/Aperture Row, Ambient, Temp, ISO, Brightness,
+    // Scan Data Analysis (H2), Summary Analysis (H3), Section Types, Capture Errors, Feature Prevalence,
+    // Object Analysis (H3), Object Distribution, Floor Analysis (H3), Floor Area
+    // 20 (window/door/opening area charts only added when artifactDirs provided)
+    const EXPECTED_SECTION_COUNT = 20;
     expect(report.sections).toHaveLength(EXPECTED_SECTION_COUNT);
 
     // Verify specific chart sections exist
     const sectionTitles = report.sections.map((s) => s.title);
+    expect(sectionTitles).toContain("Video Analysis");
+    expect(sectionTitles).toContain("AR Data Analysis");
+    expect(sectionTitles).toContain("Scan Data Analysis");
+    expect(sectionTitles).toContain("Summary Analysis");
+    expect(sectionTitles).toContain("Object Analysis");
+    expect(sectionTitles).toContain("Floor Analysis");
     expect(sectionTitles).toContain("Duration");
     expect(sectionTitles).toContain("Device Model");
-    expect(sectionTitles).toContain("Room Area");
+    expect(sectionTitles).toContain("Floor Area");
     expect(sectionTitles).toContain("Ambient Intensity");
     expect(sectionTitles).toContain("Capture Errors");
     expect(sectionTitles).toContain("Feature Prevalence");
@@ -470,6 +482,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
@@ -711,6 +726,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.includes("dir1") && filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
@@ -943,6 +961,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
 
@@ -1005,6 +1026,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanDataVersion2));
@@ -1102,6 +1126,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
 
@@ -1126,14 +1153,14 @@ describe("buildDataAnalysisReport", () => {
       // Find the errors chart call
       const errorsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
         const labels = call[0] as string[];
-        return labels.includes("Walls < 1.5 sq ft");
+        return labels.includes("Walls (< 1.5 sq ft)");
       });
 
       expect(errorsChartCall).toBeDefined();
       if (errorsChartCall !== undefined) {
         const labels = errorsChartCall[0] as string[];
         const counts = errorsChartCall[1] as number[];
-        const smallWallsIndex = labels.indexOf("Walls < 1.5 sq ft");
+        const smallWallsIndex = labels.indexOf("Walls (< 1.5 sq ft)");
         expect(smallWallsIndex).toBeGreaterThanOrEqual(0);
         // Should count 1 artifact with small walls (dir1)
         expect(counts[smallWallsIndex]).toBe(1);
@@ -1165,6 +1192,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanWithLargeWall));
@@ -1175,14 +1205,14 @@ describe("buildDataAnalysisReport", () => {
       // Find the errors chart call
       const errorsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
         const labels = call[0] as string[];
-        return labels.includes("Walls < 1.5 sq ft");
+        return labels.includes("Walls (< 1.5 sq ft)");
       });
 
       expect(errorsChartCall).toBeDefined();
       if (errorsChartCall !== undefined) {
         const labels = errorsChartCall[0] as string[];
         const counts = errorsChartCall[1] as number[];
-        const smallWallsIndex = labels.indexOf("Walls < 1.5 sq ft");
+        const smallWallsIndex = labels.indexOf("Walls (< 1.5 sq ft)");
         expect(smallWallsIndex).toBeGreaterThanOrEqual(0);
         // Should count 0 when all walls are large
         expect(counts[smallWallsIndex]).toBe(0);
@@ -1195,7 +1225,7 @@ describe("buildDataAnalysisReport", () => {
       // Find the errors chart call
       const errorsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
         const labels = call[0] as string[];
-        return labels.includes("Walls < 1.5 sq ft");
+        return labels.includes("Walls (< 1.5 sq ft)");
       });
 
       expect(errorsChartCall).toBeUndefined();
@@ -1253,6 +1283,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
@@ -1306,6 +1339,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
@@ -1343,6 +1379,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
@@ -1387,6 +1426,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
@@ -1441,6 +1483,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
@@ -1480,6 +1525,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
@@ -1522,6 +1570,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
@@ -1541,6 +1592,9 @@ describe("buildDataAnalysisReport", () => {
 
     it("should handle invalid rawScan JSON files gracefully", () => {
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("invalid json");
@@ -1576,6 +1630,9 @@ describe("buildDataAnalysisReport", () => {
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
         // First directory has rawScan.json, second doesn't
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.includes("/test/dir1") && filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
@@ -1623,6 +1680,9 @@ describe("buildDataAnalysisReport", () => {
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+        if (filePath.endsWith("rawScanMetadata.json")) {
+          return false;
+        }
         return filePath.endsWith("rawScan.json");
       });
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
@@ -1631,7 +1691,8 @@ describe("buildDataAnalysisReport", () => {
       const report = buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
 
       const sectionTitles = report.sections.map((s) => s.title);
-      expect(sectionTitles).toContain("Object Attributes");
+      // Object Attributes header was removed, but charts should still be present
+      expect(sectionTitles).toContain("Object Analysis");
 
       // Verify pie chart configs were created
       const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
@@ -1639,45 +1700,87 @@ describe("buildDataAnalysisReport", () => {
     });
 
     it("should generate door status pie chart when artifact directories provided", () => {
-      const mockRawScanData = {
-        coreModel: "test",
-        doors: [
-          {
-            category: {
-              door: {
-                isOpen: true
-              }
-            }
-          },
-          {
-            category: {
-              door: {
-                isOpen: false
-              }
-            }
-          },
-          {
-            category: {
-              door: {
-                isOpen: false
-              }
-            }
-          }
-        ],
-        floors: [],
-        objects: [],
-        openings: [],
-        sections: [],
-        story: 1,
-        version: 2,
-        walls: [],
-        windows: []
+      // Mock metadata with doorIsOpenCounts
+      const mockCachedMetadata = {
+        doorAreas: [],
+        doorCount: 3,
+        doorHeights: [],
+        doorIsOpenCounts: { Closed: 2, Open: 1 },
+        doorWidthHeightPairs: [],
+        doorWidths: [],
+        floorLengths: [],
+        floorWidthHeightPairs: [],
+        floorWidths: [],
+        hasBed: false,
+        hasChair: false,
+        hasColinearWallErrors: false,
+        hasCrookedWallErrors: false,
+        hasCurvedEmbedded: false,
+        hasCurvedWall: false,
+        hasDishwasher: false,
+        hasDoorBlockingError: false,
+        hasDoorFloorContactError: false,
+        hasEmbeddedObjectIntersectionErrors: false,
+        hasExternalOpening: false,
+        hasFireplace: false,
+        hasFloorsWithParentId: false,
+        hasLowCeiling: false,
+        hasMultipleStories: false,
+        hasNibWalls: false,
+        hasNonEmptyCompletedEdges: false,
+        hasNonRectWall: false,
+        hasNonRectangularEmbedded: false,
+        hasObjectIntersectionErrors: false,
+        hasOven: false,
+        hasRefrigerator: false,
+        hasSofa: false,
+        hasSoffit: false,
+        hasStairs: false,
+        hasStove: false,
+        hasTable: false,
+        hasTelevision: false,
+        hasToiletGapErrors: false,
+        hasTubGapErrors: false,
+        hasUnparentedEmbedded: false,
+        hasWallGapErrors: false,
+        hasWallObjectIntersectionErrors: false,
+        hasWallWallIntersectionErrors: false,
+        hasWasherDryer: false,
+        objectAttributeCounts: {},
+        openingAreas: [],
+        openingCount: 0,
+        openingHeights: [],
+        openingWidthHeightPairs: [],
+        openingWidths: [],
+        roomAreaSqFt: 100,
+        sectionLabels: [],
+        sinkCount: 0,
+        storageCount: 0,
+        stories: [1],
+        toiletCount: 0,
+        tubCount: 0,
+        tubLengths: [],
+        vanityLengths: [],
+        vanityType: null,
+        wallAreas: [],
+        wallCount: 0,
+        wallHeights: [],
+        wallWidthHeightPairs: [],
+        wallWidths: [],
+        wallsWithDoors: 0,
+        wallsWithOpenings: 0,
+        wallsWithWindows: 0,
+        windowAreas: [],
+        windowCount: 0,
+        windowHeights: [],
+        windowWidthHeightPairs: [],
+        windowWidths: []
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
-        return filePath.endsWith("rawScan.json");
+        return filePath.endsWith("rawScanMetadata.json");
       });
-      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockCachedMetadata));
 
       const artifactDirs = ["/test/dir1"];
       buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
@@ -1699,29 +1802,87 @@ describe("buildDataAnalysisReport", () => {
     });
 
     it("should handle circularElliptic with CircularEllipticIcon", () => {
-      const mockRawScanData = {
-        coreModel: "test",
-        doors: [],
-        floors: [],
-        objects: [
-          {
-            attributes: {
-              TableShapeType: "circularElliptic"
-            }
-          }
-        ],
-        openings: [],
-        sections: [],
-        story: 1,
-        version: 2,
-        walls: [],
-        windows: []
+      // Mock cached metadata with TableShapeType attribute
+      const mockCachedMetadata = {
+        doorAreas: [],
+        doorCount: 0,
+        doorHeights: [],
+        doorIsOpenCounts: {},
+        doorWidthHeightPairs: [],
+        doorWidths: [],
+        floorLengths: [],
+        floorWidthHeightPairs: [],
+        floorWidths: [],
+        hasBed: false,
+        hasChair: false,
+        hasColinearWallErrors: false,
+        hasCrookedWallErrors: false,
+        hasCurvedEmbedded: false,
+        hasCurvedWall: false,
+        hasDishwasher: false,
+        hasDoorBlockingError: false,
+        hasDoorFloorContactError: false,
+        hasEmbeddedObjectIntersectionErrors: false,
+        hasExternalOpening: false,
+        hasFireplace: false,
+        hasFloorsWithParentId: false,
+        hasLowCeiling: false,
+        hasMultipleStories: false,
+        hasNibWalls: false,
+        hasNonEmptyCompletedEdges: false,
+        hasNonRectWall: false,
+        hasNonRectangularEmbedded: false,
+        hasObjectIntersectionErrors: false,
+        hasOven: false,
+        hasRefrigerator: false,
+        hasSofa: false,
+        hasSoffit: false,
+        hasStairs: false,
+        hasStove: false,
+        hasTable: true,
+        hasTelevision: false,
+        hasToiletGapErrors: false,
+        hasTubGapErrors: false,
+        hasUnparentedEmbedded: false,
+        hasWallGapErrors: false,
+        hasWallObjectIntersectionErrors: false,
+        hasWallWallIntersectionErrors: false,
+        hasWasherDryer: false,
+        objectAttributeCounts: { TableShapeType: { circularElliptic: 1 } },
+        openingAreas: [],
+        openingCount: 0,
+        openingHeights: [],
+        openingWidthHeightPairs: [],
+        openingWidths: [],
+        roomAreaSqFt: 100,
+        sectionLabels: [],
+        sinkCount: 0,
+        storageCount: 0,
+        stories: [1],
+        toiletCount: 0,
+        tubCount: 0,
+        tubLengths: [],
+        vanityLengths: [],
+        vanityType: null,
+        wallAreas: [],
+        wallCount: 0,
+        wallHeights: [],
+        wallWidthHeightPairs: [],
+        wallWidths: [],
+        wallsWithDoors: 0,
+        wallsWithOpenings: 0,
+        wallsWithWindows: 0,
+        windowAreas: [],
+        windowCount: 0,
+        windowHeights: [],
+        windowWidthHeightPairs: [],
+        windowWidths: []
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
-        return filePath.endsWith("rawScan.json");
+        return filePath.endsWith("rawScanMetadata.json");
       });
-      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockCachedMetadata));
 
       const artifactDirs = ["/test/dir1"];
       buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
@@ -1736,29 +1897,87 @@ describe("buildDataAnalysisReport", () => {
     });
 
     it("should handle unidentified labels with UnidentifiedIcon", () => {
-      const mockRawScanData = {
-        coreModel: "test",
-        doors: [],
-        floors: [],
-        objects: [
-          {
-            attributes: {
-              ChairType: "unidentified"
-            }
-          }
-        ],
-        openings: [],
-        sections: [],
-        story: 1,
-        version: 2,
-        walls: [],
-        windows: []
+      // Mock cached metadata with ChairType attribute
+      const mockCachedMetadata = {
+        doorAreas: [],
+        doorCount: 0,
+        doorHeights: [],
+        doorIsOpenCounts: {},
+        doorWidthHeightPairs: [],
+        doorWidths: [],
+        floorLengths: [],
+        floorWidthHeightPairs: [],
+        floorWidths: [],
+        hasBed: false,
+        hasChair: true,
+        hasColinearWallErrors: false,
+        hasCrookedWallErrors: false,
+        hasCurvedEmbedded: false,
+        hasCurvedWall: false,
+        hasDishwasher: false,
+        hasDoorBlockingError: false,
+        hasDoorFloorContactError: false,
+        hasEmbeddedObjectIntersectionErrors: false,
+        hasExternalOpening: false,
+        hasFireplace: false,
+        hasFloorsWithParentId: false,
+        hasLowCeiling: false,
+        hasMultipleStories: false,
+        hasNibWalls: false,
+        hasNonEmptyCompletedEdges: false,
+        hasNonRectWall: false,
+        hasNonRectangularEmbedded: false,
+        hasObjectIntersectionErrors: false,
+        hasOven: false,
+        hasRefrigerator: false,
+        hasSofa: false,
+        hasSoffit: false,
+        hasStairs: false,
+        hasStove: false,
+        hasTable: false,
+        hasTelevision: false,
+        hasToiletGapErrors: false,
+        hasTubGapErrors: false,
+        hasUnparentedEmbedded: false,
+        hasWallGapErrors: false,
+        hasWallObjectIntersectionErrors: false,
+        hasWallWallIntersectionErrors: false,
+        hasWasherDryer: false,
+        objectAttributeCounts: { ChairType: { unidentified: 1 } },
+        openingAreas: [],
+        openingCount: 0,
+        openingHeights: [],
+        openingWidthHeightPairs: [],
+        openingWidths: [],
+        roomAreaSqFt: 100,
+        sectionLabels: [],
+        sinkCount: 0,
+        storageCount: 0,
+        stories: [1],
+        toiletCount: 0,
+        tubCount: 0,
+        tubLengths: [],
+        vanityLengths: [],
+        vanityType: null,
+        wallAreas: [],
+        wallCount: 0,
+        wallHeights: [],
+        wallWidthHeightPairs: [],
+        wallWidths: [],
+        wallsWithDoors: 0,
+        wallsWithOpenings: 0,
+        wallsWithWindows: 0,
+        windowAreas: [],
+        windowCount: 0,
+        windowHeights: [],
+        windowWidthHeightPairs: [],
+        windowWidths: []
       };
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
-        return filePath.endsWith("rawScan.json");
+        return filePath.endsWith("rawScanMetadata.json");
       });
-      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanData));
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockCachedMetadata));
 
       const artifactDirs = ["/test/dir1"];
       buildDataAnalysisReport(mockMetadata.slice(0, 1), 60, 1, artifactDirs);
@@ -1830,6 +2049,53 @@ describe("buildDataAnalysisReport", () => {
       // Verify temperature chart was created with KDE
       expect(calculateKde).toHaveBeenCalled();
       expect(getLineChartConfig).toHaveBeenCalled();
+    });
+  });
+
+  describe("buildKdeCharts with avgDuration", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("should include verticalReferenceLine when avgDuration is provided", () => {
+      const layout = computeLayoutConstants();
+      const avgDuration = 60;
+
+      buildKdeCharts(mockMetadata, layout, avgDuration);
+
+      // Verify getLineChartConfig was called with verticalReferenceLine
+      const durationChartCall = (getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { chartId?: string; verticalReferenceLine?: { value: number; label: string } };
+        return options.chartId === "duration";
+      });
+
+      expect(durationChartCall).toBeDefined();
+      if (durationChartCall !== undefined) {
+        const options = durationChartCall[2] as { verticalReferenceLine?: { value: number; label: string } };
+        expect(options.verticalReferenceLine).toBeDefined();
+        if (options.verticalReferenceLine !== undefined) {
+          expect(options.verticalReferenceLine.value).toBe(avgDuration);
+          expect(options.verticalReferenceLine.label).toBe("Avg Duration: 60.0s");
+        }
+      }
+    });
+
+    it("should not include verticalReferenceLine when avgDuration is undefined", () => {
+      const layout = computeLayoutConstants();
+
+      buildKdeCharts(mockMetadata, layout, undefined);
+
+      // Verify getLineChartConfig was called without verticalReferenceLine
+      const durationChartCall = (getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
+        const options = call[2] as { chartId?: string; verticalReferenceLine?: { value: number; label: string } };
+        return options.chartId === "duration";
+      });
+
+      expect(durationChartCall).toBeDefined();
+      if (durationChartCall !== undefined) {
+        const options = durationChartCall[2] as { verticalReferenceLine?: { value: number; label: string } };
+        expect(options.verticalReferenceLine).toBeUndefined();
+      }
     });
   });
 });

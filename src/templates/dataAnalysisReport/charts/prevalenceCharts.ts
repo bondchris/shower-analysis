@@ -1,6 +1,20 @@
 import { ArtifactAnalysis } from "../../../models/artifactAnalysis";
 import { getBarChartConfig } from "../../../utils/chart/configBuilders";
 import {
+  DOOR_CLEARANCE_FT,
+  LOW_CEILING_THRESHOLD_FT,
+  MIN_TOILETS,
+  MIN_TUBS,
+  MIN_WALLS,
+  MIN_WALL_AREA_SQ_FT,
+  NARROW_DOOR_WIDTH_FT,
+  NARROW_OPENING_WIDTH_FT,
+  SHORT_DOOR_HEIGHT_FT
+} from "../../../utils/room/constants";
+import {
+  getArtifactsWithNarrowDoors,
+  getArtifactsWithNarrowOpenings,
+  getArtifactsWithShortDoors,
   getArtifactsWithSmallWalls,
   getObjectConfidenceCounts,
   getUnexpectedVersionArtifactDirs
@@ -12,7 +26,10 @@ import { CaptureCharts } from "../types";
 export type ChartDef =
   | { check: (m: ArtifactAnalysis) => boolean; count: number; kind: "predicate"; label: string }
   | { count: number; kind: "unexpectedVersion"; label: string }
-  | { count: number; kind: "smallWalls"; label: string };
+  | { count: number; kind: "smallWalls"; label: string }
+  | { count: number; kind: "narrowDoors"; label: string }
+  | { count: number; kind: "narrowOpenings"; label: string }
+  | { count: number; kind: "shortDoors"; label: string };
 
 export function buildErrorFeatureObjectCharts(
   metadataList: (ArtifactAnalysis | undefined)[],
@@ -23,9 +40,6 @@ export function buildErrorFeatureObjectCharts(
   const INITIAL_COUNT = 0;
   const INCREMENT_STEP = 1;
   const NO_RESULTS = 0;
-  const MIN_TOILETS = 2;
-  const MIN_TUBS = 2;
-  const MIN_WALLS = 4;
 
   // Get set of artifact directories with unexpected versions
   const unexpectedVersionDirs =
@@ -34,25 +48,35 @@ export function buildErrorFeatureObjectCharts(
   // Get set of artifact directories with walls smaller than 1.5 sq ft
   const smallWallDirs = artifactDirs !== undefined ? getArtifactsWithSmallWalls(artifactDirs) : new Set<string>();
 
+  // Get set of artifact directories with narrow doors (< 2.5 ft width)
+  const narrowDoorDirs = artifactDirs !== undefined ? getArtifactsWithNarrowDoors(artifactDirs) : new Set<string>();
+
+  // Get set of artifact directories with narrow openings (< 3 ft width)
+  const narrowOpeningDirs =
+    artifactDirs !== undefined ? getArtifactsWithNarrowOpenings(artifactDirs) : new Set<string>();
+
+  // Get set of artifact directories with short doors (< 6.5 ft height)
+  const shortDoorDirs = artifactDirs !== undefined ? getArtifactsWithShortDoors(artifactDirs) : new Set<string>();
+
   // Capture Errors & Features
   const errorDefs: ChartDef[] = [
     {
       check: (m: ArtifactAnalysis) => m.hasToiletGapErrors,
       count: INITIAL_COUNT,
       kind: "predicate",
-      label: 'Toilet Gap > 1"'
+      label: 'Toilet Gap (> 1")'
     },
     {
       check: (m: ArtifactAnalysis) => m.hasTubGapErrors,
       count: INITIAL_COUNT,
       kind: "predicate",
-      label: 'Tub Gap 1"-6"'
+      label: 'Tub Gap (1"-6")'
     },
     {
       check: (m: ArtifactAnalysis) => m.hasWallGapErrors,
       count: INITIAL_COUNT,
       kind: "predicate",
-      label: 'Wall Gaps 1"-12"'
+      label: 'Wall Gaps (1"-12")'
     },
     {
       check: (m: ArtifactAnalysis) => m.hasColinearWallErrors,
@@ -79,6 +103,12 @@ export function buildErrorFeatureObjectCharts(
       label: "Wall <-> Wall Intersections"
     },
     {
+      check: (m: ArtifactAnalysis) => m.hasEmbeddedObjectIntersectionErrors,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Embedded Object Intersections"
+    },
+    {
       check: (m: ArtifactAnalysis) => m.hasCrookedWallErrors,
       count: INITIAL_COUNT,
       kind: "predicate",
@@ -88,7 +118,13 @@ export function buildErrorFeatureObjectCharts(
       check: (m: ArtifactAnalysis) => m.hasDoorBlockingError,
       count: INITIAL_COUNT,
       kind: "predicate",
-      label: "Door Blocked"
+      label: `Door Blocked (< ${String(DOOR_CLEARANCE_FT)}ft clearance)`
+    },
+    {
+      check: (m: ArtifactAnalysis) => m.hasDoorFloorContactError,
+      count: INITIAL_COUNT,
+      kind: "predicate",
+      label: "Door Not Touching Floor"
     },
     {
       check: (m: ArtifactAnalysis) => m.wallCount < MIN_WALLS,
@@ -125,7 +161,7 @@ export function buildErrorFeatureObjectCharts(
     errorDefs.push({
       count: INITIAL_COUNT,
       kind: "smallWalls",
-      label: "Walls < 1.5 sq ft"
+      label: `Walls (< ${String(MIN_WALL_AREA_SQ_FT)} sq ft)`
     });
   }
 
@@ -178,7 +214,7 @@ export function buildErrorFeatureObjectCharts(
       check: (m: ArtifactAnalysis) => m.hasLowCeiling,
       count: INITIAL_COUNT,
       kind: "predicate",
-      label: "Low Ceiling (< 7.5ft)"
+      label: `Low Ceiling (< ${String(LOW_CEILING_THRESHOLD_FT)}ft)`
     },
     {
       check: (m: ArtifactAnalysis) => m.hasNibWalls,
@@ -261,6 +297,24 @@ export function buildErrorFeatureObjectCharts(
     { check: (m: ArtifactAnalysis) => m.hasTelevision, count: INITIAL_COUNT, kind: "predicate", label: "Television" }
   ];
 
+  if (artifactDirs !== undefined) {
+    featureDefs.push({
+      count: INITIAL_COUNT,
+      kind: "narrowDoors",
+      label: `Narrow Doors (< ${String(NARROW_DOOR_WIDTH_FT)} ft)`
+    });
+    featureDefs.push({
+      count: INITIAL_COUNT,
+      kind: "narrowOpenings",
+      label: `Narrow Openings (< ${String(NARROW_OPENING_WIDTH_FT)} ft)`
+    });
+    featureDefs.push({
+      count: INITIAL_COUNT,
+      kind: "shortDoors",
+      label: `Short Doors (< ${String(SHORT_DOOR_HEIGHT_FT)} ft)`
+    });
+  }
+
   for (let i = 0; i < metadataList.length; i++) {
     const m = metadataList[i];
     if (m === undefined) {
@@ -285,11 +339,39 @@ export function buildErrorFeatureObjectCharts(
             d.count++;
           }
           break;
+        case "narrowDoors":
+        case "narrowOpenings":
+        case "shortDoors":
+          // These are now in featureDefs, not errorDefs
+          break;
       }
     }
     for (const d of featureDefs) {
-      if (d.kind === "predicate" && d.check(m)) {
-        d.count++;
+      switch (d.kind) {
+        case "narrowDoors":
+          if (currentDir !== undefined && narrowDoorDirs.has(currentDir)) {
+            d.count++;
+          }
+          break;
+        case "narrowOpenings":
+          if (currentDir !== undefined && narrowOpeningDirs.has(currentDir)) {
+            d.count++;
+          }
+          break;
+        case "shortDoors":
+          if (currentDir !== undefined && shortDoorDirs.has(currentDir)) {
+            d.count++;
+          }
+          break;
+        case "predicate":
+          if (d.check(m)) {
+            d.count++;
+          }
+          break;
+        case "unexpectedVersion":
+        case "smallWalls":
+          // These are in errorDefs, not featureDefs
+          break;
       }
     }
     for (const d of objectDefs) {

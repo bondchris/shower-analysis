@@ -6,6 +6,8 @@ import { LineChartOptions } from "../../models/chart/lineChartOptions";
 import { MixedChartDataset } from "../../models/chart/mixedChartDataset";
 import { MixedChartOptions } from "../../models/chart/mixedChartOptions";
 import { PieChartOptions } from "../../models/chart/pieChartOptions";
+import { ScatterChartDataset } from "../../models/chart/scatterChartDataset";
+import { ScatterChartOptions } from "../../models/chart/scatterChartOptions";
 import { calculateHistogramBinCenter, calculateHistogramBins } from "./histogram";
 
 export function getLineChartConfig(
@@ -35,6 +37,9 @@ export function getLineChartConfig(
   }
   if (options.smooth !== undefined) {
     configOptions.smooth = options.smooth;
+  }
+  if (options.verticalReferenceLine !== undefined) {
+    configOptions.verticalReferenceLine = options.verticalReferenceLine;
   }
 
   return {
@@ -216,5 +221,37 @@ export function getPieChartConfig(labels: string[], data: number[], options: Pie
     labels,
     options: configOptions,
     type: "pie"
+  };
+}
+
+export function getScatterChartConfig(
+  datasets: ScatterChartDataset[],
+  options: ScatterChartOptions = {}
+): ChartConfiguration {
+  const defaultHeight = 300;
+  const { height = defaultHeight, title, xLabel, yLabel, width } = options;
+
+  const configOptions: ScatterChartOptions = {};
+  if (title !== undefined) {
+    configOptions.title = title;
+  }
+  if (xLabel !== undefined) {
+    configOptions.xLabel = xLabel;
+  }
+  if (yLabel !== undefined) {
+    configOptions.yLabel = yLabel;
+  }
+  if (width !== undefined) {
+    configOptions.width = width;
+  }
+  if (options.chartId !== undefined) {
+    configOptions.chartId = options.chartId;
+  }
+
+  return {
+    datasets,
+    height,
+    options: configOptions,
+    type: "scatter"
   };
 }

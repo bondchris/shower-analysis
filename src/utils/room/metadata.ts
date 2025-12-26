@@ -1,18 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
-import convert from "convert-units";
-import { sumBy } from "lodash";
 
 import { RawScan } from "../../models/rawScan/rawScan";
-import { checkColinearWalls } from "../room/checkColinearWalls";
-import { checkCrookedWalls } from "../room/checkCrookedWalls";
-import { checkDoorBlocking } from "../room/checkDoorBlocking";
-import { checkExternalOpening } from "../room/checkExternalOpening";
-import { checkIntersections } from "../room/checkIntersections";
-import { checkNibWalls } from "../room/checkNibWalls";
-import { checkToiletGaps } from "../room/checkToiletGaps";
-import { checkTubGaps } from "../room/checkTubGaps";
-import { checkWallGaps } from "../room/checkWallGaps";
+import { computeRawScanMetadata } from "./metadata/computeRawScanMetadata";
+import { isValidCachedMetadata } from "./metadata/rawScanMetadataSchema";
 
 export interface RawScanMetadata {
   roomAreaSqFt: number;
@@ -52,13 +43,46 @@ export interface RawScanMetadata {
   hasObjectIntersectionErrors: boolean;
   hasWallObjectIntersectionErrors: boolean;
   hasWallWallIntersectionErrors: boolean;
+  hasEmbeddedObjectIntersectionErrors: boolean;
   hasCrookedWallErrors: boolean;
   hasDoorBlockingError: boolean;
+  hasDoorFloorContactError: boolean;
   hasFloorsWithParentId: boolean;
   hasNonEmptyCompletedEdges: boolean;
   sectionLabels: string[];
   stories: number[];
   hasMultipleStories: boolean;
+  // Dimension and area data (in meters/square meters)
+  wallHeights: number[];
+  wallWidths: number[];
+  wallAreas: number[];
+  wallWidthHeightPairs: { height: number; width: number }[];
+  windowHeights: number[];
+  windowWidths: number[];
+  windowAreas: number[];
+  windowWidthHeightPairs: { height: number; width: number }[];
+  doorHeights: number[];
+  doorWidths: number[];
+  doorAreas: number[];
+  doorWidthHeightPairs: { height: number; width: number }[];
+  openingHeights: number[];
+  openingWidths: number[];
+  openingAreas: number[];
+  openingWidthHeightPairs: { height: number; width: number }[];
+  floorLengths: number[];
+  floorWidths: number[];
+  floorWidthHeightPairs: { height: number; width: number }[];
+  tubLengths: number[];
+  vanityLengths: number[];
+  // Attribute counts
+  doorIsOpenCounts: Record<string, number>;
+  objectAttributeCounts: Record<string, Record<string, number>>;
+  // Wall embedded counts
+  wallsWithWindows: number;
+  wallsWithDoors: number;
+  wallsWithOpenings: number;
+  // Vanity data
+  vanityType: string | null;
 }
 
 /**
@@ -68,26 +92,14 @@ export interface RawScanMetadata {
 export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null {
   const metaCachePath = path.join(dirPath, "rawScanMetadata.json");
   const JSON_INDENT = 2;
-  const SINGLE_STORY_COUNT = 1;
-  const INITIAL_COUNT = 0;
 
   // 1. Check Cache
   if (fs.existsSync(metaCachePath)) {
     try {
       const cached = JSON.parse(fs.readFileSync(metaCachePath, "utf-8")) as Partial<RawScanMetadata>;
 
-      const isValid =
-        cached.stories !== undefined &&
-        cached.doorCount !== undefined &&
-        cached.windowCount !== undefined &&
-        cached.openingCount !== undefined &&
-        cached.hasLowCeiling !== undefined &&
-        cached.hasNonRectangularEmbedded !== undefined &&
-        cached.hasFloorsWithParentId !== undefined &&
-        cached.hasNonEmptyCompletedEdges !== undefined;
-
-      if (isValid) {
-        return cached as RawScanMetadata;
+      if (isValidCachedMetadata(cached)) {
+        return cached;
       }
 
       // Cache invalid, proceed to regeneration
@@ -103,122 +115,7 @@ export function extractRawScanMetadata(dirPath: string): RawScanMetadata | null 
       const rawContent = fs.readFileSync(rawScanPath, "utf-8");
       const rawScan = new RawScan(JSON.parse(rawContent));
 
-      const intersectionResults = checkIntersections(rawScan);
-
-      const MIN_NON_RECT_CORNERS = 4;
-      const RECTANGULAR_CORNER_COUNT = 4;
-      const DEFAULT_STORY_INDEX = 0;
-      const MIN_POLYGON_CORNERS_LENGTH = 0;
-
-      const stories = Array.from(new Set(rawScan.walls.map((w) => w.story ?? DEFAULT_STORY_INDEX))).sort(
-        (a, b) => a - b
-      );
-      const hasNonRectWall = rawScan.walls.some(
-        (w) => w.polygonCorners !== undefined && w.polygonCorners.length > MIN_NON_RECT_CORNERS
-      );
-      const LOW_CEILING_THRESHOLD_FEET = 7.5;
-      const LOW_CEILING_THRESHOLD_METERS = convert(LOW_CEILING_THRESHOLD_FEET).from("ft").to("m");
-      const hasLowCeiling = rawScan.walls.some((w) => {
-        const minHeight = w.getMinimumCeilingHeight();
-        return minHeight !== null && minHeight < LOW_CEILING_THRESHOLD_METERS;
-      });
-      const roomAreaSqMeters = sumBy(rawScan.floors, "area");
-
-      const result: RawScanMetadata = {
-        doorCount: rawScan.doors.length,
-        hasBed: rawScan.objects.some((o) => o.category.bed !== undefined),
-        hasChair: rawScan.objects.some((o) => o.category.chair !== undefined),
-        hasColinearWallErrors: checkColinearWalls(rawScan),
-        hasCrookedWallErrors: checkCrookedWalls(rawScan),
-        hasCurvedEmbedded:
-          rawScan.doors.some((d) => {
-            if (d.parentIdentifier === null) {
-              return false;
-            }
-            const curveValue = d.curve as unknown;
-            return curveValue !== null && curveValue !== undefined;
-          }) ||
-          rawScan.windows.some((w) => {
-            if (w.parentIdentifier === null) {
-              return false;
-            }
-            const curveValue = w.curve as unknown;
-            return curveValue !== null && curveValue !== undefined;
-          }) ||
-          rawScan.openings.some((o) => {
-            if (o.parentIdentifier === null || o.parentIdentifier === undefined) {
-              return false;
-            }
-            const curveValue = o.curve as unknown;
-            return curveValue !== null && curveValue !== undefined;
-          }),
-        hasCurvedWall: rawScan.walls.some((w) => w.curve !== undefined && w.curve !== null),
-        hasDishwasher: rawScan.objects.some((o) => o.category.dishwasher !== undefined),
-        hasDoorBlockingError: checkDoorBlocking(rawScan),
-        hasExternalOpening: checkExternalOpening(rawScan),
-        hasFireplace: rawScan.objects.some((o) => o.category.fireplace !== undefined),
-        hasFloorsWithParentId: rawScan.floors.some((f) => f.parentIdentifier !== null),
-        hasLowCeiling: hasLowCeiling,
-        hasMultipleStories: stories.length > SINGLE_STORY_COUNT,
-        hasNibWalls: checkNibWalls(rawScan),
-        hasNonEmptyCompletedEdges:
-          rawScan.doors.some((d) => d.completedEdges.length > INITIAL_COUNT) ||
-          rawScan.floors.some((f) => f.completedEdges !== undefined && f.completedEdges.length > INITIAL_COUNT) ||
-          rawScan.openings.some((o) => o.completedEdges !== undefined && o.completedEdges.length > INITIAL_COUNT) ||
-          rawScan.walls.some((w) => w.completedEdges !== undefined && w.completedEdges.length > INITIAL_COUNT) ||
-          rawScan.windows.some((w) => w.completedEdges.length > INITIAL_COUNT),
-        hasNonRectWall: hasNonRectWall,
-        hasNonRectangularEmbedded:
-          rawScan.doors.some(
-            (d) =>
-              d.parentIdentifier !== null &&
-              d.polygonCorners.length > MIN_POLYGON_CORNERS_LENGTH &&
-              d.polygonCorners.length !== RECTANGULAR_CORNER_COUNT
-          ) ||
-          rawScan.windows.some(
-            (w) =>
-              w.parentIdentifier !== null &&
-              w.polygonCorners.length > MIN_POLYGON_CORNERS_LENGTH &&
-              w.polygonCorners.length !== RECTANGULAR_CORNER_COUNT
-          ) ||
-          rawScan.openings.some(
-            (o) =>
-              o.parentIdentifier !== null &&
-              o.parentIdentifier !== undefined &&
-              o.polygonCorners !== undefined &&
-              o.polygonCorners.length > MIN_POLYGON_CORNERS_LENGTH &&
-              o.polygonCorners.length !== RECTANGULAR_CORNER_COUNT
-          ),
-        hasObjectIntersectionErrors: intersectionResults.hasObjectIntersectionErrors,
-        hasOven: rawScan.objects.some((o) => o.category.oven !== undefined),
-        hasRefrigerator: rawScan.objects.some((o) => o.category.refrigerator !== undefined),
-        hasSofa: rawScan.objects.some((o) => o.category.sofa !== undefined),
-        hasSoffit: rawScan.walls.some((w) => w.hasSoffit),
-        hasStairs: rawScan.objects.some((o) => o.category.stairs !== undefined),
-        hasStove: rawScan.objects.some((o) => o.category.stove !== undefined),
-        hasTable: rawScan.objects.some((o) => o.category.table !== undefined),
-        hasTelevision: rawScan.objects.some((o) => o.category.television !== undefined),
-        hasToiletGapErrors: checkToiletGaps(rawScan),
-        hasTubGapErrors: checkTubGaps(rawScan),
-        hasUnparentedEmbedded:
-          rawScan.doors.some((d) => d.parentIdentifier === null) ||
-          rawScan.windows.some((w) => w.parentIdentifier === null) ||
-          rawScan.openings.some((o) => o.parentIdentifier === null),
-        hasWallGapErrors: checkWallGaps(rawScan),
-        hasWallObjectIntersectionErrors: intersectionResults.hasWallObjectIntersectionErrors,
-        hasWallWallIntersectionErrors: intersectionResults.hasWallWallIntersectionErrors,
-        hasWasherDryer: rawScan.objects.some((o) => o.category.washerDryer !== undefined),
-        openingCount: rawScan.openings.length,
-        roomAreaSqFt: convert(roomAreaSqMeters).from("m2").to("ft2"),
-        sectionLabels: rawScan.sections.map((s) => s.label),
-        sinkCount: rawScan.objects.filter((o) => o.category.sink !== undefined).length,
-        storageCount: rawScan.objects.filter((o) => o.category.storage !== undefined).length,
-        stories,
-        toiletCount: rawScan.objects.filter((o) => o.category.toilet !== undefined).length,
-        tubCount: rawScan.objects.filter((o) => o.category.bathtub !== undefined).length,
-        wallCount: rawScan.walls.length,
-        windowCount: rawScan.windows.length
-      };
+      const result = computeRawScanMetadata(rawScan);
 
       // Persist to cache
       try {

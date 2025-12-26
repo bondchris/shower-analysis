@@ -3,6 +3,7 @@ import { ReportData } from "../models/report";
 import { buildAreaCharts } from "./dataAnalysisReport/charts/areaCharts";
 import { buildAttributePieCharts } from "./dataAnalysisReport/charts/attributePieCharts";
 import { buildDeviceAndCameraCharts } from "./dataAnalysisReport/charts/deviceAndCameraCharts";
+import { buildDimensionCharts } from "./dataAnalysisReport/charts/dimensionCharts";
 import { buildKdeCharts } from "./dataAnalysisReport/charts/kdeCharts";
 import { buildVanityAttributesCharts } from "./dataAnalysisReport/charts/vanityAttributesCharts";
 import { buildWallEmbeddedPieCharts } from "./dataAnalysisReport/charts/wallEmbeddedPieCharts";
@@ -22,11 +23,12 @@ export function buildDataAnalysisReport(
   const layout = computeLayoutConstants();
   const charts: Partial<CaptureCharts> = {};
 
-  Object.assign(charts, buildKdeCharts(metadataList, layout));
+  Object.assign(charts, buildKdeCharts(metadataList, layout, avgDuration));
   Object.assign(charts, buildDeviceAndCameraCharts(metadataList, layout));
   Object.assign(charts, buildErrorFeatureObjectCharts(metadataList, artifactDirs, layout));
 
   if (artifactDirs !== undefined) {
+    Object.assign(charts, buildDimensionCharts(artifactDirs, layout));
     Object.assign(charts, buildAreaCharts(artifactDirs, layout));
     Object.assign(charts, buildAttributePieCharts(artifactDirs, layout));
     Object.assign(charts, buildWallEmbeddedPieCharts(artifactDirs, layout));

@@ -19,7 +19,7 @@ export const MixedChart: React.FC<MixedChartProps> = ({ config }) => {
 
   // Margins: extra space at bottom (105px) for rotated date labels and legend
   // Right margin increased to 80px to accommodate longer right Y-axis label
-  const topMargin = 30;
+  const topMargin = 15;
   const rightMargin = 80;
   const bottomMargin = 105;
   const leftMargin = 60;

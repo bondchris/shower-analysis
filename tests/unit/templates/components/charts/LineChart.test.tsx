@@ -119,4 +119,113 @@ describe("LineChart", () => {
     expect(container.textContent).toContain("Set A");
     expect(container.textContent).toContain("Set B");
   });
+
+  it("should render vertical reference line when verticalReferenceLine is provided", () => {
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B, DATA_C], label: "Test" }],
+      height: HEIGHT,
+      labels: ["10", "20", "30"],
+      options: {
+        title: "Test Chart",
+        verticalReferenceLine: {
+          label: "Avg: 20",
+          value: 20
+        },
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    // Check if line element is rendered (dashed line)
+    const line = container.querySelector("line[stroke-dasharray]");
+    expect(line).not.toBeNull();
+    // Check if text label is rendered
+    const text = container.querySelector("text");
+    expect(text).not.toBeNull();
+    expect(text?.textContent).toBe("Avg: 20");
+  });
+
+  it("should not render vertical reference line when no valid numeric labels exist", () => {
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B], label: "Test" }],
+      height: HEIGHT,
+      labels: ["A", "B"], // Non-numeric labels
+      options: {
+        title: "Test Chart",
+        verticalReferenceLine: {
+          label: "Avg: 20",
+          value: 20
+        },
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    // Should not render the reference line when labels are not numeric
+    const line = container.querySelector("line[stroke-dasharray]");
+    expect(line).toBeNull();
+  });
+
+  it("should handle vertical reference line when value is between labels", () => {
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B, DATA_C], label: "Test" }],
+      height: HEIGHT,
+      labels: ["10", "20", "30"],
+      options: {
+        title: "Test Chart",
+        verticalReferenceLine: {
+          label: "Avg: 25",
+          value: 25
+        },
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    // Should still render the line (finds closest label)
+    const line = container.querySelector("line[stroke-dasharray]");
+    expect(line).not.toBeNull();
+  });
+
+  it("should handle vertical reference line when all labels are non-numeric", () => {
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B], label: "Test" }],
+      height: HEIGHT,
+      labels: ["A", "B"], // All non-numeric
+      options: {
+        title: "Test Chart",
+        verticalReferenceLine: {
+          label: "Avg: 20",
+          value: 20
+        },
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    // Should not render the line when no valid numeric labels exist
+    const line = container.querySelector("line[stroke-dasharray]");
+    expect(line).toBeNull();
+  });
+
+  it("should handle vertical reference line with mixed numeric and non-numeric labels", () => {
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B, DATA_C], label: "Test" }],
+      height: HEIGHT,
+      labels: ["A", "20", "B"], // Mixed labels
+      options: {
+        title: "Test Chart",
+        verticalReferenceLine: {
+          label: "Avg: 20",
+          value: 20
+        },
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    // Should render the line using the numeric label
+    const line = container.querySelector("line[stroke-dasharray]");
+    expect(line).not.toBeNull();
+  });
 });

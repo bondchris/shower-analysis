@@ -1,6 +1,6 @@
-import fs from "fs";
-import os from "os";
-import path from "path";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ArData, run, sortArData, sortRawScan } from "../../../src/scripts/formatData";
@@ -325,6 +325,56 @@ describe("formatData", () => {
       fs.mkdirSync(fileDir);
       fs.writeFileSync(path.join(fileDir, "meta.json"), "{}");
       fs.writeFileSync(path.join(fileDir, "arData.json"), "{ invalid json");
+
+      const stats = await run(tmpDir);
+
+      expect(stats.processed).toBe(0);
+      expect(stats.found).toBe(1);
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Failed to parse JSON"));
+    });
+
+    it("handles errors during arData.json processing", async () => {
+      const fileDir = path.join(tmpDir, "artifact1");
+      fs.mkdirSync(fileDir);
+      fs.writeFileSync(path.join(fileDir, "meta.json"), "{}");
+      const filePath = path.join(fileDir, "arData.json");
+      fs.writeFileSync(filePath, JSON.stringify({ data: { "1": "a" } }));
+
+      // Mock JSON.stringify to throw only when it's likely the one in the loop
+      const stringifySpy = vi.spyOn(JSON, "stringify").mockImplementation(() => {
+        throw new Error("Stringify failed");
+      });
+
+      const stats = await run(tmpDir);
+
+      expect(stats.processed).toBe(0);
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Failed to process"));
+      stringifySpy.mockRestore();
+    });
+
+    it("handles errors during rawScan.json processing", async () => {
+      const fileDir = path.join(tmpDir, "artifact1");
+      fs.mkdirSync(fileDir);
+      fs.writeFileSync(path.join(fileDir, "meta.json"), "{}");
+      const filePath = path.join(fileDir, "rawScan.json");
+      fs.writeFileSync(filePath, JSON.stringify({ a: 1 }));
+
+      const stringifySpy = vi.spyOn(JSON, "stringify").mockImplementation(() => {
+        throw new Error("Stringify failed");
+      });
+
+      const stats = await run(tmpDir);
+
+      expect(stats.processed).toBe(0);
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Failed to process"));
+      stringifySpy.mockRestore();
+    });
+
+    it("handles invalid JSON in rawScan.json gracefully", async () => {
+      const fileDir = path.join(tmpDir, "artifact1");
+      fs.mkdirSync(fileDir);
+      fs.writeFileSync(path.join(fileDir, "meta.json"), "{}");
+      fs.writeFileSync(path.join(fileDir, "rawScan.json"), "{ invalid json");
 
       const stats = await run(tmpDir);
 

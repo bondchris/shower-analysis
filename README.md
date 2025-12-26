@@ -2,7 +2,7 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
-**Current Version:** v0.48.1
+**Current Version:** v0.49.0
 
 ## Overview
 
@@ -134,7 +134,8 @@ npm run inspect
 - `reports/data-analysis.pdf`: A comprehensive 3-page report including:
   - **Summary**: Duration, Lens Models, Framerate, Resolution.
   - **Lighting & Exposure**: Ambient Intensity, Color Temp, ISO, Brightness histograms.
-  - **Room Analysis**: Room Area distribution and Feature Prevalence (e.g., non-rectangular walls, multiple fixtures).
+  - **Dimensions & Aspect Ratios**: Height/width distributions and aspect ratio scatter plots for walls, windows, doors, openings, and floors.
+  - **Fixtures & Vanity Analysis**: Floor area, tub and vanity length distributions, vanity type and sink count breakdowns, and feature prevalence (e.g., non-rectangular walls, multiple fixtures).
 
 ## Configuration
 
@@ -207,7 +208,7 @@ This executes: validate → sync → clean-data → filter-videos → format-dat
   - `services/`: External integrations (`SpatialService`, `GeminiService`).
   - `templates/`: React-based PDF report templates and chart components.
   - `utils/`: Shared utilities organized by domain:
-    - `chartUtils.ts`: Chart generation utilities.
+    - `chart/`: Chart generation utilities (config builders, KDE, histograms, scatter).
     - `data/`: Data management utilities (`badScans`, `checkedScans`, `syncFailures`).
     - `math/`: Mathematical utilities (`vector`, `polygon`, `segment`, `transform`, `constants`).
     - `room/`: Room validation and analysis functions (wall gaps, intersections, etc.).

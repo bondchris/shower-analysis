@@ -6,4 +6,8 @@ export interface LineChartOptions {
   yLabel?: string;
   smooth?: boolean;
   chartId?: string;
+  verticalReferenceLine?: {
+    value: number;
+    label: string;
+  };
 }

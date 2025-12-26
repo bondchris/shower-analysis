@@ -40,6 +40,7 @@ export class ArtifactAnalysis {
   public hasObjectIntersectionErrors = false;
   public hasWallObjectIntersectionErrors = false;
   public hasWallWallIntersectionErrors = false;
+  public hasEmbeddedObjectIntersectionErrors = false;
   public hasCrookedWallErrors = false;
   public hasWasherDryer = false;
   public hasMultipleStories = false;
@@ -58,6 +59,7 @@ export class ArtifactAnalysis {
   public hasFireplace = false;
   public hasTelevision = false;
   public hasDoorBlockingError = false;
+  public hasDoorFloorContactError = false;
   public hasFloorsWithParentId = false;
   public hasNonEmptyCompletedEdges = false;
   public sectionLabels: string[] = [];

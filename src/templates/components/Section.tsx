@@ -1,7 +1,7 @@
 import React from "react";
 import { ChartConfiguration } from "../../models/chart/chartConfiguration";
 import { ReportSection } from "../../models/report";
-import { BarChart, Histogram, LineChart, MixedChart, PieChart } from "./charts";
+import { BarChart, Histogram, LineChart, MixedChart, PieChart, ScatterChart } from "./charts";
 import { Table } from "./Table";
 
 interface SectionProps {
@@ -22,16 +22,28 @@ export const Section: React.FC<SectionProps> = ({ section }) => {
 
   const headerClasses: Record<number, string> = {
     1: "text-2xl font-bold text-center mb-2 text-gray-900", // Mostly handled by ReportShell but good fallback
-    2: "text-lg font-semibold mt-4 mb-2 border-b border-gray-200 pb-2 text-gray-700 break-after-avoid",
-    3: "text-sm font-semibold mt-3 mb-1 text-gray-600 break-after-avoid",
+    2: "text-xl font-bold mt-6 mb-3 border-b-2 border-gray-300 pb-2 text-gray-800 break-after-avoid",
+    3: "text-base font-semibold mt-4 mb-2 text-gray-700 break-after-avoid",
     4: "text-[13px] font-semibold mt-2 mb-1 text-gray-600 break-after-avoid",
     5: "text-sm font-semibold mb-2 text-gray-700 text-center",
     6: "text-xs font-semibold mb-1 text-gray-500"
   };
 
+  const chartTitleClass = "text-sm font-semibold text-center my-0 text-gray-700";
+
+  const getTitleClassName = () => {
+    if (section.type === "header") {
+      return headerClasses[validLevel];
+    }
+    if (section.type === "chart") {
+      return chartTitleClass;
+    }
+    return headerClasses[validLevel];
+  };
+
   return (
     <div className={wrapperClass}>
-      {showTitle && <HeaderTag className={headerClasses[validLevel]}>{section.title}</HeaderTag>}
+      {showTitle && <HeaderTag className={getTitleClassName()}>{section.title}</HeaderTag>}
       <SectionContent section={section} />
     </div>
   );
@@ -71,13 +83,16 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
 
     case "chart": {
       const chartConfig = section.data as ChartConfiguration;
+      const isScatterChart = chartConfig.type === "scatter";
+      const justifyClass = isScatterChart ? "justify-center" : "justify-start";
       return (
-        <div className="mb-2 flex w-full justify-start break-inside-avoid">
+        <div className={`mb-2 mt-0 flex w-full ${justifyClass} break-inside-avoid [&>svg]:block`}>
           {chartConfig.type === "line" && <LineChart config={chartConfig} />}
           {chartConfig.type === "histogram" && <Histogram config={chartConfig} />}
           {chartConfig.type === "bar" && <BarChart config={chartConfig} />}
           {chartConfig.type === "mixed" && <MixedChart config={chartConfig} />}
           {chartConfig.type === "pie" && <PieChart config={chartConfig} />}
+          {chartConfig.type === "scatter" && <ScatterChart config={chartConfig} />}
         </div>
       );
     }
@@ -87,7 +102,7 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
         return null;
       }
       return (
-        <div className="mb-2 flex justify-between gap-5 break-inside-avoid">
+        <div className="mb-2 flex justify-between gap-5 break-inside-avoid [&_svg]:block">
           {(section.data as { title?: string; data: ChartConfiguration }[]).map((chart, i) => (
             <div key={i} className="flex-1 text-center min-w-0 overflow-visible">
               {chart.title !== undefined && (
@@ -99,6 +114,7 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
                 {chart.data.type === "bar" && <BarChart config={chart.data} />}
                 {chart.data.type === "mixed" && <MixedChart config={chart.data} />}
                 {chart.data.type === "pie" && <PieChart config={chart.data} />}
+                {chart.data.type === "scatter" && <ScatterChart config={chart.data} />}
               </div>
             </div>
           ))}

@@ -1,6 +1,6 @@
 import convert from "convert-units";
 
-import { checkWallGaps } from "../../../../src/utils/room/checkWallGaps";
+import { checkWallGaps } from "../../../../src/utils/room/analysis/checkWallGaps";
 import { createDoor, createExternalWall, createMockScan } from "./testHelpers";
 
 describe("checkWallGaps", () => {

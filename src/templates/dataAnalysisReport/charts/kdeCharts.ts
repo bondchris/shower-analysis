@@ -6,7 +6,8 @@ import { buildDynamicKde } from "../kdeBounds";
 
 export function buildKdeCharts(
   metadataList: ArtifactAnalysis[],
-  layout: LayoutConstants
+  layout: LayoutConstants,
+  avgDuration?: number
 ): Partial<Pick<CaptureCharts, "duration" | "ambient" | "temperature" | "iso" | "brightness" | "area">> {
   const charts: Partial<Pick<CaptureCharts, "duration" | "ambient" | "temperature" | "iso" | "brightness" | "area">> =
     {};
@@ -23,6 +24,33 @@ export function buildKdeCharts(
     durationInitialMax,
     durationKdeResolution
   );
+  const durationChartOptions: {
+    chartId: string;
+    height: number;
+    smooth: boolean;
+    title: string;
+    width: number;
+    xLabel: string;
+    yLabel: string;
+    verticalReferenceLine?: { value: number; label: string };
+  } = {
+    chartId: "duration",
+    height: layout.DURATION_CHART_HEIGHT,
+    smooth: true,
+    title: "",
+    width: layout.DURATION_CHART_WIDTH,
+    xLabel: "Seconds",
+    yLabel: "Count"
+  };
+
+  if (avgDuration !== undefined) {
+    const DECIMAL_PLACES_AVG = 1;
+    durationChartOptions.verticalReferenceLine = {
+      label: `Avg Duration: ${avgDuration.toFixed(DECIMAL_PLACES_AVG)}s`,
+      value: avgDuration
+    };
+  }
+
   charts.duration = getLineChartConfig(
     durationKde.labels,
     [
@@ -34,15 +62,7 @@ export function buildKdeCharts(
         label: "Density"
       }
     ],
-    {
-      chartId: "duration",
-      height: layout.DURATION_CHART_HEIGHT,
-      smooth: true,
-      title: "",
-      width: layout.DURATION_CHART_WIDTH,
-      xLabel: "Seconds",
-      yLabel: "Count"
-    }
+    durationChartOptions
   );
 
   // Lighting & Exposure Data
@@ -81,7 +101,7 @@ export function buildKdeCharts(
       height: layout.HALF_CHART_HEIGHT,
       smooth: true,
       title: "",
-      width: layout.HISTO_CHART_WIDTH,
+      width: layout.FULL_CHART_WIDTH,
       xLabel: "Lux",
       yLabel: "Count"
     }
@@ -111,7 +131,7 @@ export function buildKdeCharts(
       height: layout.HALF_CHART_HEIGHT,
       smooth: true,
       title: "",
-      width: layout.HISTO_CHART_WIDTH,
+      width: layout.FULL_CHART_WIDTH,
       xLabel: "Kelvin",
       yLabel: "Count"
     }
@@ -138,7 +158,7 @@ export function buildKdeCharts(
       height: layout.HALF_CHART_HEIGHT,
       smooth: true,
       title: "",
-      width: layout.HISTO_CHART_WIDTH,
+      width: layout.FULL_CHART_WIDTH,
       xLabel: "ISO",
       yLabel: "Count"
     }
@@ -168,7 +188,7 @@ export function buildKdeCharts(
       height: layout.HALF_CHART_HEIGHT,
       smooth: true,
       title: "",
-      width: layout.HISTO_CHART_WIDTH,
+      width: layout.FULL_CHART_WIDTH,
       xLabel: "EV",
       yLabel: "Count"
     }
@@ -192,10 +212,10 @@ export function buildKdeCharts(
     ],
     {
       chartId: "area",
-      height: layout.DURATION_CHART_HEIGHT,
+      height: layout.HALF_CHART_HEIGHT,
       smooth: true,
       title: "",
-      width: layout.DURATION_CHART_WIDTH,
+      width: layout.FULL_CHART_WIDTH,
       xLabel: "sq ft",
       yLabel: "Count"
     }

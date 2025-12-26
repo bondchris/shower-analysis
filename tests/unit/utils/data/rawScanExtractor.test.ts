@@ -8,6 +8,7 @@ import {
   getArtifactsWithSmallWalls,
   getDoorAreas,
   getDoorIsOpenCounts,
+  getFloorWidthHeightPairs,
   getObjectAttributeCounts,
   getObjectConfidenceCounts,
   getOpeningAreas,
@@ -20,11 +21,18 @@ import {
   getWallEmbeddedCounts,
   getWindowAreas
 } from "../../../../src/utils/data/rawScanExtractor";
+import { RawScanMetadata, extractRawScanMetadata } from "../../../../src/utils/room/metadata";
 
 // Mock fs module
 vi.mock("fs", () => ({
   existsSync: vi.fn(),
-  readFileSync: vi.fn()
+  readFileSync: vi.fn(),
+  writeFileSync: vi.fn()
+}));
+
+// Mock extractRawScanMetadata
+vi.mock("../../../../src/utils/room/metadata", () => ({
+  extractRawScanMetadata: vi.fn()
 }));
 
 // Simplify RawScan to a passthrough container for test fixtures
@@ -33,6 +41,111 @@ vi.mock("../../../../src/models/rawScan/rawScan", () => ({
     Object.assign(this, data as Record<string, unknown>);
   }
 }));
+
+/**
+ * Creates a minimal mock RawScanMetadata with default values.
+ * Override specific fields as needed for each test.
+ */
+function createMockMetadata(overrides: Partial<RawScanMetadata> = {}): RawScanMetadata {
+  const defaults: RawScanMetadata = {
+    doorAreas: [],
+    doorCount: 0,
+    doorHeights: [],
+    doorIsOpenCounts: {},
+    doorWidthHeightPairs: [],
+    doorWidths: [],
+    floorLengths: [],
+    floorWidthHeightPairs: [],
+    floorWidths: [],
+    hasBed: false,
+    hasChair: false,
+    hasColinearWallErrors: false,
+    hasCrookedWallErrors: false,
+    hasCurvedEmbedded: false,
+    hasCurvedWall: false,
+    hasDishwasher: false,
+    hasDoorBlockingError: false,
+    hasDoorFloorContactError: false,
+    hasEmbeddedObjectIntersectionErrors: false,
+    hasExternalOpening: false,
+    hasFireplace: false,
+    hasFloorsWithParentId: false,
+    hasLowCeiling: false,
+    hasMultipleStories: false,
+    hasNibWalls: false,
+    hasNonEmptyCompletedEdges: false,
+    hasNonRectWall: false,
+    hasNonRectangularEmbedded: false,
+    hasObjectIntersectionErrors: false,
+    hasOven: false,
+    hasRefrigerator: false,
+    hasSofa: false,
+    hasSoffit: false,
+    hasStairs: false,
+    hasStove: false,
+    hasTable: false,
+    hasTelevision: false,
+    hasToiletGapErrors: false,
+    hasTubGapErrors: false,
+    hasUnparentedEmbedded: false,
+    hasWallGapErrors: false,
+    hasWallObjectIntersectionErrors: false,
+    hasWallWallIntersectionErrors: false,
+    hasWasherDryer: false,
+    objectAttributeCounts: {},
+    openingAreas: [],
+    openingCount: 0,
+    openingHeights: [],
+    openingWidthHeightPairs: [],
+    openingWidths: [],
+    roomAreaSqFt: 100,
+    sectionLabels: [],
+    sinkCount: 0,
+    storageCount: 0,
+    stories: [1],
+    toiletCount: 0,
+    tubCount: 0,
+    tubLengths: [],
+    vanityLengths: [],
+    vanityType: null,
+    wallAreas: [],
+    wallCount: 0,
+    wallHeights: [],
+    wallWidthHeightPairs: [],
+    wallWidths: [],
+    wallsWithDoors: 0,
+    wallsWithOpenings: 0,
+    wallsWithWindows: 0,
+    windowAreas: [],
+    windowCount: 0,
+    windowHeights: [],
+    windowWidthHeightPairs: [],
+    windowWidths: []
+  };
+  return { ...defaults, ...overrides };
+}
+
+/**
+ * Helper function to set up fs mocks for extractRawScanMetadata.
+ * Ensures cache doesn't exist (forces extraction from rawScan.json) and provides rawScan.json content.
+ */
+function setupFsMocksForMetadata(rawScanContent: unknown): void {
+  (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+    if (filePath.includes("rawScanMetadata.json")) {
+      return false;
+    }
+    return filePath.includes("rawScan.json");
+  });
+  (fs.readFileSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
+    if (filePath.includes("rawScan.json")) {
+      return JSON.stringify(rawScanContent);
+    }
+    return "";
+  });
+  (fs.writeFileSync as ReturnType<typeof vi.fn>).mockImplementation(() => {
+    // no-op
+  });
+}
 
 describe("rawScanExtractor", () => {
   beforeEach(() => {
@@ -56,7 +169,7 @@ describe("rawScanExtractor", () => {
         floors: [],
         objects: [],
         openings: [],
-        sections: [],
+        sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
         story: 1,
         version: 1,
         walls: [],
@@ -69,7 +182,7 @@ describe("rawScanExtractor", () => {
         floors: [],
         objects: [],
         openings: [],
-        sections: [],
+        sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
         story: 1,
         version: 2,
         walls: [],
@@ -127,76 +240,18 @@ describe("rawScanExtractor", () => {
 
     it("should return directories with walls smaller than 1.5 sq ft (from polygonCorners)", () => {
       // Wall with area < 1.5 sq ft: perimeter ~0.341m * height 0.3m = ~0.10 sq m = ~1.08 sq ft
-      const mockRawScanWithSmallWall = {
-        coreModel: "test",
-        doors: [],
-        floors: [],
-        objects: [],
-        openings: [],
-        sections: [],
-        story: 1,
-        version: 2,
-        walls: [
-          {
-            category: { wall: {} },
-            confidence: { high: {} },
-            dimensions: [0.3, 0.3, 0.2], // length, height, width - height is 0.3m
-            identifier: "w1",
-            parentIdentifier: null,
-            polygonCorners: [
-              [0, 0, 0],
-              [0.1, 0, 0],
-              [0, 0.1, 0]
-            ],
-            story: 1,
-            transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-          }
-        ],
-        windows: []
-      };
+      const mockMetadata1 = createMockMetadata({
+        wallAreas: [0.1] // Small wall area in sq m
+      });
 
       // Wall with area >= 1.5 sq ft: perimeter 2m * height 2m = 4 sq m = ~43 sq ft
-      const mockRawScanWithLargeWall = {
-        coreModel: "test",
-        doors: [],
-        floors: [],
-        objects: [],
-        openings: [],
-        sections: [],
-        story: 1,
-        version: 2,
-        walls: [
-          {
-            category: { wall: {} },
-            confidence: { high: {} },
-            dimensions: [2, 2, 0.2],
-            identifier: "w1",
-            parentIdentifier: null,
-            polygonCorners: [
-              [0, 0],
-              [2, 0] // perimeter = 2m
-            ],
-            story: 1,
-            transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-          }
-        ],
-        windows: []
-      };
-
-      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
-        return filePath.endsWith("rawScan.json");
+      const mockMetadata2 = createMockMetadata({
+        wallAreas: [4.0] // Large wall area in sq m
       });
 
-      (fs.readFileSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
-        const normalizedPath = filePath.replace(/\\/g, "/");
-        if (normalizedPath.includes("/dir1/")) {
-          return JSON.stringify(mockRawScanWithSmallWall);
-        }
-        if (normalizedPath.includes("/dir2/")) {
-          return JSON.stringify(mockRawScanWithLargeWall);
-        }
-        return JSON.stringify(mockRawScanWithSmallWall);
-      });
+      (extractRawScanMetadata as ReturnType<typeof vi.fn>)
+        .mockReturnValueOnce(mockMetadata1)
+        .mockReturnValueOnce(mockMetadata2);
 
       const artifactDirs = ["/test/dir1", "/test/dir2"];
       const result = getArtifactsWithSmallWalls(artifactDirs);
@@ -208,34 +263,11 @@ describe("rawScanExtractor", () => {
 
     it("should return directories with walls smaller than 1.5 sq ft (from dimensions)", () => {
       // Wall with area < 1.5 sq ft: length 0.3m * height 0.3m = 0.09 sq m = ~0.97 sq ft
-      const mockRawScanWithSmallWall = {
-        coreModel: "test",
-        doors: [],
-        floors: [],
-        objects: [],
-        openings: [],
-        sections: [],
-        story: 1,
-        version: 2,
-        walls: [
-          {
-            category: { wall: {} },
-            confidence: { high: {} },
-            dimensions: [0.3, 0.3, 0.2], // length, height, width
-            identifier: "w1",
-            parentIdentifier: null,
-            story: 1,
-            transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-          }
-        ],
-        windows: []
-      };
-
-      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
-        return filePath.endsWith("rawScan.json");
+      const mockMetadata = createMockMetadata({
+        wallAreas: [0.09] // Small wall area in sq m
       });
 
-      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanWithSmallWall));
+      (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
       const artifactDirs = ["/test/dir1"];
       const result = getArtifactsWithSmallWalls(artifactDirs);
@@ -246,43 +278,11 @@ describe("rawScanExtractor", () => {
 
     it("should stop checking after finding first small wall in an artifact", () => {
       // Artifact with multiple walls, first one is small
-      const mockRawScanWithMultipleWalls = {
-        coreModel: "test",
-        doors: [],
-        floors: [],
-        objects: [],
-        openings: [],
-        sections: [],
-        story: 1,
-        version: 2,
-        walls: [
-          {
-            category: { wall: {} },
-            confidence: { high: {} },
-            dimensions: [0.3, 0.3, 0.2], // Small wall
-            identifier: "w1",
-            parentIdentifier: null,
-            story: 1,
-            transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-          },
-          {
-            category: { wall: {} },
-            confidence: { high: {} },
-            dimensions: [2, 2, 0.2], // Large wall (should not be checked)
-            identifier: "w2",
-            parentIdentifier: null,
-            story: 1,
-            transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-          }
-        ],
-        windows: []
-      };
-
-      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
-        return filePath.endsWith("rawScan.json");
+      const mockMetadata = createMockMetadata({
+        wallAreas: [0.09, 4.0] // First wall is small, second is large
       });
 
-      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanWithMultipleWalls));
+      (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
       const artifactDirs = ["/test/dir1"];
       const result = getArtifactsWithSmallWalls(artifactDirs);
@@ -292,7 +292,7 @@ describe("rawScanExtractor", () => {
     });
 
     it("should skip directories without rawScan.json", () => {
-      (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+      (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
 
       const artifactDirs = ["/test/dir1"];
       const result = getArtifactsWithSmallWalls(artifactDirs);
@@ -301,8 +301,7 @@ describe("rawScanExtractor", () => {
     });
 
     it("should skip invalid rawScan files", () => {
-      (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
+      (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
 
       const artifactDirs = ["/test/dir1"];
       const result = getArtifactsWithSmallWalls(artifactDirs);
@@ -311,34 +310,11 @@ describe("rawScanExtractor", () => {
     });
 
     it("should skip walls without valid polygonCorners or dimensions", () => {
-      const mockRawScanWithInvalidWalls = {
-        coreModel: "test",
-        doors: [],
-        floors: [],
-        objects: [],
-        openings: [],
-        sections: [],
-        story: 1,
-        version: 2,
-        walls: [
-          {
-            category: { wall: {} },
-            confidence: { high: {} },
-            identifier: "w1",
-            parentIdentifier: null,
-            story: 1,
-            transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-            // No polygonCorners or dimensions
-          }
-        ],
-        windows: []
-      };
-
-      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
-        return filePath.endsWith("rawScan.json");
+      const mockMetadata = createMockMetadata({
+        wallAreas: [] // No valid walls
       });
 
-      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScanWithInvalidWalls));
+      (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
       const artifactDirs = ["/test/dir1"];
       const result = getArtifactsWithSmallWalls(artifactDirs);
@@ -365,15 +341,14 @@ describe("getObjectConfidenceCounts", () => {
         { category: { sofa: {} }, confidence: {} } // should be skipped (no confidence levels)
       ],
       openings: [{ confidence: { low: {} } }, {}], // second opening has no confidence and should be skipped
-      sections: [],
+      sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
       story: 1,
       version: 2,
       walls: [],
       windows: [{ confidence: { medium: {} } }]
     };
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    setupFsMocksForMetadata(mockRawScan);
 
     const counts = getObjectConfidenceCounts(["/test/dir1"]);
 
@@ -406,15 +381,14 @@ describe("getObjectConfidenceCounts", () => {
         { category: { television: {} }, confidence: { medium: {} } }
       ],
       openings: [],
-      sections: [],
+      sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
       story: 1,
       version: 2,
       walls: [],
       windows: []
     };
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    setupFsMocksForMetadata(mockRawScan);
 
     const counts = getObjectConfidenceCounts(["/test/dir1"]);
 
@@ -457,40 +431,14 @@ describe("getWallAreas", () => {
   });
 
   it("should calculate wall areas from polygon corners and dimensions", () => {
-    const triangleWall = {
-      dimensions: [1, 1], // height = 1
-      polygonCorners: [
-        [0, 0, 0],
-        [0.1, 0, 0],
-        [0, 0.1, 0]
-      ],
-      story: 1
-    };
+    const mockMetadata = createMockMetadata({
+      wallAreas: [0.341, 6] // Triangle perimeter ~0.341; area = perimeter * height(1) ≈ 0.341, dimension wall = 2 * 3 = 6
+    });
 
-    const dimensionWall = {
-      dimensions: [2, 3], // length * height = 6
-      story: 1
-    };
-
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [triangleWall, dimensionWall],
-      windows: []
-    };
-
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const areas = getWallAreas(["/test/dir1"]);
 
-    // Triangle perimeter ~0.341; area = perimeter * height(1) ≈ 0.341
     expect(areas.length).toBe(2);
     expect(areas[0]).toBeCloseTo(0.341, 3);
     expect(areas[1]).toBe(6);
@@ -502,38 +450,23 @@ describe("getWallAreas", () => {
   });
 
   it("should skip directories without rawScan.json", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getWallAreas(["/test/dir1"]);
     expect(result).toEqual([]);
   });
 
   it("should skip invalid rawScan files", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getWallAreas(["/test/dir1"]);
     expect(result).toEqual([]);
   });
 
   it("should skip walls with invalid dimensions", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [
-        { dimensions: [0, 0], story: 1 }, // zero dimensions
-        { dimensions: [1], story: 1 }, // only one dimension
-        { dimensions: [], story: 1 } // empty dimensions
-      ],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      wallAreas: []
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const areas = getWallAreas(["/test/dir1"]);
     expect(areas).toEqual([]);
@@ -546,24 +479,86 @@ describe("getWindowAreas", () => {
   });
 
   it("should extract window areas from raw scan files", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: [
-        { dimensions: [1, 2], parentIdentifier: "w1" }, // area = 2
-        { dimensions: [0.5, 0.8], parentIdentifier: "w2" } // area = 0.4
-      ]
+    const mockMetadata: RawScanMetadata = {
+      doorAreas: [],
+      doorCount: 0,
+      doorHeights: [],
+      doorIsOpenCounts: {},
+      doorWidthHeightPairs: [],
+      doorWidths: [],
+      floorLengths: [],
+      floorWidthHeightPairs: [],
+      floorWidths: [],
+      hasBed: false,
+      hasChair: false,
+      hasColinearWallErrors: false,
+      hasCrookedWallErrors: false,
+      hasCurvedEmbedded: false,
+      hasCurvedWall: false,
+      hasDishwasher: false,
+      hasDoorBlockingError: false,
+      hasDoorFloorContactError: false,
+      hasEmbeddedObjectIntersectionErrors: false,
+      hasExternalOpening: false,
+      hasFireplace: false,
+      hasFloorsWithParentId: false,
+      hasLowCeiling: false,
+      hasMultipleStories: false,
+      hasNibWalls: false,
+      hasNonEmptyCompletedEdges: false,
+      hasNonRectWall: false,
+      hasNonRectangularEmbedded: false,
+      hasObjectIntersectionErrors: false,
+      hasOven: false,
+      hasRefrigerator: false,
+      hasSofa: false,
+      hasSoffit: false,
+      hasStairs: false,
+      hasStove: false,
+      hasTable: false,
+      hasTelevision: false,
+      hasToiletGapErrors: false,
+      hasTubGapErrors: false,
+      hasUnparentedEmbedded: false,
+      hasWallGapErrors: false,
+      hasWallObjectIntersectionErrors: false,
+      hasWallWallIntersectionErrors: false,
+      hasWasherDryer: false,
+      objectAttributeCounts: {},
+      openingAreas: [],
+      openingCount: 0,
+      openingHeights: [],
+      openingWidthHeightPairs: [],
+      openingWidths: [],
+      roomAreaSqFt: 100,
+      sectionLabels: [],
+      sinkCount: 0,
+      storageCount: 0,
+      stories: [1],
+      toiletCount: 0,
+      tubCount: 0,
+      tubLengths: [],
+      vanityLengths: [],
+      vanityType: null,
+      wallAreas: [],
+      wallCount: 0,
+      wallHeights: [],
+      wallWidthHeightPairs: [],
+      wallWidths: [],
+      wallsWithDoors: 0,
+      wallsWithOpenings: 0,
+      wallsWithWindows: 0,
+      windowAreas: [2, 0.4],
+      windowCount: 2,
+      windowHeights: [2, 0.8],
+      windowWidthHeightPairs: [
+        { height: 2, width: 1 },
+        { height: 0.8, width: 0.5 }
+      ],
+      windowWidths: [1, 0.5]
     };
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const areas = getWindowAreas(["/test/dir1"]);
     expect(areas.length).toBe(2);
@@ -577,42 +572,26 @@ describe("getWindowAreas", () => {
   });
 
   it("should skip directories without rawScan.json", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const result = getWindowAreas(["/test/dir1"]);
+    expect(result).toEqual([]);
+  });
+
+  it("should skip invalid rawScan files", () => {
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getWindowAreas(["/test/dir1"]);
     expect(result).toEqual([]);
   });
 
   it("should skip windows with invalid dimensions", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: [
-        { dimensions: [0, 1] }, // zero width
-        { dimensions: [1, 0] }, // zero height
-        { dimensions: [1] }, // only one dimension
-        { dimensions: [] } // empty dimensions
-      ]
-    };
+    const mockMetadata = createMockMetadata({
+      windowAreas: []
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const areas = getWindowAreas(["/test/dir1"]);
     expect(areas).toEqual([]);
-  });
-
-  it("should skip invalid rawScan files", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
-    const result = getWindowAreas(["/test/dir1"]);
-    expect(result).toEqual([]);
   });
 });
 
@@ -622,24 +601,11 @@ describe("getDoorAreas", () => {
   });
 
   it("should extract door areas from raw scan files", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [
-        { confidence: { high: {} }, dimensions: [0.8, 2] }, // area = 1.6
-        { confidence: { medium: {} }, dimensions: [1, 2.2] } // area = 2.2
-      ],
-      floors: [],
-      objects: [],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      doorAreas: [1.6, 2.2]
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const areas = getDoorAreas(["/test/dir1"]);
     expect(areas.length).toBe(2);
@@ -653,40 +619,24 @@ describe("getDoorAreas", () => {
   });
 
   it("should skip directories without rawScan.json", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getDoorAreas(["/test/dir1"]);
     expect(result).toEqual([]);
   });
 
   it("should skip doors with invalid dimensions", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [
-        { dimensions: [0, 2] }, // zero width
-        { dimensions: [1, 0] }, // zero height
-        { dimensions: [1] }, // only one dimension
-        { dimensions: [] } // empty dimensions
-      ],
-      floors: [],
-      objects: [],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      doorAreas: []
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const areas = getDoorAreas(["/test/dir1"]);
     expect(areas).toEqual([]);
   });
 
   it("should skip invalid rawScan files", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getDoorAreas(["/test/dir1"]);
     expect(result).toEqual([]);
   });
@@ -698,24 +648,11 @@ describe("getOpeningAreas", () => {
   });
 
   it("should extract opening areas from raw scan files", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [],
-      openings: [
-        { confidence: { high: {} }, dimensions: [1.2, 2.1] }, // area = 2.52
-        { confidence: { low: {} }, dimensions: [0.9, 2.4] } // area = 2.16
-      ],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      openingAreas: [2.52, 2.16]
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const areas = getOpeningAreas(["/test/dir1"]);
     expect(areas.length).toBe(2);
@@ -729,40 +666,24 @@ describe("getOpeningAreas", () => {
   });
 
   it("should skip directories without rawScan.json", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getOpeningAreas(["/test/dir1"]);
     expect(result).toEqual([]);
   });
 
   it("should skip openings with invalid dimensions", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [],
-      openings: [
-        { dimensions: [0, 2] }, // zero width
-        { dimensions: [1, 0] }, // zero height
-        { dimensions: [1] }, // only one dimension
-        { dimensions: [] } // empty dimensions
-      ],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      openingAreas: []
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const areas = getOpeningAreas(["/test/dir1"]);
     expect(areas).toEqual([]);
   });
 
   it("should skip invalid rawScan files", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getOpeningAreas(["/test/dir1"]);
     expect(result).toEqual([]);
   });
@@ -830,25 +751,11 @@ describe("getTubLengths", () => {
   });
 
   it("should extract tub lengths from raw scan files", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        { category: { bathtub: {} }, dimensions: [1.5, 0.5, 0.8] }, // length = 1.5
-        { category: { bathtub: {} }, dimensions: [1.8, 0.6, 0.9] }, // length = 1.8
-        { category: { toilet: {} }, dimensions: [0.7, 0.4, 0.5] } // not a bathtub
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      tubLengths: [1.5, 1.8]
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const lengths = getTubLengths(["/test/dir1"]);
     expect(lengths.length).toBe(2);
@@ -862,38 +769,24 @@ describe("getTubLengths", () => {
   });
 
   it("should skip directories without rawScan.json", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getTubLengths(["/test/dir1"]);
     expect(result).toEqual([]);
   });
 
   it("should skip bathtubs with invalid dimensions", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        { category: { bathtub: {} }, dimensions: [0] }, // zero length
-        { category: { bathtub: {} }, dimensions: [] } // empty dimensions
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      tubLengths: []
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const lengths = getTubLengths(["/test/dir1"]);
     expect(lengths).toEqual([]);
   });
 
   it("should skip invalid rawScan files", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getTubLengths(["/test/dir1"]);
     expect(result).toEqual([]);
   });
@@ -905,26 +798,11 @@ describe("getDoorIsOpenCounts", () => {
   });
 
   it("should count door isOpen values", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [
-        { category: { door: { isOpen: true } }, confidence: { high: {} } },
-        { category: { door: { isOpen: false } }, confidence: { high: {} } },
-        { category: { door: { isOpen: true } }, confidence: { high: {} } },
-        { category: { door: {} }, confidence: { high: {} } } // undefined isOpen
-      ],
-      floors: [],
-      objects: [],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      doorIsOpenCounts: { Closed: 1, Open: 2, Unknown: 1 }
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const counts = getDoorIsOpenCounts(["/test/dir1"]);
     expect(counts["Open"]).toBe(2);
@@ -938,14 +816,13 @@ describe("getDoorIsOpenCounts", () => {
   });
 
   it("should skip directories without rawScan.json", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getDoorIsOpenCounts(["/test/dir1"]);
     expect(result).toEqual({});
   });
 
   it("should skip invalid rawScan files", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getDoorIsOpenCounts(["/test/dir1"]);
     expect(result).toEqual({});
   });
@@ -957,26 +834,14 @@ describe("getObjectAttributeCounts", () => {
   });
 
   it("should count object attributes by type", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        { attributes: { color: "red", style: "modern" }, category: { chair: {} } },
-        { attributes: { color: "blue", style: "classic" }, category: { chair: {} } },
-        { attributes: { style: "modern" }, category: { table: {} } },
-        { attributes: {}, category: { sofa: {} } } // no matching attribute
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      objectAttributeCounts: {
+        color: { blue: 1, red: 1 },
+        style: { classic: 1, modern: 2 }
+      }
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const styleCounts = getObjectAttributeCounts(["/test/dir1"], "style");
     expect(styleCounts["modern"]).toBe(2);
@@ -988,25 +853,13 @@ describe("getObjectAttributeCounts", () => {
   });
 
   it("should skip non-string attribute values", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        { attributes: { numericAttr: 42 }, category: { chair: {} } },
-        { attributes: { boolAttr: true }, category: { chair: {} } },
-        { attributes: { stringAttr: "value" }, category: { chair: {} } }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      objectAttributeCounts: {
+        stringAttr: { value: 1 }
+      }
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const numericCounts = getObjectAttributeCounts(["/test/dir1"], "numericAttr");
     expect(numericCounts).toEqual({});
@@ -1021,14 +874,13 @@ describe("getObjectAttributeCounts", () => {
   });
 
   it("should skip directories without rawScan.json", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getObjectAttributeCounts(["/test/dir1"], "style");
     expect(result).toEqual({});
   });
 
   it("should skip invalid rawScan files", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getObjectAttributeCounts(["/test/dir1"], "style");
     expect(result).toEqual({});
   });
@@ -1040,38 +892,14 @@ describe("getWallEmbeddedCounts", () => {
   });
 
   it("should count walls with windows, doors, and openings", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [
-        { confidence: { high: {} }, parentIdentifier: "wall1" },
-        { confidence: { high: {} }, parentIdentifier: "wall2" },
-        { confidence: { high: {} }, parentIdentifier: null } // null parentIdentifier
-      ],
-      floors: [],
-      objects: [],
-      openings: [
-        { confidence: { high: {} }, parentIdentifier: "wall1" },
-        { confidence: { high: {} }, parentIdentifier: undefined }, // undefined parentIdentifier
-        { confidence: { high: {} }, parentIdentifier: null } // null parentIdentifier
-      ],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [
-        { identifier: "wall1" },
-        { identifier: "wall2" },
-        { identifier: "wall3" },
-        { identifier: "wall4" }
-      ],
-      windows: [
-        { parentIdentifier: "wall1" },
-        { parentIdentifier: "wall3" },
-        { parentIdentifier: null } // null parentIdentifier
-      ]
-    };
+    const mockMetadata = createMockMetadata({
+      wallCount: 4,
+      wallsWithDoors: 2,
+      wallsWithOpenings: 1,
+      wallsWithWindows: 2
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const counts = getWallEmbeddedCounts(["/test/dir1"]);
     expect(counts.totalWalls).toBe(4);
@@ -1091,7 +919,7 @@ describe("getWallEmbeddedCounts", () => {
   });
 
   it("should skip directories without rawScan.json", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getWallEmbeddedCounts(["/test/dir1"]);
     expect(result).toEqual({
       totalWalls: 0,
@@ -1102,8 +930,7 @@ describe("getWallEmbeddedCounts", () => {
   });
 
   it("should skip invalid rawScan files", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getWallEmbeddedCounts(["/test/dir1"]);
     expect(result).toEqual({
       totalWalls: 0,
@@ -1114,37 +941,21 @@ describe("getWallEmbeddedCounts", () => {
   });
 
   it("should count unique walls only once even with multiple doors/windows", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [
-        { confidence: { high: {} }, parentIdentifier: "wall1" },
-        { confidence: { high: {} }, parentIdentifier: "wall1" } // same wall
-      ],
-      floors: [],
-      objects: [],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [{ identifier: "wall1" }],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      wallCount: 1,
+      wallsWithDoors: 1,
+      wallsWithOpenings: 0,
+      wallsWithWindows: 0
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const counts = getWallEmbeddedCounts(["/test/dir1"]);
     expect(counts.totalWalls).toBe(1);
-    expect(counts.wallsWithDoors).toBe(1); // only counted once
+    expect(counts.wallsWithDoors).toBe(1);
   });
 });
 
-// Mock extractRawScanMetadata for getSinkCounts tests
-vi.mock("../../../../src/utils/room/metadata", () => ({
-  extractRawScanMetadata: vi.fn()
-}));
-
-import { extractRawScanMetadata } from "../../../../src/utils/room/metadata";
 
 describe("getSinkCounts", () => {
   beforeEach(() => {
@@ -1182,39 +993,12 @@ describe("getVanityLengths", () => {
     vi.clearAllMocks();
   });
 
-  // Identity transform (no rotation, no translation)
-  const identityTransform = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-
   it("should return length of storage intersecting with sink", () => {
-    // Storage and sink overlapping at origin
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        {
-          category: { storage: {} },
-          dimensions: [1.2, 0.5, 0.6], // length = 1.2
-          story: 1,
-          transform: identityTransform
-        },
-        {
-          category: { sink: {} },
-          dimensions: [0.4, 0.3, 0.4],
-          story: 1,
-          transform: identityTransform
-        }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      vanityLengths: [1.2]
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const lengths = getVanityLengths(["/test/dir1"]);
     expect(lengths.length).toBe(1);
@@ -1222,35 +1006,11 @@ describe("getVanityLengths", () => {
   });
 
   it("should return sink length when no storage intersects sink", () => {
-    // Sink at origin, storage far away (non-intersecting)
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        {
-          category: { storage: {} },
-          dimensions: [1.0, 0.5, 0.6],
-          story: 1,
-          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10, 0, 10, 1] // far away
-        },
-        {
-          category: { sink: {} },
-          dimensions: [0.5, 0.3, 0.4], // length = 0.5
-          story: 1,
-          transform: identityTransform
-        }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      vanityLengths: [0.5]
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const lengths = getVanityLengths(["/test/dir1"]);
     expect(lengths.length).toBe(1);
@@ -1258,40 +1018,11 @@ describe("getVanityLengths", () => {
   });
 
   it("should return largest storage length when no sink exists", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        {
-          category: { storage: {} },
-          dimensions: [0.8, 0.5, 0.6],
-          story: 1,
-          transform: identityTransform
-        },
-        {
-          category: { storage: {} },
-          dimensions: [1.5, 0.5, 0.6], // largest = 1.5
-          story: 1,
-          transform: identityTransform
-        },
-        {
-          category: { storage: {} },
-          dimensions: [1.0, 0.5, 0.6],
-          story: 1,
-          transform: identityTransform
-        }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      vanityLengths: [1.5]
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const lengths = getVanityLengths(["/test/dir1"]);
     expect(lengths.length).toBe(1);
@@ -1299,23 +1030,11 @@ describe("getVanityLengths", () => {
   });
 
   it("should return empty array when no vanity (no sink, no storage)", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        { category: { toilet: {} }, dimensions: [0.7, 0.4, 0.5], story: 1, transform: identityTransform }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      vanityLengths: []
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const lengths = getVanityLengths(["/test/dir1"]);
     expect(lengths).toEqual([]);
@@ -1327,85 +1046,36 @@ describe("getVanityLengths", () => {
   });
 
   it("should skip directories without rawScan.json", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getVanityLengths(["/test/dir1"]);
     expect(result).toEqual([]);
   });
 
   it("should skip invalid rawScan files", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getVanityLengths(["/test/dir1"]);
     expect(result).toEqual([]);
   });
 
   it("should skip objects with invalid dimensions or transforms", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        {
-          category: { storage: {} },
-          dimensions: [0, 0, 0], // all zero dimensions
-          story: 1,
-          transform: identityTransform
-        },
-        {
-          category: { sink: {} },
-          dimensions: [0.5, 0.3, 0.4],
-          story: 1,
-          transform: [1, 0, 0, 0] // invalid transform (not 16 elements)
-        }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      vanityLengths: [0.5]
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
-    // Should still find the sink if it has valid dimensions
     const lengths = getVanityLengths(["/test/dir1"]);
     expect(lengths.length).toBe(1);
     expect(lengths[0]).toBe(0.5);
   });
 
   it("should not intersect storage and sink on different stories", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        {
-          category: { storage: {} },
-          dimensions: [1.2, 0.5, 0.6],
-          story: 1,
-          transform: identityTransform
-        },
-        {
-          category: { sink: {} },
-          dimensions: [0.5, 0.3, 0.4],
-          story: 2, // different story
-          transform: identityTransform
-        }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      vanityLengths: [0.5]
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
-    // Should use sink (first sink found) since storage and sink don't intersect (different stories)
     const lengths = getVanityLengths(["/test/dir1"]);
     expect(lengths.length).toBe(1);
     expect(lengths[0]).toBe(0.5);
@@ -1417,116 +1087,45 @@ describe("getVanityTypes", () => {
     vi.clearAllMocks();
   });
 
-  const identityTransform = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-
   it("should classify as 'normal' when storage and sink intersect", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        {
-          category: { storage: {} },
-          dimensions: [1.2, 0.5, 0.6],
-          story: 1,
-          transform: identityTransform
-        },
-        {
-          category: { sink: {} },
-          dimensions: [0.4, 0.3, 0.4],
-          story: 1,
-          transform: identityTransform
-        }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      vanityType: "normal"
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const counts = getVanityTypes(["/test/dir1"]);
     expect(counts["normal"]).toBe(1);
   });
 
   it("should classify as 'sink only' when sink exists but no storage intersection", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        {
-          category: { sink: {} },
-          dimensions: [0.5, 0.3, 0.4],
-          story: 1,
-          transform: identityTransform
-        }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      vanityType: "sink only"
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const counts = getVanityTypes(["/test/dir1"]);
     expect(counts["sink only"]).toBe(1);
   });
 
   it("should classify as 'storage only' when storage exists but no sink", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        {
-          category: { storage: {} },
-          dimensions: [1.0, 0.5, 0.6],
-          story: 1,
-          transform: identityTransform
-        }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      vanityType: "storage only"
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const counts = getVanityTypes(["/test/dir1"]);
     expect(counts["storage only"]).toBe(1);
   });
 
   it("should classify as 'no vanity' when neither sink nor storage exists", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        { category: { toilet: {} }, dimensions: [0.7, 0.4, 0.5], story: 1, transform: identityTransform }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      vanityType: "no vanity"
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const counts = getVanityTypes(["/test/dir1"]);
     expect(counts["no vanity"]).toBe(1);
@@ -1538,87 +1137,34 @@ describe("getVanityTypes", () => {
   });
 
   it("should skip directories without rawScan.json", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getVanityTypes(["/test/dir1"]);
     expect(result).toEqual({});
   });
 
   it("should skip invalid rawScan files", () => {
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getVanityTypes(["/test/dir1"]);
     expect(result).toEqual({});
   });
 
   it("should classify as 'sink only' when storage and sink are on different stories", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        {
-          category: { storage: {} },
-          dimensions: [1.2, 0.5, 0.6],
-          story: 1,
-          transform: identityTransform
-        },
-        {
-          category: { sink: {} },
-          dimensions: [0.4, 0.3, 0.4],
-          story: 2, // different story
-          transform: identityTransform
-        }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      vanityType: "sink only"
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     const counts = getVanityTypes(["/test/dir1"]);
     expect(counts["sink only"]).toBe(1);
   });
 
   it("should skip objects with invalid dimensions or transforms when building bounding boxes", () => {
-    const mockRawScan = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        {
-          category: { storage: {} },
-          dimensions: [0, 0, 0], // all zero dimensions - skipped for bounding box
-          story: 1,
-          transform: identityTransform
-        },
-        {
-          category: { sink: {} },
-          dimensions: [0.4, 0.3, 0.4],
-          story: 1,
-          transform: [1, 0, 0, 0] // invalid transform (not 16 elements) - skipped for bounding box
-        },
-        {
-          category: { storage: {} },
-          dimensions: [1.2, 0.5], // only 2 dimensions - skipped for bounding box
-          story: 1,
-          transform: identityTransform
-        }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const mockMetadata = createMockMetadata({
+      vanityType: "sink only"
+    });
 
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(mockRawScan));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
 
     // Objects with invalid dimensions/transforms won't have bounding boxes built
     // But we still have a sink in the list, so result should be "sink only"
@@ -1627,43 +1173,117 @@ describe("getVanityTypes", () => {
   });
 
   it("should count multiple artifacts with different vanity types", () => {
-    const normalVanity = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [
-        { category: { storage: {} }, dimensions: [1.2, 0.5, 0.6], story: 1, transform: identityTransform },
-        { category: { sink: {} }, dimensions: [0.4, 0.3, 0.4], story: 1, transform: identityTransform }
-      ],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
+    const normalMetadata = createMockMetadata({ vanityType: "normal" });
+    const sinkOnlyMetadata = createMockMetadata({ vanityType: "sink only" });
 
-    const sinkOnly = {
-      coreModel: "test",
-      doors: [],
-      floors: [],
-      objects: [{ category: { sink: {} }, dimensions: [0.5, 0.3, 0.4], story: 1, transform: identityTransform }],
-      openings: [],
-      sections: [],
-      story: 1,
-      version: 2,
-      walls: [],
-      windows: []
-    };
-
-    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    (fs.readFileSync as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce(JSON.stringify(normalVanity))
-      .mockReturnValueOnce(JSON.stringify(sinkOnly));
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce(normalMetadata)
+      .mockReturnValueOnce(sinkOnlyMetadata);
 
     const counts = getVanityTypes(["/test/dir1", "/test/dir2"]);
     expect(counts["normal"]).toBe(1);
     expect(counts["sink only"]).toBe(1);
+  });
+});
+
+describe("getFloorWidthHeightPairs", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should extract floor width and height pairs from dimensions", () => {
+    const mockMetadata = createMockMetadata({
+      floorWidthHeightPairs: [
+        { height: 5, width: 3 },
+        { height: 4, width: 2.5 }
+      ]
+    });
+
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
+
+    const pairs = getFloorWidthHeightPairs(["/test/dir1"]);
+    expect(pairs.length).toBe(2);
+    expect(pairs[0]).toEqual({ height: 5, width: 3 });
+    expect(pairs[1]).toEqual({ height: 4, width: 2.5 });
+  });
+
+  it("should extract floor width and height pairs from polygon corners", () => {
+    const mockMetadata = createMockMetadata({
+      floorWidthHeightPairs: [{ height: 5, width: 3 }]
+    });
+
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
+
+    const pairs = getFloorWidthHeightPairs(["/test/dir1"]);
+    expect(pairs.length).toBe(1);
+    expect(pairs[0]).toEqual({ height: 5, width: 3 });
+  });
+
+  it("should return empty array when no artifacts provided", () => {
+    const result = getFloorWidthHeightPairs([]);
+    expect(result).toEqual([]);
+  });
+
+  it("should skip directories without rawScan.json", () => {
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const result = getFloorWidthHeightPairs(["/test/dir1"]);
+    expect(result).toEqual([]);
+  });
+
+  it("should skip invalid rawScan files", () => {
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const result = getFloorWidthHeightPairs(["/test/dir1"]);
+    expect(result).toEqual([]);
+  });
+
+  it("should skip floors with invalid dimensions", () => {
+    const mockMetadata = createMockMetadata({
+      floorWidthHeightPairs: []
+    });
+
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
+
+    const pairs = getFloorWidthHeightPairs(["/test/dir1"]);
+    expect(pairs).toEqual([]);
+  });
+
+  it("should skip floors with invalid polygon corners", () => {
+    const mockMetadata = createMockMetadata({
+      floorWidthHeightPairs: []
+    });
+
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
+
+    const pairs = getFloorWidthHeightPairs(["/test/dir1"]);
+    expect(pairs).toEqual([]);
+  });
+
+  it("should only include floors with both valid width and height", () => {
+    const mockMetadata = createMockMetadata({
+      floorWidthHeightPairs: [
+        { height: 5, width: 3 },
+        { height: 4, width: 2 }
+      ]
+    });
+
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
+
+    const pairs = getFloorWidthHeightPairs(["/test/dir1"]);
+    expect(pairs.length).toBe(2);
+    expect(pairs[0]).toEqual({ height: 5, width: 3 });
+    expect(pairs[1]).toEqual({ height: 4, width: 2 });
+  });
+
+  it("should prefer polygon corners over dimensions when both are present", () => {
+    const mockMetadata = createMockMetadata({
+      floorWidthHeightPairs: [{ height: 5, width: 3 }]
+    });
+
+    (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(mockMetadata);
+
+    const pairs = getFloorWidthHeightPairs(["/test/dir1"]);
+    expect(pairs.length).toBe(1);
+    expect(pairs[0]).toEqual({ height: 5, width: 3 });
   });
 });
 

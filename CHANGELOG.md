@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2025-12-25
+
+### [v0.49.0] Dimension & Aspect Ratio Visualizations, Vanity Detection, and Enhanced Capture Checks
+
+- **Dimension Distributions**: Added KDE-based height/width distributions for walls, windows,
+  doors, openings, and floors with dynamic bounds in the data analysis report.
+- **Aspect Ratio Scatter Plots**: Introduced a reusable scatter chart component with opacity
+  weighting for overlapping ratios, powering new aspect ratio visuals for walls, windows, doors,
+  openings, and floors.
+- **Vanity Insights**: Implemented vanity detection (normal, sink-only, storage-only) via
+  sink/storage intersection analysis, plus vanity length distributions and sink count/vanity type
+  charts.
+- **Expanded Capture Validation**: Added door-to-floor contact checks, non-empty completed edges,
+  floors with parent IDs, and narrow/short door and opening thresholds into capture error/feature
+  prevalence charts.
+- **Metadata Refactor & Coverage**: Centralized raw scan metadata extraction (dimensions,
+  attributes, embedded counts, vanity data) into reusable modules and expanded tests for the new
+  charts and validations.
+
 ## 2025-12-22
 
 ### [v0.48.1] Data Analysis Report Refactoring, Pie Chart Enhancements, and Validation Improvements

@@ -97,8 +97,8 @@ describe("chartUtils", () => {
         expect(config.type).toBe("line");
         if (config.type === "line") {
           expect(config.datasets).toHaveLength(1);
+          expect(config.labels).toEqual(["A"]);
         }
-        expect(config.labels).toEqual(["A"]);
         expect(config.height).toBe(300);
       });
     });

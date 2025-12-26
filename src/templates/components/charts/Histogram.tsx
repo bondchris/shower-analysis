@@ -17,7 +17,7 @@ export const Histogram: React.FC<HistogramProps> = ({ config }) => {
   const defaultWidth = 650;
   const width = options.width ?? defaultWidth;
 
-  const topMargin = 30;
+  const topMargin = 0;
   const rightMarginMin = 50;
   const rightMarginRatio = 0.1;
   const bottomMarginMin = 80;

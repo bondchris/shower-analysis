@@ -3,6 +3,9 @@ import { buildErrorFeatureObjectCharts } from "../../../../../src/templates/data
 import { ArtifactAnalysis } from "../../../../../src/models/artifactAnalysis";
 import { getBarChartConfig } from "../../../../../src/utils/chart/configBuilders";
 import {
+  getArtifactsWithNarrowDoors,
+  getArtifactsWithNarrowOpenings,
+  getArtifactsWithShortDoors,
   getArtifactsWithSmallWalls,
   getObjectConfidenceCounts,
   getUnexpectedVersionArtifactDirs
@@ -13,7 +16,24 @@ vi.mock("../../../../../src/utils/chart/configBuilders", () => ({
   getBarChartConfig: vi.fn().mockReturnValue({ type: "bar" })
 }));
 
+vi.mock("../../../../../src/utils/room/constants", () => ({
+  DOOR_CLEARANCE_FT: 2,
+  DOOR_CLEARANCE_METERS: 0.6,
+  LOW_CEILING_THRESHOLD_FT: 7.5,
+  MIN_TOILETS: 2,
+  MIN_TUBS: 2,
+  MIN_WALLS: 4,
+  MIN_WALL_AREA_SQ_FT: 1.5,
+  NARROW_DOOR_WIDTH_FT: 2.5,
+  NARROW_OPENING_WIDTH_FT: 3,
+  SHORT_DOOR_HEIGHT_FT: 6.5,
+  TOUCHING_THRESHOLD_METERS: 0.0254
+}));
+
 vi.mock("../../../../../src/utils/data/rawScanExtractor", () => ({
+  getArtifactsWithNarrowDoors: vi.fn(),
+  getArtifactsWithNarrowOpenings: vi.fn(),
+  getArtifactsWithShortDoors: vi.fn(),
   getArtifactsWithSmallWalls: vi.fn(),
   getObjectConfidenceCounts: vi.fn(),
   getUnexpectedVersionArtifactDirs: vi.fn()
@@ -54,6 +74,9 @@ describe("buildErrorFeatureObjectCharts", () => {
 
     (getUnexpectedVersionArtifactDirs as ReturnType<typeof vi.fn>).mockReturnValue(new Set<string>());
     (getArtifactsWithSmallWalls as ReturnType<typeof vi.fn>).mockReturnValue(new Set<string>());
+    (getArtifactsWithNarrowDoors as ReturnType<typeof vi.fn>).mockReturnValue(new Set<string>());
+    (getArtifactsWithNarrowOpenings as ReturnType<typeof vi.fn>).mockReturnValue(new Set<string>());
+    (getArtifactsWithShortDoors as ReturnType<typeof vi.fn>).mockReturnValue(new Set<string>());
     (getObjectConfidenceCounts as ReturnType<typeof vi.fn>).mockReturnValue(null);
   });
 
@@ -80,7 +103,7 @@ describe("buildErrorFeatureObjectCharts", () => {
 
     const errorsCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call) => {
       const labels = call[0] as string[];
-      return labels.includes('Toilet Gap > 1"') && labels.includes('Tub Gap 1"-6"') && labels.includes("< 4 Walls");
+      return labels.includes('Toilet Gap (> 1")') && labels.includes('Tub Gap (1"-6")') && labels.includes("< 4 Walls");
     });
     expect(errorsCall).toBeDefined();
   });
@@ -152,7 +175,7 @@ describe("buildErrorFeatureObjectCharts", () => {
 
     const errorsCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call) => {
       const labels = call[0] as string[];
-      return labels.includes("Walls < 1.5 sq ft");
+      return labels.includes("Walls (< 1.5 sq ft)");
     });
     expect(errorsCall).toBeDefined();
   });
@@ -224,9 +247,9 @@ describe("buildErrorFeatureObjectCharts", () => {
     const errorsCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call) => {
       const labels = call[0] as string[];
       // Find the index of each error
-      const tubGapIndex = labels.indexOf('Tub Gap 1"-6"');
-      const wallGapIndex = labels.indexOf('Wall Gaps 1"-12"');
-      const toiletGapIndex = labels.indexOf('Toilet Gap > 1"');
+      const tubGapIndex = labels.indexOf('Tub Gap (1"-6")');
+      const wallGapIndex = labels.indexOf('Wall Gaps (1"-12")');
+      const toiletGapIndex = labels.indexOf('Toilet Gap (> 1")');
       // Tub and Wall should have count 1, Toilet should have count 1
       // But we're checking that sorting happened (higher counts first)
       return tubGapIndex >= 0 && wallGapIndex >= 0 && toiletGapIndex >= 0;
@@ -291,12 +314,12 @@ describe("buildErrorFeatureObjectCharts", () => {
 
     const errorsCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call) => {
       const labels = call[0] as string[];
-      return labels.includes("Walls < 1.5 sq ft");
+      return labels.includes("Walls (< 1.5 sq ft)");
     });
     expect(errorsCall).toBeDefined();
     if (errorsCall !== undefined) {
       const counts = errorsCall[1] as number[];
-      const smallWallsIndex = (errorsCall[0] as string[]).indexOf("Walls < 1.5 sq ft");
+      const smallWallsIndex = (errorsCall[0] as string[]).indexOf("Walls (< 1.5 sq ft)");
       // Should be 0 because currentDir is undefined
       expect(counts[smallWallsIndex]).toBe(0);
     }

@@ -1,6 +1,6 @@
 import { Door } from "../../../../src/models/rawScan/door";
 import { ObjectItem } from "../../../../src/models/rawScan/objectItem";
-import { checkDoorBlocking } from "../../../../src/utils/room/checkDoorBlocking";
+import { checkDoorBlocking } from "../../../../src/utils/room/analysis/checkDoorBlocking";
 import { createMockScan } from "./testHelpers";
 
 describe("checkDoorBlocking (Refactored)", () => {

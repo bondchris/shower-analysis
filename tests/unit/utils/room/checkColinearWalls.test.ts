@@ -1,6 +1,6 @@
 import convert from "convert-units";
 
-import { checkColinearWalls, expectDefined } from "../../../../src/utils/room/checkColinearWalls";
+import { checkColinearWalls, expectDefined } from "../../../../src/utils/room/analysis/checkColinearWalls";
 import { createExternalWall, createMockScan } from "./testHelpers";
 
 describe("checkColinearWalls", () => {
