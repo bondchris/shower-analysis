@@ -418,6 +418,9 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
     videoSize: 0
   };
 
+  // Track which artifact IDs actually failed (required file failures)
+  const failedArtifactIds = new Set<string>();
+
   // Limits
   const PAGE_CONCURRENCY = 5;
   const ARTIFACT_CONCURRENCY = 20;
@@ -514,6 +517,12 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
           stats.failed += r.failed;
           stats.errors.push(...r.errors);
 
+          // Track artifact IDs that actually failed (required file failures)
+          const NO_FAILURES = 0;
+          if (r.failed > NO_FAILURES) {
+            failedArtifactIds.add(a.id);
+          }
+
           if (r.dateMismatch) {
             stats.dateMismatches.push({
               diffHours: r.dateMismatch.diffHours,
@@ -609,11 +618,25 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
     bar.stop();
 
     // Calculate failure stats
+    // Count unique artifact IDs, not individual property errors
+    // Only count errors from artifacts that actually failed (not optional file failures)
     const knownFailuresDb = getSyncFailures();
+    const countedKnownFailures = new Set<string>();
+    const countedNewFailures = new Set<string>();
     stats.errors.forEach((err) => {
+      // Only count errors from artifacts that actually failed
+      // Optional file failures (pointCloud/initialLayout) should not be counted
+      if (!failedArtifactIds.has(err.id)) {
+        return;
+      }
+
       if (Object.prototype.hasOwnProperty.call(knownFailuresDb, err.id)) {
-        stats.knownFailures++;
-      } else {
+        if (!countedKnownFailures.has(err.id)) {
+          countedKnownFailures.add(err.id);
+          stats.knownFailures++;
+        }
+      } else if (!countedNewFailures.has(err.id)) {
+        countedNewFailures.add(err.id);
         stats.newFailures++;
       }
     });

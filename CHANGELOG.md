@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-27
 
+### [v0.55.0] Sync Failure Accuracy, Lens Metadata Normalization, and Embedded Overlap Handling
+
+- Sync failure counts now ignore optional file misses and deduplicate by artifact ID so known
+  and new failure totals reflect only required file issues across environments.
+- Sync report adds "Total Saved to Disk" and "Already Present" rows to clarify what was newly
+  downloaded versus already on disk while keeping failure/skip totals intact.
+- AR metadata extraction prioritizes EXIF focal length/aperture, normalizes prefixed F-numbers,
+  and gracefully handles missing lens models or invalid ISO/brightness data to avoid noisy
+  averages.
+- Embedded object intersection checks now treat story-less objects as floor-level, detect
+  overlaps only when stories match, and skip malformed transforms or dimensions to reduce false
+  positives.
+
 ### [v0.54.0] Unified Artifact Discarding and Report Cleanup
 
 - Created `discardArtifact` utility that centralizes moving invalid artifacts to

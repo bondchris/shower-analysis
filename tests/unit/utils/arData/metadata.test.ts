@@ -218,4 +218,73 @@ describe("extractArDataMetadata", () => {
       expect(result.lensAperture).toBe("f/1.5");
     }
   });
+
+  it("skips lens model parsing when LensModel is missing", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const missingLensModelData = {
+      data: {
+        "7": {
+          cameraResolution: { height: 800, width: 600 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            BrightnessValue: "1.1",
+            FNumber: "2.0",
+            FocalLength: "4.5mm",
+            ISOSpeedRatings: "100"
+          },
+          timestamp: 7
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(missingLensModelData));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.deviceModel).toBe("");
+      expect(result.lensModel).toBe("");
+      expect(result.lensFocalLength).toBe("4.5mm");
+      expect(result.lensAperture).toBe("f/2.0");
+    }
+  });
+
+  it("normalizes prefixed FNumber and ignores invalid ISO/brightness values", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const prefixedExifData = {
+      BrightnessValue: "not-a-number",
+      FNumber: "f/2.2",
+      FocalLength: "4.2mm",
+      ISOSpeedRatings: "ISO-ABC",
+      LensModel: "Pixel 8 back camera 4.2mm f/1.8"
+    };
+
+    const prefixedArData = {
+      data: {
+        "42": {
+          cameraResolution: { height: 720, width: 1280 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: prefixedExifData,
+          timestamp: 42
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(prefixedArData));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.deviceModel).toBe("Pixel 8");
+      expect(result.lensModel).toBe("Pixel 8 back camera 4.2mm f/1.8");
+      expect(result.lensFocalLength).toBe("4.2mm");
+      expect(result.lensAperture).toBe("f/2.2");
+      expect(result.avgIso).toBe(0);
+      expect(result.avgBrightness).toBe(0);
+    }
+  });
 });

@@ -1,13 +1,16 @@
 import { WallData } from "../../../../src/models/rawScan/wall";
 import { checkIntersections } from "../../../../src/utils/room/analysis/checkIntersections";
 import {
+  createDoor,
   createExternalWall,
   createMockScan,
   createObject,
+  createOpening,
   createSink,
   createStorage,
   createToilet,
-  createTub
+  createTub,
+  createWindow
 } from "./testHelpers";
 
 describe("checkIntersections", () => {
@@ -609,6 +612,74 @@ describe("checkIntersections", () => {
       });
       const res = checkIntersections(createMockScan({ objects: [obj], walls: [w1] }));
       expect(res.hasWallObjectIntersectionErrors).toBe(false);
+    });
+  });
+
+  describe("Embedded Object Scenarios", () => {
+    it("should detect overlapping embedded windows on the same story", () => {
+      const windowA = createWindow("winA", null, {
+        dimensions: [1, 1, 0.2],
+        story: 1,
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+      });
+      const windowB = createWindow("winB", null, {
+        dimensions: [1, 1, 0.2],
+        story: 1,
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.5, 0, 0, 1]
+      });
+
+      const res = checkIntersections(createMockScan({ windows: [windowA, windowB] }));
+
+      expect(res.hasEmbeddedObjectIntersectionErrors).toBe(true);
+      expect(res.hasObjectIntersectionErrors).toBe(false);
+      expect(res.hasWallObjectIntersectionErrors).toBe(false);
+      expect(res.hasWallWallIntersectionErrors).toBe(false);
+    });
+
+    it("should ignore embedded objects on different stories even when overlapping", () => {
+      const windowA = createWindow("winA", null, {
+        dimensions: [1, 1, 0.2],
+        story: 1,
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+      });
+      const doorB = createDoor("doorB", null, {
+        dimensions: [1, 1, 0.2],
+        story: 2,
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+      });
+
+      const res = checkIntersections(createMockScan({ doors: [doorB], windows: [windowA] }));
+
+      expect(res.hasEmbeddedObjectIntersectionErrors).toBe(false);
+    });
+
+    it("should default opening story to zero when missing and detect intersections", () => {
+      const openingA = createOpening("openA", null, {
+        dimensions: [1, 1, 0.2],
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+      });
+      const openingB = createOpening("openB", null, {
+        dimensions: [1, 1, 0.2],
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.25, 0, 0, 1]
+      });
+      delete (openingA as { story?: number }).story;
+      delete (openingB as { story?: number }).story;
+
+      const res = checkIntersections(createMockScan({ openings: [openingA, openingB] }));
+
+      expect(res.hasEmbeddedObjectIntersectionErrors).toBe(true);
+    });
+
+    it("should skip embedded objects with invalid transforms or dimensions", () => {
+      const invalidWindow = createWindow("winA", null, { dimensions: [1], transform: [1, 0, 0, 0] });
+      const invalidDoor = createDoor("doorB", null, { dimensions: [1, 1], transform: [1, 0, 0, 0] });
+      const invalidOpening = createOpening("openA", null, { dimensions: [1, 1], transform: [1, 0, 0, 0] });
+
+      const res = checkIntersections(
+        createMockScan({ doors: [invalidDoor], openings: [invalidOpening], windows: [invalidWindow] })
+      );
+
+      expect(res.hasEmbeddedObjectIntersectionErrors).toBe(false);
     });
   });
 

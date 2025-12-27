@@ -22,6 +22,8 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
   const totalSkipped = allStats.reduce((sum, s) => sum + s.skipped, ZERO);
   const totalKnownFailures = allStats.reduce((sum, s) => sum + s.knownFailures, ZERO);
   const totalNewFailures = allStats.reduce((sum, s) => sum + s.newFailures, ZERO);
+  const totalSavedToDisk = totalFound - totalFailed - totalSkipped;
+  const totalAlreadyPresent = totalSavedToDisk - totalNew;
 
   const headers = ["", ...sortedStats.map((s) => s.env), "Total"];
   const tableData: string[][] = [
@@ -29,6 +31,16 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       "Found",
       ...sortedStats.map((s) => s.found.toString()),
       `<span style="font-weight:normal;color:#6b7280">${totalFound.toString()}</span>`
+    ],
+    [
+      "Total Saved to Disk",
+      ...sortedStats.map((s) => (s.found - s.failed - s.skipped).toString()),
+      `<span style="font-weight:normal;color:#6b7280">${totalSavedToDisk.toString()}</span>`
+    ],
+    [
+      "Already Present",
+      ...sortedStats.map((s) => (s.found - s.failed - s.skipped - s.new).toString()),
+      `<span style="font-weight:normal;color:#6b7280">${totalAlreadyPresent.toString()}</span>`
     ],
     [
       "New",
@@ -59,11 +71,13 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
 
   const rowClasses: Record<number, string> = {
     0: "bg-sky-100 font-semibold text-sky-800 print:print-color-adjust-exact", // Found
-    1: "bg-green-100 font-semibold text-green-800 print:print-color-adjust-exact", // New
-    2: "bg-red-100 font-semibold text-red-800 print:print-color-adjust-exact", // Inaccessible
-    3: "bg-red-50 text-red-800 print:print-color-adjust-exact", // New Inaccessible (lighter red)
-    4: "bg-red-50 text-red-800 print:print-color-adjust-exact", // Known Inaccessible (lighter red)
-    5: "bg-yellow-100 font-semibold text-yellow-800 print:print-color-adjust-exact" // Skipped
+    1: "bg-green-100 font-semibold text-green-800 print:print-color-adjust-exact", // Total Saved to Disk
+    2: "bg-green-50 text-green-800 print:print-color-adjust-exact", // Already Present
+    3: "bg-green-50 text-green-800 print:print-color-adjust-exact", // New
+    4: "bg-red-100 font-semibold text-red-800 print:print-color-adjust-exact", // Inaccessible
+    5: "bg-red-50 text-red-800 print:print-color-adjust-exact", // New Inaccessible (lighter red)
+    6: "bg-red-50 text-red-800 print:print-color-adjust-exact", // Known Inaccessible (lighter red)
+    7: "bg-yellow-100 font-semibold text-yellow-800 print:print-color-adjust-exact" // Skipped
   };
 
   sections.push({

@@ -2,13 +2,18 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
-**Current Version:** v0.54.0
+**Current Version:** v0.55.0
 
-## What's New (v0.54.0)
+## What's New (v0.55.0)
 
-- Created a unified `discardArtifact` utility that all scripts now use to move invalid
-  artifacts to `data/discarded-artifacts` instead of deleting them.
-- Sync report now hides environments with no sync errors for cleaner output.
+- Sync failure counts now ignore optional file errors and deduplicate by artifact ID so
+  known/new failure totals reflect only required file issues.
+- Sync report adds "Total Saved to Disk" and "Already Present" rows to separate new downloads
+  from artifacts already on disk.
+- AR data metadata extraction prioritizes EXIF focal length/aperture, normalizes prefixed
+  F-numbers, and tolerates missing lens models or invalid ISO/brightness values.
+- Embedded intersection checks handle story-aware overlaps for windows/doors/openings, default
+  missing stories to zero, and skip malformed transforms instead of raising false errors.
 
 ## Overview
 
