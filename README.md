@@ -2,13 +2,19 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
-**Current Version:** v0.51.0
+**Current Version:** v0.52.0
 
-## What's New (v0.51.0)
+## What's New (v0.52.0)
 
-- Validation report includes a cumulative Property Presence Over Time chart that tracks field coverage by scan date.
-- Line charts wrap legends and adjust margins to keep axis labels readable across reports, including duplicate video trends.
-- Data cleaning skips hidden files/folders, cleans up stale checked-scan entries, and geometry utilities now guard against NaN/Infinity inputs.
+- Sync failure tracking now normalizes records, deduplicates reasons, and guarantees the
+  backing `config/syncFailures.json` path exists; sync reports group download failures by
+  status and file type while separating new versus known inaccessible artifacts.
+- Room dimension extraction is more defensive: wall widths fall back to polygon perimeters,
+  floors derive lengths/widths from polygon corners when possible, and invalid or partial
+  dimensions for doors, windows, openings, and tubs are safely skipped instead of breaking
+  charts.
+- Polygon integrity checks clamp angle calculations and better tolerate malformed vertices,
+  preventing runaway values while keeping intersection and overlap detection strict.
 
 ## Overview
 
@@ -229,6 +235,11 @@ This executes: validate → sync → clean-data → filter-videos → format-dat
 - `reports/`: Generated PDF reports.
 - `data/`: Local data storage (artifacts and API cache).
 - `config/`: Configuration files.
+
+## Sync Failures Tracking
+
+- The sync pipeline persists failures to `config/syncFailures.json` via `src/utils/data/syncFailures.ts`.
+- Each record is keyed by artifact ID and shaped as `{ date, environment, reasons: string[] }`, where `reasons` captures all observed failure reasons for that sync run (deduplicated).
 
 ## Changelog
 

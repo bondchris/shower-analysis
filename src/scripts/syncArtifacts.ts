@@ -27,6 +27,7 @@ import { downloadFile, downloadJsonFile } from "../utils/sync/downloadHelpers";
  * - Downloads artifacts for configured environments.
  * - Skips artifacts already marked as "Bad Scans".
  * - Ensures valid synced artifacts have `video.mp4`, `arData.json`, and `rawScan.json`.
+ * - Optionally downloads `pointCloud.json` and `initialLayout.json` if present in the artifact.
  * - Generates a sync report PDF.
  */
 
@@ -94,6 +95,8 @@ interface ArtifactResult {
   videoSize: number;
   arDataSize: number;
   rawScanSize: number;
+  pointCloudSize: number;
+  initialLayoutSize: number;
   scanDate?: string;
   videoHash?: string;
   duplicateIds?: string[];
@@ -116,7 +119,9 @@ async function processArtifact(
     arDataSize: 0,
     errors: [],
     failed: 0,
+    initialLayoutSize: 0,
     new: 0,
+    pointCloudSize: 0,
     rawScanSize: 0,
     skipped: 0,
     videoSize: 0
@@ -136,7 +141,7 @@ async function processArtifact(
     result.scanDate = artifact.scanDate;
   }
 
-  const { video, rawScan, arData } = artifact;
+  const { video, rawScan, arData, pointCloud, initialLayout } = artifact;
 
   const hasAllFiles =
     typeof video === "string" &&
@@ -159,8 +164,8 @@ async function processArtifact(
     // Save meta.json
     fs.writeFileSync(path.join(artifactDir, "meta.json"), JSON.stringify(artifact, null, JSON_INDENT));
 
-    // Download files
-    const downloadResults = await Promise.all([
+    // Download required files
+    const downloadPromises: Promise<boolean>[] = [
       downloadFile(video, path.join(artifactDir, "video.mp4"), "video").then((err) => {
         if (err !== null) {
           const reason = typeof err === "string" ? err : "video download failed (unknown error)";
@@ -185,9 +190,41 @@ async function processArtifact(
         }
         return err === null;
       })
-    ]);
+    ];
 
-    const artifactFailed = downloadResults.some((r) => !r);
+    // Download optional files if present
+    if (typeof pointCloud === "string" && pointCloud.length > ZERO) {
+      downloadPromises.push(
+        downloadJsonFile(pointCloud, path.join(artifactDir, "pointCloud.json"), "pointCloud").then((err) => {
+          if (err !== null) {
+            const reason = typeof err === "string" ? err : "pointCloud download failed (unknown error)";
+            result.errors.push({ date: artifact.scanDate, id: artifact.id, reason });
+          }
+          return err === null;
+        })
+      );
+    }
+
+    if (typeof initialLayout === "string" && initialLayout.length > ZERO) {
+      downloadPromises.push(
+        downloadJsonFile(initialLayout, path.join(artifactDir, "initialLayout.json"), "initialLayout").then((err) => {
+          if (err !== null) {
+            const reason = typeof err === "string" ? err : "initialLayout download failed (unknown error)";
+            result.errors.push({ date: artifact.scanDate, id: artifact.id, reason });
+          }
+          return err === null;
+        })
+      );
+    }
+
+    const downloadResults = await Promise.all(downloadPromises);
+
+    // Only check required files (first 3: video, rawScan, arData) for failure
+    // Optional files (pointCloud, initialLayout) failures should not mark artifact as failed
+    const REQUIRED_FILE_COUNT = 3;
+    const ARRAY_START_INDEX = 0;
+    const requiredFileResults = downloadResults.slice(ARRAY_START_INDEX, REQUIRED_FILE_COUNT);
+    const artifactFailed = requiredFileResults.some((r) => !r);
 
     if (artifactFailed) {
       result.failed = 1;
@@ -209,6 +246,19 @@ async function processArtifact(
         result.videoSize = videoStats.size;
         result.rawScanSize = rawScanStats.size;
         result.arDataSize = arDataStats.size;
+
+        // Track optional file sizes if they exist
+        const pointCloudPath = path.join(artifactDir, "pointCloud.json");
+        if (fs.existsSync(pointCloudPath)) {
+          const pointCloudStats = fs.statSync(pointCloudPath);
+          result.pointCloudSize = pointCloudStats.size;
+        }
+
+        const initialLayoutPath = path.join(artifactDir, "initialLayout.json");
+        if (fs.existsSync(initialLayoutPath)) {
+          const initialLayoutStats = fs.statSync(initialLayoutPath);
+          result.initialLayoutSize = initialLayoutStats.size;
+        }
 
         // Hash video for duplicate detection
         try {
@@ -273,13 +323,17 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
     errors: [],
     failed: 0,
     found: 0,
+    initialLayoutSize: 0,
     knownFailures: 0,
     new: 0,
     newArDataSize: 0,
     newDuplicateCount: 0,
     newFailures: 0,
+    newInitialLayoutSize: 0,
+    newPointCloudSize: 0,
     newRawScanSize: 0,
     newVideoSize: 0,
+    pointCloudSize: 0,
     processedIds: new Set<string>(),
     rawScanSize: 0,
     skipped: 0,
@@ -397,11 +451,15 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
           stats.videoSize += r.videoSize;
           stats.arDataSize += r.arDataSize;
           stats.rawScanSize += r.rawScanSize;
+          stats.pointCloudSize += r.pointCloudSize;
+          stats.initialLayoutSize += r.initialLayoutSize;
 
           if (r.new >= ONE_NEW) {
             stats.newArDataSize += r.arDataSize;
             stats.newRawScanSize += r.rawScanSize;
             stats.newVideoSize += r.videoSize;
+            stats.newPointCloudSize += r.pointCloudSize;
+            stats.newInitialLayoutSize += r.initialLayoutSize;
           }
 
           if (r.scanDate !== undefined) {
@@ -472,6 +530,7 @@ export async function generateSyncReport(allStats: SyncStats[], knownFailures: S
 export async function main() {
   const knownFailures = getSyncFailures();
   const currentFailures: SyncFailureDatabase = {};
+  const failureTimestamp = new Date().toISOString();
 
   const allStats: SyncStats[] = [];
   for (const env of ENVIRONMENTS) {
@@ -480,10 +539,14 @@ export async function main() {
 
     // Record current failures
     for (const error of stats.errors) {
+      const existing = currentFailures[error.id];
+      const existingReasons = existing?.reasons ?? [];
+      const updatedReasons = Array.from(new Set([...existingReasons, error.reason]));
+
       currentFailures[error.id] = {
-        date: new Date().toISOString(),
-        environment: env.name,
-        reason: error.reason
+        date: existing?.date ?? failureTimestamp,
+        environment: existing?.environment ?? env.name,
+        reasons: updatedReasons
       };
     }
   }

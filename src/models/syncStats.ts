@@ -17,9 +17,13 @@ export interface SyncStats {
   videoSize: number;
   arDataSize: number;
   rawScanSize: number;
+  pointCloudSize: number;
+  initialLayoutSize: number;
   newVideoSize: number;
   newArDataSize: number;
   newRawScanSize: number;
+  newPointCloudSize: number;
+  newInitialLayoutSize: number;
   videoHistory: Record<string, { totalSize: number; count: number }>;
   dateMismatches: DateMismatch[];
   duplicates: DuplicateVideo[];

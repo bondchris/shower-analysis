@@ -11,7 +11,7 @@ import { runPersistenceTestSuite } from "./testHelpers";
 
 runPersistenceTestSuite<SyncFailureDatabase>({
     createDataWithUndefined: () => ({
-        "artifact_a": { date: "2024-01-01", environment: "env1", reason: "error a" },
+        "artifact_a": { date: "2024-01-01", environment: "env1", reasons: ["error a"] },
         "artifact_b": undefined as unknown as SyncFailureDatabase[string]
     }),
     createUnsortedData: () => {
@@ -23,12 +23,12 @@ runPersistenceTestSuite<SyncFailureDatabase>({
         "artifact_1": {
             date: "2024-01-01",
             environment: "production",
-            reason: "download failed"
+            reasons: ["download failed"]
         },
         "artifact_2": {
             date: "2024-01-02",
             environment: "staging",
-            reason: "corrupt data"
+            reasons: ["corrupt data"]
         }
     }),
     defaultFilename: "config/syncFailures.json",
@@ -61,7 +61,7 @@ describe("SyncFailures Specific", () => {
 
     it("creates parent directory if missing", () => {
         const nestedPath = path.join(tempDir, "deeply/nested/config/syncFailures.json");
-        const data: SyncFailureDatabase = { "art1": { date: "2024-01-01", environment: "env", reason: "err" } };
+        const data: SyncFailureDatabase = { "art1": { date: "2024-01-01", environment: "env", reasons: ["err"] } };
         saveSyncFailures(data, nestedPath);
 
         expect(fs.existsSync(nestedPath)).toBe(true);

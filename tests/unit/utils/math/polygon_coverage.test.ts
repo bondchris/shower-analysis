@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { Point } from "../../../../src/models/point";
-import { checkPolygonIntegrity, doPolygonsIntersect } from "../../../../src/utils/math/polygon";
+import { checkPolygonIntegrity, doPolygonsIntersect, polygonInternals } from "../../../../src/utils/math/polygon";
 
 describe("polygon coverage edge cases", () => {
   const p = (x: number, y: number): Point => new Point(x, y);
@@ -58,6 +58,52 @@ describe("polygon coverage edge cases", () => {
     expect(checkPolygonIntegrity(poly)).toBe(false);
   });
 
+  it("should handle runtime mutations that drop vertices mid-check", () => {
+    const mutable: Point[] = [p(0, 0), p(5, 0), p(0, 5), p(5, 5)];
+    const mutator = {
+      get x() {
+        return 5;
+      },
+      get y() {
+        mutable[1] = undefined as unknown as Point;
+        return 0;
+      }
+    } as unknown as Point;
+
+    mutable.push(mutator);
+
+    expect(checkPolygonIntegrity(mutable)).toBe(false);
+  });
+
+  it("should tolerate implicit closure when the last vertex disappears", () => {
+    const poly: Point[] = [p(0, 0), p(2, 0), p(2, 2)];
+    const mutator = {
+      get x() {
+        return 0;
+      },
+      get y() {
+        poly[poly.length - 1] = undefined as unknown as Point;
+        return 2;
+      }
+    } as unknown as Point;
+
+    poly.push(mutator);
+
+    expect(checkPolygonIntegrity(poly)).toBe(false);
+  });
+
+  it("should flag non-adjacent overlapping collinear edges", () => {
+    const poly = [p(0, 0), p(5, 0), p(5, 3), p(2, 3), p(2, 0), p(-2, 0), p(-2, 3), p(0, 3)];
+
+    expect(checkPolygonIntegrity(poly)).toBe(false);
+  });
+
+  it("should reject polygons with repeated vertices even when edges stay valid", () => {
+    const poly = [p(0, 0), p(2, 0), p(2, 2), p(0, 2), p(2, 0)];
+
+    expect(checkPolygonIntegrity(poly)).toBe(false);
+  });
+
   describe("doPolygonsIntersect edge cases", () => {
     it("should handle holes in polygons array", () => {
       const poly1 = [p(0, 0), null as unknown as Point, p(10, 0), p(10, 10), p(0, 10)];
@@ -68,6 +114,57 @@ describe("polygon coverage edge cases", () => {
     it("should return true for identical polygons", () => {
       const poly = [p(0, 0), p(10, 0), p(10, 10), p(0, 10)];
       expect(doPolygonsIntersect(poly, poly)).toBe(true);
+    });
+
+    it("should tolerate falsy vertices during SAT iteration", () => {
+      const poly1 = [0 as unknown as Point];
+      const poly2 = [p(0, 0), p(1, 0), p(0, 1)];
+
+      expect(doPolygonsIntersect(poly1, poly2)).toBe(false);
+    });
+  });
+
+  describe("internal helper coverage", () => {
+    it("should skip malformed points in hasSelfIntersection", () => {
+      const { hasSelfIntersection } = polygonInternals;
+      const malformed = [0 as unknown as Point, p(1, 0), 0 as unknown as Point, p(0, 1)] as Point[];
+
+      expect(hasSelfIntersection(malformed)).toBe(false);
+    });
+
+    it("should continue when collinear overlap input lacks segment endpoints", () => {
+      const { hasCollinearOverlaps } = polygonInternals;
+      const malformed = [p(0, 0), p(1, 0), p(1, 1), undefined as unknown as Point, p(0, 1)] as Point[];
+
+      expect(hasCollinearOverlaps(malformed)).toBe(false);
+    });
+
+    it("should continue when self-intersection edges are missing endpoints", () => {
+      const { hasSelfIntersection } = polygonInternals;
+      const malformed = [p(0, 0), p(1, 0), 0 as unknown as Point, p(0, 1)] as Point[];
+
+      expect(hasSelfIntersection(malformed)).toBe(false);
+    });
+
+    it("should project along y for vertical overlapping segments", () => {
+      const { areSegmentsCollinearOverlapping } = polygonInternals;
+      const vertical = areSegmentsCollinearOverlapping(p(0, 0), p(0, 5), p(0, 2), p(0, 6));
+
+      expect(vertical).toBe(true);
+    });
+
+    it("should surface duplicates through helper detection", () => {
+      const { hasDuplicatePoints } = polygonInternals;
+      const duplicates = [p(0, 0), p(0, 0), p(1, 1)];
+
+      expect(hasDuplicatePoints(duplicates)).toBe(true);
+    });
+
+    it("should skip duplicate checks when points are missing", () => {
+      const { hasDuplicatePoints } = polygonInternals;
+      const sparse = [p(0, 0), undefined as unknown as Point, p(1, 1)];
+
+      expect(hasDuplicatePoints(sparse)).toBe(false);
     });
   });
 });

@@ -275,7 +275,7 @@ const hasDuplicatePoints = (points: Point[]): boolean => {
 export const doPolygonsIntersect = (poly1: Point[], poly2: Point[]): boolean => {
   const cleanPoly1 = (poly1 as (Point | null | undefined)[]).filter((p): p is Point => p !== null && p !== undefined);
   const cleanPoly2 = (poly2 as (Point | null | undefined)[]).filter((p): p is Point => p !== null && p !== undefined);
-  const polygons = [cleanPoly1, cleanPoly2];
+  const polygons: [Point[], Point[]] = [cleanPoly1, cleanPoly2];
 
   for (const polygon of polygons) {
     for (let i = 0; i < polygon.length; i++) {
@@ -294,7 +294,7 @@ export const doPolygonsIntersect = (poly1: Point[], poly2: Point[]): boolean => 
 
       let minA = Infinity;
       let maxA = -Infinity;
-      for (const p of polygons[FIRST_POLY_IDX] ?? []) {
+      for (const p of polygons[FIRST_POLY_IDX]) {
         const projected = dotProduct(normal, p);
         if (projected < minA) {
           minA = projected;
@@ -306,7 +306,7 @@ export const doPolygonsIntersect = (poly1: Point[], poly2: Point[]): boolean => 
 
       let minB = Infinity;
       let maxB = -Infinity;
-      for (const p of polygons[SECOND_POLY_IDX] ?? []) {
+      for (const p of polygons[SECOND_POLY_IDX]) {
         const projected = dotProduct(normal, p);
         if (projected < minB) {
           minB = projected;
@@ -322,4 +322,11 @@ export const doPolygonsIntersect = (poly1: Point[], poly2: Point[]): boolean => 
     }
   }
   return true;
+};
+
+export const polygonInternals = {
+  areSegmentsCollinearOverlapping,
+  hasCollinearOverlaps,
+  hasDuplicatePoints,
+  hasSelfIntersection
 };

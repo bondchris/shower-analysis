@@ -168,6 +168,12 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
   const totalNewArDataSize = allStats.reduce((sum, s) => sum + s.newArDataSize, ZERO);
   const totalRawScanSize = allStats.reduce((sum, s) => sum + s.rawScanSize, ZERO);
   const totalNewRawScanSize = allStats.reduce((sum, s) => sum + s.newRawScanSize, ZERO);
+  const totalPointCloudSize = allStats.reduce((sum, s) => sum + s.pointCloudSize, ZERO);
+  const totalNewPointCloudSize = allStats.reduce((sum, s) => sum + s.newPointCloudSize, ZERO);
+  const totalInitialLayoutSize = allStats.reduce((sum, s) => sum + s.initialLayoutSize, ZERO);
+  const totalNewInitialLayoutSize = allStats.reduce((sum, s) => sum + s.newInitialLayoutSize, ZERO);
+  const totalArtifactSize =
+    totalVideoSize + totalArDataSize + totalRawScanSize + totalPointCloudSize + totalInitialLayoutSize;
 
   // Calculate Averages Helper
   const safeAvg = (total: number, count: number) => {
@@ -179,6 +185,13 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
   };
 
   const usageTableData: string[][] = [
+    [
+      "All Artifacts (Total)",
+      ...sortedStats.map((s) =>
+        formatBytes(s.videoSize + s.arDataSize + s.rawScanSize + s.pointCloudSize + s.initialLayoutSize)
+      ),
+      `<span style="font-weight:normal;color:#6b7280">${formatBytes(totalArtifactSize)}</span>`
+    ],
     // Video
     [
       "Video (Total)",
@@ -226,20 +239,62 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       "RawScan (New)",
       ...sortedStats.map((s) => formatBytes(s.newRawScanSize)),
       `<span style="font-weight:normal;color:#6b7280">${formatBytes(totalNewRawScanSize)}</span>`
+    ],
+    // PointCloud
+    [
+      "PointCloud (Total)",
+      ...sortedStats.map((s) => formatBytes(s.pointCloudSize)),
+      `<span style="font-weight:normal;color:#6b7280">${formatBytes(totalPointCloudSize)}</span>`
+    ],
+    [
+      "PointCloud (Avg)",
+      ...sortedStats.map((s) => formatBytes(safeAvg(s.pointCloudSize, s.found))),
+      `<span style="font-weight:normal;color:#6b7280">${formatBytes(safeAvg(totalPointCloudSize, totalFound))}</span>`
+    ],
+    [
+      "PointCloud (New)",
+      ...sortedStats.map((s) => formatBytes(s.newPointCloudSize)),
+      `<span style="font-weight:normal;color:#6b7280">${formatBytes(totalNewPointCloudSize)}</span>`
+    ],
+    // InitialLayout
+    [
+      "InitialLayout (Total)",
+      ...sortedStats.map((s) => formatBytes(s.initialLayoutSize)),
+      `<span style="font-weight:normal;color:#6b7280">${formatBytes(totalInitialLayoutSize)}</span>`
+    ],
+    [
+      "InitialLayout (Avg)",
+      ...sortedStats.map((s) => formatBytes(safeAvg(s.initialLayoutSize, s.found))),
+      `<span style="font-weight:normal;color:#6b7280">${formatBytes(safeAvg(totalInitialLayoutSize, totalFound))}</span>`
+    ],
+    [
+      "InitialLayout (New)",
+      ...sortedStats.map((s) => formatBytes(s.newInitialLayoutSize)),
+      `<span style="font-weight:normal;color:#6b7280">${formatBytes(totalNewInitialLayoutSize)}</span>`
     ]
   ];
 
-  const diskUsageRowClasses: Record<number, string> = {
-    0: "bg-blue-100 font-semibold text-blue-800 print:print-color-adjust-exact", // Video Total
-    1: "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // Video Avg
-    2: "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // Video New
-    3: "bg-blue-100 font-semibold text-blue-800 print:print-color-adjust-exact", // ArData Total
-    4: "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // ArData Avg
-    5: "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // ArData New
-    6: "bg-blue-100 font-semibold text-blue-800 print:print-color-adjust-exact", // RawScan Total
-    7: "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // RawScan Avg
-    8: "bg-blue-50 text-blue-800 print:print-color-adjust-exact" // RawScan New
-  };
+  const diskUsageRowClassArray = [
+    "bg-indigo-100 font-semibold text-indigo-800 print:print-color-adjust-exact", // All artifacts total
+    "bg-blue-100 font-semibold text-blue-800 print:print-color-adjust-exact", // Video Total
+    "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // Video Avg
+    "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // Video New
+    "bg-blue-100 font-semibold text-blue-800 print:print-color-adjust-exact", // ArData Total
+    "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // ArData Avg
+    "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // ArData New
+    "bg-blue-100 font-semibold text-blue-800 print:print-color-adjust-exact", // RawScan Total
+    "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // RawScan Avg
+    "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // RawScan New
+    "bg-blue-100 font-semibold text-blue-800 print:print-color-adjust-exact", // PointCloud Total
+    "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // PointCloud Avg
+    "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // PointCloud New
+    "bg-blue-100 font-semibold text-blue-800 print:print-color-adjust-exact", // InitialLayout Total
+    "bg-blue-50 text-blue-800 print:print-color-adjust-exact", // InitialLayout Avg
+    "bg-blue-50 text-blue-800 print:print-color-adjust-exact" // InitialLayout New
+  ];
+  const diskUsageRowClasses: Record<number, string> = Object.fromEntries(
+    diskUsageRowClassArray.map((className, index) => [index, className])
+  ) as Record<number, string>;
 
   sections.push({
     data: usageTableData,
@@ -712,7 +767,11 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
 
       stats.errors.forEach((err) => {
         if (Object.prototype.hasOwnProperty.call(knownFailures, err.id)) {
-          knownErrors.push(err);
+          // Filter out initialLayout failures from known inaccessible section
+          const isInitialLayoutFailure = /^initialLayout download failed/i.test(err.reason);
+          if (!isInitialLayoutFailure) {
+            knownErrors.push(err);
+          }
         } else {
           newErrors.push(err);
         }

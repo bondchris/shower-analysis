@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2025-12-27
+
+### [v0.52.0] Sync Failure Hardening, Geometry Safety, and Dimension Extraction
+
+- Sync failure persistence now normalizes and deduplicates reasons, strips malformed
+  records, ensures the backing config path exists, and preserves scan dates so failures
+  classify cleanly as new or known.
+- Sync reports group repeated download failures by HTTP status and file type, separating
+  new versus known inaccessible artifacts while avoiding double-counting initial layout
+  issues.
+- Dimension extraction now falls back to polygon perimeters for walls and floors, tolerates
+  undefined or partial dimensions across doors, windows, openings, and tubs, and skips
+  invalid measurements to keep charts stable.
+- Polygon integrity checks clamp angle calculations and harden overlap/intersection
+  detection against missing or mutated vertices, preventing runaway values while keeping
+  validation strict.
+
 ## 2025-12-26
 
 ### [v0.51.0] Property Presence Trends, Resilient Sync Charts, and Cleaning Hardening

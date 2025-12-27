@@ -4,6 +4,33 @@ import { SyncStats } from "../../../src/models/syncStats";
 import { SyncFailureDatabase } from "../../../src/utils/data/syncFailures";
 import { LineChartConfig } from "../../../src/models/chart/lineChartConfig";
 
+const createStats = (overrides: Partial<SyncStats> = {}): SyncStats => ({
+  arDataSize: overrides.arDataSize ?? 0,
+  dateMismatches: overrides.dateMismatches ?? [],
+  duplicateCount: overrides.duplicateCount ?? 0,
+  duplicates: overrides.duplicates ?? [],
+  env: overrides.env ?? "Production",
+  errors: overrides.errors ?? [],
+  failed: overrides.failed ?? 0,
+  found: overrides.found ?? 0,
+  initialLayoutSize: overrides.initialLayoutSize ?? 0,
+  knownFailures: overrides.knownFailures ?? 0,
+  new: overrides.new ?? 0,
+  newArDataSize: overrides.newArDataSize ?? 0,
+  newDuplicateCount: overrides.newDuplicateCount ?? 0,
+  newFailures: overrides.newFailures ?? 0,
+  newInitialLayoutSize: overrides.newInitialLayoutSize ?? 0,
+  newPointCloudSize: overrides.newPointCloudSize ?? 0,
+  newRawScanSize: overrides.newRawScanSize ?? 0,
+  newVideoSize: overrides.newVideoSize ?? 0,
+  pointCloudSize: overrides.pointCloudSize ?? 0,
+  processedIds: overrides.processedIds ?? new Set<string>(),
+  rawScanSize: overrides.rawScanSize ?? 0,
+  skipped: overrides.skipped ?? 0,
+  videoHistory: overrides.videoHistory ?? {},
+  videoSize: overrides.videoSize ?? 0
+});
+
 describe("buildSyncReport", () => {
   it("should generate summary table and handle no failures", () => {
     const stats: SyncStats[] = [
@@ -16,13 +43,17 @@ describe("buildSyncReport", () => {
         errors: [],
         failed: 0,
         found: 10,
+        initialLayoutSize: 0,
         knownFailures: 0,
         new: 0,
         newArDataSize: 0,
         newDuplicateCount: 0,
         newFailures: 0,
+        newInitialLayoutSize: 0,
+        newPointCloudSize: 0,
         newRawScanSize: 0,
         newVideoSize: 0,
+        pointCloudSize: 0,
         processedIds: new Set(),
         rawScanSize: 1024 * 1024 * 10, // 10 MB
         skipped: 0,
@@ -33,7 +64,6 @@ describe("buildSyncReport", () => {
     const failures: SyncFailureDatabase = {};
 
     const report = buildSyncReport(stats, failures);
-
     expect(report.title).toBe("Data Sync Report");
     expect(report.sections[0]?.title).toBe("Sync Summary");
     expect(report.sections[1]?.title).toBe("Disk Usage Summary");
@@ -42,26 +72,30 @@ describe("buildSyncReport", () => {
     // Verify formatBytes output in Disk Usage Summary
     const usageData = report.sections[1]?.data as string[][];
 
+    // All artifact totals
+    expect(usageData[0]?.[1]).toBe("110.05 MB");
+    expect(usageData[0]?.[2]).toContain("110.05");
+
     // Video Total
-    expect(usageData[0]?.[1]).toBe("100 MB");
+    expect(usageData[1]?.[1]).toBe("100 MB");
     // Video Avg
-    expect(usageData[1]?.[1]).toBe("10 MB");
+    expect(usageData[2]?.[1]).toBe("10 MB");
     // Video New
-    expect(usageData[2]?.[1]).toBe("0 B");
+    expect(usageData[3]?.[1]).toBe("0 B");
 
     // ArData Total
-    expect(usageData[3]?.[1]).toBe("50 KB");
+    expect(usageData[4]?.[1]).toBe("50 KB");
     // ArData Avg
-    expect(usageData[4]?.[1]).toBe("5 KB");
+    expect(usageData[5]?.[1]).toBe("5 KB");
     // ArData New
-    expect(usageData[5]?.[1]).toBe("0 B");
+    expect(usageData[6]?.[1]).toBe("0 B");
 
     // RawScan Total
-    expect(usageData[6]?.[1]).toBe("10 MB");
+    expect(usageData[7]?.[1]).toBe("10 MB");
     // RawScan Avg
-    expect(usageData[7]?.[1]).toBe("1 MB");
+    expect(usageData[8]?.[1]).toBe("1 MB");
     // RawScan New
-    expect(usageData[8]?.[1]).toBe("0 B");
+    expect(usageData[9]?.[1]).toBe("0 B");
   });
   it("should report failures categorized as new or known", () => {
     const stats: SyncStats[] = [
@@ -74,13 +108,17 @@ describe("buildSyncReport", () => {
         errors: [{ id: "scan1", reason: "Access Denied" }],
         failed: 1,
         found: 10,
+        initialLayoutSize: 0,
         knownFailures: 0,
         new: 5,
         newArDataSize: 0,
         newDuplicateCount: 0,
-        newFailures: 1,
+        newFailures: 0,
+        newInitialLayoutSize: 0,
+        newPointCloudSize: 0,
         newRawScanSize: 0,
         newVideoSize: 0,
+        pointCloudSize: 0,
         processedIds: new Set(),
         rawScanSize: 0,
         skipped: 0,
@@ -88,10 +126,9 @@ describe("buildSyncReport", () => {
         videoSize: 0
       }
     ];
-    const failures: SyncFailureDatabase = {}; // No known failures
+    const failures: SyncFailureDatabase = {};
 
     const report = buildSyncReport(stats, failures);
-
     // Section 0: Summary
     // Section 1: Inaccessible Artifacts Header
     // Section 2: Environment Header
@@ -132,13 +169,17 @@ describe("buildSyncReport", () => {
         ],
         failed: 1,
         found: 10,
+        initialLayoutSize: 0,
         knownFailures: 0,
         new: 5,
         newArDataSize: 0,
         newDuplicateCount: 0,
-        newFailures: 1,
+        newFailures: 0,
+        newInitialLayoutSize: 0,
+        newPointCloudSize: 0,
         newRawScanSize: 0,
         newVideoSize: 0,
+        pointCloudSize: 0,
         processedIds: new Set(),
         rawScanSize: 0,
         skipped: 0,
@@ -149,7 +190,6 @@ describe("buildSyncReport", () => {
     const failures: SyncFailureDatabase = {};
 
     const report = buildSyncReport(stats, failures);
-
     // Check for grouping
     // scan1 should say "Download failed (404) for RawScan and Video" (sorted)
     const errorGroup =
@@ -172,13 +212,17 @@ describe("buildSyncReport", () => {
           errors: [{ id: "known1", reason: "Access Denied" }],
           failed: 1,
           found: 1,
+          initialLayoutSize: 0,
           knownFailures: 1, // Stats are computed independently, report logic uses this
           new: 0,
           newArDataSize: 0,
           newDuplicateCount: 0,
           newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -188,7 +232,7 @@ describe("buildSyncReport", () => {
       ];
       // Define a known failure
       const failures: SyncFailureDatabase = {
-        known1: { date: "2023-01-01", environment: "Production", reason: "Access Denied" }
+        known1: { date: "2023-01-01", environment: "Production", reasons: ["Access Denied"] }
       };
 
       const report = buildSyncReport(stats, failures);
@@ -198,6 +242,39 @@ describe("buildSyncReport", () => {
       const data = (listSection?.data as string[]).join(" ");
       expect(data).toContain("known1");
       expect(data).toContain("Access Denied");
+    });
+
+    it("should exclude initialLayout failures from Known Inaccessible section", () => {
+      const stats: SyncStats[] = [
+        createStats({
+          errors: [
+            { id: "known1", reason: "initialLayout download failed (404)" },
+            { id: "known2", reason: "Video download failed (500)" }
+          ],
+          failed: 2,
+          found: 2,
+          knownFailures: 2
+        })
+      ];
+      const failures: SyncFailureDatabase = {
+        known1: {
+          date: "2023-01-01",
+          environment: "Production",
+          reasons: ["initialLayout download failed (404)"]
+        },
+        known2: { date: "2023-01-02", environment: "Production", reasons: ["Video download failed (500)"] }
+      };
+
+      const report = buildSyncReport(stats, failures);
+      const listSection = report.sections.find((s) => s.title === "Known Inaccessible");
+      expect(listSection).toBeDefined();
+
+      const data = (listSection?.data as string[]).join(" ");
+      // Should contain known2 (Video failure) but NOT known1 (initialLayout failure)
+      expect(data).toContain("known2");
+      expect(data).toContain("Video");
+      expect(data).not.toContain("known1");
+      expect(data).not.toContain("initialLayout");
     });
 
     it("should format list of 3+ failure types with Oxford comma", () => {
@@ -215,13 +292,17 @@ describe("buildSyncReport", () => {
           ],
           failed: 1,
           found: 1,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 1,
           newArDataSize: 0,
           newDuplicateCount: 0,
-          newFailures: 1,
+          newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -249,13 +330,17 @@ describe("buildSyncReport", () => {
           errors: [{ id: "scan1", reason: "RawScan download failed (404)" }],
           failed: 1,
           found: 1,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 1,
           newArDataSize: 0,
           newDuplicateCount: 0,
-          newFailures: 1,
+          newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -285,13 +370,17 @@ describe("buildSyncReport", () => {
           ],
           failed: 1,
           found: 1,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 1,
           newArDataSize: 0,
           newDuplicateCount: 0,
-          newFailures: 1,
+          newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -315,32 +404,12 @@ describe("buildSyncReport", () => {
 
   it("should generate video size chart config", () => {
     const stats: SyncStats[] = [
-      {
-        arDataSize: 0,
-        dateMismatches: [],
-        duplicateCount: 0,
-        duplicates: [],
-        env: "Production",
-        errors: [],
-        failed: 0,
+      createStats({
         found: 2,
-        knownFailures: 0,
-        new: 0,
-        newArDataSize: 0,
-        newDuplicateCount: 0,
-        newFailures: 0,
-        newRawScanSize: 0,
-        newVideoSize: 0,
-        processedIds: new Set(),
-        rawScanSize: 0,
-        skipped: 0,
-        videoHistory: {
-          "2023-01": { count: 2, totalSize: 1048576 * 20 } // 20 MB total, 10 MB avg
-        },
-        videoSize: 0
-      }
+        videoHistory: { "2023-01": { count: 2, totalSize: 20 * 1024 * 1024 } },
+        videoSize: 20 * 1024 * 1024
+      })
     ];
-
     const report = buildSyncReport(stats, {});
     const chartSection = report.sections.find((s) => s.title === "Average Video Size Trend");
     expect(chartSection).toBeDefined();
@@ -356,52 +425,17 @@ describe("buildSyncReport", () => {
 
   it("should sort chart datasets by volume found (descending)", () => {
     const stats: SyncStats[] = [
-      {
-        arDataSize: 0,
-        dateMismatches: [],
-        duplicateCount: 0,
-        duplicates: [],
+      createStats({
         env: "Small (Found 10)",
-        errors: [],
-        failed: 0,
         found: 10,
-        knownFailures: 0,
-        new: 0,
-        newArDataSize: 0,
-        newDuplicateCount: 0,
-        newFailures: 0,
-        newRawScanSize: 0,
-        newVideoSize: 0,
-        processedIds: new Set(),
-        rawScanSize: 0,
-        skipped: 0,
-        videoHistory: { "2023-01": { count: 1, totalSize: 100 } },
-        videoSize: 0
-      },
-      {
-        arDataSize: 0,
-        dateMismatches: [],
-        duplicateCount: 0,
-        duplicates: [],
+        videoHistory: { "2023-01": { count: 1, totalSize: 0 } }
+      }),
+      createStats({
         env: "Large (Found 100)",
-        errors: [],
-        failed: 0,
         found: 100,
-        knownFailures: 0,
-        new: 0,
-        newArDataSize: 0,
-        newDuplicateCount: 0,
-        newFailures: 0,
-        newRawScanSize: 0,
-        newVideoSize: 0,
-        processedIds: new Set(),
-        rawScanSize: 0,
-        skipped: 0,
-        videoHistory: { "2023-01": { count: 1, totalSize: 100 } },
-        videoSize: 0
-      }
+        videoHistory: { "2023-01": { count: 1, totalSize: 0 } }
+      })
     ];
-
     const report = buildSyncReport(stats, {});
     const chartSection = report.sections.find((s) => s.title === "Average Video Size Trend");
     const config = chartSection?.data as LineChartConfig;
@@ -412,48 +446,19 @@ describe("buildSyncReport", () => {
   });
 
   it("should handle zero artifacts found correctly (division by zero protection)", () => {
-    const stats: SyncStats[] = [
-      {
-        arDataSize: 0,
-        dateMismatches: [],
-        duplicateCount: 0,
-        duplicates: [],
-        env: "Production",
-        errors: [],
-        failed: 0,
-        found: 0, // Zero found
-        knownFailures: 0,
-        new: 0,
-        newArDataSize: 0,
-        newDuplicateCount: 0,
-        newFailures: 0,
-        newRawScanSize: 0,
-        newVideoSize: 0,
-        processedIds: new Set(),
-        rawScanSize: 0,
-        skipped: 0,
-        videoHistory: {},
-        videoSize: 0
-      }
-    ];
-
+    const stats: SyncStats[] = [createStats({ found: 0 })];
     const report = buildSyncReport(stats, {});
     const diskUsageSection = report.sections.find((s) => s.title === "Disk Usage Summary");
     const tableData = diskUsageSection?.data as string[][];
 
-    // Video Avg Row (Index 1)
+    // Video Avg Row (Index 2)
     // Should be "0 B" or similar, not NaN or Infinity
-    expect(tableData[1]?.[1]).toBe("0 B");
+    expect(tableData[2]?.[1]).toBe("0 B");
   });
 
   it("should generate Inaccessible Artifacts Trend chart", () => {
     const stats: SyncStats[] = [
-      {
-        arDataSize: 0,
-        dateMismatches: [],
-        duplicateCount: 0,
-        duplicates: [],
-        env: "Production",
+      createStats({
         errors: [
           { date: "2023-01-15", id: "1", reason: "Fail" },
           { date: "2023-01-20", id: "2", reason: "Fail" },
@@ -461,25 +466,13 @@ describe("buildSyncReport", () => {
         ],
         failed: 1,
         found: 10,
-        knownFailures: 0,
-        new: 0,
-        newArDataSize: 0,
-        newDuplicateCount: 0,
-        newFailures: 0,
-        newRawScanSize: 0,
-        newVideoSize: 0,
-        processedIds: new Set(),
-        rawScanSize: 0,
-        skipped: 0,
         videoHistory: {
-          "2023-01": { count: 1, totalSize: 100 }, // Success in Jan
-          "2023-02": { count: 1, totalSize: 100 }, // Success in Feb
-          "2023-03": { count: 1, totalSize: 100 } // Success in Mar (but no errors)
-        },
-        videoSize: 0
-      }
+          "2023-01": { count: 1, totalSize: 0 },
+          "2023-02": { count: 1, totalSize: 0 },
+          "2023-03": { count: 1, totalSize: 0 }
+        }
+      })
     ];
-
     const report = buildSyncReport(stats, {});
     // Find the chart
     const chartSection = report.sections.find((s) => s.title === "Inaccessible Artifacts Trend");
@@ -498,34 +491,15 @@ describe("buildSyncReport", () => {
 
   it("should generate Date Mismatch Summary table", () => {
     const stats: SyncStats[] = [
-      {
-        arDataSize: 0,
+      createStats({
         dateMismatches: [
           { diffHours: 25, environment: "Production", id: "1", isNew: true, scanDate: "", videoDate: "" },
           { diffHours: 35, environment: "Production", id: "2", isNew: false, scanDate: "", videoDate: "" },
           { diffHours: 45, environment: "Production", id: "3", isNew: true, scanDate: "", videoDate: "" }
         ],
-        duplicateCount: 0,
-        duplicates: [],
-        env: "Production",
-        errors: [],
-        failed: 0,
-        found: 10,
-        knownFailures: 0,
-        new: 0,
-        newArDataSize: 0,
-        newDuplicateCount: 0,
-        newFailures: 0,
-        newRawScanSize: 0,
-        newVideoSize: 0,
-        processedIds: new Set(),
-        rawScanSize: 0,
-        skipped: 0,
-        videoHistory: {},
-        videoSize: 0
-      }
+        found: 10
+      })
     ];
-
     const report = buildSyncReport(stats, {});
     const tableSection = report.sections.find((s) => s.title === "Date Mismatch Summary");
     expect(tableSection).toBeDefined();
@@ -544,8 +518,7 @@ describe("buildSyncReport", () => {
 
   it("should generate Date Mismatches Trend chart", () => {
     const stats: SyncStats[] = [
-      {
-        arDataSize: 0,
+      createStats({
         dateMismatches: [
           {
             diffHours: 25,
@@ -564,30 +537,14 @@ describe("buildSyncReport", () => {
             videoDate: ""
           }
         ],
-        duplicateCount: 0,
-        duplicates: [],
-        env: "Production",
-        errors: [],
-        failed: 0,
         found: 10,
-        knownFailures: 0,
-        new: 0,
-        newArDataSize: 0,
-        newDuplicateCount: 0,
-        newFailures: 0,
-        newRawScanSize: 0,
-        newVideoSize: 0,
-        processedIds: new Set(),
-        rawScanSize: 0,
-        skipped: 0,
         videoHistory: {
-          "2023-01": { count: 1, totalSize: 100 },
-          "2023-03": { count: 1, totalSize: 100 }
-        },
-        videoSize: 0
-      }
+          "2023-01": { count: 1, totalSize: 0 },
+          "2023-02": { count: 1, totalSize: 0 },
+          "2023-03": { count: 1, totalSize: 0 }
+        }
+      })
     ];
-
     const report = buildSyncReport(stats, {});
     // Should pass the Total Mismatches > 0 check to generate chart
     const chartSection = report.sections.find((s) => s.title === "Date Mismatches Trend");
@@ -602,33 +559,14 @@ describe("buildSyncReport", () => {
 
   it("should handle zero count in video history for size chart", () => {
     const stats: SyncStats[] = [
-      {
-        arDataSize: 0,
-        dateMismatches: [],
-        duplicateCount: 0,
-        duplicates: [],
-        env: "Production",
-        errors: [],
-        failed: 0,
+      createStats({
         found: 0,
-        knownFailures: 0,
-        new: 0,
-        newArDataSize: 0,
-        newDuplicateCount: 0,
-        newFailures: 0,
-        newRawScanSize: 0,
-        newVideoSize: 0,
-        processedIds: new Set(),
-        rawScanSize: 0,
-        skipped: 0,
         videoHistory: {
-          "2023-01": { count: 0, totalSize: 0 }, // Should result in null data point
+          "2023-01": { count: 0, totalSize: 0 },
           "2023-02": { count: 1, totalSize: 100 }
-        },
-        videoSize: 0
-      }
+        }
+      })
     ];
-
     const report = buildSyncReport(stats, {});
     const chartSection = report.sections.find((s) => s.title === "Average Video Size Trend");
     const config = chartSection?.data as LineChartConfig;
@@ -640,8 +578,7 @@ describe("buildSyncReport", () => {
 
   it("should render MismatchChartComponent", () => {
     const stats: SyncStats[] = [
-      {
-        arDataSize: 0,
+      createStats({
         dateMismatches: [
           {
             diffHours: 26,
@@ -652,27 +589,10 @@ describe("buildSyncReport", () => {
             videoDate: ""
           }
         ],
-        duplicateCount: 0,
-        duplicates: [],
-        env: "Production",
-        errors: [],
-        failed: 0,
         found: 0,
-        knownFailures: 0,
-        new: 0,
-        newArDataSize: 0,
-        newDuplicateCount: 0,
-        newFailures: 0,
-        newRawScanSize: 0,
-        newVideoSize: 0,
-        processedIds: new Set(),
-        rawScanSize: 0,
-        skipped: 0,
-        videoHistory: {},
-        videoSize: 0
-      }
+        videoHistory: { "2023-01": { count: 1, totalSize: 0 } }
+      })
     ];
-
     const report = buildSyncReport(stats, {});
     const chartSection = report.sections.find((s) => s.title === "Date Mismatches Trend");
     // Executing the component function to cover line 408
@@ -684,8 +604,7 @@ describe("buildSyncReport", () => {
 
   it("pads mismatch difference only for single-digit day deltas", () => {
     const stats: SyncStats[] = [
-      {
-        arDataSize: 0,
+      createStats({
         dateMismatches: [
           {
             diffHours: 240, // 10 days
@@ -696,27 +615,10 @@ describe("buildSyncReport", () => {
             videoDate: "2023-03-22T00:00:00Z"
           }
         ],
-        duplicateCount: 0,
-        duplicates: [],
-        env: "Production",
-        errors: [],
-        failed: 0,
         found: 1,
-        knownFailures: 0,
-        new: 0,
-        newArDataSize: 0,
-        newDuplicateCount: 0,
-        newFailures: 0,
-        newRawScanSize: 0,
-        newVideoSize: 0,
-        processedIds: new Set(),
-        rawScanSize: 0,
-        skipped: 0,
-        videoHistory: {},
-        videoSize: 0
-      }
+        videoHistory: { "2023-04": { count: 1, totalSize: 0 } }
+      })
     ];
-
     const report = buildSyncReport(stats, {});
     const mismatchSection = report.sections.find((s) => s.title === "Mismatches");
     const mismatchData = (mismatchSection?.data as string[]).join(" ");
@@ -737,13 +639,17 @@ describe("buildSyncReport", () => {
           errors: [{ id: "scan1", reason: "Single Error" }],
           failed: 1,
           found: 1,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 1,
           newArDataSize: 0,
           newDuplicateCount: 0,
-          newFailures: 1,
+          newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -777,13 +683,17 @@ describe("buildSyncReport", () => {
           ],
           failed: 1,
           found: 1,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 1,
           newArDataSize: 0,
           newDuplicateCount: 0,
-          newFailures: 1,
+          newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -818,13 +728,17 @@ describe("buildSyncReport", () => {
           ],
           failed: 1,
           found: 1,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 1,
           newArDataSize: 0,
           newDuplicateCount: 0,
-          newFailures: 1,
+          newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -853,13 +767,17 @@ describe("buildSyncReport", () => {
           errors: [{ id: "scan1", reason: "RawScan download failed (404)" }],
           failed: 1,
           found: 1,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 1,
           newArDataSize: 0,
           newDuplicateCount: 0,
-          newFailures: 1,
+          newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -888,13 +806,17 @@ describe("buildSyncReport", () => {
           errors: [],
           failed: 0,
           found: 10,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 0,
           newArDataSize: 0,
           newDuplicateCount: 0,
           newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -936,13 +858,17 @@ describe("buildSyncReport", () => {
           errors: [],
           failed: 0,
           found: 10,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 0,
           newArDataSize: 0,
           newDuplicateCount: 0,
           newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -963,9 +889,7 @@ describe("buildSyncReport", () => {
 
     it("should include months without duplicates in the trend chart", () => {
       const stats: SyncStats[] = [
-        {
-          arDataSize: 0,
-          dateMismatches: [],
+        createStats({
           duplicateCount: 1,
           duplicates: [
             {
@@ -976,26 +900,12 @@ describe("buildSyncReport", () => {
               scanDate: "2023-01-15"
             }
           ],
-          env: "Production",
-          errors: [],
-          failed: 0,
           found: 2,
-          knownFailures: 0,
-          new: 0,
-          newArDataSize: 0,
-          newDuplicateCount: 0,
-          newFailures: 0,
-          newRawScanSize: 0,
-          newVideoSize: 0,
-          processedIds: new Set(),
-          rawScanSize: 0,
-          skipped: 0,
           videoHistory: {
-            "2023-01": { count: 1, totalSize: 100 },
-            "2023-02": { count: 1, totalSize: 200 }
-          },
-          videoSize: 0
-        }
+            "2023-01": { count: 1, totalSize: 0 },
+            "2023-02": { count: 1, totalSize: 0 }
+          }
+        })
       ];
 
       const report = buildSyncReport(stats, {});
@@ -1031,13 +941,17 @@ describe("buildSyncReport", () => {
           errors: [],
           failed: 0,
           found: 10,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 0,
           newArDataSize: 0,
           newDuplicateCount: 0,
           newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -1095,13 +1009,17 @@ describe("buildSyncReport", () => {
           errors: [],
           failed: 0,
           found: 2,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 0,
           newArDataSize: 0,
           newDuplicateCount: 0,
           newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -1132,13 +1050,17 @@ describe("buildSyncReport", () => {
           errors: [],
           failed: 0,
           found: 2,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 0,
           newArDataSize: 0,
           newDuplicateCount: 0,
           newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -1175,13 +1097,17 @@ describe("buildSyncReport", () => {
           errors: [],
           failed: 0,
           found: 10,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 0,
           newArDataSize: 0,
-          newDuplicateCount: 3,
+          newDuplicateCount: 0,
           newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
@@ -1210,13 +1136,17 @@ describe("buildSyncReport", () => {
           errors: [],
           failed: 0,
           found: 10,
+          initialLayoutSize: 0,
           knownFailures: 0,
           new: 0,
           newArDataSize: 0,
           newDuplicateCount: 0,
           newFailures: 0,
+          newInitialLayoutSize: 0,
+          newPointCloudSize: 0,
           newRawScanSize: 0,
           newVideoSize: 0,
+          pointCloudSize: 0,
           processedIds: new Set(),
           rawScanSize: 0,
           skipped: 0,
