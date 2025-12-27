@@ -6,6 +6,7 @@ import { GeminiService } from "../services/geminiService";
 import { findArtifactDirectories } from "../utils/data/artifactIterator";
 import { getBadScans, saveBadScans } from "../utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../utils/data/checkedScans";
+import { discardArtifact } from "../utils/data/discardArtifact";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
 
@@ -13,7 +14,7 @@ import { createProgressBar } from "../utils/progress";
  * Script to filter out non-bathroom scans using Gemini Vision.
  * - Iterates through artifacts not yet checked or flagged bad.
  * - Sends the first frame (or video) to Gemini to ask "Is this a bathroom?".
- * - If NO, deletes the artifact and adds to `badScans.json`.
+ * - If NO, moves the artifact to `data/discarded-artifacts` and adds to `badScans.json`.
  * - If YES, marks as checked in `checkedScans.json`.
  */
 
@@ -89,12 +90,12 @@ export async function processArtifact(
   // 2. Safety Validation
   // Ensure we are inside data/artifacts (rudimentary check, can be improved)
   if (!dir.includes("data/artifacts") && !dryRun) {
-    logger.error(`SAFETY: Skipping deletion of unsafe path: ${dir}`);
+    logger.error(`SAFETY: Skipping discard of unsafe path: ${dir}`);
     stats.errors++;
     return stats;
   }
   if (!fs.existsSync(path.join(dir, "meta.json"))) {
-    logger.error(`SAFETY: Skipping deletion of artifact without meta.json: ${dir}`);
+    logger.error(`SAFETY: Skipping discard of artifact without meta.json: ${dir}`);
     stats.errors++;
     return stats;
   }
@@ -122,26 +123,31 @@ export async function processArtifact(
     const classification = classifyGeminiAnswer(text);
 
     if (classification === "NO") {
-      logger.info(`  -> ${artifactId}: NOT A BATHROOM. Removing...`);
+      logger.info(`  -> ${artifactId}: NOT A BATHROOM. Discarding...`);
 
       if (!dryRun) {
-        // Only mark BAD if we actually delete it successfully
+        // Only mark BAD if we actually move it successfully
         try {
-          fs.rmSync(dir, { force: true, recursive: true });
-
-          // Successful delete -> record bad scan
-          badScans[artifactId] = {
-            date: new Date().toISOString(),
-            environment,
-            reason: `Not a bathroom (Gemini ${MODEL_NAME})`
-          };
-          stats.removed++;
+          const artifactsRoot = path.resolve(dir, "..", "..");
+          const dataRoot = path.dirname(artifactsRoot);
+          const discardedPath = discardArtifact(dir, { artifactsRoot, dataRoot });
+          if (discardedPath !== null) {
+            // Successful move -> record bad scan
+            badScans[artifactId] = {
+              date: new Date().toISOString(),
+              environment,
+              reason: `Not a bathroom (Gemini ${MODEL_NAME})`
+            };
+            stats.removed++;
+          } else {
+            throw new Error("Failed to move artifact to discarded-artifacts");
+          }
         } catch (e) {
-          logger.error(`  -> ${artifactId}: Failed to delete: ${String(e)}`);
+          logger.error(`  -> ${artifactId}: Failed to discard: ${String(e)}`);
           stats.errors++;
         }
       } else {
-        logger.info(`  -> ${artifactId}: [DRY RUN] Would remove.`);
+        logger.info(`  -> ${artifactId}: [DRY RUN] Would discard.`);
         stats.removed++;
       }
     } else if (classification === "YES") {

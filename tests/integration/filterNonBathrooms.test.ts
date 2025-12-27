@@ -34,6 +34,8 @@ describe("filterNonBathrooms Integration", () => {
   // Ensure parent directories exist
   const dataDir = path.join(__dirname, "data");
   const artifactsDir = path.join(dataDir, "artifacts");
+  const discardedDir = path.join(dataDir, "discarded-artifacts");
+  const getDiscardedDir = (id: string) => path.join(discardedDir, "temp-artifacts", id);
   let mockBadScans: BadScanDatabase;
   let mockCheckedScans: CheckedScanDatabase;
 
@@ -41,6 +43,9 @@ describe("filterNonBathrooms Integration", () => {
     // Clean up
     if (fs.existsSync(mockArtifactsDir)) {
       fs.rmSync(mockArtifactsDir, { force: true, recursive: true });
+    }
+    if (fs.existsSync(discardedDir)) {
+      fs.rmSync(discardedDir, { force: true, recursive: true });
     }
     // Setup nested structure to pass safety check
     if (!fs.existsSync(dataDir)) {
@@ -64,6 +69,9 @@ describe("filterNonBathrooms Integration", () => {
   afterEach(() => {
     if (fs.existsSync(mockArtifactsDir)) {
       fs.rmSync(mockArtifactsDir, { force: true, recursive: true });
+    }
+    if (fs.existsSync(discardedDir)) {
+      fs.rmSync(discardedDir, { force: true, recursive: true });
     }
     // Cleanup parents if empty? No, unnecessary for temp test
   });
@@ -108,7 +116,8 @@ describe("filterNonBathrooms Integration", () => {
     const result = await processArtifact(artDir, mockGeminiService, mockBadScans, checkedScanIds, mockCheckedScans);
 
     expect(result.removed).toBe(1);
-    expect(fs.existsSync(artDir)).toBe(false); // Real deletion check
+    expect(fs.existsSync(artDir)).toBe(false); // Should be moved
+    expect(fs.existsSync(getDiscardedDir("art_delete"))).toBe(true);
     expect(mockBadScans["art_delete"]).toBeDefined();
   });
 

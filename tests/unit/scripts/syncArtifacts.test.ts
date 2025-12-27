@@ -4,15 +4,17 @@ import * as path from "path";
 import { Mock, MockedClass, MockedFunction, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SyncStats } from "../../../src/models/syncStats";
-import { generateSyncReport, main, syncEnvironment } from "../../../src/scripts/syncArtifacts";
+import * as syncArtifactsModule from "../../../src/scripts/syncArtifacts";
+import { generateSyncReport, main, processArtifact, runCli, syncEnvironment } from "../../../src/scripts/syncArtifacts";
 import { ArtifactResponse, SpatialService } from "../../../src/services/spatialService";
 import { buildSyncReport } from "../../../src/templates/syncReport";
-import { getBadScans } from "../../../src/utils/data/badScans";
+import { getBadScans, saveBadScans } from "../../../src/utils/data/badScans";
 import { SyncFailureDatabase, getSyncFailures, saveSyncFailures } from "../../../src/utils/data/syncFailures";
 import { findDuplicateArtifacts, getVideoHashes } from "../../../src/utils/data/videoHashes";
 import { generatePdfReport } from "../../../src/utils/reportGenerator";
 import { downloadFile, downloadJsonFile } from "../../../src/utils/sync/downloadHelpers";
 import { logger } from "../../../src/utils/logger";
+import * as discardArtifactModule from "../../../src/utils/data/discardArtifact";
 
 // Mock fs to allow spying on statSync
 vi.mock("fs", async (importOriginal) => {
@@ -76,6 +78,7 @@ const mockGetSyncFailures = getSyncFailures as unknown as MockedFunction<typeof 
 const mockSaveSyncFailures = saveSyncFailures as unknown as MockedFunction<typeof saveSyncFailures>;
 const mockGetVideoHashes = getVideoHashes as unknown as MockedFunction<typeof getVideoHashes>;
 const mockFindDuplicateArtifacts = findDuplicateArtifacts as unknown as MockedFunction<typeof findDuplicateArtifacts>;
+const mockSaveBadScans = saveBadScans as unknown as MockedFunction<typeof saveBadScans>;
 const mockGeneratePdfReport = generatePdfReport as unknown as Mock;
 const mockDownloadFile = downloadFile as unknown as Mock;
 const mockDownloadJsonFile = downloadJsonFile as unknown as Mock;
@@ -130,6 +133,129 @@ describe("syncArtifacts", () => {
     });
   });
 
+  describe("processArtifact", () => {
+    const envName = "test-env";
+    const baseArtifact = { arData: "a.json", id: "new-id", rawScan: "r.json", video: "v.mp4" };
+
+    it("records bad scan when earlier canonical is replaced and missing on disk", async () => {
+      const dataDir = path.join(tmpDir, "data", "artifacts", envName);
+      const badScansDb: Record<string, { reason: string; environment: string; date: string }> = {};
+      const videoHashesDb: Record<string, string[]> = {};
+      const duplicateHash = "dup-hash";
+      const onBadScanAdded = vi.fn();
+
+      mockHashVideoInDirectory.mockResolvedValue(duplicateHash);
+      mockFindDuplicateArtifacts.mockReturnValue(["old-id"]);
+
+      const result = await processArtifact(
+        { ...baseArtifact, id: "canonical-replacement" } as ArtifactResponse,
+        dataDir,
+        badScansDb,
+        videoHashesDb,
+        {
+          artifactOrder: 1,
+          canonicalByHash: { [duplicateHash]: "old-id" },
+          canonicalOrderByHash: { [duplicateHash]: 5 },
+          environment: envName,
+          onBadScanAdded
+        }
+      );
+
+      expect(onBadScanAdded).toHaveBeenCalledTimes(1);
+      expect(badScansDb["old-id"]?.reason).toContain("Duplicate video");
+      expect(result.duplicateIds).toEqual(["old-id"]);
+    });
+
+    it("skips recording duplicate bad scan when the id is already present", async () => {
+      const dataDir = path.join(tmpDir, "data", "artifacts", envName);
+      const duplicateHash = "dup-hash-existing";
+      const badScansDb = {
+        "old-id": { date: "today", environment: envName, reason: "existing" }
+      };
+      const videoHashesDb: Record<string, string[]> = {};
+      const onBadScanAdded = vi.fn();
+
+      mockHashVideoInDirectory.mockResolvedValue(duplicateHash);
+      mockFindDuplicateArtifacts.mockReturnValue(["old-id"]);
+
+      const result = await processArtifact(
+        { ...baseArtifact, id: "canonical-existing" } as ArtifactResponse,
+        dataDir,
+        badScansDb,
+        videoHashesDb,
+        {
+          artifactOrder: 1,
+          canonicalByHash: { [duplicateHash]: "old-id" },
+          canonicalOrderByHash: { [duplicateHash]: 5 },
+          environment: envName,
+          onBadScanAdded
+        }
+      );
+
+      expect(onBadScanAdded).not.toHaveBeenCalled();
+      expect(badScansDb["old-id"].reason).toBe("existing");
+      expect(result.duplicateIds).toEqual(["old-id"]);
+    });
+
+    it("logs an error when discarding a duplicate fails", async () => {
+      const dataDir = path.join(tmpDir, "data", "artifacts", envName);
+      const duplicateHash = "dup-hash-discard";
+      const badScansDb: Record<string, { reason: string; environment: string; date: string }> = {};
+      const videoHashesDb: Record<string, string[]> = {};
+      const onBadScanAdded = vi.fn();
+      const previousDir = path.join(dataDir, "old-id");
+
+      fs.mkdirSync(previousDir, { recursive: true });
+      const discardSpy = vi.spyOn(discardArtifactModule, "discardArtifact").mockReturnValueOnce(null);
+
+      mockHashVideoInDirectory.mockResolvedValue(duplicateHash);
+      mockFindDuplicateArtifacts.mockReturnValue(["old-id"]);
+
+      await processArtifact(
+        { ...baseArtifact, id: "canonical-discard-failure" } as ArtifactResponse,
+        dataDir,
+        badScansDb,
+        videoHashesDb,
+        {
+          artifactOrder: 1,
+          canonicalByHash: { [duplicateHash]: "old-id" },
+          canonicalOrderByHash: { [duplicateHash]: 5 },
+          environment: envName,
+          onBadScanAdded
+        }
+      );
+
+      expect(discardSpy).toHaveBeenCalled();
+      expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Failed to discard duplicate artifact"));
+      expect(onBadScanAdded).toHaveBeenCalled();
+    });
+
+    it("logs a warning when hashing the video throws", async () => {
+      const dataDir = path.join(tmpDir, "data", "artifacts", envName);
+      const badScansDb: Record<string, { reason: string; environment: string; date: string }> = {};
+      const videoHashesDb: Record<string, string[]> = {};
+
+      mockHashVideoInDirectory.mockRejectedValue(new Error("hash failure"));
+
+      const result = await processArtifact(
+        { ...baseArtifact, id: "hash-failure" } as ArtifactResponse,
+        dataDir,
+        badScansDb,
+        videoHashesDb,
+        {
+          artifactOrder: 0,
+          canonicalByHash: {},
+          canonicalOrderByHash: {},
+          environment: envName,
+          onBadScanAdded: vi.fn()
+        }
+      );
+
+      expect(result.videoHash).toBeUndefined();
+      expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Failed to hash video"));
+    });
+  });
+
   afterEach(() => {
     // Cleanup
     process.chdir(originalCwd);
@@ -143,6 +269,7 @@ describe("syncArtifacts", () => {
     const env = { domain: "test.com", name: "test-env" };
     const artifact = { arData: "a.json", id: "123", rawScan: "r.json", video: "v.mp4" };
     const getArtifactDir = (id: string) => path.join(tmpDir, "data", "artifacts", "test_env", id);
+    const getDiscardedDir = (id: string) => path.join(tmpDir, "data", "discarded-artifacts", "test_env", id);
 
     it("fully handles happy path: creates files, stats correct", async () => {
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
@@ -240,11 +367,12 @@ describe("syncArtifacts", () => {
       const stats = await syncEnvironment(env);
 
       expect(stats.failed).toBe(1);
-      // Verify dir gone
+      // Verify moved to discarded-artifacts
       expect(fs.existsSync(getArtifactDir("123"))).toBe(false);
+      expect(fs.existsSync(getDiscardedDir("123"))).toBe(true);
     });
 
-    it("logs error if cleanup fails (rmSync throws)", async () => {
+    it("logs error if cleanup fails (discardArtifact fails)", async () => {
       mockDownloadFile.mockResolvedValue("download failed");
 
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
@@ -252,14 +380,14 @@ describe("syncArtifacts", () => {
         pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
       });
 
-      // To make rmSync fail, we remove write permissions from the parent directory
-      // This prevents removing the directory entry for '123'
+      // To make discardArtifact fail, we remove write permissions from the parent directory
+      // This prevents moving the directory entry for '123'
       const parentDir = path.dirname(getArtifactDir("123"));
 
       // Ensure the directory exists so we can chmod it
       fs.mkdirSync(getArtifactDir("123"), { recursive: true });
 
-      // Make parent read-only (so we cannot remove entries from it)
+      // Make parent read-only (so we cannot move entries from it)
       fs.chmodSync(parentDir, 0o500);
 
       try {
@@ -269,7 +397,7 @@ describe("syncArtifacts", () => {
         fs.chmodSync(parentDir, 0o777);
       }
 
-      expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Failed to delete incomplete artifact"));
+      expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Failed to discard incomplete artifact"));
     });
 
     // 6) Undefined error warning
@@ -292,8 +420,9 @@ describe("syncArtifacts", () => {
       expect(mockLoggerWarn).toHaveBeenCalledWith(
         expect.stringContaining("Undefined error returned for video download")
       );
-      // It treats it as an error
+      // It treats it as an error and moves to discarded-artifacts
       expect(fs.existsSync(getArtifactDir("123"))).toBe(false);
+      expect(fs.existsSync(getDiscardedDir("123"))).toBe(true);
     });
 
     // 7) Known vs New Failures
@@ -645,6 +774,7 @@ describe("syncArtifacts", () => {
 
       // pLimit catches -> rejects -> Promise.all rejects -> Page catch logs error
       expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Error fetching page 1"));
+      expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("pLimit task failed"));
       expect(stats.new).toBe(0);
     });
 
@@ -673,6 +803,33 @@ describe("syncArtifacts", () => {
       expect(stats.new).toBe(3);
       // The continue statement is defensive code that's hard to trigger in practice
       // but ensures the code doesn't crash if arrays are somehow mismatched
+    });
+
+    it("continues processing when a page result is undefined", async () => {
+      const artifactB = { ...artifact, id: "456" };
+      const originalPromiseAll = Promise.all.bind(Promise);
+      const promiseAllSpy = vi.spyOn(Promise, "all").mockImplementation(async (values: readonly unknown[] | []) => {
+        const result = await originalPromiseAll(values);
+        if (Array.isArray(values) && values.length === 2 && Array.isArray(result)) {
+          const mutated = [...result];
+          mutated[0] = undefined;
+          return mutated;
+        }
+        return result;
+      });
+
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifact, artifactB] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 2, total: 2 }
+      });
+
+      const stats = await syncEnvironment(env);
+
+      promiseAllSpy.mockRestore();
+
+      expect(stats.new).toBe(1);
+      expect(stats.failed).toBe(0);
+      expect(stats.skipped).toBe(0);
     });
 
     // 15) Duplicates with scanDate (covers line 421)
@@ -713,6 +870,63 @@ describe("syncArtifacts", () => {
         // Should have scanDate set (covers line 421)
         expect(duplicateEntry.scanDate).toBe("2023-01-02T10:00:00Z");
       }
+    });
+
+    it("ignores persisted video hash entries that are not string arrays", async () => {
+      mockGetVideoHashes.mockReturnValue({
+        broken: [123] as unknown as string[],
+        ok: ["persisted-id"]
+      });
+      mockHashVideoInDirectory.mockResolvedValue("computed-hash");
+
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [{ ...artifact, id: "artifact1" }] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      const stats = await syncEnvironment(env);
+
+      expect(stats.new).toBe(1);
+      expect(mockFindDuplicateArtifacts).toHaveBeenCalledWith(expect.any(Object), "computed-hash", "artifact1");
+    });
+
+    it("moves duplicate videos to discarded-artifacts and records bad scans", async () => {
+      const duplicateHash = "duplicate-video-hash";
+      const artifact1 = { ...artifact, id: "artifact1" };
+      const artifact2 = { ...artifact, id: "artifact2" };
+
+      mockHashVideoInDirectory.mockResolvedValue(duplicateHash);
+      mockGetVideoHashes.mockReturnValue({
+        [duplicateHash]: ["artifact1"]
+      });
+      mockFindDuplicateArtifacts.mockImplementation((_db, hash, excludeId) => {
+        if (hash === duplicateHash && excludeId === "artifact2") {
+          return ["artifact1"];
+        }
+        return [];
+      });
+
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifact1, artifact2] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 2 }
+      });
+
+      const stats = await syncEnvironment(env);
+
+      expect(stats.duplicateCount).toBeGreaterThan(0);
+      expect(fs.existsSync(getArtifactDir("artifact2"))).toBe(false);
+      expect(fs.existsSync(getDiscardedDir("artifact2"))).toBe(true);
+
+      expect(mockSaveBadScans).toHaveBeenCalled();
+      const badScanCall = mockSaveBadScans.mock.calls.find((call) => {
+        const payload = call[0] as Record<string, { reason: string }>;
+        return payload["artifact2"] !== undefined;
+      });
+      if (!badScanCall) {
+        throw new Error("artifact2 not recorded as bad scan");
+      }
+      const savedDb = badScanCall[0] as Record<string, { reason: string }>;
+      expect(savedDb["artifact2"]?.reason).toContain("Duplicate video");
     });
   });
 
@@ -861,6 +1075,37 @@ describe("syncArtifacts", () => {
 
       expect(failureRecord.environment).toBe("test-env");
       expect(failureRecord.reasons).toContain("reason_fail");
+    });
+  });
+
+  describe("runCli", () => {
+    it("exits successfully when main resolves", async () => {
+      const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+      const runner = vi.fn().mockResolvedValue(undefined);
+
+      await runCli(runner);
+
+      expect(exitSpy).toHaveBeenCalledWith(0);
+      expect(runner).toHaveBeenCalled();
+    });
+
+    it("exits with failure code when main rejects", async () => {
+      const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+      const runner = vi.fn().mockRejectedValue(new Error("cli failure"));
+
+      await runCli(runner);
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      expect(mockLoggerError).toHaveBeenCalledWith(new Error("cli failure"));
+    });
+
+    it("runs the provided runner when invoked as the main module", () => {
+      const runner = vi.fn().mockResolvedValue(undefined);
+      const entryModule = { filename: "fake-module" } as unknown as NodeJS.Module;
+
+      syncArtifactsModule.runIfMain(entryModule, runner, true);
+
+      expect(runner).toHaveBeenCalledTimes(1);
     });
   });
 });

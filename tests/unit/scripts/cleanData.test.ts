@@ -7,10 +7,14 @@ import os from "os";
 import { main, probeVideo } from "../../../src/scripts/cleanData";
 import { getBadScans, saveBadScans } from "../../../src/utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../../../src/utils/data/checkedScans";
+import { discardArtifact } from "../../../src/utils/data/discardArtifact";
 
 vi.mock("fluent-ffmpeg");
 vi.mock("../../../src/utils/data/badScans");
 vi.mock("../../../src/utils/data/checkedScans");
+vi.mock("../../../src/utils/data/discardArtifact", () => ({
+  discardArtifact: vi.fn()
+}));
 
 // Mock logger
 vi.mock("../../../src/utils/logger", () => ({
@@ -51,6 +55,9 @@ describe("cleanData", () => {
       ffprobe: vi.fn()
     };
     mockFfmpeg.mockReturnValue(mockFfmpegCommand);
+
+    // Mock discardArtifact to succeed by default
+    vi.mocked(discardArtifact).mockReturnValue("/mock/data/discarded-artifacts/artifact");
 
     vi.clearAllMocks();
   });
@@ -188,7 +195,8 @@ describe("cleanData", () => {
 
       expect(mockBadScans["artifact_missing"]).toBeDefined();
       expect(mockBadScans["artifact_missing"]?.reason).toBe("Missing video.mp4");
-      expect(fs.existsSync(artifactDir)).toBe(false);
+      // Artifact should be moved to discarded-artifacts, not deleted
+      expect(discardArtifact).toHaveBeenCalled();
       expect(stats.removedCount).toBe(1);
     });
 
@@ -341,16 +349,16 @@ describe("cleanData", () => {
       const artifactDir = path.join(dataDir, "artifact_error");
       fs.mkdirSync(artifactDir);
       fs.writeFileSync(path.join(artifactDir, "meta.json"), "{}");
-      // Missing video - will trigger deletion
+      // Missing video - will trigger discard
 
-      // Mock fs with throwing rmSync
+      // Mock discardArtifact to return null (simulating failure)
+      vi.mocked(discardArtifact).mockReturnValue(null);
+
       const mockFs = {
         existsSync: fs.existsSync,
+        mkdirSync: fs.mkdirSync,
         readdirSync: fs.readdirSync,
         renameSync: fs.renameSync,
-        rmSync: vi.fn().mockImplementation(() => {
-          throw new Error("Permission denied");
-        }),
         statSync: fs.statSync
       };
 
@@ -363,15 +371,15 @@ describe("cleanData", () => {
         logger: mockLogger
       });
 
-      // Should have failed to delete
+      // Should have failed to discard
       expect(stats.failedDeletes).toContain("artifact_error");
     });
 
-    it("removes checked scan entry when artifact is deleted", async () => {
+    it("removes checked scan entry when artifact is discarded", async () => {
       const artifactDir = path.join(dataDir, "artifact_checked");
       fs.mkdirSync(artifactDir);
       fs.writeFileSync(path.join(artifactDir, "meta.json"), "{}");
-      // Missing video - will trigger deletion
+      // Missing video - will trigger discard
 
       // Add to checked scans
       mockCheckedScans["artifact_checked"] = { cleanedDate: "2025-01-01" };

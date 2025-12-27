@@ -8,7 +8,8 @@ import { extractVideoMetadata } from "../utils/video/metadata";
 import { hashVideoInDirectory } from "../utils/video/hash";
 import { ArtifactResponse, SpatialService } from "../services/spatialService";
 import { buildSyncReport } from "../templates/syncReport";
-import { getBadScans } from "../utils/data/badScans";
+import { getBadScans, saveBadScans } from "../utils/data/badScans";
+import { discardArtifact } from "../utils/data/discardArtifact";
 import { SyncFailureDatabase, getSyncFailures, saveSyncFailures } from "../utils/data/syncFailures";
 import {
   type VideoHashDatabase,
@@ -62,6 +63,7 @@ function pLimit(concurrency: number) {
           const result = await fn();
           resolve(result);
         } catch (e) {
+          logger.error(`pLimit task failed: ${String(e)}`);
           reject(e instanceof Error ? e : new Error(String(e)));
         } finally {
           next();
@@ -69,15 +71,11 @@ function pLimit(concurrency: number) {
       };
 
       if (active < concurrency) {
-        runTask().catch((err: unknown) => {
-          logger.error(`pLimit task failed (unexpected): ${String(err)}`);
-        });
+        runTask().catch(() => undefined);
       } else {
         // Wrap async task in void function to satisfy generic queue type and no-misused-promises
         queue.push(() => {
-          runTask().catch((err: unknown) => {
-            logger.error(`pLimit task failed (queue): ${String(err)}`);
-          });
+          runTask().catch(() => undefined);
         });
       }
     });
@@ -108,12 +106,21 @@ interface ArtifactResult {
   };
 }
 
+interface ProcessArtifactOptions {
+  canonicalByHash: Record<string, string>;
+  canonicalOrderByHash: Record<string, number>;
+  artifactOrder: number;
+  environment: string;
+  onBadScanAdded: () => void;
+}
+
 // Extracted Artifact Processor
-async function processArtifact(
+export async function processArtifact(
   artifact: ArtifactResponse,
   dataDir: string,
   badScans: BadScanDatabase,
-  videoHashes: VideoHashDatabase
+  videoHashes: VideoHashDatabase,
+  options: ProcessArtifactOptions
 ): Promise<ArtifactResult> {
   const result: ArtifactResult = {
     arDataSize: 0,
@@ -130,6 +137,9 @@ async function processArtifact(
   const JSON_INDENT = 2;
 
   const ZERO = 0;
+  const { artifactOrder, canonicalByHash, canonicalOrderByHash, environment, onBadScanAdded } = options;
+  const sanitizeId = (id: string) => id.replace(/[^a-z0-9_-]/gi, "_");
+  const buildArtifactDir = (id: string) => path.join(dataDir, sanitizeId(id));
 
   // Hardened check for badScans
   if (Object.prototype.hasOwnProperty.call(badScans, artifact.id)) {
@@ -153,7 +163,7 @@ async function processArtifact(
 
   if (hasAllFiles) {
     // Sanitize ID for path safety
-    const safeId = artifact.id.replace(/[^a-z0-9_-]/gi, "_");
+    const safeId = sanitizeId(artifact.id);
     const artifactDir = path.join(dataDir, safeId);
     const exists = fs.existsSync(artifactDir);
 
@@ -229,9 +239,14 @@ async function processArtifact(
     if (artifactFailed) {
       result.failed = 1;
       try {
-        fs.rmSync(artifactDir, { force: true, recursive: true });
+        const dataRoot = path.resolve(dataDir, "..", "..");
+        const artifactsRoot = path.join(dataRoot, "artifacts");
+        const discardedPath = discardArtifact(artifactDir, { artifactsRoot, dataRoot });
+        if (discardedPath === null) {
+          throw new Error("Failed to move artifact to discarded-artifacts");
+        }
       } catch (e) {
-        logger.error(`Failed to delete incomplete artifact ${artifact.id}: ${String(e)}`);
+        logger.error(`Failed to discard incomplete artifact ${artifact.id}: ${String(e)}`);
       }
     } else if (!exists) {
       result.new = 1;
@@ -265,12 +280,74 @@ async function processArtifact(
           const hash = await hashVideoInDirectory(artifactDir);
           if (hash !== null) {
             result.videoHash = hash;
+            const FIRST_DUPLICATE_INDEX = 0;
+            const MIN_DUPLICATE_ENTRIES = 0;
             const duplicateIds = findDuplicateArtifacts(videoHashes, hash, artifact.id);
-            const NO_DUPLICATES = 0;
-            if (duplicateIds.length > NO_DUPLICATES) {
-              result.duplicateIds = duplicateIds;
+            const recordDuplicateBadScan = (id: string, duplicates: string[]) => {
+              if (badScans[id] !== undefined) {
+                return;
+              }
+              const reasonDetail =
+                duplicates.length > MIN_DUPLICATE_ENTRIES
+                  ? `Duplicate video (hash ${hash}) matches ${duplicates.join(", ")}`
+                  : `Duplicate video (hash ${hash})`;
+              badScans[id] = {
+                date: new Date().toISOString(),
+                environment,
+                reason: reasonDetail
+              };
+              onBadScanAdded();
+            };
+
+            const discardDuplicate = (id: string, targetDir: string, duplicates: string[]) => {
+              const artifactsRoot = path.resolve(dataDir, "..");
+              const dataRoot = path.resolve(artifactsRoot, "..");
+              const discardedPath = discardArtifact(targetDir, { artifactsRoot, dataRoot });
+              recordDuplicateBadScan(id, duplicates);
+              if (discardedPath === null) {
+                logger.error(`Failed to discard duplicate artifact ${id}`);
+              } else {
+                logger.info(`Discarded duplicate artifact ${id} -> ${discardedPath}`);
+              }
+            };
+
+            if (canonicalByHash[hash] === undefined) {
+              const defaultCanonical = duplicateIds[FIRST_DUPLICATE_INDEX] ?? artifact.id;
+              canonicalByHash[hash] = defaultCanonical;
+              const defaultOrder =
+                duplicateIds.length > MIN_DUPLICATE_ENTRIES ? Number.MIN_SAFE_INTEGER : artifactOrder;
+              canonicalOrderByHash[hash] = defaultOrder;
             }
-            // Add this artifact to the hash database
+
+            const currentCanonicalId = canonicalByHash[hash] ?? artifact.id;
+            const currentCanonicalOrder = canonicalOrderByHash[hash] ?? artifactOrder;
+
+            if (artifactOrder < currentCanonicalOrder && currentCanonicalId !== artifact.id) {
+              const previousCanonicalId = currentCanonicalId;
+              canonicalByHash[hash] = artifact.id;
+              canonicalOrderByHash[hash] = artifactOrder;
+
+              const previousArtifactDir = buildArtifactDir(previousCanonicalId);
+              const duplicateReasonIds = [...duplicateIds, artifact.id];
+              if (fs.existsSync(previousArtifactDir)) {
+                discardDuplicate(previousCanonicalId, previousArtifactDir, duplicateReasonIds);
+              } else {
+                recordDuplicateBadScan(previousCanonicalId, duplicateReasonIds);
+              }
+            }
+
+            const canonicalId = canonicalByHash[hash] ?? artifact.id;
+            const hasDuplicates = duplicateIds.length > MIN_DUPLICATE_ENTRIES;
+            if (hasDuplicates) {
+              result.duplicateIds = duplicateIds;
+              const isCanonicalArtifact = artifact.id === canonicalId;
+              if (!isCanonicalArtifact) {
+                discardDuplicate(artifact.id, artifactDir, duplicateIds);
+                addVideoHash(videoHashes, hash, artifact.id);
+                return result;
+              }
+            }
+
             addVideoHash(videoHashes, hash, artifact.id);
           }
         } catch (e) {
@@ -357,6 +434,26 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
 
   const videoHashes = getVideoHashes();
   logger.info(`Loaded ${Object.keys(videoHashes).length.toString()} video hashes for duplicate detection.`);
+  const canonicalByHash: Record<string, string> = {};
+  const MIN_HASH_IDS = 0;
+  const FIRST_HASH_INDEX = 0;
+  const canonicalOrderByHash: Record<string, number> = {};
+  const PERSISTED_CANONICAL_ORDER = Number.MIN_SAFE_INTEGER;
+  Object.entries(videoHashes).forEach(([hash, ids]) => {
+    if (
+      !Array.isArray(ids) ||
+      ids.length <= MIN_HASH_IDS ||
+      canonicalByHash[hash] !== undefined ||
+      typeof ids[FIRST_HASH_INDEX] !== "string"
+    ) {
+      return;
+    }
+    const firstId = ids[FIRST_HASH_INDEX];
+    canonicalByHash[hash] = firstId;
+    canonicalOrderByHash[hash] = PERSISTED_CANONICAL_ORDER;
+  });
+  const badScanUpdateState = { updated: false };
+  let artifactOrderCounter = 0;
 
   const service = new SpatialService(env.domain, env.name);
 
@@ -387,8 +484,17 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
         // Queue all artifacts for processing and wait for results
         const pageResults = await Promise.all(
           artifacts.map(async (a) => {
+            const artifactOrder = artifactOrderCounter++;
             const r = await limitArtifact(async () => {
-              const pa = await processArtifact(a, dataDir, badScans, videoHashes);
+              const pa = await processArtifact(a, dataDir, badScans, videoHashes, {
+                artifactOrder,
+                canonicalByHash,
+                canonicalOrderByHash,
+                environment: env.name,
+                onBadScanAdded: () => {
+                  badScanUpdateState.updated = true;
+                }
+              });
               return pa;
             });
             return r;
@@ -512,6 +618,11 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
       }
     });
 
+    if (badScanUpdateState.updated) {
+      saveBadScans(badScans);
+      logger.info(`Saved ${Object.keys(badScans).length.toString()} bad scans.`);
+    }
+
     // Save video hash database
     saveVideoHashes(videoHashes);
     logger.info(`Saved ${Object.keys(videoHashes).length.toString()} video hashes.`);
@@ -555,14 +666,25 @@ export async function main() {
   saveSyncFailures(currentFailures);
 }
 
-if (require.main === module) {
+export async function runCli(runMain: () => Promise<void> = main) {
   const EXIT_SUCCESS = 0;
   const EXIT_FAILURE = 1;
 
-  main()
-    .then(() => process.exit(EXIT_SUCCESS))
-    .catch((err: unknown) => {
-      logger.error(err);
-      process.exit(EXIT_FAILURE);
-    });
+  try {
+    await runMain();
+    process.exit(EXIT_SUCCESS);
+  } catch (err: unknown) {
+    logger.error(err);
+    process.exit(EXIT_FAILURE);
+  }
 }
+
+export function runIfMain(entryModule: NodeJS.Module, runner: () => Promise<void> = runCli, forceRun = false) {
+  if (forceRun || require.main === entryModule) {
+    runner().catch((err: unknown) => {
+      logger.error(err);
+    });
+  }
+}
+
+runIfMain(module);

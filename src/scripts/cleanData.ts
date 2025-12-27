@@ -5,6 +5,7 @@ import * as path from "path";
 import { findArtifactDirectories } from "../utils/data/artifactIterator";
 import { getBadScans, saveBadScans } from "../utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../utils/data/checkedScans";
+import { discardArtifact } from "../utils/data/discardArtifact";
 import { logger } from "../utils/logger";
 
 /**
@@ -12,7 +13,7 @@ import { logger } from "../utils/logger";
  * - Iterates through all artifacts in `data/artifacts`.
  * - Checks for missing `video.mp4` or invalid video files.
  * - Checks if video is too short.
- * - Deletes invalid artifacts to save space and ensure dataset quality.
+ * - Moves invalid artifacts to `data/discarded-artifacts` to save space and ensure dataset quality.
  * - Updates `badScans.json` with reasons for deletion.
  */
 
@@ -25,7 +26,7 @@ export interface CleanDataOptions {
   minDuration?: number;
   now?: () => Date;
   logger?: (msg: string) => void;
-  fs?: Pick<typeof fs, "existsSync" | "readdirSync" | "statSync" | "rmSync" | "renameSync">;
+  fs?: Pick<typeof fs, "existsSync" | "readdirSync" | "statSync" | "renameSync" | "mkdirSync">;
   ffprobe?: typeof ffmpeg.ffprobe;
 }
 
@@ -119,6 +120,11 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
     skippedCleanCount: INITIAL_COUNT
   };
 
+  const ARTIFACTS_ROOT_RAW = DATA_DIR;
+  const ARTIFACTS_ROOT =
+    path.basename(ARTIFACTS_ROOT_RAW) === "artifacts" ? ARTIFACTS_ROOT_RAW : path.dirname(ARTIFACTS_ROOT_RAW);
+  const DATA_ROOT = path.dirname(ARTIFACTS_ROOT);
+
   const MIN_NESTING_DEPTH = 1;
   const ENV_PARENT_OFFSET = 2;
 
@@ -188,9 +194,17 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
             stats.quarantinedCount++;
             log("  -> Quarantined folder.");
           } else {
-            fsImpl.rmSync(artifactDir, { force: true, recursive: true });
-            stats.removedCount++;
-            log("  -> Deleted folder.");
+            const discardedPath = discardArtifact(artifactDir, {
+              artifactsRoot: ARTIFACTS_ROOT,
+              dataRoot: DATA_ROOT,
+              fsImpl
+            });
+            if (discardedPath !== null) {
+              stats.removedCount++;
+              log("  -> Moved to discarded-artifacts folder.");
+            } else {
+              throw new Error("Failed to move artifact to discarded-artifacts");
+            }
           }
 
           // If it was in checked scans, remove it?
@@ -220,7 +234,7 @@ export async function main(opts?: CleanDataOptions): Promise<CleanDataStats> {
   }
 
   log(
-    `Clean complete. Removed: ${stats.removedCount.toString()}. Quarantined: ${stats.quarantinedCount.toString()}. Skipped (Cached): ${stats.skippedCleanCount.toString()}. Failed Deletes: ${stats.failedDeletes.length.toString()}.`
+    `Clean complete. Discarded: ${stats.removedCount.toString()}. Quarantined: ${stats.quarantinedCount.toString()}. Skipped (Cached): ${stats.skippedCleanCount.toString()}. Failed Moves: ${stats.failedDeletes.length.toString()}.`
   );
 
   return stats;

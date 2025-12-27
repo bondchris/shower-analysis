@@ -6,6 +6,7 @@ import { Mock, Mocked, beforeEach, describe, expect, it, vi } from "vitest";
 import { GeminiService } from "../../../src/services/geminiService";
 import { getBadScans } from "../../../src/utils/data/badScans";
 import { getCheckedScans } from "../../../src/utils/data/checkedScans";
+import { discardArtifact } from "../../../src/utils/data/discardArtifact";
 import { classifyGeminiAnswer, processArtifact } from "../../../src/scripts/filterNonBathrooms";
 
 // Mock dependencies
@@ -13,6 +14,7 @@ vi.mock("fs");
 vi.mock("../../../src/services/geminiService");
 vi.mock("../../../src/utils/data/badScans");
 vi.mock("../../../src/utils/data/checkedScans");
+vi.mock("../../../src/utils/data/discardArtifact");
 vi.mock("../../../src/utils/logger");
 vi.mock("../../../src/utils/progress", () => ({
   createProgressBar: vi.fn().mockReturnValue({
@@ -78,7 +80,7 @@ describe("filterNonBathrooms Unit", () => {
     beforeEach(() => {
       (fs.existsSync as Mock).mockReturnValue(true);
       (fs.readFileSync as Mock).mockReturnValue(Buffer.from("video"));
-      (fs.rmSync as Mock).mockReturnValue(undefined);
+      (discardArtifact as Mock).mockReturnValue("/mock/data/discarded-artifacts/artifact1");
     });
 
     it("skips if artifact is already in badScans", async () => {
@@ -121,10 +123,10 @@ describe("filterNonBathrooms Unit", () => {
       expect(mockCheckedScans["artifact1"]).toBeDefined();
       expect(mockCheckedScans["artifact1"]?.filteredModel).toBe("gemini-3-pro-preview");
       expect(checkedScanIds.has("artifact1")).toBe(true);
-      expect(fs.rmSync).not.toHaveBeenCalled();
+      expect(discardArtifact).not.toHaveBeenCalled();
     });
 
-    it("removes artifact if Gemini says NO", async () => {
+    it("discards artifact if Gemini says NO", async () => {
       // Clean "NO" matches strict regex
       mockService.generateContent.mockResolvedValue("NO");
 
@@ -133,7 +135,11 @@ describe("filterNonBathrooms Unit", () => {
       expect(result).toEqual(expect.objectContaining({ processed: 1, removed: 1, skipped: 0 }));
       expect(mockBadScans["artifact1"]).toBeDefined();
       expect(mockBadScans["artifact1"]?.reason).toContain("Not a bathroom");
-      expect(fs.rmSync).toHaveBeenCalledWith(MOCK_DIR, { force: true, recursive: true });
+      const calls = vi.mocked(discardArtifact).mock.calls as [string, { artifactsRoot?: string; dataRoot?: string }][];
+      const lastCall = calls[calls.length - 1];
+      expect(lastCall?.[0]).toBe(MOCK_DIR);
+      expect(typeof lastCall?.[1]?.artifactsRoot).toBe("string");
+      expect(typeof lastCall?.[1]?.dataRoot).toBe("string");
       expect(checkedScanIds.has("artifact1")).toBe(false);
     });
 
@@ -148,20 +154,20 @@ describe("filterNonBathrooms Unit", () => {
       expect(result.removed).toBe(0);
       expect(result.skippedAmbiguous).toBe(1);
 
-      // Should NOT delete
-      expect(fs.rmSync).not.toHaveBeenCalled();
+      // Should NOT discard
+      expect(discardArtifact).not.toHaveBeenCalled();
     });
 
-    it("DOES NOT remove artifact in DRY_RUN mode", async () => {
+    it("DOES NOT discard artifact in DRY_RUN mode", async () => {
       mockService.generateContent.mockResolvedValue("NO");
 
       const result = await processArtifact(MOCK_DIR, mockService, mockBadScans, checkedScanIds, mockCheckedScans, {
         dryRun: true
       });
 
-      // In dry run, we increment 'removed' to show what WOULD happen, but fs.rmSync is not called
+      // In dry run, we increment 'removed' to show what WOULD happen, but discardArtifact is not called
       expect(result.removed).toBe(1);
-      expect(fs.rmSync).not.toHaveBeenCalled();
+      expect(discardArtifact).not.toHaveBeenCalled();
 
       // Bad scans should NOT be updated in dry run
       expect(mockBadScans["artifact1"]).toBeUndefined();
@@ -178,15 +184,13 @@ describe("filterNonBathrooms Unit", () => {
       expect(checkedScanIds.has("artifact1")).toBe(false);
     });
 
-    it("handles rmSync failure gracefully", async () => {
+    it("handles discardArtifact failure gracefully", async () => {
       mockService.generateContent.mockResolvedValue("NO");
-      (fs.rmSync as Mock).mockImplementation(() => {
-        throw new Error("Delete Fail");
-      });
+      (discardArtifact as Mock).mockReturnValue(null);
 
       const result = await processArtifact(MOCK_DIR, mockService, mockBadScans, checkedScanIds, mockCheckedScans);
 
-      // Processed increments, but removed does NOT increment because delete failed
+      // Processed increments, but removed does NOT increment because discard failed
       expect(result.processed).toBe(1);
       expect(result.removed).toBe(0);
       expect(result.errors).toBe(1);
@@ -205,7 +209,7 @@ describe("filterNonBathrooms Unit", () => {
       beforeEach(() => {
         (fs.existsSync as Mock).mockReturnValue(true);
         (fs.readFileSync as Mock).mockReturnValue(Buffer.from("video"));
-        (fs.rmSync as Mock).mockReturnValue(undefined);
+        (discardArtifact as Mock).mockReturnValue("/mock/data/discarded-artifacts/artifact1");
       });
 
       it("should process all directory items", async () => {

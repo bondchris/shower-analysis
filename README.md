@@ -2,19 +2,13 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
-**Current Version:** v0.52.0
+**Current Version:** v0.54.0
 
-## What's New (v0.52.0)
+## What's New (v0.54.0)
 
-- Sync failure tracking now normalizes records, deduplicates reasons, and guarantees the
-  backing `config/syncFailures.json` path exists; sync reports group download failures by
-  status and file type while separating new versus known inaccessible artifacts.
-- Room dimension extraction is more defensive: wall widths fall back to polygon perimeters,
-  floors derive lengths/widths from polygon corners when possible, and invalid or partial
-  dimensions for doors, windows, openings, and tubs are safely skipped instead of breaking
-  charts.
-- Polygon integrity checks clamp angle calculations and better tolerate malformed vertices,
-  preventing runaway values while keeping intersection and overlap detection strict.
+- Created a unified `discardArtifact` utility that all scripts now use to move invalid
+  artifacts to `data/discarded-artifacts` instead of deleting them.
+- Sync report now hides environments with no sync errors for cleaner output.
 
 ## Overview
 
@@ -56,7 +50,10 @@ npm run sync
 - Creates `data/artifacts/{environment}/{id}/` directories.
 - Caches API responses to `data/api_cache/` to minimize network requests.
 - Skips existing files and "bad scans" listed in `config/badScans.json`.
-- Hashes videos with BLAKE3, caches results in `videoHash.json`, and updates `config/videoHashes.json` to detect duplicate videos across environments.
+- Hashes videos with BLAKE3, caches results in `videoHash.json`, and updates
+  `config/videoHashes.json` to detect duplicate videos across environments.
+- Moves duplicate videos to `data/discarded-artifacts` and records them as bad scans to
+  prevent re-syncing the duplicate IDs.
 
 **Output**:
 
@@ -84,7 +81,7 @@ npm run clean
 
 **Features**:
 
-- Deletes artifacts with invalid or zero-byte files.
+- Moves artifacts with invalid or zero-byte files to `data/discarded-artifacts`.
 - Updates `config/badScans.json` to prevent re-syncing.
 
 ### 4. Filter Non-Bathroom Videos (Gemini AI)
@@ -102,7 +99,7 @@ npm run filter-videos
 **Features**:
 
 - Uploads videos to Gemini for classification.
-- Deletes "Not a bathroom" artifacts.
+- Moves "Not a bathroom" artifacts to `data/discarded-artifacts`.
 - Caches results in `config/checkedScans.json` to save costs and time.
 
 ### 5. Format Data
@@ -153,7 +150,8 @@ npm run inspect
 ## Configuration
 
 - **`.env`**: API keys (e.g., `GEMINI_API_KEY`).
-- **`config/badScans.json`**: Artifact IDs known to be bad/invalid. Automatically updated by `clean` and `filter-videos`.
+- **`config/badScans.json`**: Artifact IDs known to be bad/invalid. Automatically updated by
+  `clean`, `filter-videos`, and duplicate detection during `sync`.
 - **`config/checkedScans.json`**: Cache of Gemini classification results to prevent re-processing.
 - **`config/videoHashes.json`**: Auto-generated mapping of BLAKE3 video hashes to artifact IDs for duplicate detection during sync.
 

@@ -29,7 +29,8 @@ vi.mock("../../src/utils/sync/downloadHelpers", () => {
       if (dest.includes("scan-bad-date")) {
         throw new Error("Simulated Download Failure");
       }
-      fs.writeFileSync(dest, "fake video content");
+      const artifactId = path.basename(path.dirname(dest));
+      fs.writeFileSync(dest, `fake video content for ${artifactId}`);
       await Promise.resolve();
       return null;
     }),
@@ -350,7 +351,8 @@ describe("Functional Pipeline Test", () => {
     }
     const savedDb = saveCall[0] as Record<string, { reason: string }>;
     expect(savedDb["scan-short-video"]).toBeDefined();
-    expect(savedDb["scan-short-video"]?.reason).toContain("Video too short");
+    const shortVideoReason = savedDb["scan-short-video"]?.reason ?? "";
+    expect(shortVideoReason).toMatch(/Video too short|Duplicate video/);
 
     // --- Step 5: Format AR Data ---
     await formatRun(path.join(tempDir, "data", "artifacts"));

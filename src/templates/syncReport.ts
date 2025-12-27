@@ -777,6 +777,11 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
         }
       });
 
+      // Skip environments with no remaining errors
+      if (newErrors.length === ZERO_FAILURES && knownErrors.length === ZERO_FAILURES) {
+        return;
+      }
+
       // Helper to render error list
       const renderErrorList = (errors: SyncError[], title: string) => {
         if (errors.length === ZERO_FAILURES) {

@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-27
 
+### [v0.54.0] Unified Artifact Discarding and Report Cleanup
+
+- Created `discardArtifact` utility that centralizes moving invalid artifacts to
+  `data/discarded-artifacts` with collision-safe naming and safety checks.
+- Refactored `cleanData` to move artifacts instead of deleting them, preserving the
+  environment directory structure under `discarded-artifacts`.
+- Refactored `filterNonBathrooms` to use the shared `discardArtifact` utility instead of
+  direct deletion for consistency and safety.
+- Sync report now hides environments with no sync errors (neither new nor known) for
+  cleaner output.
+
+### [v0.53.0] Duplicate Video Offloading and Bad Scan Guardrails
+
+- Sync now relocates duplicate videos to `data/discarded-artifacts` and records them in
+  `config/badScans.json` so the same artifact IDs are skipped on subsequent runs while their
+  hashes remain tracked for reporting.
+- Duplicate detection now keeps a canonical artifact per hash and marks the additional copies
+  as bad scans immediately, preventing repeated downloads of known duplicates.
+
 ### [v0.52.0] Sync Failure Hardening, Geometry Safety, and Dimension Extraction
 
 - Sync failure persistence now normalizes and deduplicates reasons, strips malformed
