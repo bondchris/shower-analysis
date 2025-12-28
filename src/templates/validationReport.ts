@@ -207,25 +207,59 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
     }
 
     // --- 2. Scan Success Percentage Chart ---
-    const successDatasets = descStats.map((s) => {
-      const color = envColors[s.name] ?? DEFAULT_COLOR;
-      const data = sortedDates.map((d) => {
-        const PERCENTAGE_BASE = 100;
-        const ZERO = 0;
-        const total = s.totalScansByDate[d] ?? ZERO;
-        if (total === ZERO) {
-          return null;
-        }
-        const clean = s.cleanScansByDate[d] ?? ZERO;
-        return Math.round((clean / total) * PERCENTAGE_BASE);
+    // Aggregate all environments
+    const aggregatedTotalScansByDate: Record<string, number> = {};
+    const aggregatedCleanScansByDate: Record<string, number> = {};
+    allStats.forEach((stats) => {
+      Object.entries(stats.totalScansByDate).forEach(([date, count]) => {
+        aggregatedTotalScansByDate[date] = (aggregatedTotalScansByDate[date] ?? INITIAL_ERROR_COUNT) + count;
       });
-      return {
-        borderColor: color,
-        borderWidth: CHART_BORDER_WIDTH_NORMAL,
-        data,
-        label: s.name
-      };
+      Object.entries(stats.cleanScansByDate).forEach(([date, count]) => {
+        aggregatedCleanScansByDate[date] = (aggregatedCleanScansByDate[date] ?? INITIAL_ERROR_COUNT) + count;
+      });
     });
+
+    const PERCENTAGE_BASE = 100;
+    const ZERO = 0;
+    const successData = sortedDates.map((d) => {
+      const total = aggregatedTotalScansByDate[d] ?? ZERO;
+      if (total === ZERO) {
+        return null;
+      }
+      const clean = aggregatedCleanScansByDate[d] ?? ZERO;
+      return Math.round((clean / total) * PERCENTAGE_BASE);
+    });
+
+    // Calculate cumulative success percentage
+    let cumulativeTotalScans = ZERO;
+    let cumulativeCleanScans = ZERO;
+    const cumulativeSuccessData = sortedDates.map((d) => {
+      const dailyTotal = aggregatedTotalScansByDate[d] ?? ZERO;
+      const dailyClean = aggregatedCleanScansByDate[d] ?? ZERO;
+      cumulativeTotalScans += dailyTotal;
+      cumulativeCleanScans += dailyClean;
+      if (cumulativeTotalScans === ZERO) {
+        return null;
+      }
+      return Math.round((cumulativeCleanScans / cumulativeTotalScans) * PERCENTAGE_BASE);
+    });
+
+    const successDatasets = [
+      {
+        borderColor: "rgba(16, 185, 129, 1)",
+        borderWidth: CHART_BORDER_WIDTH_NORMAL,
+        data: successData,
+        label: "All Environments",
+        verticalLines: true
+      },
+      {
+        borderColor: "rgba(239, 68, 68, 1)",
+        borderWidth: CHART_BORDER_WIDTH_NORMAL,
+        data: cumulativeSuccessData,
+        label: "Cumulative",
+        verticalLines: false
+      }
+    ];
 
     try {
       charts.success = getLineChartConfig(sortedDates, successDatasets, {
@@ -257,6 +291,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
     try {
       charts.errors = getLineChartConfig(sortedDates, errorDatasets, {
         title: "",
+        verticalLines: true,
         yLabel: "Error Count"
       });
     } catch (e: unknown) {
@@ -284,6 +319,7 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
     try {
       charts.warnings = getLineChartConfig(sortedDates, warningDatasets, {
         title: "",
+        verticalLines: true,
         yLabel: "Warning Count"
       });
     } catch (e: unknown) {

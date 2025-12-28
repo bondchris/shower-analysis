@@ -128,6 +128,32 @@ describe("buildErrorFeatureObjectCharts", () => {
     expect(featuresCall).toBeDefined();
   });
 
+  it("should count no-vanity predicate when sink and storage are zero", () => {
+    const vanityMetadata = [
+      Object.assign({}, mockMetadata[0], {
+        sinkCount: 0,
+        storageCount: 0
+      }) as ArtifactAnalysis
+    ];
+
+    buildErrorFeatureObjectCharts(vanityMetadata, undefined, layout);
+
+    const featuresCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call) => {
+      const labels = call[0] as string[];
+      return labels.includes("No Vanity");
+    });
+    expect(featuresCall).toBeDefined();
+    if (featuresCall !== undefined) {
+      const labels = featuresCall[0] as string[];
+      const counts = featuresCall[1] as number[];
+      const vanityIndex = labels.indexOf("No Vanity");
+      expect(vanityIndex).toBeGreaterThanOrEqual(0);
+      if (vanityIndex >= 0) {
+        expect(counts[vanityIndex]).toBe(1);
+      }
+    }
+  });
+
   it("should count objects correctly", () => {
     const metadataWithObjects = [
       Object.assign({}, mockMetadata[0], {
@@ -178,6 +204,42 @@ describe("buildErrorFeatureObjectCharts", () => {
       return labels.includes("Walls (< 1.5 sq ft)");
     });
     expect(errorsCall).toBeDefined();
+  });
+
+  it("should count narrow feature flags based on artifact directory matches", () => {
+    const artifactDirs = ["/test/dir1", "/test/dir2", "/test/dir3"];
+    (getArtifactsWithNarrowDoors as ReturnType<typeof vi.fn>).mockReturnValue(new Set([artifactDirs[0]]));
+    (getArtifactsWithNarrowOpenings as ReturnType<typeof vi.fn>).mockReturnValue(new Set([artifactDirs[1]]));
+    (getArtifactsWithShortDoors as ReturnType<typeof vi.fn>).mockReturnValue(new Set([artifactDirs[2]]));
+
+    const metadataWithDirs: ArtifactAnalysis[] = [
+      Object.assign({}, mockMetadata[0]),
+      Object.assign({}, mockMetadata[0]),
+      Object.assign({}, mockMetadata[0])
+    ];
+
+    buildErrorFeatureObjectCharts(metadataWithDirs, artifactDirs, layout);
+
+    const featuresCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call) => {
+      const labels = call[0] as string[];
+      return (
+        labels.includes("Narrow Doors (< 2.5 ft)") &&
+        labels.includes("Narrow Openings (< 3 ft)") &&
+        labels.includes("Short Doors (< 6.5 ft)")
+      );
+    });
+
+    expect(featuresCall).toBeDefined();
+    if (featuresCall !== undefined) {
+      const labels = featuresCall[0] as string[];
+      const counts = featuresCall[1] as number[];
+      expect(labels.indexOf("Narrow Doors (< 2.5 ft)")).toBeGreaterThanOrEqual(0);
+      expect(counts[labels.indexOf("Narrow Doors (< 2.5 ft)")]).toBe(1);
+      expect(labels.indexOf("Narrow Openings (< 3 ft)")).toBeGreaterThanOrEqual(0);
+      expect(counts[labels.indexOf("Narrow Openings (< 3 ft)")]).toBe(1);
+      expect(labels.indexOf("Short Doors (< 6.5 ft)")).toBeGreaterThanOrEqual(0);
+      expect(counts[labels.indexOf("Short Doors (< 6.5 ft)")]).toBe(1);
+    }
   });
 
   it("should use confidence counts when available", () => {
@@ -459,6 +521,36 @@ describe("buildErrorFeatureObjectCharts", () => {
       return options.stacked === true;
     });
     expect(objectsCall).toBeDefined();
+  });
+
+  it("should scale confidence counts when artifact count is zero", () => {
+    const artifactDirs = ["/test/dir1"];
+    (getObjectConfidenceCounts as ReturnType<typeof vi.fn>).mockReturnValue({
+      Toilet: [1, 0, 0]
+    });
+
+    const metadataWithoutToilet: ArtifactAnalysis[] = [
+      Object.assign({}, mockMetadata[0], {
+        toiletCount: 0
+      }) as ArtifactAnalysis
+    ];
+
+    buildErrorFeatureObjectCharts(metadataWithoutToilet, artifactDirs, layout);
+
+    const objectsCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call) => {
+      const options = call[2] as { stacked?: boolean };
+      return options.stacked === true;
+    });
+    expect(objectsCall).toBeDefined();
+    if (objectsCall !== undefined) {
+      const labels = objectsCall[0] as string[];
+      const data = objectsCall[1] as [number, number, number][];
+      const toiletIndex = labels.indexOf("Toilet");
+      expect(toiletIndex).toBeGreaterThanOrEqual(0);
+      if (toiletIndex >= 0) {
+        expect(data[toiletIndex]).toEqual([0, 0, 0]);
+      }
+    }
   });
 
   it("should distribute remainder units to medium confidence when it has largest remainder", () => {

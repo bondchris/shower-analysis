@@ -211,7 +211,16 @@ export const MixedChart: React.FC<MixedChartProps> = ({ config }) => {
             textAnchor: "middle"
           }}
           scale={yScaleLeft}
-          tickFormat={(value) => String(Math.round(Number(value)))}
+          tickFormat={(value) => {
+            const num = Number(value);
+            const decimalThreshold = 1;
+            // Use decimal format for small values, round for large values
+            if (maxLeftValue < decimalThreshold) {
+              const decimalPlaces = 3;
+              return num.toFixed(decimalPlaces);
+            }
+            return String(Math.round(num));
+          }}
           tickLabelProps={() => ({
             dx: "-0.25em",
             dy: "0.25em",
@@ -234,10 +243,16 @@ export const MixedChart: React.FC<MixedChartProps> = ({ config }) => {
             scale={yScaleRight}
             tickFormat={(value) => {
               const num = Number(value);
-              const decimalPlaces = 1;
+              const decimalThreshold = 1;
+              // Use decimal format for small values, standard format for large values
+              if (maxRightValue < decimalThreshold) {
+                const decimalPlaces = 3;
+                return num.toFixed(decimalPlaces);
+              }
               const moduloDivisor = 1;
+              const oneDecimalPlace = 1;
               // Show whole numbers without decimals, fractional values with 1 decimal place
-              return num % moduloDivisor === zeroValue ? String(Math.round(num)) : num.toFixed(decimalPlaces);
+              return num % moduloDivisor === zeroValue ? String(Math.round(num)) : num.toFixed(oneDecimalPlace);
             }}
             tickLabelProps={() => ({
               dx: "0.25em",

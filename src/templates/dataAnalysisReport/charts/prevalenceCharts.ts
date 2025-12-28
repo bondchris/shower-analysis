@@ -323,55 +323,33 @@ export function buildErrorFeatureObjectCharts(
     const currentDir = artifactDirs !== undefined && i < artifactDirs.length ? artifactDirs[i] : undefined;
 
     for (const d of errorDefs) {
-      switch (d.kind) {
-        case "unexpectedVersion":
-          if (currentDir !== undefined && unexpectedVersionDirs.has(currentDir)) {
-            d.count++;
-          }
-          break;
-        case "smallWalls":
-          if (currentDir !== undefined && smallWallDirs.has(currentDir)) {
-            d.count++;
-          }
-          break;
-        case "predicate":
-          if (d.check(m)) {
-            d.count++;
-          }
-          break;
-        case "narrowDoors":
-        case "narrowOpenings":
-        case "shortDoors":
-          // These are now in featureDefs, not errorDefs
-          break;
+      if (d.kind === "unexpectedVersion") {
+        if (currentDir !== undefined && unexpectedVersionDirs.has(currentDir)) {
+          d.count++;
+        }
+      } else if (d.kind === "smallWalls") {
+        if (currentDir !== undefined && smallWallDirs.has(currentDir)) {
+          d.count++;
+        }
+      } else if (d.kind === "predicate" && d.check(m)) {
+        d.count++;
       }
     }
     for (const d of featureDefs) {
-      switch (d.kind) {
-        case "narrowDoors":
-          if (currentDir !== undefined && narrowDoorDirs.has(currentDir)) {
-            d.count++;
-          }
-          break;
-        case "narrowOpenings":
-          if (currentDir !== undefined && narrowOpeningDirs.has(currentDir)) {
-            d.count++;
-          }
-          break;
-        case "shortDoors":
-          if (currentDir !== undefined && shortDoorDirs.has(currentDir)) {
-            d.count++;
-          }
-          break;
-        case "predicate":
-          if (d.check(m)) {
-            d.count++;
-          }
-          break;
-        case "unexpectedVersion":
-        case "smallWalls":
-          // These are in errorDefs, not featureDefs
-          break;
+      if (d.kind === "narrowDoors") {
+        if (currentDir !== undefined && narrowDoorDirs.has(currentDir)) {
+          d.count++;
+        }
+      } else if (d.kind === "narrowOpenings") {
+        if (currentDir !== undefined && narrowOpeningDirs.has(currentDir)) {
+          d.count++;
+        }
+      } else if (d.kind === "shortDoors") {
+        if (currentDir !== undefined && shortDoorDirs.has(currentDir)) {
+          d.count++;
+        }
+      } else if (d.kind === "predicate" && d.check(m)) {
+        d.count++;
       }
     }
     for (const d of objectDefs) {
@@ -400,7 +378,6 @@ export function buildErrorFeatureObjectCharts(
   const objectConfidenceCounts = artifactDirs !== undefined ? getObjectConfidenceCounts(artifactDirs) : null;
 
   if (objectConfidenceCounts !== null) {
-    const objectLabels = objectDefs.map((d) => d.label);
     const confidenceZeroValue = 0;
     const defaultConfidenceCounts: [number, number, number] = [
       confidenceZeroValue,
@@ -408,83 +385,93 @@ export function buildErrorFeatureObjectCharts(
       confidenceZeroValue
     ];
     const artifactCountsPerLabel: Record<string, number> = {};
-    for (const def of objectDefs) {
-      artifactCountsPerLabel[def.label] = def.count;
-    }
-
     const objectData: [number, number, number][] = [];
+    const objectLabels: string[] = [];
     const initialSum = 0;
-    for (const label of objectLabels) {
+
+    for (const def of objectDefs) {
+      const label = def.label;
+      const artifactCount = def.count;
+
+      artifactCountsPerLabel[label] = artifactCount;
+      objectLabels.push(label);
+
       const counts: [number, number, number] | undefined = objectConfidenceCounts[label];
-      const artifactCount = artifactCountsPerLabel[label] ?? initialSum;
-
-      if (counts !== undefined) {
-        const totalObjectCount = counts.reduce((sum, val) => sum + val, initialSum);
-        if (totalObjectCount > initialSum) {
-          const scaleFactor = artifactCount / totalObjectCount;
-          const confidenceIndexHigh = 0;
-          const confidenceIndexMedium = 1;
-          const confidenceIndexLow = 2;
-
-          // Use largest remainder method for integer apportionment
-          // This ensures the sum matches exactly and no negatives occur
-          const scaledValues = [
-            counts[confidenceIndexHigh] * scaleFactor,
-            counts[confidenceIndexMedium] * scaleFactor,
-            counts[confidenceIndexLow] * scaleFactor
-          ];
-
-          // Calculate integer parts and fractional remainders
-          const integerParts = scaledValues.map((val) => Math.floor(val));
-          const remainders = scaledValues.map((val, idx) => ({
-            index: idx,
-            remainder: val - Math.floor(val)
-          }));
-
-          // Calculate how many units we need to distribute
-          const integerSum = integerParts.reduce((sum, val) => sum + val, initialSum);
-          const remainderCount = artifactCount - integerSum;
-          const incrementUnit = 1;
-
-          // Start with integer parts
-          const scaledCounts: [number, number, number] = [
-            integerParts[confidenceIndexHigh] ?? initialSum,
-            integerParts[confidenceIndexMedium] ?? initialSum,
-            integerParts[confidenceIndexLow] ?? initialSum
-          ];
-
-          if (remainderCount > initialSum) {
-            // Need to add units: use largest remainder method
-            // Sort by remainder (largest first) to distribute fairly
-            remainders.sort((a, b) => b.remainder - a.remainder);
-            // Distribute remainder units to values with largest remainders
-            for (let i = initialSum; i < remainderCount; i++) {
-              const remainder = remainders[i];
-              if (remainder !== undefined) {
-                const targetIndex = remainder.index;
-                if (targetIndex === confidenceIndexHigh) {
-                  scaledCounts[confidenceIndexHigh] = scaledCounts[confidenceIndexHigh] + incrementUnit;
-                } else if (targetIndex === confidenceIndexMedium) {
-                  scaledCounts[confidenceIndexMedium] = scaledCounts[confidenceIndexMedium] + incrementUnit;
-                } else if (targetIndex === confidenceIndexLow) {
-                  scaledCounts[confidenceIndexLow] = scaledCounts[confidenceIndexLow] + incrementUnit;
-                }
-              }
-            }
-          }
-
-          // Ensure no negative values (safety check)
-          scaledCounts[confidenceIndexHigh] = Math.max(initialSum, scaledCounts[confidenceIndexHigh]);
-          scaledCounts[confidenceIndexMedium] = Math.max(initialSum, scaledCounts[confidenceIndexMedium]);
-          scaledCounts[confidenceIndexLow] = Math.max(initialSum, scaledCounts[confidenceIndexLow]);
-
-          objectData.push(scaledCounts);
-        } else {
-          objectData.push(defaultConfidenceCounts);
-        }
-      } else {
+      if (counts === undefined) {
         objectData.push(defaultConfidenceCounts);
+        continue;
       }
+
+      const totalObjectCount = counts.reduce((sum, val) => sum + val, initialSum);
+      if (totalObjectCount <= initialSum) {
+        objectData.push(defaultConfidenceCounts);
+        continue;
+      }
+
+      const scaleFactor = artifactCount / totalObjectCount;
+      const confidenceIndexHigh = 0;
+      const confidenceIndexMedium = 1;
+      const confidenceIndexLow = 2;
+
+      // Use largest remainder method for integer apportionment
+      // This ensures the sum matches exactly and no negatives occur
+      const scaledValues: [number, number, number] = [
+        counts[confidenceIndexHigh] * scaleFactor,
+        counts[confidenceIndexMedium] * scaleFactor,
+        counts[confidenceIndexLow] * scaleFactor
+      ];
+
+      const scaledHigh = scaledValues[confidenceIndexHigh];
+      const scaledMedium = scaledValues[confidenceIndexMedium];
+      const scaledLow = scaledValues[confidenceIndexLow];
+
+      // Calculate integer parts and fractional remainders
+      const integerParts: [number, number, number] = [
+        Math.floor(scaledHigh),
+        Math.floor(scaledMedium),
+        Math.floor(scaledLow)
+      ];
+      const remainders = [
+        { index: confidenceIndexHigh, remainder: scaledHigh - integerParts[confidenceIndexHigh] },
+        { index: confidenceIndexMedium, remainder: scaledMedium - integerParts[confidenceIndexMedium] },
+        { index: confidenceIndexLow, remainder: scaledLow - integerParts[confidenceIndexLow] }
+      ];
+
+      // Calculate how many units we need to distribute
+      const integerSum = integerParts.reduce((sum, val) => sum + val, initialSum);
+      const remainderCount = artifactCount - integerSum;
+      const incrementUnit = 1;
+
+      // Start with integer parts
+      const scaledCounts: [number, number, number] = [
+        integerParts[confidenceIndexHigh],
+        integerParts[confidenceIndexMedium],
+        integerParts[confidenceIndexLow]
+      ];
+
+      if (remainderCount > initialSum) {
+        // Need to add units: use largest remainder method
+        // Sort by remainder (largest first) to distribute fairly
+        remainders.sort((a, b) => b.remainder - a.remainder);
+        // Distribute remainder units to values with largest remainders
+        for (const remainder of remainders.slice(initialSum, remainderCount)) {
+          const targetIndex = remainder.index;
+          if (targetIndex === confidenceIndexHigh) {
+            scaledCounts[confidenceIndexHigh] = scaledCounts[confidenceIndexHigh] + incrementUnit;
+          } else if (targetIndex === confidenceIndexMedium) {
+            scaledCounts[confidenceIndexMedium] = scaledCounts[confidenceIndexMedium] + incrementUnit;
+          } else {
+            scaledCounts[confidenceIndexLow] = scaledCounts[confidenceIndexLow] + incrementUnit;
+          }
+        }
+      }
+
+      // Ensure no negative values (safety check)
+      scaledCounts[confidenceIndexHigh] = Math.max(initialSum, scaledCounts[confidenceIndexHigh]);
+      scaledCounts[confidenceIndexMedium] = Math.max(initialSum, scaledCounts[confidenceIndexMedium]);
+      scaledCounts[confidenceIndexLow] = Math.max(initialSum, scaledCounts[confidenceIndexLow]);
+
+      objectData.push(scaledCounts);
     }
 
     charts.objects = getBarChartConfig(objectLabels, objectData, {
@@ -534,10 +521,9 @@ export function buildErrorFeatureObjectCharts(
       sectionMap[label] = (sectionMap[label] ?? INITIAL_COUNT) + INCREMENT_STEP;
     }
   }
-  const sectionLabels = Object.keys(sectionMap).sort(
-    (a, b) => (sectionMap[b] ?? INITIAL_COUNT) - (sectionMap[a] ?? INITIAL_COUNT)
-  );
-  const sectionCounts = sectionLabels.map((l) => sectionMap[l] ?? INITIAL_COUNT);
+  const sectionEntries = Object.entries(sectionMap).sort(([, countA], [, countB]) => countB - countA);
+  const sectionLabels = sectionEntries.map(([label]) => label);
+  const sectionCounts = sectionEntries.map(([, count]) => count);
 
   charts.sections = getBarChartConfig(sectionLabels, sectionCounts, {
     height: layout.getDynamicHeight(sectionLabels.length, layout.MIN_DYNAMIC_HEIGHT),

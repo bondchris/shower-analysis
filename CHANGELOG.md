@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2025-12-28
+
+### [v0.56.0] Aggregated Chart Visualizations and Vertical Line Rendering
+
+- Sync report video size chart now aggregates all environments into a single mixed chart showing
+  daily average, all-time cumulative average, and cumulative total size with area fill for visual
+  depth.
+- Added artifact history tracking for arData, rawScan, pointCloud, and initialLayout files by date,
+  enabling future per-file-type trend visualizations.
+- Line charts now support vertical line rendering mode via the `verticalLines` option, displaying
+  discrete data points as bar-like vertical strokes from baseline to value.
+- Validation report scan success percentage chart now aggregates across all environments with both
+  daily (vertical lines) and cumulative (smooth line) views for clearer trend analysis.
+- Inaccessible artifacts trend chart in sync report now uses vertical lines for daily error counts.
+- Error and warning charts in validation report use vertical lines to better represent discrete
+  daily counts.
+- Refactored prevalence chart definitions from switch statements to streamlined if/else chains for
+  improved readability.
+- Expanded test coverage for sync artifacts, prevalence charts, validation report, sync failures,
+  download helpers, and video metadata utilities.
+
 ## 2025-12-27
 
 ### [v0.55.0] Sync Failure Accuracy, Lens Metadata Normalization, and Embedded Overlap Handling

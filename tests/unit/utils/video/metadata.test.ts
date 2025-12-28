@@ -282,4 +282,164 @@ describe("extractVideoMetadata", () => {
     // Should still return valid result
     expect(result).toEqual({ duration: 10, fps: 30, height: 100, width: 100 });
   });
+
+  it("should wrap non-Error objects in Error when ffprobe fails", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockVideoPath) {
+        return true;
+      }
+      return false;
+    });
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: unknown, data: unknown) => void) => {
+        cb("string error message", null);
+      }
+    );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result).toBeNull();
+  });
+
+  it("should handle stream with missing width/height", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockVideoPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const mockFfprobeData = {
+      format: { duration: 10 },
+      streams: [
+        {
+          codec_type: "video",
+          r_frame_rate: "30/1"
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result).toEqual({
+      duration: 10,
+      fps: 30,
+      height: 0,
+      width: 0
+    });
+  });
+
+  it("should handle stream with missing r_frame_rate", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockVideoPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const mockFfprobeData = {
+      format: { duration: 10 },
+      streams: [
+        {
+          codec_type: "video",
+          height: 720,
+          width: 1280
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result).toEqual({
+      duration: 10,
+      fps: 0,
+      height: 720,
+      width: 1280
+    });
+  });
+
+  it("should handle malformed r_frame_rate with wrong number of parts", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockVideoPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const mockFfprobeData = {
+      format: { duration: 10 },
+      streams: [
+        {
+          codec_type: "video",
+          height: 720,
+          r_frame_rate: "30",
+          width: 1280
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result).toEqual({
+      duration: 10,
+      fps: 0,
+      height: 720,
+      width: 1280
+    });
+  });
+
+  it("should handle r_frame_rate with zero denominator", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockVideoPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const mockFfprobeData = {
+      format: { duration: 10 },
+      streams: [
+        {
+          codec_type: "video",
+          height: 720,
+          r_frame_rate: "30/0",
+          width: 1280
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result).toEqual({
+      duration: 10,
+      fps: 0,
+      height: 720,
+      width: 1280
+    });
+  });
 });

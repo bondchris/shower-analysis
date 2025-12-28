@@ -38,6 +38,9 @@ export function getLineChartConfig(
   if (options.smooth !== undefined) {
     configOptions.smooth = options.smooth;
   }
+  if (options.verticalLines !== undefined) {
+    configOptions.verticalLines = options.verticalLines;
+  }
   if (options.verticalReferenceLine !== undefined) {
     configOptions.verticalReferenceLine = options.verticalReferenceLine;
   }

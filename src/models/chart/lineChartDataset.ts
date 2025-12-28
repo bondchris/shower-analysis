@@ -7,4 +7,5 @@ export interface LineChartDataset {
   gradientFrom?: string;
   gradientTo?: string;
   gradientDirection?: "vertical" | "horizontal";
+  verticalLines?: boolean;
 }

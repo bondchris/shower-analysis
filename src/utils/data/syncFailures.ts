@@ -39,7 +39,7 @@ function normalizeRecord(record: RawSyncFailureRecord | undefined | null): SyncF
     }
   }
 
-  const uniqueReasons = Array.from(new Set(collectedReasons));
+  const uniqueReasons = Array.from(new Set(collectedReasons)).sort();
 
   return {
     date,

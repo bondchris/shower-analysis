@@ -138,7 +138,7 @@ describe("SyncFailures Specific", () => {
 
             const result = getSyncFailures(filePath);
             expect(result).toHaveProperty("mixed_reasons");
-            expect(result["mixed_reasons"]?.reasons).toEqual(["valid error", "another error"]);
+            expect(result["mixed_reasons"]?.reasons).toEqual(["another error", "valid error"]);
         });
 
         it("filters out empty strings from reasons array after trim", () => {
@@ -153,7 +153,7 @@ describe("SyncFailures Specific", () => {
 
             const result = getSyncFailures(filePath);
             expect(result).toHaveProperty("whitespace_reasons");
-            expect(result["whitespace_reasons"]?.reasons).toEqual(["valid error", "another error"]);
+            expect(result["whitespace_reasons"]?.reasons).toEqual(["another error", "valid error"]);
         });
     });
 });

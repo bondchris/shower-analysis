@@ -2,18 +2,19 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
-**Current Version:** v0.55.0
+**Current Version:** v0.56.0
 
-## What's New (v0.55.0)
+## What's New (v0.56.0)
 
-- Sync failure counts now ignore optional file errors and deduplicate by artifact ID so
-  known/new failure totals reflect only required file issues.
-- Sync report adds "Total Saved to Disk" and "Already Present" rows to separate new downloads
-  from artifacts already on disk.
-- AR data metadata extraction prioritizes EXIF focal length/aperture, normalizes prefixed
-  F-numbers, and tolerates missing lens models or invalid ISO/brightness values.
-- Embedded intersection checks handle story-aware overlaps for windows/doors/openings, default
-  missing stories to zero, and skip malformed transforms instead of raising false errors.
+- Sync report video size chart aggregates all environments with daily average, cumulative average,
+  and cumulative total size visualized as a mixed chart with area fill.
+- Line charts support vertical line rendering for discrete data points, used in inaccessible
+  artifacts, scan success, error, and warning trend charts.
+- Validation report scan success percentage aggregates across all environments with daily and
+  cumulative views.
+- Added artifact history tracking for arData, rawScan, pointCloud, and initialLayout files by date.
+- Expanded test coverage for sync artifacts, prevalence charts, validation report, and utility
+  modules.
 
 ## Overview
 

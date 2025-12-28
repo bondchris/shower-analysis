@@ -176,10 +176,12 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
           const fullOpacity = 1;
           const strokeOpacity = 1;
           const fallbackColor = "#000";
+          const useVerticalLines = dataset.verticalLines ?? options.verticalLines === true;
+          const baselineY = yMax;
 
           return (
             <React.Fragment key={idx}>
-              {hasGradient && (
+              {hasGradient && !useVerticalLines && (
                 <>
                   {/* Gradient for fill area */}
                   <LinearGradient
@@ -201,25 +203,44 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
                   />
                 </>
               )}
-              {dataset.fill === true && (
-                <AreaClosed<{ x: number; y: number }>
-                  curve={curveType}
-                  data={points}
-                  fill={hasGradient ? `url(#${fillGradientId})` : color}
-                  fillOpacity={hasGradient ? fullOpacity : solidOpacity}
-                  x={(d) => d.x}
-                  y={(d) => d.y}
-                  yScale={yScale}
-                />
+              {useVerticalLines ? (
+                // Render vertical lines (like very thin bars) instead of connected lines
+                <>
+                  {points.map((point, pointIdx) => (
+                    <line
+                      key={pointIdx}
+                      stroke={color}
+                      strokeWidth={dataset.borderWidth ?? defaultBorderWidth}
+                      x1={point.x}
+                      x2={point.x}
+                      y1={baselineY}
+                      y2={point.y}
+                    />
+                  ))}
+                </>
+              ) : (
+                <>
+                  {dataset.fill === true && (
+                    <AreaClosed<{ x: number; y: number }>
+                      curve={curveType}
+                      data={points}
+                      fill={hasGradient ? `url(#${fillGradientId})` : color}
+                      fillOpacity={hasGradient ? fullOpacity : solidOpacity}
+                      x={(d) => d.x}
+                      y={(d) => d.y}
+                      yScale={yScale}
+                    />
+                  )}
+                  <LinePath<{ x: number; y: number }>
+                    curve={curveType}
+                    data={points}
+                    stroke={hasGradient ? `url(#${strokeGradientId})` : color}
+                    strokeWidth={dataset.borderWidth ?? defaultBorderWidth}
+                    x={(d) => d.x}
+                    y={(d) => d.y}
+                  />
+                </>
               )}
-              <LinePath<{ x: number; y: number }>
-                curve={curveType}
-                data={points}
-                stroke={hasGradient ? `url(#${strokeGradientId})` : color}
-                strokeWidth={dataset.borderWidth ?? defaultBorderWidth}
-                x={(d) => d.x}
-                y={(d) => d.y}
-              />
             </React.Fragment>
           );
         })}

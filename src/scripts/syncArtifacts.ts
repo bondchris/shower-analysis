@@ -102,7 +102,7 @@ interface ArtifactResult {
     scanDate: string;
     videoDate: string;
     diffHours: number;
-    isNew?: boolean;
+    isNew: boolean;
   };
 }
 
@@ -311,6 +311,7 @@ export async function processArtifact(
               }
             };
 
+            // Ensure canonical tracking is initialized for this hash
             if (canonicalByHash[hash] === undefined) {
               const defaultCanonical = duplicateIds[FIRST_DUPLICATE_INDEX] ?? artifact.id;
               canonicalByHash[hash] = defaultCanonical;
@@ -319,10 +320,17 @@ export async function processArtifact(
               canonicalOrderByHash[hash] = defaultOrder;
             }
 
-            const currentCanonicalId = canonicalByHash[hash] ?? artifact.id;
-            const currentCanonicalOrder = canonicalOrderByHash[hash] ?? artifactOrder;
+            // After the block above, canonicalByHash[hash] and canonicalOrderByHash[hash] are guaranteed to be set
+            // They are always set together (either in the initialization loop or in the block above)
+            const currentCanonicalId = canonicalByHash[hash];
+            const currentCanonicalOrder = canonicalOrderByHash[hash];
 
-            if (artifactOrder < currentCanonicalOrder && currentCanonicalId !== artifact.id) {
+            // TypeScript doesn't understand the invariant that both are set together, so add explicit check
+            if (
+              currentCanonicalOrder !== undefined &&
+              artifactOrder < currentCanonicalOrder &&
+              currentCanonicalId !== artifact.id
+            ) {
               const previousCanonicalId = currentCanonicalId;
               canonicalByHash[hash] = artifact.id;
               canonicalOrderByHash[hash] = artifactOrder;
@@ -336,7 +344,8 @@ export async function processArtifact(
               }
             }
 
-            const canonicalId = canonicalByHash[hash] ?? artifact.id;
+            // canonicalByHash[hash] is guaranteed to be set (either persisted or set in block above)
+            const canonicalId = canonicalByHash[hash];
             const hasDuplicates = duplicateIds.length > MIN_DUPLICATE_ENTRIES;
             if (hasDuplicates) {
               result.duplicateIds = duplicateIds;
@@ -392,6 +401,7 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
   const dataDir = path.join(process.cwd(), "data", "artifacts", env.name.replace(/[^a-z0-9]/gi, "_").toLowerCase());
 
   const stats: SyncStats = {
+    arDataHistory: {},
     arDataSize: 0,
     dateMismatches: [],
     duplicateCount: 0,
@@ -400,6 +410,7 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
     errors: [],
     failed: 0,
     found: 0,
+    initialLayoutHistory: {},
     initialLayoutSize: 0,
     knownFailures: 0,
     new: 0,
@@ -410,8 +421,10 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
     newPointCloudSize: 0,
     newRawScanSize: 0,
     newVideoSize: 0,
+    pointCloudHistory: {},
     pointCloudSize: 0,
     processedIds: new Set<string>(),
+    rawScanHistory: {},
     rawScanSize: 0,
     skipped: 0,
     videoHistory: {},
@@ -528,7 +541,7 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
               diffHours: r.dateMismatch.diffHours,
               environment: env.name,
               id: a.id,
-              isNew: r.dateMismatch.isNew ?? false,
+              isNew: r.dateMismatch.isNew,
               scanDate: r.dateMismatch.scanDate,
               videoDate: r.dateMismatch.videoDate
             });
@@ -579,24 +592,67 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
 
           if (r.scanDate !== undefined) {
             const ZERO_SIZE = 0;
-            if (r.videoSize > ZERO_SIZE) {
-              try {
-                const date = new Date(r.scanDate);
-                const SUBSTRING_START = 0;
-                const SUBSTRING_LENGTH = 7;
-                const monthKey = date.toISOString().slice(SUBSTRING_START, SUBSTRING_LENGTH); // YYYY-MM
+            try {
+              const DATE_PART_INDEX = 0;
+              const dateKey = r.scanDate.split("T")[DATE_PART_INDEX]; // YYYY-MM-DD
+              if (dateKey !== undefined && dateKey !== "" && !dateKey.startsWith("0001")) {
+                if (r.videoSize > ZERO_SIZE) {
+                  const videoHistory = stats.videoHistory[dateKey] ?? {
+                    count: 0,
+                    totalSize: 0
+                  };
 
-                const history = stats.videoHistory[monthKey] ?? {
-                  count: 0,
-                  totalSize: 0
-                };
+                  videoHistory.count++;
+                  videoHistory.totalSize += r.videoSize;
+                  stats.videoHistory[dateKey] = videoHistory;
+                }
 
-                history.count++;
-                history.totalSize += r.videoSize;
-                stats.videoHistory[monthKey] = history;
-              } catch {
-                // Ignore invalid dates
+                if (r.arDataSize > ZERO_SIZE) {
+                  const arDataHistory = stats.arDataHistory[dateKey] ?? {
+                    count: 0,
+                    totalSize: 0
+                  };
+
+                  arDataHistory.count++;
+                  arDataHistory.totalSize += r.arDataSize;
+                  stats.arDataHistory[dateKey] = arDataHistory;
+                }
+
+                if (r.rawScanSize > ZERO_SIZE) {
+                  const rawScanHistory = stats.rawScanHistory[dateKey] ?? {
+                    count: 0,
+                    totalSize: 0
+                  };
+
+                  rawScanHistory.count++;
+                  rawScanHistory.totalSize += r.rawScanSize;
+                  stats.rawScanHistory[dateKey] = rawScanHistory;
+                }
+
+                if (r.pointCloudSize > ZERO_SIZE) {
+                  const pointCloudHistory = stats.pointCloudHistory[dateKey] ?? {
+                    count: 0,
+                    totalSize: 0
+                  };
+
+                  pointCloudHistory.count++;
+                  pointCloudHistory.totalSize += r.pointCloudSize;
+                  stats.pointCloudHistory[dateKey] = pointCloudHistory;
+                }
+
+                if (r.initialLayoutSize > ZERO_SIZE) {
+                  const initialLayoutHistory = stats.initialLayoutHistory[dateKey] ?? {
+                    count: 0,
+                    totalSize: 0
+                  };
+
+                  initialLayoutHistory.count++;
+                  initialLayoutHistory.totalSize += r.initialLayoutSize;
+                  stats.initialLayoutHistory[dateKey] = initialLayoutHistory;
+                }
               }
+            } catch {
+              // Ignore invalid dates
             }
           }
         }

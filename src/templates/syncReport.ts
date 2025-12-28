@@ -5,6 +5,11 @@ import { ReportData, ReportSection } from "../models/report";
 import { LineChart } from "./components/charts/LineChart";
 import { LineChartConfig } from "../models/chart/lineChartConfig";
 import { LineChartDataset } from "../models/chart/lineChartDataset";
+import { MixedChart } from "./components/charts/MixedChart";
+import { MixedChartConfig } from "../models/chart/mixedChartConfig";
+import { MixedChartDataset } from "../models/chart/mixedChartDataset";
+import { getMixedChartConfig } from "../utils/chart/configBuilders";
+import convert from "convert-units";
 
 export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailureDatabase): ReportData {
   const sections: ReportSection[] = [];
@@ -133,7 +138,8 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       return {
         borderColor,
         data,
-        label: stats.env
+        label: stats.env,
+        verticalLines: true
       } satisfies LineChartDataset;
     });
 
@@ -153,7 +159,7 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
     sections.push({
       component: ErrorChartComponent,
       data: errorChartConfig,
-      title: "Inaccessible Artifacts Trend",
+      title: "Inaccessible Artifacts Over Time",
       type: "react-component"
     });
   }
@@ -318,68 +324,276 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
   });
 
   // Video Size Chart
-  // Collect all unique dates (months) sorted
-  const allMonths = new Set<string>();
+  // Collect all unique dates (daily) sorted
+  const allDates = new Set<string>();
   allStats.forEach((stats) => {
-    Object.keys(stats.videoHistory).forEach((month) => allMonths.add(month));
+    Object.keys(stats.videoHistory).forEach((date) => allDates.add(date));
   });
-  const sortedMonths = Array.from(allMonths).sort();
+  const sortedDates = Array.from(allDates).sort();
 
-  const MIN_MONTHS = 0;
-  if (sortedMonths.length > MIN_MONTHS) {
+  const MIN_DATES = 0;
+  if (sortedDates.length > MIN_DATES) {
     const BYTES_TO_MB = 1048576; // 1024 * 1024
-    // Sort by volume found (Largest -> Smallest)
-    const descStats = [...allStats].sort((a, b) => b.found - a.found);
 
-    const envColors: Record<string, string> = {
-      "Bond Demo": "rgba(127, 24, 127, 1)",
-      "Bond Production": "rgba(0, 100, 0, 1)",
-      "Lowe's Production": "rgba(1, 33, 105, 1)",
-      "Lowe's Staging": "rgba(0, 117, 206, 1)"
-    };
-    const defaultColors: [string, string, string, string] = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
-
-    const datasets: LineChartDataset[] = descStats.map((stats, index) => {
-      const data = sortedMonths.map((month) => {
-        const history = stats.videoHistory[month];
-        const ZERO_COUNT = 0;
-        if (history && history.count > ZERO_COUNT) {
-          return history.totalSize / history.count / BYTES_TO_MB; // MB
-        }
-        return null;
+    // Aggregate video sizes across all environments
+    const aggregatedTotalSizeByDate: Record<string, number> = {};
+    const aggregatedCountByDate: Record<string, number> = {};
+    allStats.forEach((stats) => {
+      Object.entries(stats.videoHistory).forEach(([date, history]) => {
+        aggregatedTotalSizeByDate[date] = (aggregatedTotalSizeByDate[date] ?? ZERO) + history.totalSize;
+        aggregatedCountByDate[date] = (aggregatedCountByDate[date] ?? ZERO) + history.count;
       });
-
-      const colorIndex = index % defaultColors.length;
-      const defaultColor = defaultColors[colorIndex] ?? "#000000";
-      const borderColor = envColors[stats.env] ?? defaultColor;
-
-      return {
-        borderColor,
-        data,
-        label: stats.env
-      } satisfies LineChartDataset;
     });
 
-    const chartConfig: LineChartConfig = {
-      datasets,
-      height: 350,
-      labels: sortedMonths,
-      options: {
-        title: "Average Video Size Over Time (MB)",
-        yLabel: "Size (MB)"
-      },
-      type: "line"
-    };
+    // Calculate average video size per day
+    const ZERO_COUNT = 0;
+    const averageData = sortedDates.map((date) => {
+      const totalSize = aggregatedTotalSizeByDate[date] ?? ZERO;
+      const count = aggregatedCountByDate[date] ?? ZERO_COUNT;
+      if (count > ZERO_COUNT) {
+        return totalSize / count / BYTES_TO_MB; // MB
+      }
+      return null;
+    });
 
-    const ChartComponent = (): React.ReactElement => React.createElement(LineChart, { config: chartConfig });
+    // Calculate cumulative average
+    let cumulativeTotalSize = ZERO;
+    let cumulativeCount = ZERO_COUNT;
+    const cumulativeAverageData = sortedDates.map((date) => {
+      const dateTotalSize = aggregatedTotalSizeByDate[date] ?? ZERO;
+      const dateCount = aggregatedCountByDate[date] ?? ZERO_COUNT;
+      cumulativeTotalSize += dateTotalSize;
+      cumulativeCount += dateCount;
+      if (cumulativeCount > ZERO_COUNT) {
+        return cumulativeTotalSize / cumulativeCount / BYTES_TO_MB; // MB
+      }
+      return null;
+    });
+
+    // Calculate cumulative total size (for area chart) in GB
+    let cumulativeTotalSizeRunning = ZERO;
+    const cumulativeTotalSizeData = sortedDates.map((date) => {
+      const dateTotalSize = aggregatedTotalSizeByDate[date] ?? ZERO;
+      cumulativeTotalSizeRunning += dateTotalSize;
+      if (cumulativeTotalSizeRunning === ZERO) {
+        return null;
+      }
+      return convert(cumulativeTotalSizeRunning).from("B").to("GB");
+    });
+
+    const BACKGROUND_ORDER = 0;
+    const datasets: MixedChartDataset[] = [
+      {
+        backgroundColor: "rgba(59, 130, 246, 0.3)",
+        borderColor: "rgba(59, 130, 246, 0.5)",
+        borderWidth: 1,
+        data: cumulativeTotalSizeData,
+        fill: true,
+        label: "Cumulative Size",
+        order: BACKGROUND_ORDER,
+        type: "line",
+        yAxisID: "y1"
+      },
+      {
+        borderColor: "rgba(16, 185, 129, 1)",
+        borderWidth: 1.5,
+        data: averageData,
+        label: "Daily Average",
+        order: 100,
+        type: "line",
+        yAxisID: "y"
+      },
+      {
+        borderColor: "rgba(239, 68, 68, 1)",
+        borderWidth: 1.5,
+        data: cumulativeAverageData,
+        label: "All Time Average",
+        order: 200,
+        type: "line",
+        yAxisID: "y"
+      }
+    ];
+
+    const chartConfig = getMixedChartConfig(sortedDates, datasets, {
+      height: 350,
+      title: "Average Video Size Over Time (MB)",
+      yLabelLeft: "Size per Video (MB)",
+      yLabelRight: "Cumulative Size (GB)"
+    });
+
+    const ChartComponent = (): React.ReactElement =>
+      React.createElement(MixedChart, { config: chartConfig as MixedChartConfig });
 
     sections.push({
       component: ChartComponent,
       data: chartConfig,
-      title: "Average Video Size Trend",
+      title: "Average Video Size Over Time",
       type: "react-component"
     });
   }
+
+  // Collect all dates from all artifact history types for consistent x-axis
+  const historyKeys: (keyof SyncStats)[] = [
+    "arDataHistory",
+    "rawScanHistory",
+    "pointCloudHistory",
+    "initialLayoutHistory"
+  ];
+  const allArtifactDates = new Set<string>();
+  historyKeys.forEach((historyKey) => {
+    allStats.forEach((stats) => {
+      const history = stats[historyKey] as Record<string, { totalSize: number; count: number }> | undefined;
+      if (history !== undefined) {
+        Object.keys(history).forEach((date) => allArtifactDates.add(date));
+      }
+    });
+  });
+  const sharedArtifactDates = Array.from(allArtifactDates).sort();
+
+  // Helper function to create average size over time chart for artifact types
+  interface SizeChartOptions {
+    leftUnit?: "KB" | "MB";
+    rightUnit?: "MB" | "GB";
+  }
+  const createAverageSizeChart = (
+    historyKey: keyof SyncStats,
+    title: string,
+    yLabelLeft: string,
+    options: SizeChartOptions = {}
+  ) => {
+    const { leftUnit = "MB", rightUnit = "GB" } = options;
+    const BYTES_TO_KB = 1024;
+    const BYTES_TO_MB = 1048576; // 1024 * 1024
+    const leftDivisor = leftUnit === "KB" ? BYTES_TO_KB : BYTES_TO_MB;
+
+    // Use shared dates for consistent x-axis across all artifact charts
+    const sortedChartDates = sharedArtifactDates;
+
+    const MIN_CHART_DATES = 0;
+    if (sortedChartDates.length > MIN_CHART_DATES) {
+      // Aggregate sizes across all environments
+      const aggregatedTotalSizeByDate: Record<string, number> = {};
+      const aggregatedCountByDate: Record<string, number> = {};
+      allStats.forEach((stats) => {
+        const history = stats[historyKey] as Record<string, { totalSize: number; count: number }> | undefined;
+        if (history !== undefined) {
+          Object.entries(history).forEach(([date, historyEntry]) => {
+            aggregatedTotalSizeByDate[date] = (aggregatedTotalSizeByDate[date] ?? ZERO) + historyEntry.totalSize;
+            aggregatedCountByDate[date] = (aggregatedCountByDate[date] ?? ZERO) + historyEntry.count;
+          });
+        }
+      });
+
+      // Calculate average size per day
+      const ZERO_COUNT = 0;
+      const averageData = sortedChartDates.map((date) => {
+        const totalSize = aggregatedTotalSizeByDate[date] ?? ZERO;
+        const count = aggregatedCountByDate[date] ?? ZERO_COUNT;
+        if (count > ZERO_COUNT) {
+          return totalSize / count / leftDivisor;
+        }
+        return null;
+      });
+
+      // Calculate cumulative average
+      let cumulativeTotalSize = ZERO;
+      let cumulativeCount = ZERO_COUNT;
+      const cumulativeAverageData = sortedChartDates.map((date) => {
+        const dateTotalSize = aggregatedTotalSizeByDate[date] ?? ZERO;
+        const dateCount = aggregatedCountByDate[date] ?? ZERO_COUNT;
+        cumulativeTotalSize += dateTotalSize;
+        cumulativeCount += dateCount;
+        if (cumulativeCount > ZERO_COUNT) {
+          return cumulativeTotalSize / cumulativeCount / leftDivisor;
+        }
+        return null;
+      });
+
+      // Calculate cumulative total size (for area chart)
+      let cumulativeTotalSizeRunning = ZERO;
+      const cumulativeTotalSizeData = sortedChartDates.map((date) => {
+        const dateTotalSize = aggregatedTotalSizeByDate[date] ?? ZERO;
+        cumulativeTotalSizeRunning += dateTotalSize;
+        if (cumulativeTotalSizeRunning === ZERO) {
+          return null;
+        }
+        return convert(cumulativeTotalSizeRunning).from("B").to(rightUnit);
+      });
+
+      const BACKGROUND_ORDER = 0;
+      const chartDatasets: MixedChartDataset[] = [
+        {
+          backgroundColor: "rgba(59, 130, 246, 0.3)",
+          borderColor: "rgba(59, 130, 246, 0.5)",
+          borderWidth: 1,
+          data: cumulativeTotalSizeData,
+          fill: true,
+          label: "Cumulative Size",
+          order: BACKGROUND_ORDER,
+          type: "line",
+          yAxisID: "y1"
+        },
+        {
+          borderColor: "rgba(16, 185, 129, 1)",
+          borderWidth: 1.5,
+          data: averageData,
+          label: "Daily Average",
+          order: 100,
+          type: "line",
+          yAxisID: "y"
+        },
+        {
+          borderColor: "rgba(239, 68, 68, 1)",
+          borderWidth: 1.5,
+          data: cumulativeAverageData,
+          label: "All Time Average",
+          order: 200,
+          type: "line",
+          yAxisID: "y"
+        }
+      ];
+
+      const artifactChartConfig = getMixedChartConfig(sortedChartDates, chartDatasets, {
+        height: 350,
+        title: `${title} (${leftUnit})`,
+        yLabelLeft,
+        yLabelRight: `Cumulative Size (${rightUnit})`
+      });
+
+      const ArtifactChartComponent = (): React.ReactElement =>
+        React.createElement(MixedChart, { config: artifactChartConfig as MixedChartConfig });
+
+      sections.push({
+        component: ArtifactChartComponent,
+        data: artifactChartConfig,
+        title,
+        type: "react-component"
+      });
+    }
+  };
+
+  // AR Data Size Chart
+  createAverageSizeChart("arDataHistory", "Average AR Data Size Over Time", "Size per AR Data (MB)");
+
+  // RawScan Size Chart
+  createAverageSizeChart("rawScanHistory", "Average RawScan Size Over Time", "Size per RawScan (KB)", {
+    leftUnit: "KB",
+    rightUnit: "MB"
+  });
+
+  // PointCloud Size Chart
+  createAverageSizeChart("pointCloudHistory", "Average PointCloud Size Over Time", "Size per PointCloud (MB)");
+
+  // InitialLayout Size Chart
+  createAverageSizeChart(
+    "initialLayoutHistory",
+    "Average InitialLayout Size Over Time",
+    "Size per InitialLayout (KB)",
+    {
+      leftUnit: "KB",
+      rightUnit: "MB"
+    }
+  );
 
   // Date Mismatch Summary Table
   const totalMismatches = sortedStats.reduce((sum, s) => sum + s.dateMismatches.length, ZERO);
@@ -462,7 +676,8 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
         return {
           borderColor,
           data,
-          label: stats.env
+          label: stats.env,
+          verticalLines: true
         } satisfies LineChartDataset;
       });
 
@@ -483,7 +698,7 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       sections.push({
         component: MismatchChartComponent,
         data: mismatchChartConfig,
-        title: "Date Mismatches Trend",
+        title: "Date Mismatches Over Time",
         type: "react-component"
       });
     }
@@ -521,31 +736,35 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       type: "table"
     });
 
-    // Duplicate Videos Trend Chart
-    const duplicateHistory = new Map<string, Record<string, number>>(); // Month -> Env -> Count
-    const allDuplicateMonths = new Set<string>();
+    // Duplicate Videos Over Time Chart
+    const duplicateHistory = new Map<string, Record<string, number>>(); // Date -> Env -> Count
+    const allDuplicateDates = new Set<string>();
 
     sortedStats.forEach((stats) => {
-      // Add months from video history for full timeline context
-      Object.keys(stats.videoHistory).forEach((month) => allDuplicateMonths.add(month));
+      // Add dates from video history for full timeline context
+      Object.keys(stats.videoHistory).forEach((date) => {
+        allDuplicateDates.add(date);
+      });
 
       stats.duplicates.forEach((dup) => {
         if (dup.scanDate !== undefined && dup.scanDate !== "") {
-          const DATE_SUBSTRING_LENGTH = 7;
-          const month = dup.scanDate.substring(ZERO, DATE_SUBSTRING_LENGTH); // YYYY-MM
-          allDuplicateMonths.add(month);
+          const DATE_PART_INDEX = 0;
+          const dateKey = dup.scanDate.split("T")[DATE_PART_INDEX]; // YYYY-MM-DD
+          if (dateKey !== undefined && dateKey !== "" && !dateKey.startsWith("0001")) {
+            allDuplicateDates.add(dateKey);
 
-          const monthData = duplicateHistory.get(month) ?? {};
-          monthData[stats.env] = (monthData[stats.env] ?? ZERO) + ONE;
-          duplicateHistory.set(month, monthData);
+            const dateData = duplicateHistory.get(dateKey) ?? {};
+            dateData[stats.env] = (dateData[stats.env] ?? ZERO) + ONE;
+            duplicateHistory.set(dateKey, dateData);
+          }
         }
       });
     });
 
-    const sortedDuplicateMonths = Array.from(allDuplicateMonths).sort();
-    const MIN_DUPLICATE_MONTHS = 0;
+    const sortedDuplicateDates = Array.from(allDuplicateDates).sort();
+    const MIN_DUPLICATE_DATES = 0;
 
-    if (sortedDuplicateMonths.length > MIN_DUPLICATE_MONTHS) {
+    if (sortedDuplicateDates.length > MIN_DUPLICATE_DATES) {
       const envColors: Record<string, string> = {
         "Bond Demo": "rgba(127, 24, 127, 1)",
         "Bond Production": "rgba(0, 100, 0, 1)",
@@ -555,8 +774,8 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       const defaultColors: [string, string, string, string] = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
 
       const duplicateDatasets: LineChartDataset[] = sortedStats.map((stats, index) => {
-        const data = sortedDuplicateMonths.map((month) => {
-          const count = duplicateHistory.get(month)?.[stats.env] ?? ZERO;
+        const data = sortedDuplicateDates.map((date) => {
+          const count = duplicateHistory.get(date)?.[stats.env] ?? ZERO;
           return count;
         });
 
@@ -567,14 +786,15 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
         return {
           borderColor,
           data,
-          label: stats.env
+          label: stats.env,
+          verticalLines: true
         } satisfies LineChartDataset;
       });
 
       const duplicateChartConfig: LineChartConfig = {
         datasets: duplicateDatasets,
         height: 350,
-        labels: sortedDuplicateMonths,
+        labels: sortedDuplicateDates,
         options: {
           title: "Duplicate Videos Over Time",
           yLabel: "Count"
@@ -588,7 +808,7 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       sections.push({
         component: DuplicateChartComponent,
         data: duplicateChartConfig,
-        title: "Duplicate Videos Trend",
+        title: "Duplicate Videos Over Time",
         type: "react-component"
       });
     }

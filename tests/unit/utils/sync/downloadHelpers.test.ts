@@ -132,5 +132,20 @@ describe("downloadHelpers", () => {
 
       expect(result).toBe(`${label} download failed`);
     });
+
+    it("handles axios error with status code", async () => {
+      mockFs.existsSync.mockReturnValue(false);
+      mockFs.existsSync.mockImplementation((p) => p === tmpPath);
+
+      const axiosError = new AxiosError("Server Error");
+      axiosError.response = { status: 500 } as unknown as AxiosResponse;
+      mockAxios.isAxiosError.mockReturnValue(true);
+      mockAxios.get.mockRejectedValue(axiosError);
+
+      const result = await downloadJsonFile(url, outputPath, label);
+
+      expect(result).toBe(`${label} download failed (500)`);
+      expect(mockFs.unlinkSync).toHaveBeenCalledWith(tmpPath);
+    });
   });
 });

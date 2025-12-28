@@ -451,6 +451,69 @@ describe("syncArtifacts", () => {
       // So knownFailures = 1.
     });
 
+    // 7a) Multiple errors for the same known failure (covers countedKnownFailures dedup branch)
+    it("counts known failure only once even with multiple errors for same artifact", async () => {
+      // Make all required downloads fail to generate multiple errors for same artifact ID
+      mockDownloadFile.mockResolvedValue("video failed");
+      mockDownloadJsonFile.mockImplementation(async (_url: string, _outPath: string, type: string) => {
+        await Promise.resolve();
+        if (type === "rawScan") {
+          return "rawScan failed";
+        }
+        if (type === "arData") {
+          return "arData failed";
+        }
+        return null;
+      });
+      mockGetSyncFailures.mockReturnValue({
+        "123": { date: "yesterday", environment: "test-env", reasons: ["previous failure"] }
+      });
+
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifact] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      const stats = await syncEnvironment(env);
+
+      expect(stats.failed).toBe(1);
+      // Should have 3 errors (video, rawScan, arData) but only count as 1 known failure
+      expect(stats.errors.length).toBe(3);
+      expect(stats.knownFailures).toBe(1);
+      expect(stats.newFailures).toBe(0);
+    });
+
+    // 7b) Multiple errors for the same new failure (covers countedNewFailures dedup branch)
+    it("counts new failure only once even with multiple errors for same artifact", async () => {
+      // Make all required downloads fail to generate multiple errors for same artifact ID
+      mockDownloadFile.mockResolvedValue("video failed");
+      mockDownloadJsonFile.mockImplementation(async (_url: string, _outPath: string, type: string) => {
+        await Promise.resolve();
+        if (type === "rawScan") {
+          return "rawScan failed";
+        }
+        if (type === "arData") {
+          return "arData failed";
+        }
+        return null;
+      });
+      // No known failures - this is a new failure
+      mockGetSyncFailures.mockReturnValue({});
+
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifact] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      const stats = await syncEnvironment(env);
+
+      expect(stats.failed).toBe(1);
+      // Should have 3 errors (video, rawScan, arData) but only count as 1 new failure
+      expect(stats.errors.length).toBe(3);
+      expect(stats.knownFailures).toBe(0);
+      expect(stats.newFailures).toBe(1);
+    });
+
     // 8) Page level failure
     it("handles page fetch failure gracefully and continues", async () => {
       // Page 1 succeeds (to get total pages = 2)
@@ -525,6 +588,97 @@ describe("syncArtifacts", () => {
       const stats = await syncEnvironment(env);
       expect(stats.failed).toBe(1);
       expect(stats.errors).toEqual(expect.arrayContaining([{ id: "123", reason: "arData failed" }]));
+    });
+
+    // 10c) ArData returns non-string error (covers defensive branch)
+    it("records default error message when arData download returns non-string error", async () => {
+      mockDownloadJsonFile.mockImplementation(async (_url: string, _outPath: string, type: string) => {
+        await Promise.resolve();
+        if (type === "arData") {
+          // Return a non-string truthy value to trigger the defensive branch
+          return { error: "object error" } as unknown as string;
+        }
+        return null;
+      });
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifact] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+      const stats = await syncEnvironment(env);
+      expect(stats.failed).toBe(1);
+      expect(stats.errors).toEqual(
+        expect.arrayContaining([{ id: "123", reason: "arData download failed (unknown error)" }])
+      );
+    });
+
+    // 10c-2) RawScan returns non-string error (covers defensive branch)
+    it("records default error message when rawScan download returns non-string error", async () => {
+      mockDownloadJsonFile.mockImplementation(async (_url: string, _outPath: string, type: string) => {
+        await Promise.resolve();
+        if (type === "rawScan") {
+          return { error: "object error" } as unknown as string;
+        }
+        return null;
+      });
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifact] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+      const stats = await syncEnvironment(env);
+      expect(stats.failed).toBe(1);
+      expect(stats.errors).toEqual(
+        expect.arrayContaining([{ id: "123", reason: "rawScan download failed (unknown error)" }])
+      );
+    });
+
+    // 10d) pointCloud returns non-string error (covers defensive branch)
+    it("records default error message when pointCloud download returns non-string error", async () => {
+      const artifactWithPointCloud = {
+        ...artifact,
+        pointCloud: "https://example.com/pointCloud.json"
+      };
+      mockDownloadJsonFile.mockImplementation(async (_url: string, _outPath: string, type: string) => {
+        await Promise.resolve();
+        if (type === "pointCloud") {
+          return { error: "object error" } as unknown as string;
+        }
+        return null;
+      });
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifactWithPointCloud] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+      const stats = await syncEnvironment(env);
+      // Artifact should NOT fail since pointCloud is optional
+      expect(stats.failed).toBe(0);
+      expect(stats.errors).toEqual(
+        expect.arrayContaining([{ id: "123", reason: "pointCloud download failed (unknown error)" }])
+      );
+    });
+
+    // 10e) initialLayout returns non-string error (covers defensive branch)
+    it("records default error message when initialLayout download returns non-string error", async () => {
+      const artifactWithInitialLayout = {
+        ...artifact,
+        initialLayout: "https://example.com/initialLayout.json"
+      };
+      mockDownloadJsonFile.mockImplementation(async (_url: string, _outPath: string, type: string) => {
+        await Promise.resolve();
+        if (type === "initialLayout") {
+          return { error: "object error" } as unknown as string;
+        }
+        return null;
+      });
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifactWithInitialLayout] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+      const stats = await syncEnvironment(env);
+      // Artifact should NOT fail since initialLayout is optional
+      expect(stats.failed).toBe(0);
+      expect(stats.errors).toEqual(
+        expect.arrayContaining([{ id: "123", reason: "initialLayout download failed (unknown error)" }])
+      );
     });
 
     // 11) Concurrency / pLimit
@@ -672,6 +826,95 @@ describe("syncArtifacts", () => {
       expect(fs.existsSync(path.join(getArtifactDir("123"), "video.mp4"))).toBe(true);
     });
 
+    it("tracks pointCloudHistory when artifact has pointCloud with size and valid scanDate", async () => {
+      const scanDateValue = "2023-06-15T10:30:00Z";
+      const expectedDateKey = "2023-06-15";
+      const pointCloudSize = 5000;
+      const artifactWithPointCloud = {
+        ...artifact,
+        pointCloud: "https://example.com/pointCloud.json",
+        scanDate: scanDateValue
+      };
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifactWithPointCloud] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      // Create the pointCloud.json file with non-zero size
+      const artifactDir = getArtifactDir("123");
+      fs.mkdirSync(artifactDir, { recursive: true });
+      fs.writeFileSync(path.join(artifactDir, "pointCloud.json"), JSON.stringify({ data: "x".repeat(pointCloudSize) }));
+
+      const stats = await syncEnvironment(env);
+
+      const historyEntry = stats.pointCloudHistory[expectedDateKey];
+      expect(historyEntry).toBeDefined();
+      expect(historyEntry?.count).toBe(1);
+      expect(historyEntry?.totalSize).toBeGreaterThan(0);
+    });
+
+    it("tracks initialLayoutHistory when artifact has initialLayout with size and valid scanDate", async () => {
+      const scanDateValue = "2023-07-20T14:45:00Z";
+      const expectedDateKey = "2023-07-20";
+      const initialLayoutSize = 3000;
+      const artifactWithInitialLayout = {
+        ...artifact,
+        initialLayout: "https://example.com/initialLayout.json",
+        scanDate: scanDateValue
+      };
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifactWithInitialLayout] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      // Create the initialLayout.json file with non-zero size
+      const artifactDir = getArtifactDir("123");
+      fs.mkdirSync(artifactDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(artifactDir, "initialLayout.json"),
+        JSON.stringify({ layout: "y".repeat(initialLayoutSize) })
+      );
+
+      const stats = await syncEnvironment(env);
+
+      const historyEntry = stats.initialLayoutHistory[expectedDateKey];
+      expect(historyEntry).toBeDefined();
+      expect(historyEntry?.count).toBe(1);
+      expect(historyEntry?.totalSize).toBeGreaterThan(0);
+    });
+
+    it("skips history tracking when scanDate results in empty dateKey", async () => {
+      const artifactWithEmptyDateKey = {
+        ...artifact,
+        scanDate: "" // Empty scanDate results in empty dateKey
+      };
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifactWithEmptyDateKey] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      const stats = await syncEnvironment(env);
+
+      // Should not add any history entries
+      expect(Object.keys(stats.videoHistory)).toHaveLength(0);
+    });
+
+    it("skips history tracking when scanDate starts with 0001", async () => {
+      const artifactWith0001Date = {
+        ...artifact,
+        scanDate: "0001-01-01T00:00:00Z" // Invalid/placeholder date
+      };
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifactWith0001Date] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      const stats = await syncEnvironment(env);
+
+      // Should not add any history entries for 0001 dates
+      expect(stats.videoHistory["0001-01-01"]).toBeUndefined();
+    });
+
     // 11f) Skips pointCloud when null or empty
     it("does not download pointCloud when it is null", async () => {
       const artifactWithNullPointCloud = {
@@ -775,6 +1018,22 @@ describe("syncArtifacts", () => {
       // pLimit catches -> rejects -> Promise.all rejects -> Page catch logs error
       expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Error fetching page 1"));
       expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("pLimit task failed"));
+      expect(stats.new).toBe(0);
+    });
+
+    // 13a) Task Exception with non-Error value (covers e instanceof Error branch)
+    it("handles non-Error exception values in pLimit catch", async () => {
+      // Force download to throw a non-Error value (string)
+      mockDownloadFile.mockRejectedValue("string error value");
+
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifact] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      const stats = await syncEnvironment(env);
+
+      expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("pLimit task failed: string error value"));
       expect(stats.new).toBe(0);
     });
 
@@ -890,6 +1149,40 @@ describe("syncArtifacts", () => {
       expect(mockFindDuplicateArtifacts).toHaveBeenCalledWith(expect.any(Object), "computed-hash", "artifact1");
     });
 
+    it("sets MIN_SAFE_INTEGER order when first artifact has duplicates from database lookup", async () => {
+      const newHash = "newly-computed-hash";
+
+      // Empty persisted database (hash not pre-loaded, so canonicalByHash[hash] starts undefined)
+      mockGetVideoHashes.mockReturnValue({});
+
+      // New artifact computes a hash
+      mockHashVideoInDirectory.mockResolvedValue(newHash);
+
+      // findDuplicateArtifacts returns duplicates even though hash wasn't in persisted DB
+      // This simulates the database being modified after getVideoHashes was called
+      // or a race condition scenario the code defensively handles
+      mockFindDuplicateArtifacts.mockImplementation((_db, hash, excludeId) => {
+        if (hash === newHash && excludeId === "first-artifact") {
+          return ["some-other-artifact"];
+        }
+        return [];
+      });
+
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [{ ...artifact, id: "first-artifact" }] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      const stats = await syncEnvironment(env);
+
+      // Should detect as duplicate
+      expect(stats.duplicateCount).toBeGreaterThan(0);
+      expect(stats.duplicates.length).toBeGreaterThan(0);
+      // The first artifact with duplicates should set order to MIN_SAFE_INTEGER
+      // and use the first duplicate as canonical
+      expect(stats.duplicates[0]?.duplicateIds).toContain("some-other-artifact");
+    });
+
     it("moves duplicate videos to discarded-artifacts and records bad scans", async () => {
       const duplicateHash = "duplicate-video-hash";
       const artifact1 = { ...artifact, id: "artifact1" };
@@ -927,6 +1220,39 @@ describe("syncArtifacts", () => {
       }
       const savedDb = badScanCall[0] as Record<string, { reason: string }>;
       expect(savedDb["artifact2"]?.reason).toContain("Duplicate video");
+    });
+
+    it("does not count newDuplicateCount when duplicate is for existing artifact", async () => {
+      const duplicateHash = "existing-duplicate-hash";
+      const existingArtifact = { ...artifact, id: "existing-artifact" };
+
+      // Pre-create the artifact directory so it's not "new"
+      fs.mkdirSync(getArtifactDir("existing-artifact"), { recursive: true });
+
+      mockHashVideoInDirectory.mockResolvedValue(duplicateHash);
+      mockGetVideoHashes.mockReturnValue({
+        [duplicateHash]: ["old-artifact"]
+      });
+      mockFindDuplicateArtifacts.mockImplementation((_db, hash, excludeId) => {
+        if (hash === duplicateHash && excludeId === "existing-artifact") {
+          return ["old-artifact"];
+        }
+        return [];
+      });
+
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [existingArtifact] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      const stats = await syncEnvironment(env);
+
+      // Should have duplicates counted
+      expect(stats.duplicateCount).toBeGreaterThan(0);
+      // But newDuplicateCount should be 0 since artifact was existing, not new
+      expect(stats.newDuplicateCount).toBe(0);
+      // And stats.new should be 0 since directory existed
+      expect(stats.new).toBe(0);
     });
   });
 
@@ -1106,6 +1432,19 @@ describe("syncArtifacts", () => {
       syncArtifactsModule.runIfMain(entryModule, runner, true);
 
       expect(runner).toHaveBeenCalledTimes(1);
+    });
+
+    it("logs error when runner rejects in runIfMain", async () => {
+      const testError = new Error("runner rejected");
+      const runner = vi.fn().mockRejectedValue(testError);
+      const entryModule = { filename: "fake-module" } as unknown as NodeJS.Module;
+
+      syncArtifactsModule.runIfMain(entryModule, runner, true);
+
+      // Wait for the promise to reject and the catch handler to run
+      await vi.waitFor(() => {
+        expect(mockLoggerError).toHaveBeenCalledWith(testError);
+      });
     });
   });
 });

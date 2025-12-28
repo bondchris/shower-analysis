@@ -25,6 +25,10 @@ export interface SyncStats {
   newPointCloudSize: number;
   newInitialLayoutSize: number;
   videoHistory: Record<string, { totalSize: number; count: number }>;
+  arDataHistory: Record<string, { totalSize: number; count: number }>;
+  rawScanHistory: Record<string, { totalSize: number; count: number }>;
+  pointCloudHistory: Record<string, { totalSize: number; count: number }>;
+  initialLayoutHistory: Record<string, { totalSize: number; count: number }>;
   dateMismatches: DateMismatch[];
   duplicates: DuplicateVideo[];
   duplicateCount: number;
