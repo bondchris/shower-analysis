@@ -1,9 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildSyncReport } from "../../../src/templates/syncReport";
 import { SyncStats } from "../../../src/models/syncStats";
 import { SyncFailureDatabase } from "../../../src/utils/data/syncFailures";
 import { LineChartConfig } from "../../../src/models/chart/lineChartConfig";
 import { MixedChartConfig } from "../../../src/models/chart/mixedChartConfig";
+import * as dateRangeModule from "../../../src/utils/chart/dateRange";
+
+vi.mock("../../../src/utils/chart/dateRange", () => ({
+  generateDateRange: vi.fn(),
+  getGlobalDateRange: vi.fn()
+}));
 
 const createStats = (overrides: Partial<SyncStats> = {}): SyncStats => ({
   arDataHistory: overrides.arDataHistory ?? {},
@@ -37,7 +43,20 @@ const createStats = (overrides: Partial<SyncStats> = {}): SyncStats => ({
 });
 
 describe("buildSyncReport", () => {
+  beforeEach(() => {
+    // Default mock returns dates that include common test dates
+    vi.mocked(dateRangeModule.getGlobalDateRange).mockReturnValue([
+      "2023-01-15",
+      "2023-01-16",
+      "2023-02-15",
+      "2023-03-15"
+    ]);
+  });
+
   it("should generate summary table and handle no failures", () => {
+    // This test has no video history, so return empty array to skip chart generation
+    vi.mocked(dateRangeModule.getGlobalDateRange).mockReturnValue([]);
+
     const stats: SyncStats[] = [
       {
         arDataHistory: {},
@@ -436,6 +455,9 @@ describe("buildSyncReport", () => {
   });
 
   it("should generate video size chart config", () => {
+    // Mock returns date range that includes test data
+    vi.mocked(dateRangeModule.getGlobalDateRange).mockReturnValue(["2023-01-15"]);
+
     const stats: SyncStats[] = [
       createStats({
         found: 2,
@@ -555,6 +577,9 @@ describe("buildSyncReport", () => {
   });
 
   it("should generate Date Mismatches Over Time chart", () => {
+    // Mock returns date range with exact dates needed
+    vi.mocked(dateRangeModule.getGlobalDateRange).mockReturnValue(["2023-01-15", "2023-02-10", "2023-03-01"]);
+
     const stats: SyncStats[] = [
       createStats({
         dateMismatches: [
@@ -577,9 +602,9 @@ describe("buildSyncReport", () => {
         ],
         found: 10,
         videoHistory: {
-          "2023-01": { count: 1, totalSize: 0 },
-          "2023-02": { count: 1, totalSize: 0 },
-          "2023-03": { count: 1, totalSize: 0 }
+          "2023-01-15": { count: 1, totalSize: 0 },
+          "2023-02-10": { count: 1, totalSize: 0 },
+          "2023-03-01": { count: 1, totalSize: 0 }
         }
       })
     ];
@@ -589,13 +614,16 @@ describe("buildSyncReport", () => {
     expect(chartSection).toBeDefined();
 
     const config = chartSection?.data as LineChartConfig;
-    // Jan (mix), Feb (mismatch only), Mar (video history only)
-    expect(config.labels).toEqual(["2023-01", "2023-02", "2023-03"]);
-    // Jan: 1 mismatch. Feb: 1 mismatch. Mar: 0 mismatches.
+    // Now uses daily dates instead of monthly
+    expect(config.labels).toEqual(["2023-01-15", "2023-02-10", "2023-03-01"]);
+    // Jan 15: 1 mismatch. Feb 10: 1 mismatch. Mar 1: 0 mismatches.
     expect(config.datasets[0]?.data).toEqual([1, 1, 0]);
   });
 
   it("should handle zero count in video history for size chart", () => {
+    // Mock returns the exact dates used in test data
+    vi.mocked(dateRangeModule.getGlobalDateRange).mockReturnValue(["2023-01-15", "2023-01-16"]);
+
     const stats: SyncStats[] = [
       createStats({
         found: 0,
@@ -951,7 +979,10 @@ describe("buildSyncReport", () => {
       expect(data[0]?.[2]).toContain("3"); // Total column (HTML)
     });
 
-    it("should include months without duplicates in the trend chart", () => {
+    it("should include dates without duplicates in the trend chart", () => {
+      // Mock returns the exact dates used in test data
+      vi.mocked(dateRangeModule.getGlobalDateRange).mockReturnValue(["2023-01-15", "2023-02-15"]);
+
       const stats: SyncStats[] = [
         createStats({
           duplicateCount: 1,

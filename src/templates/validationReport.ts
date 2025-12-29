@@ -6,6 +6,7 @@ import { MixedChartDataset } from "../models/chart/mixedChartDataset";
 import { logger } from "../utils/logger";
 import { ReportData, ReportSection } from "../models/report";
 import { getBarChartConfig, getLineChartConfig, getMixedChartConfig } from "../utils/chart/configBuilders";
+import { getGlobalDateRange } from "../utils/chart/dateRange";
 
 export interface ValidationCharts {
   propertyPresence?: ChartConfiguration;
@@ -68,21 +69,10 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
   }
 
   // Generate Graphs
-  const allDates = new Set<string>();
-  allStats.forEach((s) => {
-    Object.keys(s.errorsByDate).forEach((d) => {
-      allDates.add(d);
-    });
-    Object.keys(s.warningsByDate).forEach((d) => {
-      allDates.add(d);
-    });
-    Object.keys(s.totalScansByDate).forEach((d) => {
-      allDates.add(d);
-    });
-  });
+  // Use global date range from first artifact to current date
+  const sortedDates = getGlobalDateRange();
 
-  if (allDates.size > MIN_DATA_POINTS) {
-    const sortedDates = Array.from(allDates).sort();
+  if (sortedDates.length > MIN_DATA_POINTS) {
     const DEFAULT_SCANS_COUNT = 0;
     const DAY_OFFSET = 1;
     const DECIMAL_PLACES_AVG = 1;

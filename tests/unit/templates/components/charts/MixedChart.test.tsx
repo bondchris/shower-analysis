@@ -251,5 +251,125 @@ describe("MixedChart", () => {
       const lineProps = lineSpy.mock.calls[FIRST_CALL]?.[FIRST_ARG] as { data: unknown[] };
       expect(lineProps.data).toHaveLength(ONE_CALL);
     });
+
+    it("skips rendering bars when label is undefined (line 113)", () => {
+      // More data points than labels - some will have undefined labels
+      renderChart({
+        datasets: [
+          {
+            borderColor: DEFAULT_COLOR,
+            data: [DATA_10, DATA_20, DATA_30],
+            label: "Bars",
+            type: "bar"
+          }
+        ],
+        labels: ["a", "b"] // Only 2 labels for 3 data points
+      });
+
+      // Should only render 2 bars (third has undefined label)
+      expect(barSpy).toHaveBeenCalledTimes(TWO_CALLS);
+    });
+  });
+
+  describe("Line Chart Rendering", () => {
+    it("renders line without fill", () => {
+      renderChart({
+        datasets: [
+          {
+            borderColor: DEFAULT_COLOR,
+            data: [DATA_10, DATA_20],
+            fill: false,
+            label: "Line"
+          }
+        ],
+        labels: ["a", "b"]
+      });
+
+      expect(lineSpy).toHaveBeenCalled();
+      expect(areaSpy).not.toHaveBeenCalled();
+    });
+
+    it("renders with custom borderWidth", () => {
+      const customBorderWidth = 4;
+      renderChart({
+        datasets: [
+          {
+            borderColor: DEFAULT_COLOR,
+            borderWidth: customBorderWidth,
+            data: [DATA_10, DATA_20],
+            label: "Line"
+          }
+        ],
+        labels: ["a", "b"]
+      });
+
+      expect(lineSpy).toHaveBeenCalled();
+      const lineProps = lineSpy.mock.calls[FIRST_CALL]?.[FIRST_ARG] as { strokeWidth: number };
+      expect(lineProps.strokeWidth).toBe(customBorderWidth);
+    });
+
+    it("uses backgroundColor for filled area", () => {
+      const bgColor = "#123456";
+      renderChart({
+        datasets: [
+          {
+            backgroundColor: bgColor,
+            borderColor: DEFAULT_COLOR,
+            data: [DATA_10, DATA_20],
+            fill: true,
+            label: "Area"
+          }
+        ],
+        labels: ["a", "b"]
+      });
+
+      expect(areaSpy).toHaveBeenCalled();
+      const areaProps = areaSpy.mock.calls[FIRST_CALL]?.[FIRST_ARG] as { fill: string };
+      expect(areaProps.fill).toBe(bgColor);
+    });
+  });
+
+  describe("Axis Formatting", () => {
+    it("formats left axis with decimal values for small maxValue", () => {
+      const verySmallValue1 = 0.1;
+      const verySmallValue2 = 0.2;
+      renderChart({
+        datasets: [
+          {
+            borderColor: DEFAULT_COLOR,
+            data: [verySmallValue1, verySmallValue2],
+            label: "Small Values"
+          }
+        ],
+        labels: ["a", "b"]
+      });
+
+      expect(axisLeftSpy).toHaveBeenCalled();
+      const props = axisLeftSpy.mock.calls[FIRST_CALL]?.[FIRST_ARG] as {
+        tickFormat: (v: number) => string;
+      };
+      const smallValue = 0.15;
+      // When maxLeftValue < 1, should use 3 decimal places
+      expect(props.tickFormat(smallValue)).toBe("0.150");
+    });
+
+    it("formats right axis with decimal values for fractional numbers", () => {
+      renderChart({
+        datasets: [
+          { borderColor: DEFAULT_COLOR, data: [DATA_10, DATA_20], label: "Left", yAxisID: "y" },
+          { borderColor: DEFAULT_COLOR, data: [DATA_FLOAT_1, DATA_FLOAT_2], label: "Right", yAxisID: "y1" }
+        ],
+        labels: ["a", "b"]
+      });
+
+      expect(axisRightSpy).toHaveBeenCalled();
+      const props = axisRightSpy.mock.calls[FIRST_CALL]?.[FIRST_ARG] as {
+        tickFormat: (v: number) => string;
+      };
+      // Whole number should show without decimals
+      expect(props.tickFormat(DATA_10)).toBe("10");
+      // Fractional number should show with 1 decimal
+      expect(props.tickFormat(DATA_FLOAT_LARGE)).toBe("10.6");
+    });
   });
 });

@@ -2,20 +2,6 @@
 
 Tools for analyzing roomplan data to improve shower detection.
 
-**Current Version:** v0.56.0
-
-## What's New (v0.56.0)
-
-- Sync report video size chart aggregates all environments with daily average, cumulative average,
-  and cumulative total size visualized as a mixed chart with area fill.
-- Line charts support vertical line rendering for discrete data points, used in inaccessible
-  artifacts, scan success, error, and warning trend charts.
-- Validation report scan success percentage aggregates across all environments with daily and
-  cumulative views.
-- Added artifact history tracking for arData, rawScan, pointCloud, and initialLayout files by date.
-- Expanded test coverage for sync artifacts, prevalence charts, validation report, and utility
-  modules.
-
 ## Overview
 
 This project provides a suite of scripts to validate, sync, inspect, clean, and filter scan artifacts from various environments:
@@ -77,38 +63,29 @@ npm run validate
 
 - `reports/validation-report.pdf`: Summarizes artifact counts, missing properties, and error trends.
 
-### 3. Clean Data
+### 3. Discard Invalid or Non-Bathroom Videos
 
-Automated cleanup of invalid, empty, or corrupt media files.
-
-```bash
-npm run clean
-```
-
-**Features**:
-
-- Moves artifacts with invalid or zero-byte files to `data/discarded-artifacts`.
-- Updates `config/badScans.json` to prevent re-syncing.
-
-### 4. Filter Non-Bathroom Videos (Gemini AI)
-
-Uses Google's Gemini 3 Pro Preview model to identify and remove videos that do not show a bathroom (e.g., office tests).
+Combines video integrity checks with Gemini vision filtering to remove unusable artifacts.
 
 **Prerequisites**:
 
 - Valid `GEMINI_API_KEY` in `.env`.
 
 ```bash
-npm run filter-videos
+npm run discard
 ```
 
 **Features**:
 
-- Uploads videos to Gemini for classification.
-- Moves "Not a bathroom" artifacts to `data/discarded-artifacts`.
-- Caches results in `config/checkedScans.json` to save costs and time.
+- Detects missing, invalid, or too-short videos and moves them to `data/discarded-artifacts`, updating `config/badScans.json`.
+- Removes non-bathroom videos via Gemini; successful checks are cached in `config/checkedScans.json` to avoid re-processing.
+- Respects `DRY_RUN=1` and `BATHROOM_FILTER_CONCURRENCY` to control write behavior and parallelism.
 
-### 5. Format Data
+**Output**:
+
+- `reports/discard-report.pdf`: Clean/filter counts, bad scan deltas, Short Videos Over Time and Non-Bathroom Videos Over Time trend charts, and new bad scans grouped by environment and reason.
+
+### 4. Format Data
 
 Standardizes JSON files for better diffing and readability.
 
@@ -121,7 +98,7 @@ npm run format-data
 - Sorts `arData.json` keys chronologically.
 - Saves standardized output to `arDataFormatted.json`.
 
-### 6. Clear Metadata Cache
+### 5. Clear Metadata Cache
 
 Invalidates cached metadata files to force regeneration with updated detection logic.
 
@@ -137,7 +114,7 @@ npm run clear-cache
 
 **Note**: After clearing the cache, run `npm run inspect` to regenerate metadata files.
 
-### 7. Inspect Data
+### 6. Inspect Data
 
 Deep analysis of metadata, lighting, room features, and camera settings.
 
@@ -156,9 +133,12 @@ npm run inspect
 ## Configuration
 
 - **`.env`**: API keys (e.g., `GEMINI_API_KEY`).
+- **`config/config.ts`**: Central configuration including:
+  - `ENVIRONMENTS`: List of environments to sync from.
+  - `CHART_DATE_RANGE.startDate`: Start date for all "over time" charts (currently `2024-07-23`). All charts use this date through the current date for a consistent timeline.
 - **`config/badScans.json`**: Artifact IDs known to be bad/invalid. Automatically updated by
-  `clean`, `filter-videos`, and duplicate detection during `sync`.
-- **`config/checkedScans.json`**: Cache of Gemini classification results to prevent re-processing.
+  `discard` and duplicate detection during `sync`.
+- **`config/checkedScans.json`**: Cache of discard/Gemini results to prevent re-processing.
 - **`config/videoHashes.json`**: Auto-generated mapping of BLAKE3 video hashes to artifact IDs for duplicate detection during sync.
 
 ## Development
@@ -216,7 +196,7 @@ Run the complete data processing pipeline:
 npm run full-pipeline
 ```
 
-This executes: validate → sync → clean-data → filter-videos → format-data → inspect
+This executes: validate → sync → discard → format-data → inspect
 
 ## Directory Structure
 

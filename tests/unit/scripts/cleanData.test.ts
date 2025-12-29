@@ -4,7 +4,7 @@ import path from "path";
 import { Mock, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import os from "os";
-import { main, probeVideo } from "../../../src/scripts/cleanData";
+import { probeVideo, runCleanOnly, runCleanPhase } from "../../../src/scripts/discard";
 import { getBadScans, saveBadScans } from "../../../src/utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../../../src/utils/data/checkedScans";
 import { discardArtifact } from "../../../src/utils/data/discardArtifact";
@@ -39,7 +39,7 @@ type CheckedScansMap = Record<string, CheckedScanEntry>;
 // Type helper for ffprobe mock
 type FfprobeCallback = (err: unknown, data?: { format?: { duration?: number | string } }) => void;
 
-describe("cleanData", () => {
+describe("discard clean phase", () => {
   // Ffmpeg mock
   let mockFfmpeg: Mock;
   interface MockFfmpegCommand {
@@ -99,7 +99,7 @@ describe("cleanData", () => {
   });
 
   // --- Main Logic Tests ---
-  describe("main", () => {
+  describe("runCleanOnly", () => {
     let tmpDir: string;
     let dataDir: string;
     let badScansFile: string;
@@ -132,7 +132,7 @@ describe("cleanData", () => {
     });
 
     it("creates data files implicitly via utils if not present (utils logic)", async () => {
-      await main({
+      await runCleanOnly({
         badScansFile,
         checkedScansFile,
         dataDir,
@@ -151,7 +151,7 @@ describe("cleanData", () => {
 
       mockCheckedScans["artifact1"] = { cleanedDate: "2025-01-01" };
 
-      await main({
+      await runCleanOnly({
         badScansFile,
         dataDir,
         ffprobe: mockFfmpeg as unknown as typeof ffmpeg.ffprobe,
@@ -170,7 +170,7 @@ describe("cleanData", () => {
       fs.writeFileSync(path.join(artifactDir, "meta.json"), "{}");
       // Missing video
 
-      await main({
+      await runCleanOnly({
         badScansFile,
         dataDir,
         fs,
@@ -186,7 +186,7 @@ describe("cleanData", () => {
       fs.mkdirSync(artifactDir);
       fs.writeFileSync(path.join(artifactDir, "meta.json"), "{}");
 
-      const stats = await main({
+      const stats = await runCleanOnly({
         badScansFile,
         dataDir,
         fs,
@@ -210,7 +210,7 @@ describe("cleanData", () => {
         cb(new Error("fail"));
       });
 
-      const stats = await main({
+      const stats = await runCleanOnly({
         badScansFile,
         dataDir,
         ffprobe: mockFfmpeg as unknown as typeof ffmpeg.ffprobe,
@@ -232,7 +232,7 @@ describe("cleanData", () => {
         cb(null, { format: { duration: 5.0 } });
       });
 
-      const stats = await main({
+      const stats = await runCleanOnly({
         badScansFile,
         dataDir,
         ffprobe: mockFfmpeg as unknown as typeof ffmpeg.ffprobe,
@@ -250,7 +250,7 @@ describe("cleanData", () => {
       fs.mkdirSync(artifactDir);
       fs.writeFileSync(path.join(artifactDir, "meta.json"), "{}");
 
-      const stats = await main({
+      const stats = await runCleanOnly({
         dataDir,
         dryRun: true,
         fs,
@@ -274,7 +274,7 @@ describe("cleanData", () => {
       const quarantineDir = path.join(tmpDir, "quarantine");
       fs.mkdirSync(quarantineDir);
 
-      const stats = await main({
+      const stats = await runCleanOnly({
         dataDir,
         fs,
         logger: mockLogger,
@@ -299,7 +299,7 @@ describe("cleanData", () => {
 
       mockBadScans["artifact_bad"] = { reason: "Old weak reason" };
 
-      await main({
+      await runCleanOnly({
         dataDir,
         fs,
         logger: mockLogger
@@ -312,7 +312,7 @@ describe("cleanData", () => {
       const dsStoreFile = path.join(dataDir, ".DS_Store");
       fs.writeFileSync(dsStoreFile, "");
 
-      const stats = await main({
+      const stats = await runCleanOnly({
         badScansFile,
         checkedScansFile,
         dataDir,
@@ -330,7 +330,7 @@ describe("cleanData", () => {
       fs.mkdirSync(hiddenDir);
       fs.writeFileSync(path.join(hiddenDir, "meta.json"), "{}");
 
-      const stats = await main({
+      const stats = await runCleanOnly({
         badScansFile,
         checkedScansFile,
         dataDir,
@@ -362,7 +362,7 @@ describe("cleanData", () => {
         statSync: fs.statSync
       };
 
-      const stats = await main({
+      const stats = await runCleanOnly({
         badScansFile,
         checkedScansFile,
         dataDir,
@@ -388,7 +388,7 @@ describe("cleanData", () => {
       // Remove the cleanedDate so it gets processed
       mockCheckedScans["artifact_checked"] = {};
 
-      const stats = await main({
+      const stats = await runCleanOnly({
         badScansFile,
         checkedScansFile,
         dataDir,
@@ -399,6 +399,94 @@ describe("cleanData", () => {
       expect(stats.removedCount).toBe(1);
       // Checked scan entry should be removed
       expect(mockCheckedScans["artifact_checked"]).toBeUndefined();
+    });
+
+    it("marks artifact as cleaned when video is valid", async () => {
+      const artifactDir = path.join(dataDir, "artifact_clean");
+      const videoPath = path.join(artifactDir, "video.mp4");
+      fs.mkdirSync(artifactDir);
+      fs.writeFileSync(path.join(artifactDir, "meta.json"), "{}");
+      fs.writeFileSync(videoPath, "content");
+
+      const mockFs = {
+        existsSync: vi.fn().mockReturnValue(true),
+        mkdirSync: vi.fn(),
+        readdirSync: vi.fn(),
+        renameSync: vi.fn(),
+        statSync: vi.fn()
+      };
+
+      const result = await runCleanPhase({
+        artifactDirs: [artifactDir],
+        dataDir,
+        ffprobe: vi.fn((_f: string, cb: (err: unknown, data: { format: { duration: number } }) => void) => {
+          cb(null, { format: { duration: 20 } });
+        }) as unknown as typeof ffmpeg.ffprobe,
+        fs: mockFs as unknown as typeof fs,
+        logger: mockLogger
+      });
+
+      expect(result.stats.removedCount).toBe(0);
+      expect(mockCheckedScans["artifact_clean"]?.cleanedDate).toBeDefined();
+    });
+
+    it("dry run skips marking cleaned artifacts", async () => {
+      const artifactDir = path.join(dataDir, "artifact_dryrun_clean");
+      fs.mkdirSync(artifactDir, { recursive: true });
+      fs.writeFileSync(path.join(artifactDir, "meta.json"), "{}");
+      fs.writeFileSync(path.join(artifactDir, "video.mp4"), "content");
+
+      const mockFs = {
+        existsSync: vi.fn().mockReturnValue(true),
+        mkdirSync: vi.fn(),
+        readdirSync: vi.fn(),
+        renameSync: vi.fn(),
+        statSync: vi.fn()
+      };
+
+      const result = await runCleanPhase({
+        artifactDirs: [artifactDir],
+        dryRun: true,
+        ffprobe: vi.fn((_f: string, cb: (err: unknown, data: { format: { duration: number } }) => void) => {
+          cb(null, { format: { duration: 15 } });
+        }) as unknown as typeof ffmpeg.ffprobe,
+        fs: mockFs as unknown as typeof fs,
+        logger: mockLogger
+      });
+
+      expect(result.stats.removedCount).toBe(0);
+      expect(mockCheckedScans["artifact_dryrun_clean"]).toBeUndefined();
+    });
+
+    it("updates existing checked scan entry when already present", async () => {
+      const artifactDir = path.join(dataDir, "artifact_existing_entry");
+      const videoPath = path.join(artifactDir, "video.mp4");
+      fs.mkdirSync(artifactDir);
+      fs.writeFileSync(path.join(artifactDir, "meta.json"), "{}");
+      fs.writeFileSync(videoPath, "content");
+
+      mockCheckedScans["artifact_existing_entry"] = { cleanedDate: "" };
+
+      const mockFs = {
+        existsSync: vi.fn().mockReturnValue(true),
+        mkdirSync: vi.fn(),
+        readdirSync: vi.fn(),
+        renameSync: vi.fn(),
+        statSync: vi.fn()
+      };
+
+      const result = await runCleanPhase({
+        artifactDirs: [artifactDir],
+        dataDir,
+        ffprobe: vi.fn((_f: string, cb: (err: unknown, data: { format: { duration: number } }) => void) => {
+          cb(null, { format: { duration: 30 } });
+        }) as unknown as typeof ffmpeg.ffprobe,
+        fs: mockFs as unknown as typeof fs,
+        logger: mockLogger
+      });
+
+      expect(result.stats.removedCount).toBe(0);
+      expect(mockCheckedScans["artifact_existing_entry"].cleanedDate).toBeDefined();
     });
   });
 });

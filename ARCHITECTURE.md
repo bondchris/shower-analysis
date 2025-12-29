@@ -61,12 +61,11 @@ The system follows a modular, service-oriented architecture with clear separatio
 
 The entry points for different operations:
 
-- **`syncArtifacts.ts`**: Downloads artifact data from Spatial API with filesystem caching
 - **`validateArtifacts.ts`**: Validates artifact integrity and generates error trend reports
-- **`inspectArtifacts.ts`**: Performs deep analysis of metadata, lighting, and room features
-- **`cleanData.ts`**: Removes invalid or corrupt artifacts
-- **`filterNonBathrooms.ts`**: Uses Gemini AI to filter out non-bathroom videos
+- **`syncArtifacts.ts`**: Downloads artifact data from Spatial API with filesystem caching
+- **`discard.ts`**: Validates video presence/duration and filters out non-bathroom videos via Gemini before discarding
 - **`formatData.ts`**: Creates sorted, normalized copies (`arDataFormatted.json`, `rawScanFormatted.json`) without mutating the originals; sorts keys and AR frame timestamps for consistent diffs
+- **`inspectArtifacts.ts`**: Performs deep analysis of metadata, lighting, and room features
 
 ### Services (`src/services/`)
 

@@ -228,4 +228,130 @@ describe("LineChart", () => {
     const line = container.querySelector("line[stroke-dasharray]");
     expect(line).not.toBeNull();
   });
+
+  it("should handle undefined label during vertical reference line calculation (line 127)", () => {
+    // Test when labels array has gaps or undefined values during iteration
+    // This triggers the `continue` at line 127 when labelValue is undefined
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B, DATA_C, DATA_A], label: "Test" }],
+      height: HEIGHT,
+      // Create a scenario where some indices may have undefined behavior
+      // We use more data points than labels to create undefined label access
+      labels: ["10", "20", "30"],
+      options: {
+        title: "Test Chart",
+        verticalReferenceLine: {
+          label: "Avg: 25",
+          value: 25
+        },
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("should handle missing xLabel option", () => {
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B], label: "Test" }],
+      height: HEIGHT,
+      labels: ["A", "B"],
+      options: {
+        title: "Test Chart",
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("should render with vertical lines mode", () => {
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B], label: "Test", verticalLines: true }],
+      height: HEIGHT,
+      labels: ["A", "B"],
+      options: {
+        title: "Test Chart",
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("should render with global vertical lines option", () => {
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B], label: "Test" }],
+      height: HEIGHT,
+      labels: ["A", "B"],
+      options: {
+        title: "Test Chart",
+        verticalLines: true,
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("should render with gradient fill", () => {
+    const config: LineChartConfig = {
+      datasets: [
+        {
+          borderColor: "red",
+          data: [DATA_A, DATA_B],
+          fill: true,
+          gradientDirection: "horizontal",
+          gradientFrom: "#ff0000",
+          gradientTo: "#0000ff",
+          label: "Test"
+        }
+      ],
+      height: HEIGHT,
+      labels: ["A", "B"],
+      options: {
+        chartId: "test-chart",
+        title: "Test Chart",
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("should use smooth curve when smooth option is true", () => {
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B, DATA_C], label: "Test" }],
+      height: HEIGHT,
+      labels: ["A", "B", "C"],
+      options: {
+        smooth: true,
+        title: "Test Chart",
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("should use fallback borderColor from palette", () => {
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "", data: [DATA_A, DATA_B], label: "Test" }],
+      height: HEIGHT,
+      labels: ["A", "B"],
+      options: {
+        title: "Test Chart",
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+    const { container } = render(<LineChart config={config} />);
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
 });

@@ -398,7 +398,7 @@ export async function processArtifact(
 
 export async function syncEnvironment(env: { domain: string; name: string }): Promise<SyncStats> {
   logger.info(`Starting sync for: ${env.name}`);
-  const dataDir = path.join(process.cwd(), "data", "artifacts", env.name.replace(/[^a-z0-9]/gi, "_").toLowerCase());
+  const dataDir = path.join(process.cwd(), "data", "artifacts", env.name);
 
   const stats: SyncStats = {
     arDataHistory: {},

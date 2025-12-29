@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## 2025-12-28
 
+### [v0.57.0] File Size Reporting for All Sync Data Types
+
+- Sync report now tracks and displays file sizes for arData, rawScan, pointCloud, and initialLayout
+  files in addition to videos, with daily average and cumulative trends.
+- Line charts support additional dataset styling options for mixed file type visualizations.
+- Expanded test coverage for sync artifact handling, prevalence charts, validation report,
+  discard artifact utilities, vanity analysis, and video metadata extraction.
+- Discard now produces `reports/discard-report.pdf` with clean/filter summaries and new bad scans
+  grouped by reason and environment.
+- Discard flow tracks bad scan deltas to populate the report, including failed moves and dry-run
+  context.
+- Added a dedicated discard report template and unit coverage; running `npm run discard` now
+  emits the PDF alongside stats.
+
 ### [v0.56.0] Aggregated Chart Visualizations and Vertical Line Rendering
 
 - Sync report video size chart now aggregates all environments into a single mixed chart showing

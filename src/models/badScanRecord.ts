@@ -6,6 +6,7 @@ export interface BadScanEntry {
   environment: string;
   reason: string;
   date: string;
+  scanDate?: string;
 }
 
 export type BadScanDatabase = Record<string, BadScanEntry>;

@@ -288,6 +288,11 @@
     "filteredModel": "gemini-3-pro-preview",
     "cleanedDate": "2025-12-14T04:40:15.073Z"
   },
+  "0675a764-91c0-4f99-a97d-e4c8f0b7bb52": {
+    "cleanedDate": "2025-12-28T22:29:10.306Z",
+    "filteredDate": "2025-12-28T22:29:56.731Z",
+    "filteredModel": "gemini-3-pro-preview"
+  },
   "067882e5-5849-4438-b9aa-c43512eaf27a": {
     "filteredDate": "2025-12-12T06:51:44.792Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -1578,6 +1583,11 @@
     "filteredDate": "2025-12-08T07:50:20.748Z",
     "filteredModel": "gemini-3-pro-preview",
     "cleanedDate": "2025-12-14T04:40:32.143Z"
+  },
+  "209308ff-eb75-4a6f-b339-86c13663ead4": {
+    "cleanedDate": "2025-12-28T16:38:23.373Z",
+    "filteredDate": "2025-12-28T16:38:36.333Z",
+    "filteredModel": "gemini-3-pro-preview"
   },
   "20aea65d-729c-42e2-944c-3a813e3a7691": {
     "filteredDate": "2025-12-08T07:50:17.268Z",
@@ -6129,6 +6139,11 @@
     "filteredModel": "gemini-3-pro-preview",
     "cleanedDate": "2025-12-14T04:41:31.117Z"
   },
+  "85ea7b4e-5228-4192-be13-189c17a0fbdf": {
+    "cleanedDate": "2025-12-29T02:28:25.579Z",
+    "filteredDate": "2025-12-29T02:28:39.258Z",
+    "filteredModel": "gemini-3-pro-preview"
+  },
   "85ec5d95-de8a-45b7-80cf-faef66ac88c7": {
     "filteredDate": "2025-12-08T08:21:34.843Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -10044,6 +10059,11 @@
     "filteredModel": "gemini-3-pro-preview",
     "cleanedDate": "2025-12-14T04:42:15.763Z"
   },
+  "de7223b8-8303-4f44-8a3f-46665b3d3462": {
+    "cleanedDate": "2025-12-29T01:12:06.919Z",
+    "filteredDate": "2025-12-29T01:12:20.356Z",
+    "filteredModel": "gemini-3-pro-preview"
+  },
   "de939483-08be-4226-a988-bc15bfc38e28": {
     "filteredDate": "2025-12-08T08:45:24.741Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -11229,6 +11249,11 @@
     "filteredModel": "gemini-3-pro-preview",
     "cleanedDate": "2025-12-14T04:43:11.801Z"
   },
+  "f7b9cd19-7deb-4ba0-a918-db91d503b432": {
+    "cleanedDate": "2025-12-29T00:59:12.993Z",
+    "filteredDate": "2025-12-29T00:59:29.436Z",
+    "filteredModel": "gemini-3-pro-preview"
+  },
   "f7c4efff-d86a-484e-b4f6-604082d86cdb": {
     "filteredDate": "2025-12-08T08:52:01.463Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -11515,6 +11540,11 @@
     "filteredDate": "2025-12-08T08:53:32.129Z",
     "filteredModel": "gemini-3-pro-preview",
     "cleanedDate": "2025-12-14T04:42:33.148Z"
+  },
+  "fd2d8965-a6e1-4294-9ade-3a44b379f8c0": {
+    "cleanedDate": "2025-12-29T00:59:13.042Z",
+    "filteredDate": "2025-12-29T00:59:34.657Z",
+    "filteredModel": "gemini-3-pro-preview"
   },
   "fd6d31ee-a8c6-4f68-ac33-46d7b5b74541": {
     "filteredDate": "2025-12-08T09:02:06.780Z",

@@ -268,8 +268,8 @@ describe("syncArtifacts", () => {
   describe("syncEnvironment", () => {
     const env = { domain: "test.com", name: "test-env" };
     const artifact = { arData: "a.json", id: "123", rawScan: "r.json", video: "v.mp4" };
-    const getArtifactDir = (id: string) => path.join(tmpDir, "data", "artifacts", "test_env", id);
-    const getDiscardedDir = (id: string) => path.join(tmpDir, "data", "discarded-artifacts", "test_env", id);
+    const getArtifactDir = (id: string) => path.join(tmpDir, "data", "artifacts", "test-env", id);
+    const getDiscardedDir = (id: string) => path.join(tmpDir, "data", "discarded-artifacts", "test-env", id);
 
     it("fully handles happy path: creates files, stats correct", async () => {
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
@@ -322,7 +322,7 @@ describe("syncArtifacts", () => {
       // abc/../evil*? -> abc____evil__
       const safeId = "abc____evil__";
       const unsafeArtifact = { ...artifact, id: unsafeId };
-      const safeArtifactDir = path.join(tmpDir, "data", "artifacts", "test_env", safeId);
+      const safeArtifactDir = path.join(tmpDir, "data", "artifacts", "test-env", safeId);
 
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
         data: [unsafeArtifact] as unknown as ArtifactResponse[],
@@ -699,7 +699,7 @@ describe("syncArtifacts", () => {
 
       expect(stats.found).toBe(TOTAL);
       // Check last one exists
-      expect(fs.existsSync(path.join(tmpDir, "data", "artifacts", "test_env", "id_24"))).toBe(true);
+      expect(fs.existsSync(path.join(tmpDir, "data", "artifacts", "test-env", "id_24"))).toBe(true);
     });
 
     // 11a) Optional pointCloud download
@@ -1280,7 +1280,7 @@ describe("syncArtifacts", () => {
       scanDate: "2023-01-01T10:00:00Z",
       video: "v.mp4"
     };
-    const getArtifactDir = (id: string) => path.join(tmpDir, "data", "artifacts", "test_env", id);
+    const getArtifactDir = (id: string) => path.join(tmpDir, "data", "artifacts", "test-env", id);
 
     it("detects date mismatch when difference > 24 hours", async () => {
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
@@ -1356,7 +1356,7 @@ describe("syncArtifacts", () => {
     mockDownloadFile.mockResolvedValue(null);
     mockDownloadJsonFile.mockResolvedValue(null);
 
-    const env = { domain: "test.com", name: "test_env" };
+    const env = { domain: "test.com", name: "test-env" };
     await syncEnvironment(env);
 
     expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining("Failed to get stats/metadata"));

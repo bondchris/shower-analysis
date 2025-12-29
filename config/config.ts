@@ -4,3 +4,7 @@ export const ENVIRONMENTS = [
   { domain: "arcstudio.ai", name: "Bond Production" },
   { domain: "usedemo.io", name: "Bond Demo" }
 ];
+
+export const CHART_DATE_RANGE = {
+  startDate: "2024-07-23"
+};

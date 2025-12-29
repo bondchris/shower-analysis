@@ -5,7 +5,7 @@ import { Mock, Mocked, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BadScanDatabase } from "../../src/models/badScanRecord";
 import { CheckedScanDatabase } from "../../src/models/checkedScanRecord";
-import { processArtifact } from "../../src/scripts/filterNonBathrooms";
+import { processArtifact } from "../../src/scripts/discard";
 import { findArtifactDirectories } from "../../src/utils/data/artifactIterator";
 import { GeminiService } from "../../src/services/geminiService";
 import { getBadScans } from "../../src/utils/data/badScans";
@@ -28,7 +28,7 @@ vi.mock("../../src/utils/logger", () => ({
 // Types for mocks
 type MockGeminiService = Mocked<GeminiService>;
 
-describe("filterNonBathrooms Integration", () => {
+describe("discard filter Integration", () => {
   let mockGeminiService: MockGeminiService;
   const mockArtifactsDir = path.join(__dirname, "data/artifacts/temp-artifacts");
   // Ensure parent directories exist

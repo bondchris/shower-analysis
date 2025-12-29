@@ -219,4 +219,94 @@ describe("BarChart Component", () => {
     // Should still render stacked bars with default colors
     expect(getAllByTestId("visx-bar")).toHaveLength(totalBars);
   });
+
+  it("should handle separator label not found in labels array (line 239 branch)", () => {
+    // When separatorLabel is defined but the label at that index is undefined,
+    // the separator line rendering returns null at line 239
+    const config: BarChartConfig = {
+      ...baseConfig,
+      data: [BAR_VAL_10, BAR_VAL_20],
+      labels: ["A", "B"],
+      options: {
+        horizontal: true,
+        // separatorLabel exists in labels.includes but labels[idx] could be undefined
+        // in edge cases. However, since indexOf returns -1 if not found, this branch
+        // is hit when the label exists but is falsy. Let's trigger with empty string.
+        separatorLabel: ""
+      }
+    };
+    const { container } = render(<BarChart config={config} />);
+    // Should render without crashing - separator line logic handles undefined label
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("should render vertical stacked bars with legend (lines 486-487)", () => {
+    const highConfidence = 5;
+    const mediumConfidence = 3;
+    const lowConfidence = 2;
+    const highConfidence2 = 10;
+    const mediumConfidence2 = 5;
+    const lowConfidence2 = 5;
+    const segmentsPerBar = 3;
+    const barsCount = 2;
+    const totalBars = barsCount * segmentsPerBar;
+    const stackedData: number[][] = [
+      [highConfidence, mediumConfidence, lowConfidence],
+      [highConfidence2, mediumConfidence2, lowConfidence2]
+    ];
+    const config: BarChartConfig = {
+      ...baseConfig,
+      data: stackedData,
+      labels: ["Object1", "Object2"],
+      options: {
+        horizontal: false,
+        stackColors: ["#10b981", "#f59e0b", "#ef4444"],
+        stackLabels: ["High", "Medium", "Low"],
+        stacked: true
+      }
+    };
+    const { getAllByTestId } = render(<BarChart config={config} />);
+    // Should render 2 bars * 3 segments each = 6 bars total
+    expect(getAllByTestId("visx-bar")).toHaveLength(totalBars);
+  });
+
+  it("should handle stacked bars with more segments than colors (fallback color)", () => {
+    // Test the fallback when colors[idx % colors.length] is undefined
+    const stackedData: number[][] = [[BAR_VAL_10, BAR_VAL_20, BAR_VAL_30, BAR_VAL_42]];
+    const segmentsCount = 4;
+    const config: BarChartConfig = {
+      ...baseConfig,
+      data: stackedData,
+      labels: ["Object1"],
+      options: {
+        horizontal: false,
+        // Provide fewer colors than segments - some will fallback
+        stackColors: ["#10b981"],
+        stackLabels: ["A", "B", "C", "D"],
+        stacked: true
+      }
+    };
+    const { getAllByTestId } = render(<BarChart config={config} />);
+    expect(getAllByTestId("visx-bar")).toHaveLength(segmentsCount);
+  });
+
+  it("should use artifact counts for percentage calculation in horizontal stacked bars", () => {
+    const stackedData: number[][] = [[BAR_VAL_10, BAR_VAL_20]];
+    const artifactCount = 50;
+    const totalForPct = 100;
+    const config: BarChartConfig = {
+      ...baseConfig,
+      data: stackedData,
+      labels: ["Object1"],
+      options: {
+        artifactCountsPerLabel: { Object1: artifactCount },
+        horizontal: true,
+        showCount: true,
+        stacked: true,
+        totalForPercentages: totalForPct
+      }
+    };
+    const { container } = render(<BarChart config={config} />);
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
 });

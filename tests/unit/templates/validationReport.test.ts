@@ -1,14 +1,20 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EnvStats } from "../../../src/models/envStats";
 import { buildValidationReport } from "../../../src/templates/validationReport";
 import { getBarChartConfig, getLineChartConfig, getMixedChartConfig } from "../../../src/utils/chart/configBuilders";
 import { logger } from "../../../src/utils/logger";
+import * as dateRangeModule from "../../../src/utils/chart/dateRange";
 
 vi.mock("../../../src/utils/logger", () => ({
   logger: {
     error: vi.fn(),
     info: vi.fn()
   }
+}));
+
+vi.mock("../../../src/utils/chart/dateRange", () => ({
+  generateDateRange: vi.fn(),
+  getGlobalDateRange: vi.fn()
 }));
 
 // Mock ChartUtils
@@ -24,6 +30,11 @@ vi.mock("../../../src/utils/chart/configBuilders", async () => {
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+beforeEach(() => {
+  // Default mock returns dates that include common test dates
+  vi.mocked(dateRangeModule.getGlobalDateRange).mockReturnValue(["2023-01-01", "2023-01-02", "2023-01-03"]);
 });
 
 describe("buildValidationReport", () => {
@@ -235,6 +246,9 @@ describe("buildValidationReport", () => {
   });
 
   it("should handle properties that are missing on certain dates", () => {
+    // Mock returns the exact dates used in test data
+    vi.mocked(dateRangeModule.getGlobalDateRange).mockReturnValue(["2024-05-01", "2024-05-02"]);
+
     const stats: EnvStats[] = [
       {
         artifactsWithIssues: 0,

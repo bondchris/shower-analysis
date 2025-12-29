@@ -67,6 +67,7 @@ vi.mock("../../src/utils/sync/downloadHelpers", () => {
 // 4. Mock Config (Environment)
 vi.mock("../../config/config", () => {
   return {
+    CHART_DATE_RANGE: { startDate: "2024-07-23" },
     ENVIRONMENTS: [{ domain: "test.com", name: "TestEnv" }]
   };
 });
@@ -113,9 +114,8 @@ import { saveBadScans } from "../../src/utils/data/badScans";
 // Import scripts
 import { main as validateMain } from "../../src/scripts/validateArtifacts";
 import { main as syncMain } from "../../src/scripts/syncArtifacts";
-import { main as cleanMain } from "../../src/scripts/cleanData";
 import { run as formatRun } from "../../src/scripts/formatData";
-import { main as filterMain } from "../../src/scripts/filterNonBathrooms";
+import { runCleanOnly, runFilterOnly } from "../../src/scripts/discard";
 import { main as inspectMain } from "../../src/scripts/inspectArtifacts";
 
 describe("Functional Pipeline Test", () => {
@@ -328,7 +328,7 @@ describe("Functional Pipeline Test", () => {
     // Yes, it catches.
 
     // --- Step 4: Clean Data ---
-    await cleanMain({
+    await runCleanOnly({
       dataDir: path.join(tempDir, "data", "artifacts"),
       ffprobe: vi.fn((file: string, cb: (err: unknown, data: ffmpeg.FfprobeData) => void) => {
         // Return 5s duration for short video, 15s for others
@@ -399,7 +399,7 @@ describe("Functional Pipeline Test", () => {
       return "YES";
     });
 
-    await filterMain();
+    await runFilterOnly();
 
     // Valid should exist
     expect(fs.existsSync(validPath)).toBe(true);

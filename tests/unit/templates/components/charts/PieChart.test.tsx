@@ -1122,16 +1122,44 @@ describe("PieChart Component", () => {
     it("should handle angleDiff > twoPi in overlap detection (line 486)", () => {
       // Test line 486: while (angleDiff > twoPi)
       // This tests the branch when angleDiff exceeds 2π
-      // This can happen when angles wrap around multiple times
+      // We need to create arcs where the calculated angleDiff after atan2 exceeds 2π
+      // Since atan2 returns values in [-π, π], the diff curr - prev can be at most 2π
+      // But with large startAngle values, we can create scenarios where wrap-around happens
       const data = [10, 10, 10];
       const labels = ["A", "B", "C"];
-      // Create arcs with angles that might cause large differences
       const TWO_PI = 2 * Math.PI;
-      const FOUR_PI = TWO_PI * 2;
+      const THREE_PI = 3 * Math.PI;
+
+      // Create arcs with very large startAngles that will cause atan2 to produce
+      // values that when subtracted create large differences
       const arcs: PieArcDatum[] = [
-        { data: 10, endAngle: 0.1, index: 0, padAngle: 0, startAngle: 0, value: 10 },
-        { data: 10, endAngle: TWO_PI + 0.1, index: 1, padAngle: 0, startAngle: TWO_PI, value: 10 },
-        { data: 10, endAngle: FOUR_PI + 0.1, index: 2, padAngle: 0, startAngle: FOUR_PI, value: 10 }
+        { data: 10, endAngle: TWO_PI + 0.1, index: 0, padAngle: 0, startAngle: TWO_PI, value: 10 },
+        { data: 10, endAngle: THREE_PI + 0.1, index: 1, padAngle: 0, startAngle: THREE_PI, value: 10 },
+        { data: 10, endAngle: THREE_PI + 0.2, index: 2, padAngle: 0, startAngle: THREE_PI + 0.1, value: 10 }
+      ];
+      setMockArcs(arcs);
+
+      const config: PieChartConfig = {
+        ...baseConfig,
+        data,
+        labels
+      };
+      render(<PieChart config={config} />);
+      setMockArcs(null);
+      setMockCentroid(null);
+    });
+
+    it("should handle negative angleDiff requiring normalization (line 484)", () => {
+      // Test line 484: while (angleDiff < zeroAngle)
+      // Create arcs where curr.adjustedAngle < prev.adjustedAngle
+      const data = [10, 10];
+      const labels = ["A", "B"];
+      const PI = Math.PI;
+
+      // Arc positions where second arc has smaller angle than first
+      const arcs: PieArcDatum[] = [
+        { data: 10, endAngle: PI + 0.1, index: 0, padAngle: 0, startAngle: PI, value: 10 },
+        { data: 10, endAngle: 0.1, index: 1, padAngle: 0, startAngle: 0, value: 10 }
       ];
       setMockArcs(arcs);
 

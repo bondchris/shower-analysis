@@ -7,7 +7,7 @@ import { GeminiService } from "../../../src/services/geminiService";
 import { getBadScans } from "../../../src/utils/data/badScans";
 import { getCheckedScans } from "../../../src/utils/data/checkedScans";
 import { discardArtifact } from "../../../src/utils/data/discardArtifact";
-import { classifyGeminiAnswer, processArtifact } from "../../../src/scripts/filterNonBathrooms";
+import { classifyGeminiAnswer, processArtifact, runFilterOnly } from "../../../src/scripts/discard";
 
 // Mock dependencies
 vi.mock("fs");
@@ -30,7 +30,7 @@ type MockGeminiService = Mocked<GeminiService>;
 type BadScansMap = BadScanDatabase;
 type CheckedScansMap = CheckedScanDatabase;
 
-describe("filterNonBathrooms Unit", () => {
+describe("discard filter phase", () => {
   let mockService: MockGeminiService;
   let mockBadScans: BadScansMap;
   let mockCheckedScans: CheckedScansMap;
@@ -199,6 +199,38 @@ describe("filterNonBathrooms Unit", () => {
       expect(mockBadScans["artifact1"]).toBeUndefined();
     });
 
+    it("skips unsafe path outside artifacts tree", async () => {
+      (fs.existsSync as Mock).mockReturnValue(true);
+
+      const result = await processArtifact(
+        "/unsafe/path/artifact1",
+        mockService,
+        mockBadScans,
+        checkedScanIds,
+        mockCheckedScans
+      );
+
+      expect(result.errors).toBe(1);
+      expect(result.processed).toBe(0);
+      expect(mockService.generateContent).not.toHaveBeenCalled();
+    });
+
+    it("skips when meta.json is missing", async () => {
+      (fs.existsSync as Mock).mockImplementation((p: string) => {
+        if (p.endsWith("meta.json")) {
+          return false;
+        }
+        return true;
+      });
+
+      const dir = "/mock/data/artifacts/env/artifact_missing_meta";
+      const result = await processArtifact(dir, mockService, mockBadScans, checkedScanIds, mockCheckedScans);
+
+      expect(result.errors).toBe(1);
+      expect(result.processed).toBe(0);
+      expect(mockService.generateContent).not.toHaveBeenCalled();
+    });
+
     describe("runBatchProcessing", () => {
       const MOCK_DIRS = [
         "/mock/data/artifacts/env/dir1",
@@ -216,7 +248,7 @@ describe("filterNonBathrooms Unit", () => {
         mockService.generateContent.mockResolvedValue("YES");
         const saveSpy = vi.fn();
 
-        const stats = await import("../../../src/scripts/filterNonBathrooms").then(async (mod) => {
+        const stats = await import("../../../src/scripts/discard").then(async (mod) => {
           const result = await mod.runBatchProcessing(
             MOCK_DIRS,
             mockService,
@@ -244,7 +276,7 @@ describe("filterNonBathrooms Unit", () => {
 
         const saveSpy = vi.fn();
 
-        const stats = await import("../../../src/scripts/filterNonBathrooms").then(async (mod) => {
+        const stats = await import("../../../src/scripts/discard").then(async (mod) => {
           const result = await mod.runBatchProcessing(
             MOCK_DIRS,
             mockService,
@@ -267,7 +299,7 @@ describe("filterNonBathrooms Unit", () => {
         const saveSpy = vi.fn();
         const MANY_DIRS = Array(5).fill("/mock/data/artifacts/env/dir") as string[];
 
-        await import("../../../src/scripts/filterNonBathrooms").then(async (mod) => {
+        await import("../../../src/scripts/discard").then(async (mod) => {
           const result = await mod.runBatchProcessing(
             MANY_DIRS,
             mockService,
@@ -283,8 +315,50 @@ describe("filterNonBathrooms Unit", () => {
         // 5 items, interval 2. Should save at 2, 4.
         expect(saveSpy).toHaveBeenCalledTimes(2);
       });
+
+      it("handles empty queue with default concurrency", async () => {
+        const saveSpy = vi.fn();
+
+        const stats = await import("../../../src/scripts/discard").then(async (mod) => {
+          const result = await mod.runBatchProcessing(
+            [],
+            mockService,
+            mockBadScans,
+            checkedScanIds,
+            mockCheckedScans,
+            saveSpy,
+            {}
+          );
+          return result;
+        });
+
+        expect(stats.processed).toBe(0);
+        expect(saveSpy).not.toHaveBeenCalled();
+        expect(mockService.generateContent).not.toHaveBeenCalled();
+      });
+
+      it("skips undefined entries safely", async () => {
+        const saveSpy = vi.fn();
+
+        const stats = await import("../../../src/scripts/discard").then(async (mod) => {
+          const result = await mod.runBatchProcessing(
+            [undefined as unknown as string],
+            mockService,
+            mockBadScans,
+            checkedScanIds,
+            mockCheckedScans,
+            saveSpy,
+            {}
+          );
+          return result;
+        });
+
+        expect(stats.processed).toBe(0);
+        expect(stats.errors).toBe(0);
+        expect(saveSpy).not.toHaveBeenCalled();
+      });
     });
-    describe("main", () => {
+    describe("runFilterOnly", () => {
       beforeEach(() => {
         vi.clearAllMocks();
         // Reset env
@@ -308,8 +382,7 @@ describe("filterNonBathrooms Unit", () => {
         const saveCheckedSpy = vi.spyOn(await import("../../../src/utils/data/checkedScans"), "saveCheckedScans");
 
         // Run main
-        const { main } = await import("../../../src/scripts/filterNonBathrooms");
-        await main();
+        await runFilterOnly();
 
         expect(findingSpy).toHaveBeenCalled();
         // Should have saved
@@ -327,8 +400,7 @@ describe("filterNonBathrooms Unit", () => {
 
         const saveBadSpy = vi.spyOn(await import("../../../src/utils/data/badScans"), "saveBadScans");
 
-        const { main } = await import("../../../src/scripts/filterNonBathrooms");
-        await main();
+        await runFilterOnly();
 
         expect(saveBadSpy).not.toHaveBeenCalled();
       });
@@ -346,8 +418,7 @@ describe("filterNonBathrooms Unit", () => {
         // Mock Gemini for dir2
         mockService.generateContent.mockResolvedValue("YES");
 
-        const { main } = await import("../../../src/scripts/filterNonBathrooms");
-        await main();
+        await runFilterOnly();
 
         // One should be skipped (dir1), one processed (dir2)
         // We can't easily check the stats variable inside main,

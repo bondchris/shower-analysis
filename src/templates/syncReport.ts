@@ -9,6 +9,7 @@ import { MixedChart } from "./components/charts/MixedChart";
 import { MixedChartConfig } from "../models/chart/mixedChartConfig";
 import { MixedChartDataset } from "../models/chart/mixedChartDataset";
 import { getMixedChartConfig } from "../utils/chart/configBuilders";
+import { getGlobalDateRange } from "../utils/chart/dateRange";
 import convert from "convert-units";
 
 export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailureDatabase): ReportData {
@@ -324,12 +325,8 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
   });
 
   // Video Size Chart
-  // Collect all unique dates (daily) sorted
-  const allDates = new Set<string>();
-  allStats.forEach((stats) => {
-    Object.keys(stats.videoHistory).forEach((date) => allDates.add(date));
-  });
-  const sortedDates = Array.from(allDates).sort();
+  // Use global date range from first artifact to current date
+  const sortedDates = getGlobalDateRange();
 
   const MIN_DATES = 0;
   if (sortedDates.length > MIN_DATES) {
@@ -631,30 +628,27 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
     });
 
     // Date Mismatch Chart
-    const mismatchHistory = new Map<string, Record<string, number>>(); // Month -> Env -> Count
-    const allMismatchMonths = new Set<string>();
+    const mismatchHistory = new Map<string, Record<string, number>>(); // Date -> Env -> Count
 
     sortedStats.forEach((stats) => {
-      // Add months from video history for full timeline context
-      Object.keys(stats.videoHistory).forEach((month) => allMismatchMonths.add(month));
-
       stats.dateMismatches.forEach((m) => {
         if (m.scanDate !== "") {
-          const DATE_SUBSTRING_LENGTH = 7;
-          const month = m.scanDate.substring(ZERO, DATE_SUBSTRING_LENGTH); // YYYY-MM
-          allMismatchMonths.add(month);
-
-          const monthData = mismatchHistory.get(month) ?? {};
-          monthData[stats.env] = (monthData[stats.env] ?? ZERO) + ONE;
-          mismatchHistory.set(month, monthData);
+          const DATE_PART_INDEX = 0;
+          const dateKey = m.scanDate.split("T")[DATE_PART_INDEX]; // YYYY-MM-DD
+          if (dateKey !== undefined && dateKey !== "" && !dateKey.startsWith("0001")) {
+            const dateData = mismatchHistory.get(dateKey) ?? {};
+            dateData[stats.env] = (dateData[stats.env] ?? ZERO) + ONE;
+            mismatchHistory.set(dateKey, dateData);
+          }
         }
       });
     });
 
-    const sortedMismatchMonths = Array.from(allMismatchMonths).sort();
-    const MIN_MISMATCH_MONTHS = 0;
+    // Use global date range from first artifact to current date
+    const sortedMismatchDates = getGlobalDateRange();
+    const MIN_MISMATCH_DATES = 0;
 
-    if (sortedMismatchMonths.length > MIN_MISMATCH_MONTHS) {
+    if (sortedMismatchDates.length > MIN_MISMATCH_DATES) {
       const envColors: Record<string, string> = {
         "Bond Demo": "rgba(127, 24, 127, 1)",
         "Bond Production": "rgba(0, 100, 0, 1)",
@@ -664,8 +658,8 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       const defaultColors: [string, string, string, string] = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
 
       const mismatchDatasets: LineChartDataset[] = sortedStats.map((stats, index) => {
-        const data = sortedMismatchMonths.map((month) => {
-          const count = mismatchHistory.get(month)?.[stats.env] ?? ZERO;
+        const data = sortedMismatchDates.map((date) => {
+          const count = mismatchHistory.get(date)?.[stats.env] ?? ZERO;
           return count;
         });
 
@@ -684,7 +678,7 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       const mismatchChartConfig: LineChartConfig = {
         datasets: mismatchDatasets,
         height: 350,
-        labels: sortedMismatchMonths,
+        labels: sortedMismatchDates,
         options: {
           title: "Date Mismatches Over Time",
           yLabel: "Count"
@@ -738,21 +732,13 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
 
     // Duplicate Videos Over Time Chart
     const duplicateHistory = new Map<string, Record<string, number>>(); // Date -> Env -> Count
-    const allDuplicateDates = new Set<string>();
 
     sortedStats.forEach((stats) => {
-      // Add dates from video history for full timeline context
-      Object.keys(stats.videoHistory).forEach((date) => {
-        allDuplicateDates.add(date);
-      });
-
       stats.duplicates.forEach((dup) => {
         if (dup.scanDate !== undefined && dup.scanDate !== "") {
           const DATE_PART_INDEX = 0;
           const dateKey = dup.scanDate.split("T")[DATE_PART_INDEX]; // YYYY-MM-DD
           if (dateKey !== undefined && dateKey !== "" && !dateKey.startsWith("0001")) {
-            allDuplicateDates.add(dateKey);
-
             const dateData = duplicateHistory.get(dateKey) ?? {};
             dateData[stats.env] = (dateData[stats.env] ?? ZERO) + ONE;
             duplicateHistory.set(dateKey, dateData);
@@ -761,7 +747,8 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       });
     });
 
-    const sortedDuplicateDates = Array.from(allDuplicateDates).sort();
+    // Use global date range from first artifact to current date
+    const sortedDuplicateDates = getGlobalDateRange();
     const MIN_DUPLICATE_DATES = 0;
 
     if (sortedDuplicateDates.length > MIN_DUPLICATE_DATES) {
