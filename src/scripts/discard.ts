@@ -8,10 +8,13 @@ import { CheckedScanDatabase } from "../models/checkedScanRecord";
 import {
   BadScanHistoryEntry,
   CleanDataStats,
+  DateMismatch,
   DiscardReportInput,
   DiscardStage,
   DiscardStats,
   DiscardedArtifact,
+  DuplicateStats,
+  DuplicateVideo,
   EnvCounts,
   FilterStats
 } from "../models/discardStats";
@@ -21,11 +24,26 @@ import { findArtifactDirectories } from "../utils/data/artifactIterator";
 import { getBadScans, saveBadScans } from "../utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../utils/data/checkedScans";
 import { discardArtifact } from "../utils/data/discardArtifact";
+import {
+  type VideoHashDatabase,
+  addVideoHash,
+  findDuplicateArtifacts,
+  getVideoHashes,
+  saveVideoHashes
+} from "../utils/data/videoHashes";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
 import { generatePdfReport } from "../utils/reportGenerator";
+import { hashVideoInDirectory } from "../utils/video/hash";
+import { extractVideoMetadata } from "../utils/video/metadata";
 
-export type { CleanDataStats, DiscardedArtifact, DiscardStats, FilterStats } from "../models/discardStats";
+export type {
+  CleanDataStats,
+  DiscardedArtifact,
+  DiscardStats,
+  DuplicateStats,
+  FilterStats
+} from "../models/discardStats";
 
 dotenv.config({ quiet: true } as dotenv.DotenvConfigOptions);
 
@@ -81,9 +99,54 @@ export interface FilterPhaseResult {
   processedArtifacts: string[];
 }
 
-export interface DiscardOptions extends CleanPhaseOptions, FilterPhaseOptions {
+export interface DuplicatesPhaseOptions {
+  dataDir?: string;
+  artifactDirs?: string[];
+  databases?: DiscardDatabases;
+  videoHashes?: VideoHashDatabase;
+  badScansFile?: string;
+  videoHashesFile?: string;
+  dryRun?: boolean;
+  saveResults?: boolean;
+}
+
+export interface DuplicatesPhaseResult {
+  stats: DuplicateStats;
+  databases: DiscardDatabases;
+  videoHashes: VideoHashDatabase;
+  duplicates: DuplicateVideo[];
+  remainingArtifacts: string[];
+}
+
+export interface MismatchStats {
+  processed: number;
+  mismatchCount: number;
+  newMismatchCount: number;
+  skippedCached: number;
+  errors: number;
+}
+
+export interface MismatchPhaseOptions {
+  dataDir?: string;
+  artifactDirs?: string[];
+  databases?: DiscardDatabases;
+  checkedScansFile?: string;
+  dryRun?: boolean;
+  saveResults?: boolean;
+}
+
+export interface MismatchPhaseResult {
+  stats: MismatchStats;
+  databases: DiscardDatabases;
+  dateMismatches: DateMismatch[];
+}
+
+export interface DiscardOptions
+  extends CleanPhaseOptions, FilterPhaseOptions, DuplicatesPhaseOptions, MismatchPhaseOptions {
   skipClean?: boolean;
   skipFilter?: boolean;
+  skipDuplicates?: boolean;
+  skipMismatch?: boolean;
 }
 
 interface FfprobeData {
@@ -607,6 +670,170 @@ export async function runFilterPhase(options?: FilterPhaseOptions): Promise<Filt
   };
 }
 
+export async function runDuplicatesPhase(options?: DuplicatesPhaseOptions): Promise<DuplicatesPhaseResult> {
+  const dataDir = options?.dataDir ?? path.join(process.cwd(), "data", "artifacts");
+  const badScansFile = options?.badScansFile;
+  const videoHashesFile = options?.videoHashesFile;
+  const envDryRun = process.env["DRY_RUN"] === "1" || process.env["DRY_RUN"] === "true";
+  const isDryRun = options?.dryRun ?? envDryRun;
+  const saveResults = options?.saveResults ?? true;
+
+  const badScans = options?.databases?.badScans ?? getBadScans(badScansFile);
+  const checkedScans = options?.databases?.checkedScans ?? getCheckedScans();
+  const videoHashes = options?.videoHashes ?? getVideoHashes(videoHashesFile);
+
+  const artifactDirs = options?.artifactDirs ?? findArtifactDirectories(dataDir);
+  logger.info(`Starting duplicates detection stage. Found ${artifactDirs.length.toString()} artifacts.`);
+
+  const stats: DuplicateStats = {
+    duplicateCount: 0,
+    errors: 0,
+    newDuplicateCount: 0,
+    processed: 0,
+    skippedCached: 0
+  };
+
+  const duplicates: DuplicateVideo[] = [];
+  const remainingArtifacts: string[] = [];
+
+  const bar = createProgressBar("Duplicates |{bar}| {percentage}% | {value}/{total} Artifacts | ETA: {eta}s");
+  const initialProgress = 0;
+  bar.start(artifactDirs.length, initialProgress);
+
+  for (const dir of artifactDirs) {
+    const artifactId = path.basename(dir);
+    if (shouldSkipEntry(artifactId)) {
+      bar.increment();
+      continue;
+    }
+
+    const environment = getEnvironmentName(dataDir, dir);
+
+    if (Object.prototype.hasOwnProperty.call(badScans, artifactId)) {
+      stats.skippedCached++;
+      bar.increment();
+      continue;
+    }
+
+    const videoPath = path.join(dir, "video.mp4");
+    if (!fs.existsSync(videoPath)) {
+      bar.increment();
+      continue;
+    }
+
+    try {
+      const hash = await hashVideoInDirectory(dir);
+      if (hash === null) {
+        stats.errors++;
+        remainingArtifacts.push(dir);
+        bar.increment();
+        continue;
+      }
+
+      stats.processed++;
+      const existingDuplicateIds = findDuplicateArtifacts(videoHashes, hash, artifactId);
+      const noDuplicates = 0;
+      const hasDuplicates = existingDuplicateIds.length > noDuplicates;
+
+      if (hasDuplicates) {
+        const metaPath = path.join(dir, "meta.json");
+        let scanDate: string | undefined = undefined;
+        if (fs.existsSync(metaPath)) {
+          try {
+            const metaContent = fs.readFileSync(metaPath, "utf-8");
+            const meta = JSON.parse(metaContent) as { scanDate?: string };
+            scanDate = meta.scanDate;
+          } catch {
+            // Ignore parse errors
+          }
+        }
+
+        const isNew = !Object.prototype.hasOwnProperty.call(videoHashes, hash);
+
+        const duplicateEntry: DuplicateVideo = {
+          artifactId,
+          duplicateIds: existingDuplicateIds,
+          environment,
+          hash,
+          isNew
+        };
+        if (scanDate !== undefined) {
+          duplicateEntry.scanDate = scanDate;
+        }
+        duplicates.push(duplicateEntry);
+
+        stats.duplicateCount++;
+        if (isNew) {
+          stats.newDuplicateCount++;
+        }
+
+        const badScanEntry: (typeof badScans)[string] = {
+          date: new Date().toISOString(),
+          environment,
+          reason: `Duplicate video (hash ${hash}) matches ${existingDuplicateIds.join(", ")}`
+        };
+        if (scanDate !== undefined) {
+          badScanEntry.scanDate = scanDate;
+        }
+
+        if (!isDryRun) {
+          badScans[artifactId] = badScanEntry;
+
+          try {
+            const artifactsRoot = path.resolve(dir, "..", "..");
+            const dataRoot = path.dirname(artifactsRoot);
+            const discardedPath = discardArtifact(dir, { artifactsRoot, dataRoot });
+            if (discardedPath === null) {
+              throw new Error("Failed to move artifact to discarded-artifacts");
+            }
+            logger.info(`Discarded duplicate artifact ${artifactId} -> ${discardedPath}`);
+          } catch (err) {
+            logger.error(`Failed to discard duplicate artifact ${artifactId}: ${String(err)}`);
+            stats.errors++;
+            remainingArtifacts.push(dir);
+          }
+        } else {
+          remainingArtifacts.push(dir);
+        }
+      } else {
+        remainingArtifacts.push(dir);
+      }
+
+      addVideoHash(videoHashes, hash, artifactId);
+    } catch (e) {
+      logger.warn(`Failed to hash video for artifact ${artifactId}: ${String(e)}`);
+      stats.errors++;
+      remainingArtifacts.push(dir);
+    }
+
+    bar.increment();
+  }
+
+  bar.stop();
+
+  if (!isDryRun && saveResults) {
+    saveBadScans(badScans, badScansFile);
+    saveVideoHashes(videoHashes, videoHashesFile);
+  }
+
+  logger.info(
+    `Duplicates stage complete. Processed: ${stats.processed.toString()}, Duplicates: ${stats.duplicateCount.toString()}, New: ${stats.newDuplicateCount.toString()}, Cached: ${stats.skippedCached.toString()}, Errors: ${stats.errors.toString()}.`
+  );
+
+  return {
+    databases: { badScans, checkedScans },
+    duplicates,
+    remainingArtifacts,
+    stats,
+    videoHashes
+  };
+}
+
+export async function runDuplicatesOnly(options?: DuplicatesPhaseOptions): Promise<DuplicateStats> {
+  const result = await runDuplicatesPhase(options);
+  return result.stats;
+}
+
 export async function runCleanOnly(options?: CleanDataOptions): Promise<CleanDataStats> {
   const result = await runCleanPhase(options);
   return result.stats;
@@ -614,6 +841,172 @@ export async function runCleanOnly(options?: CleanDataOptions): Promise<CleanDat
 
 export async function runFilterOnly(options?: FilterPhaseOptions): Promise<FilterStats> {
   const result = await runFilterPhase(options);
+  return result.stats;
+}
+
+export async function runMismatchPhase(options?: MismatchPhaseOptions): Promise<MismatchPhaseResult> {
+  const dataDir = options?.dataDir ?? path.join(process.cwd(), "data", "artifacts");
+  const checkedScansFile = options?.checkedScansFile;
+  const envDryRun = process.env["DRY_RUN"] === "1" || process.env["DRY_RUN"] === "true";
+  const isDryRun = options?.dryRun ?? envDryRun;
+  const saveResults = options?.saveResults ?? true;
+
+  const badScans = options?.databases?.badScans ?? getBadScans();
+  const checkedScans = options?.databases?.checkedScans ?? getCheckedScans(checkedScansFile);
+
+  // Scan both active and discarded artifacts for date mismatches
+  const discardedDir = path.join(path.dirname(dataDir), "discarded-artifacts");
+  const activeArtifacts = options?.artifactDirs ?? findArtifactDirectories(dataDir);
+  const discardedArtifacts = fs.existsSync(discardedDir) ? findArtifactDirectories(discardedDir) : [];
+  const artifactDirs = [...activeArtifacts, ...discardedArtifacts];
+  logger.info(
+    `Starting mismatch detection stage. Found ${artifactDirs.length.toString()} artifacts (${activeArtifacts.length.toString()} active, ${discardedArtifacts.length.toString()} discarded).`
+  );
+
+  const stats: MismatchStats = {
+    errors: 0,
+    mismatchCount: 0,
+    newMismatchCount: 0,
+    processed: 0,
+    skippedCached: 0
+  };
+
+  const dateMismatches: DateMismatch[] = [];
+
+  const bar = createProgressBar("Mismatches |{bar}| {percentage}% | {value}/{total} Artifacts | ETA: {eta}s");
+  const initialProgress = 0;
+  bar.start(artifactDirs.length, initialProgress);
+
+  for (const dir of artifactDirs) {
+    const artifactId = path.basename(dir);
+    if (shouldSkipEntry(artifactId)) {
+      bar.increment();
+      continue;
+    }
+
+    // Get environment name - handle both active and discarded artifact paths
+    const isDiscarded = dir.includes("discarded-artifacts");
+    const baseDir = isDiscarded ? discardedDir : dataDir;
+    const environment = getEnvironmentName(baseDir, dir);
+
+    const entry = checkedScans[artifactId];
+    if (entry?.mismatchCheckedDate !== undefined && entry.mismatchCheckedDate !== "") {
+      // Already checked - load cached mismatch data if present
+      if (entry.mismatchDiffHours !== undefined) {
+        dateMismatches.push({
+          diffHours: entry.mismatchDiffHours,
+          environment,
+          id: artifactId,
+          isNew: false,
+          scanDate: entry.mismatchScanDate ?? "",
+          videoDate: entry.mismatchVideoDate ?? ""
+        });
+        stats.mismatchCount++;
+      }
+      stats.skippedCached++;
+      bar.increment();
+      continue;
+    }
+
+    const videoPath = path.join(dir, "video.mp4");
+    const metaPath = path.join(dir, "meta.json");
+
+    if (!fs.existsSync(videoPath) || !fs.existsSync(metaPath)) {
+      bar.increment();
+      continue;
+    }
+
+    try {
+      const metaContent = fs.readFileSync(metaPath, "utf-8");
+      const meta = JSON.parse(metaContent) as { scanDate?: string };
+      const scanDate = meta.scanDate;
+
+      if (scanDate === undefined || scanDate === "") {
+        bar.increment();
+        continue;
+      }
+
+      stats.processed++;
+
+      const vidMeta = await extractVideoMetadata(dir);
+      if (vidMeta?.creationTime !== undefined) {
+        const scanTime = new Date(scanDate).getTime();
+        const videoTime = new Date(vidMeta.creationTime).getTime();
+        const diffMs = Math.abs(scanTime - videoTime);
+        const secondsPerMinute = 60;
+        const minutesPerHour = 60;
+        const msPerSecond = 1000;
+        const hourMs = secondsPerMinute * minutesPerHour * msPerSecond;
+        const diffHours = diffMs / hourMs;
+
+        const mismatchThresholdHours = 24;
+        const isMismatch = diffHours > mismatchThresholdHours;
+        if (isMismatch) {
+          const isNew = entry?.mismatchCheckedDate === undefined;
+
+          dateMismatches.push({
+            diffHours,
+            environment,
+            id: artifactId,
+            isNew,
+            scanDate,
+            videoDate: vidMeta.creationTime
+          });
+
+          stats.mismatchCount++;
+          if (isNew) {
+            stats.newMismatchCount++;
+          }
+        }
+
+        if (!isDryRun) {
+          let checkEntry = checkedScans[artifactId];
+          if (checkEntry === undefined) {
+            checkEntry = {};
+            checkedScans[artifactId] = checkEntry;
+          }
+          checkEntry.mismatchCheckedDate = new Date().toISOString();
+          if (isMismatch) {
+            checkEntry.mismatchDiffHours = diffHours;
+            checkEntry.mismatchScanDate = scanDate;
+            checkEntry.mismatchVideoDate = vidMeta.creationTime;
+          }
+        }
+      } else if (!isDryRun) {
+        let checkEntry = checkedScans[artifactId];
+        if (checkEntry === undefined) {
+          checkEntry = {};
+          checkedScans[artifactId] = checkEntry;
+        }
+        checkEntry.mismatchCheckedDate = new Date().toISOString();
+      }
+    } catch (e) {
+      logger.warn(`Failed to check mismatch for artifact ${artifactId}: ${String(e)}`);
+      stats.errors++;
+    }
+
+    bar.increment();
+  }
+
+  bar.stop();
+
+  if (!isDryRun && saveResults) {
+    saveCheckedScans(checkedScans, checkedScansFile);
+  }
+
+  logger.info(
+    `Mismatch stage complete. Processed: ${stats.processed.toString()}, Mismatches: ${stats.mismatchCount.toString()}, New: ${stats.newMismatchCount.toString()}, Cached: ${stats.skippedCached.toString()}, Errors: ${stats.errors.toString()}.`
+  );
+
+  return {
+    databases: { badScans, checkedScans },
+    dateMismatches,
+    stats
+  };
+}
+
+export async function runMismatchOnly(options?: MismatchPhaseOptions): Promise<MismatchStats> {
+  const result = await runMismatchPhase(options);
   return result.stats;
 }
 
@@ -650,6 +1043,7 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
   let badScanIdsAfterClean = initialBadScanIds;
   let newBadScansFromClean: DiscardedArtifact[] = [];
   let newBadScansFromFilter: DiscardedArtifact[] = [];
+  let newBadScansFromDuplicates: DiscardedArtifact[] = [];
 
   if (options?.skipClean !== true) {
     const cleanResult = await runCleanPhase({
@@ -676,6 +1070,7 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
     skippedCached: 0
   };
 
+  let badScanIdsAfterFilter = badScanIdsAfterClean;
   if (options?.skipFilter !== true) {
     const filterResult = await runFilterPhase({
       ...options,
@@ -686,17 +1081,64 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
       saveResults: false
     });
     filterStats = filterResult.stats;
-    const badScanIdsAfterFilter = toBadScanIdSet(badScans);
+    remainingArtifacts = filterResult.processedArtifacts.filter(
+      (dir) => !Object.prototype.hasOwnProperty.call(badScans, path.basename(dir))
+    );
+    badScanIdsAfterFilter = toBadScanIdSet(badScans);
     newBadScansFromFilter = collectNewBadScans(badScans, badScanIdsAfterClean, badScanIdsAfterFilter, "filter");
+  }
+
+  let duplicateStats: DuplicateStats = {
+    duplicateCount: 0,
+    errors: 0,
+    newDuplicateCount: 0,
+    processed: 0,
+    skippedCached: 0
+  };
+  let duplicates: DuplicateVideo[] = [];
+
+  if (options?.skipDuplicates !== true) {
+    const duplicatesResult = await runDuplicatesPhase({
+      ...options,
+      artifactDirs: remainingArtifacts,
+      dataDir,
+      databases: { badScans, checkedScans },
+      dryRun: isDryRun,
+      saveResults: false
+    });
+    duplicateStats = duplicatesResult.stats;
+    duplicates = duplicatesResult.duplicates;
+    remainingArtifacts = duplicatesResult.remainingArtifacts;
+    const badScanIdsAfterDuplicates = toBadScanIdSet(badScans);
+    newBadScansFromDuplicates = collectNewBadScans(
+      badScans,
+      badScanIdsAfterFilter,
+      badScanIdsAfterDuplicates,
+      "duplicates"
+    );
+  }
+
+  let dateMismatches: DateMismatch[] = [];
+  if (options?.skipMismatch !== true) {
+    const mismatchResult = await runMismatchPhase({
+      ...options,
+      artifactDirs: remainingArtifacts,
+      dataDir,
+      databases: { badScans, checkedScans },
+      dryRun: isDryRun,
+      saveResults: false
+    });
+    dateMismatches = mismatchResult.dateMismatches;
   }
 
   if (!isDryRun) {
     saveBadScans(badScans, options?.badScansFile);
     saveCheckedScans(checkedScans, options?.checkedScansFile);
+    saveVideoHashes(getVideoHashes(), options?.videoHashesFile);
   }
 
   logger.info(
-    `Discard complete. Cleaned removed=${cleanStats.removedCount.toString()}, quarantined=${cleanStats.quarantinedCount.toString()}, cached=${cleanStats.skippedCleanCount.toString()}; Filter processed=${filterStats.processed.toString()}, removed=${filterStats.removed.toString()}, skipped=${filterStats.skipped.toString()}, cached=${filterStats.skippedCached.toString()}, ambiguous=${filterStats.skippedAmbiguous.toString()}, errors=${filterStats.errors.toString()}.`
+    `Discard complete. Cleaned removed=${cleanStats.removedCount.toString()}, quarantined=${cleanStats.quarantinedCount.toString()}, cached=${cleanStats.skippedCleanCount.toString()}; Filter processed=${filterStats.processed.toString()}, removed=${filterStats.removed.toString()}, skipped=${filterStats.skipped.toString()}, cached=${filterStats.skippedCached.toString()}, ambiguous=${filterStats.skippedAmbiguous.toString()}, errors=${filterStats.errors.toString()}; Duplicates found=${duplicateStats.duplicateCount.toString()}, new=${duplicateStats.newDuplicateCount.toString()}.`
   );
 
   const finalBadScanCount = Object.keys(badScans).length;
@@ -707,6 +1149,7 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
   // Count all bad scans by environment and reason category (totals from database)
   const tooShortTotalByEnv: Record<string, number> = {};
   const notBathroomTotalByEnv: Record<string, number> = {};
+  const duplicateTotalByEnv: Record<string, number> = {};
 
   Object.values(badScans).forEach((entry) => {
     const env = entry.environment;
@@ -717,13 +1160,16 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
       tooShortTotalByEnv[env] = (tooShortTotalByEnv[env] ?? zeroCount) + incrementCount;
     } else if (reason.includes("not a bathroom")) {
       notBathroomTotalByEnv[env] = (notBathroomTotalByEnv[env] ?? zeroCount) + incrementCount;
+    } else if (reason.includes("duplicate video")) {
+      duplicateTotalByEnv[env] = (duplicateTotalByEnv[env] ?? zeroCount) + incrementCount;
     }
   });
 
   // Count NEW bad scans by environment and reason category (from this run)
-  const allNewBadScans = [...newBadScansFromClean, ...newBadScansFromFilter];
+  const allNewBadScans = [...newBadScansFromClean, ...newBadScansFromFilter, ...newBadScansFromDuplicates];
   const tooShortNewByEnv: Record<string, number> = {};
   const notBathroomNewByEnv: Record<string, number> = {};
+  const duplicateNewByEnv: Record<string, number> = {};
 
   allNewBadScans.forEach((entry) => {
     const env = entry.environment;
@@ -732,6 +1178,8 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
       tooShortNewByEnv[env] = (tooShortNewByEnv[env] ?? zeroCount) + incrementCount;
     } else if (reason.includes("not a bathroom")) {
       notBathroomNewByEnv[env] = (notBathroomNewByEnv[env] ?? zeroCount) + incrementCount;
+    } else if (reason.includes("duplicate video")) {
+      duplicateNewByEnv[env] = (duplicateNewByEnv[env] ?? zeroCount) + incrementCount;
     }
   });
 
@@ -760,11 +1208,15 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
     const tooShortNew = tooShortNewByEnv[env] ?? zeroCount;
     const notBathroomTotal = notBathroomTotalByEnv[env] ?? zeroCount;
     const notBathroomNew = notBathroomNewByEnv[env] ?? zeroCount;
+    const duplicateTotal = duplicateTotalByEnv[env] ?? zeroCount;
+    const duplicateNew = duplicateNewByEnv[env] ?? zeroCount;
     const totalBad = badScansByEnv[env] ?? zeroCount;
     const totalValid = Math.max(zeroCount, processed - totalBad);
     const validCached = validCachedByEnv[env] ?? zeroCount;
     const validNew = Math.max(zeroCount, totalValid - validCached);
     countsByEnv[env] = {
+      duplicateCached: duplicateTotal - duplicateNew,
+      duplicateNew,
       notBathroomCached: notBathroomTotal - notBathroomNew,
       notBathroomNew,
       processed,
@@ -797,17 +1249,20 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
     badScansByEnv,
     cleanStats,
     countsByEnv,
+    dateMismatches,
     discardedOnDiskCount,
     dryRun: isDryRun,
+    duplicateStats,
+    duplicates,
     filterStats,
     finalBadScanCount,
     initialBadScanCount,
     minDuration,
-    newBadScans: [...newBadScansFromClean, ...newBadScansFromFilter]
+    newBadScans: [...newBadScansFromClean, ...newBadScansFromFilter, ...newBadScansFromDuplicates]
   };
   await generateDiscardReport(reportInput);
 
-  return { clean: cleanStats, filter: filterStats };
+  return { clean: cleanStats, duplicates: duplicateStats, filter: filterStats };
 }
 
 /* c8 ignore start */

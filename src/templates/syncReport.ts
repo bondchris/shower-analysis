@@ -10,6 +10,7 @@ import { MixedChartConfig } from "../models/chart/mixedChartConfig";
 import { MixedChartDataset } from "../models/chart/mixedChartDataset";
 import { getMixedChartConfig } from "../utils/chart/configBuilders";
 import { getGlobalDateRange } from "../utils/chart/dateRange";
+import { CHART_DATE_RANGE } from "../../config/config";
 import convert from "convert-units";
 
 export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailureDatabase): ReportData {
@@ -93,31 +94,28 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
     type: "table"
   });
 
-  // Inaccessible Artifacts Chart
-  const errorHistory = new Map<string, Record<string, number>>(); // Month -> Env -> Count
-  const allErrorMonths = new Set<string>();
+  // Inaccessible Artifacts Chart - uses global date range starting at config date
+  const errorHistory = new Map<string, Record<string, number>>(); // Date -> Env -> Count
 
   sortedStats.forEach((stats) => {
-    // Add months from video history (successful scans)
-    Object.keys(stats.videoHistory).forEach((month) => allErrorMonths.add(month));
-
     stats.errors.forEach((err) => {
       if (err.date !== undefined && err.date !== "") {
-        const DATE_SUBSTRING_LENGTH = 7;
-        const month = err.date.substring(ZERO, DATE_SUBSTRING_LENGTH); // YYYY-MM
-        allErrorMonths.add(month);
-
-        const monthData = errorHistory.get(month) ?? {};
-        monthData[stats.env] = (monthData[stats.env] ?? ZERO) + ONE;
-        errorHistory.set(month, monthData);
+        const dateSubstringLength = 10;
+        const dateKey = err.date.substring(ZERO, dateSubstringLength); // YYYY-MM-DD
+        if (!dateKey.startsWith("0001")) {
+          const dateData = errorHistory.get(dateKey) ?? {};
+          dateData[stats.env] = (dateData[stats.env] ?? ZERO) + ONE;
+          errorHistory.set(dateKey, dateData);
+        }
       }
     });
   });
 
-  const sortedErrorMonths = Array.from(allErrorMonths).sort();
-  const MIN_ERROR_MONTHS = 0;
+  // Use global date range starting at config date
+  const sortedErrorDates = getGlobalDateRange();
+  const MIN_ERROR_DATES = 0;
 
-  if (sortedErrorMonths.length > MIN_ERROR_MONTHS) {
+  if (sortedErrorDates.length > MIN_ERROR_DATES) {
     const envColors: Record<string, string> = {
       "Bond Demo": "rgba(127, 24, 127, 1)",
       "Bond Production": "rgba(0, 100, 0, 1)",
@@ -127,8 +125,8 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
     const defaultColors: [string, string, string, string] = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
 
     const errorDatasets: LineChartDataset[] = sortedStats.map((stats, index) => {
-      const data = sortedErrorMonths.map((month) => {
-        const count = errorHistory.get(month)?.[stats.env] ?? ZERO;
+      const data = sortedErrorDates.map((date) => {
+        const count = errorHistory.get(date)?.[stats.env] ?? ZERO;
         return count;
       });
 
@@ -147,7 +145,7 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
     const errorChartConfig: LineChartConfig = {
       datasets: errorDatasets,
       height: 350,
-      labels: sortedErrorMonths,
+      labels: sortedErrorDates,
       options: {
         title: "Inaccessible Artifacts Over Time",
         yLabel: "Count"
@@ -430,6 +428,8 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
   }
 
   // Collect all dates from all artifact history types for consistent x-axis
+  // Filter to only include dates on or after the config start date
+  // Include the config start date so chart starts at the configured date (only if there's data)
   const historyKeys: (keyof SyncStats)[] = [
     "arDataHistory",
     "rawScanHistory",
@@ -445,7 +445,13 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
       }
     });
   });
-  const sharedArtifactDates = Array.from(allArtifactDates).sort();
+  const hasArtifactDates = allArtifactDates.size > ZERO;
+  if (hasArtifactDates) {
+    allArtifactDates.add(CHART_DATE_RANGE.startDate);
+  }
+  const sharedArtifactDates = Array.from(allArtifactDates)
+    .filter((date) => date >= CHART_DATE_RANGE.startDate)
+    .sort();
 
   // Helper function to create average size over time chart for artifact types
   interface SizeChartOptions {
@@ -592,388 +598,6 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
     }
   );
 
-  // Date Mismatch Summary Table
-  const totalMismatches = sortedStats.reduce((sum, s) => sum + s.dateMismatches.length, ZERO);
-
-  if (totalMismatches > ZERO) {
-    const totalNewMismatches = sortedStats.reduce(
-      (sum, s) => sum + s.dateMismatches.filter((m) => m.isNew === true).length,
-      ZERO
-    );
-
-    const mismatchHeaders = ["", ...sortedStats.map((s) => s.env), "Total"];
-    const mismatchTableData = [
-      [
-        "Total Mismatches",
-        ...sortedStats.map((s) => s.dateMismatches.length.toString()),
-        `<span style="font-weight:normal;color:#6b7280">${totalMismatches.toString()}</span>`
-      ],
-      [
-        "New Mismatches",
-        ...sortedStats.map((s) => s.dateMismatches.filter((m) => m.isNew === true).length.toString()),
-        `<span style="font-weight:normal;color:#6b7280">${totalNewMismatches.toString()}</span>`
-      ]
-    ];
-
-    const mismatchRowClasses: Record<number, string> = {
-      0: "bg-orange-100 font-semibold text-orange-800 print:print-color-adjust-exact",
-      1: "bg-orange-50 text-orange-800 print:print-color-adjust-exact"
-    };
-
-    sections.push({
-      data: mismatchTableData,
-      options: { headers: mismatchHeaders, rowClasses: mismatchRowClasses },
-      title: "Date Mismatch Summary",
-      type: "table"
-    });
-
-    // Date Mismatch Chart
-    const mismatchHistory = new Map<string, Record<string, number>>(); // Date -> Env -> Count
-
-    sortedStats.forEach((stats) => {
-      stats.dateMismatches.forEach((m) => {
-        if (m.scanDate !== "") {
-          const DATE_PART_INDEX = 0;
-          const dateKey = m.scanDate.split("T")[DATE_PART_INDEX]; // YYYY-MM-DD
-          if (dateKey !== undefined && dateKey !== "" && !dateKey.startsWith("0001")) {
-            const dateData = mismatchHistory.get(dateKey) ?? {};
-            dateData[stats.env] = (dateData[stats.env] ?? ZERO) + ONE;
-            mismatchHistory.set(dateKey, dateData);
-          }
-        }
-      });
-    });
-
-    // Use global date range from first artifact to current date
-    const sortedMismatchDates = getGlobalDateRange();
-    const MIN_MISMATCH_DATES = 0;
-
-    if (sortedMismatchDates.length > MIN_MISMATCH_DATES) {
-      const envColors: Record<string, string> = {
-        "Bond Demo": "rgba(127, 24, 127, 1)",
-        "Bond Production": "rgba(0, 100, 0, 1)",
-        "Lowe's Production": "rgba(1, 33, 105, 1)",
-        "Lowe's Staging": "rgba(0, 117, 206, 1)"
-      };
-      const defaultColors: [string, string, string, string] = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
-
-      const mismatchDatasets: LineChartDataset[] = sortedStats.map((stats, index) => {
-        const data = sortedMismatchDates.map((date) => {
-          const count = mismatchHistory.get(date)?.[stats.env] ?? ZERO;
-          return count;
-        });
-
-        const colorIndex = index % defaultColors.length;
-        const defaultColor = defaultColors[colorIndex] ?? "#000000";
-        const borderColor = envColors[stats.env] ?? defaultColor;
-
-        return {
-          borderColor,
-          data,
-          label: stats.env,
-          verticalLines: true
-        } satisfies LineChartDataset;
-      });
-
-      const mismatchChartConfig: LineChartConfig = {
-        datasets: mismatchDatasets,
-        height: 350,
-        labels: sortedMismatchDates,
-        options: {
-          title: "Date Mismatches Over Time",
-          yLabel: "Count"
-        },
-        type: "line"
-      };
-
-      const MismatchChartComponent = (): React.ReactElement =>
-        React.createElement(LineChart, { config: mismatchChartConfig });
-
-      sections.push({
-        component: MismatchChartComponent,
-        data: mismatchChartConfig,
-        title: "Date Mismatches Over Time",
-        type: "react-component"
-      });
-    }
-  }
-
-  // Duplicate Videos Section
-  const ZERO_DUPLICATES = 0;
-  const totalDuplicates = allStats.reduce((sum, s) => sum + s.duplicateCount, ZERO);
-
-  if (totalDuplicates > ZERO_DUPLICATES) {
-    const duplicateHeaders = ["", ...sortedStats.map((s) => s.env), "Total"];
-    const totalNewDuplicatesForTable = allStats.reduce((sum, s) => sum + s.newDuplicateCount, ZERO);
-    const duplicateTableData = [
-      [
-        "Total Duplicates",
-        ...sortedStats.map((s) => s.duplicateCount.toString()),
-        `<span style="font-weight:normal;color:#6b7280">${totalDuplicates.toString()}</span>`
-      ],
-      [
-        "New Duplicates",
-        ...sortedStats.map((s) => s.newDuplicateCount.toString()),
-        `<span style="font-weight:normal;color:#6b7280">${totalNewDuplicatesForTable.toString()}</span>`
-      ]
-    ];
-
-    const duplicateRowClasses: Record<number, string> = {
-      0: "bg-purple-100 font-semibold text-purple-800 print:print-color-adjust-exact",
-      1: "bg-purple-50 text-purple-800 print:print-color-adjust-exact"
-    };
-
-    sections.push({
-      data: duplicateTableData,
-      options: { headers: duplicateHeaders, rowClasses: duplicateRowClasses },
-      title: "Duplicate Videos Summary",
-      type: "table"
-    });
-
-    // Duplicate Videos Over Time Chart
-    const duplicateHistory = new Map<string, Record<string, number>>(); // Date -> Env -> Count
-
-    sortedStats.forEach((stats) => {
-      stats.duplicates.forEach((dup) => {
-        if (dup.scanDate !== undefined && dup.scanDate !== "") {
-          const DATE_PART_INDEX = 0;
-          const dateKey = dup.scanDate.split("T")[DATE_PART_INDEX]; // YYYY-MM-DD
-          if (dateKey !== undefined && dateKey !== "" && !dateKey.startsWith("0001")) {
-            const dateData = duplicateHistory.get(dateKey) ?? {};
-            dateData[stats.env] = (dateData[stats.env] ?? ZERO) + ONE;
-            duplicateHistory.set(dateKey, dateData);
-          }
-        }
-      });
-    });
-
-    // Use global date range from first artifact to current date
-    const sortedDuplicateDates = getGlobalDateRange();
-    const MIN_DUPLICATE_DATES = 0;
-
-    if (sortedDuplicateDates.length > MIN_DUPLICATE_DATES) {
-      const envColors: Record<string, string> = {
-        "Bond Demo": "rgba(127, 24, 127, 1)",
-        "Bond Production": "rgba(0, 100, 0, 1)",
-        "Lowe's Production": "rgba(1, 33, 105, 1)",
-        "Lowe's Staging": "rgba(0, 117, 206, 1)"
-      };
-      const defaultColors: [string, string, string, string] = ["#0ea5e9", "#22c55e", "#ef4444", "#eab308"];
-
-      const duplicateDatasets: LineChartDataset[] = sortedStats.map((stats, index) => {
-        const data = sortedDuplicateDates.map((date) => {
-          const count = duplicateHistory.get(date)?.[stats.env] ?? ZERO;
-          return count;
-        });
-
-        const colorIndex = index % defaultColors.length;
-        const defaultColor = defaultColors[colorIndex] ?? "#000000";
-        const borderColor = envColors[stats.env] ?? defaultColor;
-
-        return {
-          borderColor,
-          data,
-          label: stats.env,
-          verticalLines: true
-        } satisfies LineChartDataset;
-      });
-
-      const duplicateChartConfig: LineChartConfig = {
-        datasets: duplicateDatasets,
-        height: 350,
-        labels: sortedDuplicateDates,
-        options: {
-          title: "Duplicate Videos Over Time",
-          yLabel: "Count"
-        },
-        type: "line"
-      };
-
-      const DuplicateChartComponent = (): React.ReactElement =>
-        React.createElement(LineChart, { config: duplicateChartConfig });
-
-      sections.push({
-        component: DuplicateChartComponent,
-        data: duplicateChartConfig,
-        title: "Duplicate Videos Over Time",
-        type: "react-component"
-      });
-    }
-
-    // Detailed Duplicates List
-    // Group duplicates by hash (since videos can be duplicated across environments)
-    const duplicatesByHash = new Map<string, { artifactId: string; environment: string }[]>();
-    const artifactToEnvironment = new Map<string, string>();
-
-    // First pass: build a map of artifact ID to environment by looking through all duplicate entries
-    allStats.forEach((stats) => {
-      stats.duplicates.forEach((dup) => {
-        // The artifactId always has a known environment
-        artifactToEnvironment.set(dup.artifactId, dup.environment);
-        // For duplicateIds, try to find their environment by looking for them as artifactIds in other entries
-        dup.duplicateIds.forEach((id) => {
-          if (!artifactToEnvironment.has(id)) {
-            // Try to find this ID as an artifactId in any duplicate entry
-            let foundEnv: string | undefined = undefined;
-            for (const s of allStats) {
-              const found = s.duplicates.find((d) => d.artifactId === id);
-              if (found !== undefined) {
-                foundEnv = found.environment;
-                break;
-              }
-            }
-            if (foundEnv !== undefined) {
-              artifactToEnvironment.set(id, foundEnv);
-            }
-          }
-        });
-      });
-    });
-
-    // Second pass: group by hash and collect all artifact IDs
-    allStats.forEach((stats) => {
-      stats.duplicates.forEach((dup) => {
-        const hashGroup = duplicatesByHash.get(dup.hash) ?? [];
-
-        if (!hashGroup.some((a) => a.artifactId === dup.artifactId)) {
-          hashGroup.push({ artifactId: dup.artifactId, environment: dup.environment });
-        }
-
-        dup.duplicateIds.forEach((id) => {
-          if (!hashGroup.some((a) => a.artifactId === id)) {
-            const env = artifactToEnvironment.get(id) ?? dup.environment;
-            artifactToEnvironment.set(id, env);
-            hashGroup.push({ artifactId: id, environment: env });
-          }
-        });
-
-        duplicatesByHash.set(dup.hash, hashGroup);
-      });
-    });
-
-    if (duplicatesByHash.size > ZERO_DUPLICATES) {
-      sections.push({ title: "Duplicate Videos", type: "header" });
-      sections.push({
-        data: "Format: Video Hash → Artifact IDs (sub-bullets with environment in parentheses)",
-        type: "text"
-      });
-
-      // Sort hashes by number of artifacts (descending)
-      const ARRAY_VALUE_INDEX = 1;
-      const sortedHashes = Array.from(duplicatesByHash.entries()).sort(
-        (a, b) => b[ARRAY_VALUE_INDEX].length - a[ARRAY_VALUE_INDEX].length
-      );
-
-      const duplicateLines: string[] = [];
-
-      sortedHashes.forEach(([hash, artifacts]) => {
-        const monoHash = `<span class="font-mono">${hash}</span>`;
-
-        // Sort artifacts by environment, then by ID for consistent ordering
-        const sortedArtifacts = [...artifacts].sort((a, b) => {
-          if (a.environment !== b.environment) {
-            return a.environment.localeCompare(b.environment);
-          }
-          return a.artifactId.localeCompare(b.artifactId);
-        });
-
-        // Build nested HTML list structure
-        const subItems = sortedArtifacts
-          .map((artifact) => {
-            const monoId = `<span class="font-mono">${artifact.artifactId}</span>`;
-            return `<li>${monoId} (${artifact.environment})</li>`;
-          })
-          .join("");
-
-        // Create main list item with nested sub-list
-        // Ensure the ul has proper list styling with bullets and indentation
-        // list-style-type: disc shows bullets, padding-left creates space for them
-        // margin-left indents the list, but we keep it minimal for proper nesting
-        duplicateLines.push(
-          `${monoHash}<ul style="list-style-type: disc; margin-top: 0.25rem; margin-bottom: 0.25rem; margin-left: 0.25rem; padding-left: 1rem;">${subItems}</ul>`
-        );
-      });
-
-      sections.push({
-        data: duplicateLines,
-        level: 4,
-        title: "Duplicates",
-        type: "list"
-      });
-    }
-  }
-
-  // Date Mismatches Section
-  const ZERO_MISMATCHES = 0;
-  const statsWithMismatches = allStats.filter((s) => s.dateMismatches.length > ZERO_MISMATCHES);
-
-  if (statsWithMismatches.length > ZERO_MISMATCHES) {
-    sections.push({ title: "Date Mismatches (> 1 Day)", type: "header" });
-    sections.push({
-      data: "Format: ID - [Days] (Video Date vs API Date in ET)",
-      type: "text"
-    });
-
-    statsWithMismatches.forEach((stats) => {
-      // Sort by difference descending
-      const sortedMismatches = [...stats.dateMismatches].sort((a, b) => b.diffHours - a.diffHours);
-      const mismatchLines: string[] = [];
-      const formatDate = (dateStr: string) => {
-        try {
-          const d = new Date(dateStr);
-          const options: Intl.DateTimeFormatOptions = {
-            day: "2-digit",
-            hour: "2-digit",
-            hour12: false,
-            minute: "2-digit",
-            month: "2-digit",
-            timeZone: "America/New_York",
-            year: "2-digit"
-          };
-          interface DateParts {
-            day: string;
-            hour: string;
-            minute: string;
-            month: string;
-            year: string;
-          }
-          const parts = new Intl.DateTimeFormat("en-US", options).formatToParts(d);
-          const partLookup: DateParts = { day: "00", hour: "00", minute: "00", month: "00", year: "00" };
-          const datePartKeys: (keyof DateParts)[] = ["day", "hour", "minute", "month", "year"];
-          parts.forEach((part) => {
-            if (datePartKeys.includes(part.type as keyof DateParts)) {
-              const key = part.type as keyof DateParts;
-              partLookup[key] = part.value;
-            }
-          });
-          return `${partLookup.year}-${partLookup.month}-${partLookup.day} ${partLookup.hour}:${partLookup.minute}`;
-        } catch {
-          return dateStr;
-        }
-      };
-
-      sortedMismatches.forEach((m) => {
-        const monoId = `<span class="font-mono">${m.id}</span>`;
-        const HOURS_PER_DAY = 24;
-        const diffDays = m.diffHours / HOURS_PER_DAY;
-        const DIGIT_THRESHOLD = 10;
-        const diffVal = diffDays.toFixed(ONE);
-        const paddedDiffVal = diffDays < DIGIT_THRESHOLD ? `&nbsp;${diffVal}` : diffVal;
-        const diff = `<span class="font-mono">${paddedDiffVal} days</span>`;
-        const dates = `(${formatDate(m.videoDate)} vs ${formatDate(m.scanDate)})`;
-        mismatchLines.push(`${monoId} - ${diff} ${dates}`);
-      });
-
-      sections.push({ level: 3, title: `Environment: ${stats.env}`, type: "header" });
-      sections.push({
-        data: mismatchLines,
-        level: 4,
-        title: "Mismatches",
-        type: "list"
-      });
-    });
-  }
-
   // Failures Section
   const ZERO_FAILURES = 0;
   const failedStats = allStats.filter((s) => s.errors.length > ZERO_FAILURES);
@@ -1028,14 +652,25 @@ export function buildSyncReport(allStats: SyncStats[], knownFailures: SyncFailur
           const miscFailures: string[] = [];
 
           reasons.forEach((reason) => {
-            const regex = /^(.+) download failed \((.+)\)$/;
-            const match = regex.exec(reason);
-            if (match !== null) {
-              const [, type = "", status = ""] = match;
+            // Match "type download failed (status)" or "type download failed" without status
+            const regexWithStatus = /^(.+) download failed \((.+)\)$/;
+            const regexWithoutStatus = /^(.+) download failed$/;
+            const matchWithStatus = regexWithStatus.exec(reason);
+            const matchWithoutStatus = regexWithoutStatus.exec(reason);
+
+            if (matchWithStatus !== null) {
+              const [, type = "", status = ""] = matchWithStatus;
               if (!groupedFailures.has(status)) {
                 groupedFailures.set(status, []);
               }
               groupedFailures.get(status)?.push(type);
+            } else if (matchWithoutStatus !== null) {
+              const [, type = ""] = matchWithoutStatus;
+              const unknownStatus = "unknown";
+              if (!groupedFailures.has(unknownStatus)) {
+                groupedFailures.set(unknownStatus, []);
+              }
+              groupedFailures.get(unknownStatus)?.push(type);
             } else {
               miscFailures.push(reason);
             }

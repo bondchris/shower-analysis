@@ -17,6 +17,13 @@ vi.mock("../../../src/utils/chart/dateRange", () => ({
   getGlobalDateRange: vi.fn()
 }));
 
+vi.mock("../../../config/config", () => ({
+  CHART_DATE_RANGE: {
+    startDate: "2023-01-01"
+  },
+  ENVIRONMENTS: []
+}));
+
 // Mock ChartUtils
 vi.mock("../../../src/utils/chart/configBuilders", async () => {
   const actual = await vi.importActual("../../../src/utils/chart/configBuilders");

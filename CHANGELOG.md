@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2025-12-29
+
+### [v0.58.0] Consolidate Duplicate and Date Mismatch Detection into Discard Pipeline
+
+- **Duplicate Detection Moved to Discard**: Relocated video duplicate detection from sync to the
+  discard script as a dedicated `runDuplicatesPhase`. This separates data acquisition (sync) from
+  data validation (discard), improving maintainability and allowing duplicate checks to run
+  independently.
+- **Date Mismatch Detection Moved to Discard**: Relocated scan-vs-video date mismatch detection
+  from sync to discard with a new `runMismatchPhase`. Mismatches are now cached in
+  `checkedScans.json` with fields `mismatchCheckedDate`, `mismatchDiffHours`, `mismatchScanDate`,
+  and `mismatchVideoDate` to avoid reprocessing.
+- **Discard Report Enhanced**: Added duplicate video and date mismatch sections to the discard
+  report, including summary tables with cached/new breakdowns by environment and trend charts.
+- **Sync Report Simplified**: Removed duplicate video and date mismatch sections from sync report
+  since these are now handled by discard. Inaccessible artifacts chart now uses the global date
+  range configuration for consistent timeline display.
+- **Stats Models Reorganized**: Moved `DuplicateVideo`, `DateMismatch`, and `DuplicateStats` types
+  from `syncStats.ts` to `discardStats.ts`. Added `duplicates` stage to `DiscardStage` type.
+- **Chart Date Range**: Updated `CHART_DATE_RANGE.startDate` from "2024-07-23" to "2024-07-22".
+- **Test Coverage**: Added `dateRange.test.ts` for chart date utilities. Expanded test coverage
+  for discard phases, sync artifact processing, and report generation.
+
 ## 2025-12-28
 
 ### [v0.57.0] File Size Reporting for All Sync Data Types

@@ -33,8 +33,12 @@ export async function downloadFile(url: string, outputPath: string, label = "fil
     }
 
     if (axios.isAxiosError(error)) {
-      const status = error.response?.status !== undefined ? ` (${String(error.response.status)})` : "";
-      return `${label} download failed${status}`;
+      if (error.response?.status !== undefined) {
+        return `${label} download failed (${String(error.response.status)})`;
+      }
+      // Network-level errors (timeout, DNS, connection refused, etc.)
+      const networkError = error.code ?? "network error";
+      return `${label} download failed (${networkError})`;
     }
     return `${label} download failed (Unknown: ${String(error)})`;
   }
@@ -67,8 +71,12 @@ export async function downloadJsonFile(url: string, outputPath: string, label: s
     }
 
     if (axios.isAxiosError(error)) {
-      const status = error.response?.status !== undefined ? ` (${String(error.response.status)})` : "";
-      return `${label} download failed${status}`;
+      if (error.response?.status !== undefined) {
+        return `${label} download failed (${String(error.response.status)})`;
+      }
+      // Network-level errors (timeout, DNS, connection refused, etc.)
+      const networkError = error.code ?? "network error";
+      return `${label} download failed (${networkError})`;
     }
     return `${label} download failed (Unknown: ${String(error)})`;
   }

@@ -4,20 +4,11 @@ import * as path from "path";
 import { ENVIRONMENTS } from "../../config/config";
 import { BadScanDatabase } from "../models/badScanRecord";
 import { SyncError, SyncStats } from "../models/syncStats";
-import { extractVideoMetadata } from "../utils/video/metadata";
-import { hashVideoInDirectory } from "../utils/video/hash";
 import { ArtifactResponse, SpatialService } from "../services/spatialService";
 import { buildSyncReport } from "../templates/syncReport";
-import { getBadScans, saveBadScans } from "../utils/data/badScans";
+import { getBadScans } from "../utils/data/badScans";
 import { discardArtifact } from "../utils/data/discardArtifact";
 import { SyncFailureDatabase, getSyncFailures, saveSyncFailures } from "../utils/data/syncFailures";
-import {
-  type VideoHashDatabase,
-  addVideoHash,
-  findDuplicateArtifacts,
-  getVideoHashes,
-  saveVideoHashes
-} from "../utils/data/videoHashes";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
 import { generatePdfReport } from "../utils/reportGenerator";
@@ -96,31 +87,13 @@ interface ArtifactResult {
   pointCloudSize: number;
   initialLayoutSize: number;
   scanDate?: string;
-  videoHash?: string;
-  duplicateIds?: string[];
-  dateMismatch?: {
-    scanDate: string;
-    videoDate: string;
-    diffHours: number;
-    isNew: boolean;
-  };
-}
-
-interface ProcessArtifactOptions {
-  canonicalByHash: Record<string, string>;
-  canonicalOrderByHash: Record<string, number>;
-  artifactOrder: number;
-  environment: string;
-  onBadScanAdded: () => void;
 }
 
 // Extracted Artifact Processor
 export async function processArtifact(
   artifact: ArtifactResponse,
   dataDir: string,
-  badScans: BadScanDatabase,
-  videoHashes: VideoHashDatabase,
-  options: ProcessArtifactOptions
+  badScans: BadScanDatabase
 ): Promise<ArtifactResult> {
   const result: ArtifactResult = {
     arDataSize: 0,
@@ -137,9 +110,7 @@ export async function processArtifact(
   const JSON_INDENT = 2;
 
   const ZERO = 0;
-  const { artifactOrder, canonicalByHash, canonicalOrderByHash, environment, onBadScanAdded } = options;
   const sanitizeId = (id: string) => id.replace(/[^a-z0-9_-]/gi, "_");
-  const buildArtifactDir = (id: string) => path.join(dataDir, sanitizeId(id));
 
   // Hardened check for badScans
   if (Object.prototype.hasOwnProperty.call(badScans, artifact.id)) {
@@ -274,119 +245,6 @@ export async function processArtifact(
           const initialLayoutStats = fs.statSync(initialLayoutPath);
           result.initialLayoutSize = initialLayoutStats.size;
         }
-
-        // Hash video for duplicate detection
-        try {
-          const hash = await hashVideoInDirectory(artifactDir);
-          if (hash !== null) {
-            result.videoHash = hash;
-            const FIRST_DUPLICATE_INDEX = 0;
-            const MIN_DUPLICATE_ENTRIES = 0;
-            const duplicateIds = findDuplicateArtifacts(videoHashes, hash, artifact.id);
-            const recordDuplicateBadScan = (id: string, duplicates: string[]) => {
-              if (badScans[id] !== undefined) {
-                return;
-              }
-              const reasonDetail =
-                duplicates.length > MIN_DUPLICATE_ENTRIES
-                  ? `Duplicate video (hash ${hash}) matches ${duplicates.join(", ")}`
-                  : `Duplicate video (hash ${hash})`;
-              badScans[id] = {
-                date: new Date().toISOString(),
-                environment,
-                reason: reasonDetail
-              };
-              onBadScanAdded();
-            };
-
-            const discardDuplicate = (id: string, targetDir: string, duplicates: string[]) => {
-              const artifactsRoot = path.resolve(dataDir, "..");
-              const dataRoot = path.resolve(artifactsRoot, "..");
-              const discardedPath = discardArtifact(targetDir, { artifactsRoot, dataRoot });
-              recordDuplicateBadScan(id, duplicates);
-              if (discardedPath === null) {
-                logger.error(`Failed to discard duplicate artifact ${id}`);
-              } else {
-                logger.info(`Discarded duplicate artifact ${id} -> ${discardedPath}`);
-              }
-            };
-
-            // Ensure canonical tracking is initialized for this hash
-            if (canonicalByHash[hash] === undefined) {
-              const defaultCanonical = duplicateIds[FIRST_DUPLICATE_INDEX] ?? artifact.id;
-              canonicalByHash[hash] = defaultCanonical;
-              const defaultOrder =
-                duplicateIds.length > MIN_DUPLICATE_ENTRIES ? Number.MIN_SAFE_INTEGER : artifactOrder;
-              canonicalOrderByHash[hash] = defaultOrder;
-            }
-
-            // After the block above, canonicalByHash[hash] and canonicalOrderByHash[hash] are guaranteed to be set
-            // They are always set together (either in the initialization loop or in the block above)
-            const currentCanonicalId = canonicalByHash[hash];
-            const currentCanonicalOrder = canonicalOrderByHash[hash];
-
-            // TypeScript doesn't understand the invariant that both are set together, so add explicit check
-            if (
-              currentCanonicalOrder !== undefined &&
-              artifactOrder < currentCanonicalOrder &&
-              currentCanonicalId !== artifact.id
-            ) {
-              const previousCanonicalId = currentCanonicalId;
-              canonicalByHash[hash] = artifact.id;
-              canonicalOrderByHash[hash] = artifactOrder;
-
-              const previousArtifactDir = buildArtifactDir(previousCanonicalId);
-              const duplicateReasonIds = [...duplicateIds, artifact.id];
-              if (fs.existsSync(previousArtifactDir)) {
-                discardDuplicate(previousCanonicalId, previousArtifactDir, duplicateReasonIds);
-              } else {
-                recordDuplicateBadScan(previousCanonicalId, duplicateReasonIds);
-              }
-            }
-
-            // canonicalByHash[hash] is guaranteed to be set (either persisted or set in block above)
-            const canonicalId = canonicalByHash[hash];
-            const hasDuplicates = duplicateIds.length > MIN_DUPLICATE_ENTRIES;
-            if (hasDuplicates) {
-              result.duplicateIds = duplicateIds;
-              const isCanonicalArtifact = artifact.id === canonicalId;
-              if (!isCanonicalArtifact) {
-                discardDuplicate(artifact.id, artifactDir, duplicateIds);
-                addVideoHash(videoHashes, hash, artifact.id);
-                return result;
-              }
-            }
-
-            addVideoHash(videoHashes, hash, artifact.id);
-          }
-        } catch (e) {
-          logger.warn(`Failed to hash video for artifact ${artifact.id}: ${String(e)}`);
-        }
-
-        // Date Mismatch Check
-        if (artifact.scanDate !== undefined) {
-          const vidMeta = await extractVideoMetadata(artifactDir);
-          if (vidMeta?.creationTime !== undefined) {
-            const scanTime = new Date(artifact.scanDate).getTime();
-            const videoTime = new Date(vidMeta.creationTime).getTime();
-            const diffMs = Math.abs(scanTime - videoTime);
-            const SECONDS_PER_MIN = 60;
-            const MINUTES_PER_HOUR = 60;
-            const MS_PER_SECOND = 1000;
-            const HOUR_MS = SECONDS_PER_MIN * MINUTES_PER_HOUR * MS_PER_SECOND;
-            const diffHours = diffMs / HOUR_MS;
-
-            const MISMATCH_THRESHOLD_HOURS = 24;
-            if (diffHours > MISMATCH_THRESHOLD_HOURS) {
-              result.dateMismatch = {
-                diffHours,
-                isNew: !exists,
-                scanDate: artifact.scanDate,
-                videoDate: vidMeta.creationTime
-              };
-            }
-          }
-        }
       } catch (e) {
         logger.warn(`Failed to get stats/metadata for artifact ${artifact.id}: ${String(e)}`);
       }
@@ -403,9 +261,6 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
   const stats: SyncStats = {
     arDataHistory: {},
     arDataSize: 0,
-    dateMismatches: [],
-    duplicateCount: 0,
-    duplicates: [],
     env: env.name,
     errors: [],
     failed: 0,
@@ -415,7 +270,6 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
     knownFailures: 0,
     new: 0,
     newArDataSize: 0,
-    newDuplicateCount: 0,
     newFailures: 0,
     newInitialLayoutSize: 0,
     newPointCloudSize: 0,
@@ -448,29 +302,6 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
   const badScans = getBadScans();
   logger.info(`Loaded ${Object.keys(badScans).length.toString()} known bad scans to skip.`);
 
-  const videoHashes = getVideoHashes();
-  logger.info(`Loaded ${Object.keys(videoHashes).length.toString()} video hashes for duplicate detection.`);
-  const canonicalByHash: Record<string, string> = {};
-  const MIN_HASH_IDS = 0;
-  const FIRST_HASH_INDEX = 0;
-  const canonicalOrderByHash: Record<string, number> = {};
-  const PERSISTED_CANONICAL_ORDER = Number.MIN_SAFE_INTEGER;
-  Object.entries(videoHashes).forEach(([hash, ids]) => {
-    if (
-      !Array.isArray(ids) ||
-      ids.length <= MIN_HASH_IDS ||
-      canonicalByHash[hash] !== undefined ||
-      typeof ids[FIRST_HASH_INDEX] !== "string"
-    ) {
-      return;
-    }
-    const firstId = ids[FIRST_HASH_INDEX];
-    canonicalByHash[hash] = firstId;
-    canonicalOrderByHash[hash] = PERSISTED_CANONICAL_ORDER;
-  });
-  const badScanUpdateState = { updated: false };
-  let artifactOrderCounter = 0;
-
   const service = new SpatialService(env.domain, env.name);
 
   // Get initial page to determine total pages
@@ -500,17 +331,8 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
         // Queue all artifacts for processing and wait for results
         const pageResults = await Promise.all(
           artifacts.map(async (a) => {
-            const artifactOrder = artifactOrderCounter++;
             const r = await limitArtifact(async () => {
-              const pa = await processArtifact(a, dataDir, badScans, videoHashes, {
-                artifactOrder,
-                canonicalByHash,
-                canonicalOrderByHash,
-                environment: env.name,
-                onBadScanAdded: () => {
-                  badScanUpdateState.updated = true;
-                }
-              });
+              const pa = await processArtifact(a, dataDir, badScans);
               return pa;
             });
             return r;
@@ -536,52 +358,13 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
             failedArtifactIds.add(a.id);
           }
 
-          if (r.dateMismatch) {
-            stats.dateMismatches.push({
-              diffHours: r.dateMismatch.diffHours,
-              environment: env.name,
-              id: a.id,
-              isNew: r.dateMismatch.isNew,
-              scanDate: r.dateMismatch.scanDate,
-              videoDate: r.dateMismatch.videoDate
-            });
-          }
-
-          // Track duplicates
-          const NO_DUPLICATES = 0;
-          const ONE_NEW = 1;
-          if (r.videoHash !== undefined && r.duplicateIds !== undefined && r.duplicateIds.length > NO_DUPLICATES) {
-            const isNewDuplicate = r.new >= ONE_NEW;
-            const duplicateEntry: {
-              artifactId: string;
-              duplicateIds: string[];
-              environment: string;
-              hash: string;
-              isNew: boolean;
-              scanDate?: string;
-            } = {
-              artifactId: a.id,
-              duplicateIds: r.duplicateIds,
-              environment: env.name,
-              hash: r.videoHash,
-              isNew: isNewDuplicate
-            };
-            if (r.scanDate !== undefined) {
-              duplicateEntry.scanDate = r.scanDate;
-            }
-            stats.duplicates.push(duplicateEntry);
-            stats.duplicateCount += r.duplicateIds.length;
-            if (isNewDuplicate) {
-              stats.newDuplicateCount += r.duplicateIds.length;
-            }
-          }
-
           stats.videoSize += r.videoSize;
           stats.arDataSize += r.arDataSize;
           stats.rawScanSize += r.rawScanSize;
           stats.pointCloudSize += r.pointCloudSize;
           stats.initialLayoutSize += r.initialLayoutSize;
 
+          const ONE_NEW = 1;
           if (r.new >= ONE_NEW) {
             stats.newArDataSize += r.arDataSize;
             stats.newRawScanSize += r.rawScanSize;
@@ -696,15 +479,6 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
         stats.newFailures++;
       }
     });
-
-    if (badScanUpdateState.updated) {
-      saveBadScans(badScans);
-      logger.info(`Saved ${Object.keys(badScans).length.toString()} bad scans.`);
-    }
-
-    // Save video hash database
-    saveVideoHashes(videoHashes);
-    logger.info(`Saved ${Object.keys(videoHashes).length.toString()} video hashes.`);
   } catch (e) {
     logger.error(`Failed to sync ${env.name}: ${String(e)}`);
   }

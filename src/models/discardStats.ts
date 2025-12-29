@@ -1,4 +1,13 @@
-export type DiscardStage = "clean" | "filter";
+export type DiscardStage = "clean" | "filter" | "duplicates";
+
+export interface DateMismatch {
+  id: string;
+  scanDate: string;
+  videoDate: string;
+  diffHours: number;
+  environment: string;
+  isNew?: boolean;
+}
 
 export interface CleanDataStats {
   removedCount: number;
@@ -16,9 +25,27 @@ export interface FilterStats {
   skippedCached: number;
 }
 
+export interface DuplicateStats {
+  processed: number;
+  duplicateCount: number;
+  newDuplicateCount: number;
+  skippedCached: number;
+  errors: number;
+}
+
+export interface DuplicateVideo {
+  artifactId: string;
+  hash: string;
+  duplicateIds: string[];
+  environment: string;
+  isNew?: boolean;
+  scanDate?: string;
+}
+
 export interface DiscardStats {
   clean: CleanDataStats;
   filter: FilterStats;
+  duplicates: DuplicateStats;
 }
 
 export interface DiscardedArtifact {
@@ -44,6 +71,8 @@ export interface EnvCounts {
   tooShortNew: number;
   notBathroomCached: number;
   notBathroomNew: number;
+  duplicateCached: number;
+  duplicateNew: number;
 }
 
 export interface DiscardReportInput {
@@ -53,8 +82,11 @@ export interface DiscardReportInput {
   badScansByEnv?: Record<string, number>;
   badScanHistory: BadScanHistoryEntry[];
   countsByEnv: Record<string, EnvCounts>;
+  dateMismatches: DateMismatch[];
   discardedOnDiskCount?: number;
   filterStats: FilterStats;
+  duplicateStats: DuplicateStats;
+  duplicates: DuplicateVideo[];
   initialBadScanCount: number;
   finalBadScanCount: number;
   minDuration: number;

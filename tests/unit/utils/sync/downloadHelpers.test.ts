@@ -76,13 +76,13 @@ describe("downloadHelpers", () => {
     it("handles axios network error (no response) correctly", async () => {
       mockFs.existsSync.mockReturnValue(false);
       const axiosError = new AxiosError("Network Error");
-      // response is undefined
+      // response is undefined, should use error.code or "network error"
       mockAxios.isAxiosError.mockReturnValue(true);
       mockAxios.get.mockRejectedValue(axiosError);
 
       const result = await downloadFile(url, outputPath, "Video");
 
-      expect(result).toBe("Video download failed");
+      expect(result).toBe("Video download failed (network error)");
     });
   });
 
@@ -125,12 +125,13 @@ describe("downloadHelpers", () => {
     it("handles axios network error (no response) correctly", async () => {
       mockFs.existsSync.mockReturnValue(false);
       const axiosError = new AxiosError("Network Error");
+      // response is undefined, should use error.code or "network error"
       mockAxios.isAxiosError.mockReturnValue(true);
       mockAxios.get.mockRejectedValue(axiosError);
 
       const result = await downloadJsonFile(url, outputPath, label);
 
-      expect(result).toBe(`${label} download failed`);
+      expect(result).toBe(`${label} download failed (network error)`);
     });
 
     it("handles axios error with status code", async () => {

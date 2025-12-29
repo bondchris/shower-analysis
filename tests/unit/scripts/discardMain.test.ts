@@ -14,6 +14,17 @@ vi.mock("../../../src/utils/data/checkedScans", () => ({
   saveCheckedScans: vi.fn()
 }));
 
+vi.mock("../../../src/utils/data/videoHashes", () => ({
+  addVideoHash: vi.fn(),
+  findDuplicateArtifacts: vi.fn().mockReturnValue([]),
+  getVideoHashes: vi.fn().mockReturnValue({}),
+  saveVideoHashes: vi.fn()
+}));
+
+vi.mock("../../../src/utils/video/hash", () => ({
+  hashVideoInDirectory: vi.fn().mockResolvedValue(null)
+}));
+
 vi.mock("../../../src/utils/data/discardArtifact", () => ({
   discardArtifact: vi.fn().mockReturnValue("/mock/discarded/artifact")
 }));
@@ -257,5 +268,722 @@ describe("discard main orchestration", () => {
         ]
       })
     );
+  });
+
+  it("includes duplicate entries with scanDate in badScanHistory", async () => {
+    const { main } = await import("../../../src/scripts/discard");
+    const { buildDiscardReport } = await import("../../../src/templates/discardReport");
+
+    const badDb: BadScanDatabase = {
+      dup1: {
+        date: "2024-01-01",
+        environment: "env",
+        reason: "Duplicate video (hash abc123)",
+        scanDate: "2024-08-01T10:00:00Z"
+      }
+    };
+
+    await main({
+      artifactDirs: [],
+      databases: { badScans: badDb, checkedScans: {} },
+      dryRun: true,
+      skipClean: true,
+      skipDuplicates: true,
+      skipFilter: true
+    });
+
+    expect(buildDiscardReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        badScanHistory: [
+          expect.objectContaining({
+            id: "dup1",
+            reason: "Duplicate video (hash abc123)",
+            scanDate: "2024-08-01T10:00:00Z"
+          })
+        ]
+      })
+    );
+  });
+
+  it("includes cached valid artifacts in countsByEnv", async () => {
+    const { main } = await import("../../../src/scripts/discard");
+    const { buildDiscardReport } = await import("../../../src/templates/discardReport");
+    const { findArtifactDirectories } = await import("../../../src/utils/data/artifactIterator");
+
+    const mockFindArtifacts = findArtifactDirectories as ReturnType<typeof vi.fn>;
+    mockFindArtifacts.mockReturnValue(["/mock/data/artifacts/production/artifact1"]);
+
+    const checkedDb: CheckedScanDatabase = {
+      artifact1: { filteredDate: "2024-01-01" }
+    };
+
+    await main({
+      databases: { badScans: {}, checkedScans: checkedDb },
+      dryRun: true,
+      skipClean: true,
+      skipDuplicates: true,
+      skipFilter: true
+    });
+
+    const reportCall = (buildDiscardReport as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as
+      | { countsByEnv?: Record<string, { validCached?: number }> }
+      | undefined;
+    expect(reportCall?.countsByEnv?.["production"]?.validCached).toBe(1);
+  });
+
+  it("categorizes bad scans by reason type in countsByEnv", async () => {
+    const { main } = await import("../../../src/scripts/discard");
+    const { buildDiscardReport } = await import("../../../src/templates/discardReport");
+
+    const badDb: BadScanDatabase = {
+      dup1: { date: "2024-01-01", environment: "env", reason: "Duplicate video (hash abc)" },
+      nb1: { date: "2024-01-01", environment: "env", reason: "Not a bathroom" },
+      short1: { date: "2024-01-01", environment: "env", reason: "Video too short (5s)" }
+    };
+
+    await main({
+      artifactDirs: [],
+      databases: { badScans: badDb, checkedScans: {} },
+      dryRun: true,
+      skipClean: true,
+      skipDuplicates: true,
+      skipFilter: true
+    });
+
+    const reportCall = (buildDiscardReport as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as
+      | {
+          countsByEnv?: Record<
+            string,
+            { duplicateCached?: number; notBathroomCached?: number; tooShortCached?: number }
+          >;
+        }
+      | undefined;
+    expect(reportCall?.countsByEnv?.["env"]?.duplicateCached).toBe(1);
+    expect(reportCall?.countsByEnv?.["env"]?.notBathroomCached).toBe(1);
+    expect(reportCall?.countsByEnv?.["env"]?.tooShortCached).toBe(1);
+  });
+
+  it("includes badScanHistory entries with scanDate", async () => {
+    const { main } = await import("../../../src/scripts/discard");
+    const { buildDiscardReport } = await import("../../../src/templates/discardReport");
+
+    const badDb: BadScanDatabase = {
+      withDate: { date: "2024-01-01", environment: "env", reason: "test", scanDate: "2024-08-01T10:00:00Z" },
+      withoutDate: { date: "2024-01-01", environment: "env", reason: "test2" }
+    };
+
+    await main({
+      artifactDirs: [],
+      databases: { badScans: badDb, checkedScans: {} },
+      dryRun: true,
+      skipClean: true,
+      skipDuplicates: true,
+      skipFilter: true
+    });
+
+    expect(buildDiscardReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        badScanHistory: [
+          expect.objectContaining({
+            id: "withDate",
+            scanDate: "2024-08-01T10:00:00Z"
+          })
+        ]
+      })
+    );
+  });
+});
+
+describe("runDuplicatesPhase", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("detects duplicate videos and adds them to bad scans", async () => {
+    const { hashVideoInDirectory } = await import("../../../src/utils/video/hash");
+    const { findDuplicateArtifacts } = await import("../../../src/utils/data/videoHashes");
+
+    const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
+    const mockFindDuplicates = findDuplicateArtifacts as ReturnType<typeof vi.fn>;
+
+    mockHash.mockResolvedValue("abc123");
+    mockFindDuplicates.mockReturnValue(["existingArtifact"]);
+
+    const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runDuplicatesPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true,
+      videoHashes: {}
+    });
+
+    expect(result.stats.duplicateCount).toBe(1);
+    expect(result.stats.newDuplicateCount).toBe(1);
+    expect(result.duplicates).toHaveLength(1);
+    expect(result.duplicates[0]).toMatchObject({
+      artifactId: "artifact1",
+      hash: "abc123"
+    });
+  });
+
+  it("skips artifacts already in bad scans cache", async () => {
+    const { hashVideoInDirectory } = await import("../../../src/utils/video/hash");
+    const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
+    mockHash.mockResolvedValue("abc123");
+
+    const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
+
+    const badDb: BadScanDatabase = {
+      artifact1: { date: "2024-01-01", environment: "env", reason: "Duplicate video" }
+    };
+
+    const result = await runDuplicatesPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: badDb, checkedScans: {} },
+      dryRun: true,
+      videoHashes: {}
+    });
+
+    expect(result.stats.skippedCached).toBe(1);
+    expect(result.stats.duplicateCount).toBe(0);
+  });
+
+  it("skips artifacts without video file", async () => {
+    const fs = await import("fs");
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    mockExistsSync.mockReturnValue(false);
+
+    const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runDuplicatesPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true,
+      videoHashes: {}
+    });
+
+    expect(result.stats.processed).toBe(0);
+  });
+
+  it("handles hash errors gracefully", async () => {
+    const fs = await import("fs");
+    const { hashVideoInDirectory } = await import("../../../src/utils/video/hash");
+    const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(true);
+    mockHash.mockResolvedValue(null);
+
+    const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runDuplicatesPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true,
+      videoHashes: {}
+    });
+
+    expect(result.stats.errors).toBe(1);
+  });
+
+  it("extracts scanDate from meta.json for duplicate entries", async () => {
+    const fs = await import("fs");
+    const { hashVideoInDirectory } = await import("../../../src/utils/video/hash");
+    const { findDuplicateArtifacts } = await import("../../../src/utils/data/videoHashes");
+
+    const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
+    const mockFindDuplicates = findDuplicateArtifacts as ReturnType<typeof vi.fn>;
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+
+    mockHash.mockResolvedValue("abc123");
+    mockFindDuplicates.mockReturnValue(["existingArtifact"]);
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" }));
+
+    const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runDuplicatesPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true,
+      videoHashes: {}
+    });
+
+    expect(result.duplicates[0]?.scanDate).toBe("2024-08-01T10:00:00Z");
+  });
+
+  it("discards artifacts when not in dry-run mode", async () => {
+    const { hashVideoInDirectory } = await import("../../../src/utils/video/hash");
+    const { findDuplicateArtifacts, addVideoHash, saveVideoHashes } =
+      await import("../../../src/utils/data/videoHashes");
+    const { discardArtifact } = await import("../../../src/utils/data/discardArtifact");
+    const { saveBadScans } = await import("../../../src/utils/data/badScans");
+
+    const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
+    const mockFindDuplicates = findDuplicateArtifacts as ReturnType<typeof vi.fn>;
+
+    mockHash.mockResolvedValue("abc123");
+    mockFindDuplicates.mockReturnValue(["existingArtifact"]);
+
+    const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
+
+    await runDuplicatesPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: false,
+      saveResults: true,
+      videoHashes: {}
+    });
+
+    expect(discardArtifact).toHaveBeenCalled();
+    expect(addVideoHash).toHaveBeenCalled();
+    expect(saveBadScans).toHaveBeenCalled();
+    expect(saveVideoHashes).toHaveBeenCalled();
+  });
+
+  it("marks duplicate as not new when hash already exists in database", async () => {
+    const { hashVideoInDirectory } = await import("../../../src/utils/video/hash");
+    const { findDuplicateArtifacts } = await import("../../../src/utils/data/videoHashes");
+
+    const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
+    const mockFindDuplicates = findDuplicateArtifacts as ReturnType<typeof vi.fn>;
+
+    mockHash.mockResolvedValue("abc123");
+    mockFindDuplicates.mockReturnValue(["existingArtifact"]);
+
+    const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runDuplicatesPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true,
+      videoHashes: { abc123: ["existingArtifact"] }
+    });
+
+    expect(result.stats.newDuplicateCount).toBe(0);
+    expect(result.duplicates[0]?.isNew).toBe(false);
+  });
+});
+
+describe("runMismatchPhase", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("loads cached mismatch data from checkedScans", async () => {
+    const fs = await import("fs");
+    const { findArtifactDirectories } = await import("../../../src/utils/data/artifactIterator");
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockFindArtifacts = findArtifactDirectories as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockImplementation((p: string) => {
+      // Return false for discarded-artifacts directory check
+      if (typeof p === "string" && p.includes("discarded-artifacts")) {
+        return false;
+      }
+      return true;
+    });
+    mockFindArtifacts.mockReturnValue(["/mock/data/artifacts/env/artifact1"]);
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const checkedDb: CheckedScanDatabase = {
+      artifact1: {
+        filteredDate: "2024-01-01",
+        mismatchCheckedDate: "2024-01-01",
+        mismatchDiffHours: 48,
+        mismatchScanDate: "2024-08-01T10:00:00Z",
+        mismatchVideoDate: "2024-07-30T10:00:00Z"
+      }
+    };
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: checkedDb },
+      dryRun: true
+    });
+
+    expect(result.stats.skippedCached).toBe(1);
+    expect(result.stats.mismatchCount).toBe(1);
+    expect(result.dateMismatches[0]?.diffHours).toBe(48);
+    expect(result.dateMismatches[0]?.isNew).toBe(false);
+  });
+
+  it("skips artifacts without video or meta file", async () => {
+    const fs = await import("fs");
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    mockExistsSync.mockReturnValue(false);
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true
+    });
+
+    expect(result.stats.processed).toBe(0);
+  });
+});
+
+describe("main - newBadScans from duplicates phase", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("counts new duplicate detections in duplicateNew", async () => {
+    const fs = await import("fs");
+    const { hashVideoInDirectory } = await import("../../../src/utils/video/hash");
+    const { findDuplicateArtifacts } = await import("../../../src/utils/data/videoHashes");
+    const { buildDiscardReport } = await import("../../../src/templates/discardReport");
+
+    const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
+    const mockFindDuplicates = findDuplicateArtifacts as ReturnType<typeof vi.fn>;
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(true);
+    mockHash.mockResolvedValue("abc123");
+    mockFindDuplicates.mockReturnValue(["existingArtifact"]);
+
+    const { main } = await import("../../../src/scripts/discard");
+
+    await main({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: false,
+      skipClean: true,
+      skipFilter: true,
+      skipMismatch: true
+    });
+
+    const reportCall = (buildDiscardReport as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as
+      | { countsByEnv?: Record<string, { duplicateNew?: number }> }
+      | undefined;
+    expect(reportCall?.countsByEnv?.["env"]?.duplicateNew).toBe(1);
+  });
+});
+
+describe("runDuplicatesPhase - edge cases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("skips .DS_Store entries", async () => {
+    const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runDuplicatesPhase({
+      artifactDirs: ["/mock/data/artifacts/env/.DS_Store"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true,
+      videoHashes: {}
+    });
+
+    expect(result.stats.processed).toBe(0);
+  });
+
+  it("adds non-duplicate artifacts to remaining", async () => {
+    const fs = await import("fs");
+    const { hashVideoInDirectory } = await import("../../../src/utils/video/hash");
+    const { findDuplicateArtifacts } = await import("../../../src/utils/data/videoHashes");
+
+    const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
+    const mockFindDuplicates = findDuplicateArtifacts as ReturnType<typeof vi.fn>;
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(true);
+    mockHash.mockResolvedValue("abc123");
+    mockFindDuplicates.mockReturnValue([]);
+
+    const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runDuplicatesPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true,
+      videoHashes: {}
+    });
+
+    expect(result.stats.processed).toBe(1);
+    expect(result.stats.duplicateCount).toBe(0);
+    expect(result.remainingArtifacts).toContain("/mock/data/artifacts/env/artifact1");
+  });
+
+  it("handles discard error gracefully", async () => {
+    const fs = await import("fs");
+    const { hashVideoInDirectory } = await import("../../../src/utils/video/hash");
+    const { findDuplicateArtifacts } = await import("../../../src/utils/data/videoHashes");
+    const { discardArtifact } = await import("../../../src/utils/data/discardArtifact");
+
+    const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
+    const mockFindDuplicates = findDuplicateArtifacts as ReturnType<typeof vi.fn>;
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockDiscard = discardArtifact as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(true);
+    mockHash.mockResolvedValue("abc123");
+    mockFindDuplicates.mockReturnValue(["existingArtifact"]);
+    mockDiscard.mockReturnValue(null);
+
+    const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runDuplicatesPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: false,
+      videoHashes: {}
+    });
+
+    expect(result.stats.errors).toBe(1);
+    expect(result.remainingArtifacts).toContain("/mock/data/artifacts/env/artifact1");
+  });
+});
+
+describe("runMismatchPhase - edge cases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("skips .DS_Store entries", async () => {
+    const fs = await import("fs");
+    const { findArtifactDirectories } = await import("../../../src/utils/data/artifactIterator");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockFindArtifacts = findArtifactDirectories as ReturnType<typeof vi.fn>;
+
+    // Make discarded-artifacts directory not exist to avoid scanning it
+    mockExistsSync.mockReturnValue(false);
+    mockFindArtifacts.mockReturnValue([]);
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/.DS_Store"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true
+    });
+
+    expect(result.stats.processed).toBe(0);
+  });
+
+  it("skips artifacts with empty scanDate in meta.json", async () => {
+    const fs = await import("fs");
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scanDate: "" }));
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true
+    });
+
+    expect(result.stats.processed).toBe(0);
+  });
+});
+
+// Mock extractVideoMetadata at module level for mismatch detection tests
+vi.mock("../../../src/utils/video/metadata", () => ({
+  extractVideoMetadata: vi.fn()
+}));
+
+describe("runMismatchPhase - mismatch detection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("detects date mismatch when video date differs > 24 hours from scan date", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+    const { findArtifactDirectories } = await import("../../../src/utils/data/artifactIterator");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+    const mockFindArtifacts = findArtifactDirectories as ReturnType<typeof vi.fn>;
+
+    mockFindArtifacts.mockReturnValue([]);
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" }));
+    mockExtractMetadata.mockResolvedValue({ creationTime: "2024-07-01T10:00:00Z" });
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true
+    });
+
+    expect(result.stats.processed).toBe(1);
+    expect(result.stats.mismatchCount).toBe(1);
+    expect(result.stats.newMismatchCount).toBe(1);
+    expect(result.dateMismatches).toHaveLength(1);
+  });
+
+  it("does not flag mismatch when dates are within 24 hours", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+    const { findArtifactDirectories } = await import("../../../src/utils/data/artifactIterator");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+    const mockFindArtifacts = findArtifactDirectories as ReturnType<typeof vi.fn>;
+
+    mockFindArtifacts.mockReturnValue([]);
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" }));
+    // 1 hour difference - not a mismatch
+    mockExtractMetadata.mockResolvedValue({ creationTime: "2024-08-01T09:00:00Z" });
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true
+    });
+
+    expect(result.stats.processed).toBe(1);
+    expect(result.stats.mismatchCount).toBe(0);
+    expect(result.dateMismatches).toHaveLength(0);
+  });
+
+  it("updates checkedScans when not in dry-run mode", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+    const { findArtifactDirectories } = await import("../../../src/utils/data/artifactIterator");
+    const { saveCheckedScans } = await import("../../../src/utils/data/checkedScans");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+    const mockFindArtifacts = findArtifactDirectories as ReturnType<typeof vi.fn>;
+
+    mockFindArtifacts.mockReturnValue([]);
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" }));
+    mockExtractMetadata.mockResolvedValue({ creationTime: "2024-07-01T10:00:00Z" });
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const checkedDb: CheckedScanDatabase = {};
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: checkedDb },
+      dryRun: false,
+      saveResults: true
+    });
+
+    expect(result.stats.mismatchCount).toBe(1);
+    expect(checkedDb["artifact1"]).toBeDefined();
+    expect(checkedDb["artifact1"]?.mismatchCheckedDate).toBeDefined();
+    expect(checkedDb["artifact1"]?.mismatchDiffHours).toBeGreaterThan(24);
+    expect(saveCheckedScans).toHaveBeenCalled();
+  });
+
+  it("creates new checkedScans entry if not present", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+    const { findArtifactDirectories } = await import("../../../src/utils/data/artifactIterator");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+    const mockFindArtifacts = findArtifactDirectories as ReturnType<typeof vi.fn>;
+
+    mockFindArtifacts.mockReturnValue([]);
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" }));
+    // 1 hour difference - not a mismatch, but should still update checkedScans
+    mockExtractMetadata.mockResolvedValue({ creationTime: "2024-08-01T09:00:00Z" });
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const checkedDb: CheckedScanDatabase = {};
+
+    await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: checkedDb },
+      dryRun: false,
+      saveResults: true
+    });
+
+    expect(checkedDb["artifact1"]).toBeDefined();
+    expect(checkedDb["artifact1"]?.mismatchCheckedDate).toBeDefined();
+    // Should not have mismatch data since no mismatch was detected
+    expect(checkedDb["artifact1"]?.mismatchDiffHours).toBeUndefined();
+  });
+
+  it("marks as checked even when creationTime is undefined", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+    const { findArtifactDirectories } = await import("../../../src/utils/data/artifactIterator");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+    const mockFindArtifacts = findArtifactDirectories as ReturnType<typeof vi.fn>;
+
+    mockFindArtifacts.mockReturnValue([]);
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" }));
+    // No creationTime in metadata
+    mockExtractMetadata.mockResolvedValue({});
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const checkedDb: CheckedScanDatabase = {};
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: checkedDb },
+      dryRun: false,
+      saveResults: true
+    });
+
+    expect(result.stats.processed).toBe(1);
+    expect(result.stats.mismatchCount).toBe(0);
+    expect(checkedDb["artifact1"]).toBeDefined();
+    expect(checkedDb["artifact1"]?.mismatchCheckedDate).toBeDefined();
+  });
+
+  it("handles mismatch check errors gracefully", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+    const { findArtifactDirectories } = await import("../../../src/utils/data/artifactIterator");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+    const mockFindArtifacts = findArtifactDirectories as ReturnType<typeof vi.fn>;
+
+    mockFindArtifacts.mockReturnValue([]);
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" }));
+    mockExtractMetadata.mockRejectedValue(new Error("ffprobe error"));
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true
+    });
+
+    expect(result.stats.errors).toBe(1);
   });
 });

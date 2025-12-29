@@ -29,26 +29,4 @@ export interface SyncStats {
   rawScanHistory: Record<string, { totalSize: number; count: number }>;
   pointCloudHistory: Record<string, { totalSize: number; count: number }>;
   initialLayoutHistory: Record<string, { totalSize: number; count: number }>;
-  dateMismatches: DateMismatch[];
-  duplicates: DuplicateVideo[];
-  duplicateCount: number;
-  newDuplicateCount: number;
-}
-
-export interface DuplicateVideo {
-  artifactId: string;
-  hash: string;
-  duplicateIds: string[];
-  environment: string;
-  isNew?: boolean;
-  scanDate?: string;
-}
-
-export interface DateMismatch {
-  id: string;
-  scanDate: string;
-  videoDate: string;
-  diffHours: number;
-  environment: string;
-  isNew?: boolean;
 }

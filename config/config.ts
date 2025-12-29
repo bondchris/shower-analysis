@@ -6,5 +6,5 @@ export const ENVIRONMENTS = [
 ];
 
 export const CHART_DATE_RANGE = {
-  startDate: "2024-07-23"
+  startDate: "2024-07-22"
 };

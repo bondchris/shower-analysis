@@ -7,6 +7,10 @@ export interface CheckedScanEntry {
   filteredDate?: string;
   // (e.g., 'gemini-1.5-pro')
   filteredModel?: string;
+  mismatchCheckedDate?: string;
+  mismatchDiffHours?: number;
+  mismatchScanDate?: string;
+  mismatchVideoDate?: string;
 }
 
 export type CheckedScanDatabase = Record<string, CheckedScanEntry>;

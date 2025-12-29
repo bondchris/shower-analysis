@@ -6,7 +6,7 @@ import { MixedChartDataset } from "../models/chart/mixedChartDataset";
 import { logger } from "../utils/logger";
 import { ReportData, ReportSection } from "../models/report";
 import { getBarChartConfig, getLineChartConfig, getMixedChartConfig } from "../utils/chart/configBuilders";
-import { getGlobalDateRange } from "../utils/chart/dateRange";
+import { CHART_DATE_RANGE } from "../../config/config";
 
 export interface ValidationCharts {
   propertyPresence?: ChartConfiguration;
@@ -69,8 +69,22 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
   }
 
   // Generate Graphs
-  // Use global date range from first artifact to current date
-  const sortedDates = getGlobalDateRange();
+  // Collect dates that have actual activity (scans, errors, or warnings)
+  // Filter to only include dates on or after the config start date
+  // Include the config start date so chart starts at the configured date (only if there's data)
+  const allDates = new Set<string>();
+  allStats.forEach((s) => {
+    Object.keys(s.errorsByDate).forEach((d) => allDates.add(d));
+    Object.keys(s.warningsByDate).forEach((d) => allDates.add(d));
+    Object.keys(s.totalScansByDate).forEach((d) => allDates.add(d));
+  });
+  const hasActivityDates = allDates.size > MIN_DATA_POINTS;
+  if (hasActivityDates) {
+    allDates.add(CHART_DATE_RANGE.startDate);
+  }
+  const sortedDates = Array.from(allDates)
+    .filter((d) => d >= CHART_DATE_RANGE.startDate)
+    .sort();
 
   if (sortedDates.length > MIN_DATA_POINTS) {
     const DEFAULT_SCANS_COUNT = 0;
@@ -210,25 +224,24 @@ function generateValidationCharts(allStats: EnvStats[]): ValidationCharts {
     });
 
     const PERCENTAGE_BASE = 100;
-    const ZERO = 0;
     const successData = sortedDates.map((d) => {
-      const total = aggregatedTotalScansByDate[d] ?? ZERO;
-      if (total === ZERO) {
+      const total = aggregatedTotalScansByDate[d] ?? INITIAL_ERROR_COUNT;
+      if (total === INITIAL_ERROR_COUNT) {
         return null;
       }
-      const clean = aggregatedCleanScansByDate[d] ?? ZERO;
+      const clean = aggregatedCleanScansByDate[d] ?? INITIAL_ERROR_COUNT;
       return Math.round((clean / total) * PERCENTAGE_BASE);
     });
 
     // Calculate cumulative success percentage
-    let cumulativeTotalScans = ZERO;
-    let cumulativeCleanScans = ZERO;
+    let cumulativeTotalScans = INITIAL_ERROR_COUNT;
+    let cumulativeCleanScans = INITIAL_ERROR_COUNT;
     const cumulativeSuccessData = sortedDates.map((d) => {
-      const dailyTotal = aggregatedTotalScansByDate[d] ?? ZERO;
-      const dailyClean = aggregatedCleanScansByDate[d] ?? ZERO;
+      const dailyTotal = aggregatedTotalScansByDate[d] ?? INITIAL_ERROR_COUNT;
+      const dailyClean = aggregatedCleanScansByDate[d] ?? INITIAL_ERROR_COUNT;
       cumulativeTotalScans += dailyTotal;
       cumulativeCleanScans += dailyClean;
-      if (cumulativeTotalScans === ZERO) {
+      if (cumulativeTotalScans === INITIAL_ERROR_COUNT) {
         return null;
       }
       return Math.round((cumulativeCleanScans / cumulativeTotalScans) * PERCENTAGE_BASE);

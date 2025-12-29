@@ -42,14 +42,10 @@ npm run sync
 - Creates `data/artifacts/{environment}/{id}/` directories.
 - Caches API responses to `data/api_cache/` to minimize network requests.
 - Skips existing files and "bad scans" listed in `config/badScans.json`.
-- Hashes videos with BLAKE3, caches results in `videoHash.json`, and updates
-  `config/videoHashes.json` to detect duplicate videos across environments.
-- Moves duplicate videos to `data/discarded-artifacts` and records them as bad scans to
-  prevent re-syncing the duplicate IDs.
 
 **Output**:
 
-- `reports/sync-report.pdf`: Includes Date Mismatch Analysis, Video Size Trends, Inaccessible Artifacts Over Time, download stats, and duplicate video summary/trend views with per-hash details.
+- `reports/sync-report.pdf`: Includes Video Size Trends, Inaccessible Artifacts Over Time, and download stats.
 
 ### 2. Validate Artifacts
 
@@ -79,11 +75,13 @@ npm run discard
 
 - Detects missing, invalid, or too-short videos and moves them to `data/discarded-artifacts`, updating `config/badScans.json`.
 - Removes non-bathroom videos via Gemini; successful checks are cached in `config/checkedScans.json` to avoid re-processing.
+- Hashes videos with BLAKE3 and detects duplicate videos across environments using `config/videoHashes.json`. Moves duplicates to `data/discarded-artifacts` and records them as bad scans.
+- Detects date mismatches between API scan dates and video creation metadata (> 24 hours difference).
 - Respects `DRY_RUN=1` and `BATHROOM_FILTER_CONCURRENCY` to control write behavior and parallelism.
 
 **Output**:
 
-- `reports/discard-report.pdf`: Clean/filter counts, bad scan deltas, Short Videos Over Time and Non-Bathroom Videos Over Time trend charts, and new bad scans grouped by environment and reason.
+- `reports/discard-report.pdf`: Clean/filter/duplicate counts, bad scan deltas, trend charts (short videos, non-bathrooms, duplicates), date mismatch analysis, and new bad scans by environment.
 
 ### 4. Format Data
 
@@ -136,10 +134,9 @@ npm run inspect
 - **`config/config.ts`**: Central configuration including:
   - `ENVIRONMENTS`: List of environments to sync from.
   - `CHART_DATE_RANGE.startDate`: Start date for all "over time" charts (currently `2024-07-23`). All charts use this date through the current date for a consistent timeline.
-- **`config/badScans.json`**: Artifact IDs known to be bad/invalid. Automatically updated by
-  `discard` and duplicate detection during `sync`.
+- **`config/badScans.json`**: Artifact IDs known to be bad/invalid. Automatically updated by `discard`.
 - **`config/checkedScans.json`**: Cache of discard/Gemini results to prevent re-processing.
-- **`config/videoHashes.json`**: Auto-generated mapping of BLAKE3 video hashes to artifact IDs for duplicate detection during sync.
+- **`config/videoHashes.json`**: Auto-generated mapping of BLAKE3 video hashes to artifact IDs for duplicate detection.
 
 ## Development
 
@@ -201,7 +198,7 @@ This executes: validate → sync → discard → format-data → inspect
 ## Directory Structure
 
 - `src/`: Source TypeScript files.
-  - `scripts/`: Execution scripts (`validate`, `sync`, `inspect`, `clean`, `filter`, `format`).
+  - `scripts/`: Execution scripts (`validate`, `sync`, `discard`, `inspect`, `format`).
   - `models/`: Data interfaces and core domain logic (`rawScan`, `arData`, `point`, etc.).
   - `services/`: External integrations (`SpatialService`, `GeminiService`).
   - `templates/`: React-based PDF report templates and chart components.
