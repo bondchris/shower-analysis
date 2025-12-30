@@ -120,13 +120,24 @@ Deep analysis of metadata, lighting, room features, and camera settings.
 npm run inspect
 ```
 
-**Output**:
+**Output** (three separate reports):
 
-- `reports/data-analysis.pdf`: A comprehensive 3-page report including:
-  - **Summary**: Duration, Lens Models, Framerate, Resolution.
-  - **Lighting & Exposure**: Ambient Intensity, Color Temp, ISO, Brightness histograms.
-  - **Dimensions & Aspect Ratios**: Height/width distributions and aspect ratio scatter plots for walls, windows, doors, openings, and floors.
-  - **Fixtures & Vanity Analysis**: Floor area, tub and vanity length distributions, vanity type and sink count breakdowns, and feature prevalence (e.g., non-rectangular walls, multiple fixtures).
+- `reports/video-analysis.pdf`: Video metadata analysis:
+  - Duration distribution with average reference line
+  - Framerate distribution
+  - Resolution distribution
+
+- `reports/ardata-analysis.pdf`: AR data and camera analysis:
+  - Device model distribution
+  - Focal length and aperture settings
+  - Lighting conditions: Ambient Intensity, Color Temperature, ISO Speed, Brightness Value
+
+- `reports/scan-analysis.pdf`: Room scan data analysis:
+  - Section types and feature prevalence
+  - Capture errors and object distribution with confidence levels
+  - Object attribute breakdowns (doors, chairs, sofas, tables, storage, vanity)
+  - Dimension distributions for floors, walls, windows, doors, and openings
+  - Aspect ratio scatter plots for structural elements
 
 ## Configuration
 

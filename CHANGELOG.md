@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2025-12-30
+
+### [v0.59.0] Split Data Analysis into Three Separate Reports
+
+- **Report Separation**: Split the single `data-analysis.pdf` into three focused reports for better
+  organization and easier navigation:
+  - `video-analysis.pdf` - Video metadata: duration, framerate, resolution distributions
+  - `ardata-analysis.pdf` - AR data and camera analysis: device models, focal length, aperture,
+    ambient intensity, color temperature, ISO speed, brightness value
+  - `scan-analysis.pdf` - Room scan data: section types, feature prevalence, capture errors,
+    object distribution with confidence levels, dimension/area charts, attribute pie charts
+- **New Report Templates**: Created `videoAnalysisReport.ts`, `arDataAnalysisReport.ts`, and
+  `scanAnalysisReport.ts` as dedicated report builders for each domain.
+- **Modular Architecture**: Retained shared chart utilities in `dataAnalysisReport/charts/` for
+  reuse by the scan analysis report.
+- **Documentation Updated**: README and ARCHITECTURE.md updated to reflect the new three-report
+  output structure.
+
 ## 2025-12-29
 
 ### [v0.58.0] Consolidate Duplicate and Date Mismatch Detection into Discard Pipeline

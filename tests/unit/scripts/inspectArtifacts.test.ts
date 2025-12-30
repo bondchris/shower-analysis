@@ -1,8 +1,10 @@
 import { Mock, beforeEach, describe, expect, it, vi } from "vitest";
-import { analyzeArtifact, createInspectionReport, main } from "../../../src/scripts/inspectArtifacts";
+import { analyzeArtifact, createInspectionReports, main } from "../../../src/scripts/inspectArtifacts";
 import { ArtifactAnalysis } from "../../../src/models/artifactAnalysis";
 import { ReportData } from "../../../src/models/report";
-import { buildDataAnalysisReport } from "../../../src/templates/dataAnalysisReport";
+import { buildArDataAnalysisReport } from "../../../src/templates/arDataAnalysisReport";
+import { buildScanAnalysisReport } from "../../../src/templates/scanAnalysisReport";
+import { buildVideoAnalysisReport } from "../../../src/templates/videoAnalysisReport";
 import { extractArDataMetadata } from "../../../src/utils/arData/metadata";
 import { findArtifactDirectories } from "../../../src/utils/data/artifactIterator";
 import { logger } from "../../../src/utils/logger";
@@ -15,7 +17,9 @@ import * as path from "path";
 vi.mock("../../../src/utils/video/metadata");
 vi.mock("../../../src/utils/room/metadata");
 vi.mock("../../../src/utils/arData/metadata");
-vi.mock("../../../src/templates/dataAnalysisReport");
+vi.mock("../../../src/templates/videoAnalysisReport");
+vi.mock("../../../src/templates/arDataAnalysisReport");
+vi.mock("../../../src/templates/scanAnalysisReport");
 vi.mock("../../../src/utils/reportGenerator");
 vi.mock("../../../src/utils/logger");
 vi.mock("../../../src/utils/data/artifactIterator");
@@ -102,24 +106,39 @@ describe("inspectArtifacts Script", () => {
     });
   });
 
-  describe("createInspectionReport", () => {
-    it("should build and generate report, logging progress", async () => {
+  describe("createInspectionReports", () => {
+    it("should build and generate all three reports, logging progress", async () => {
       const mockMeta = [new ArtifactAnalysis()];
-      const mockReportData = { sections: [], title: "Test Report" } as unknown as ReportData;
+      const mockVideoReportData = { sections: [], title: "Video Analysis" } as unknown as ReportData;
+      const mockArDataReportData = { sections: [], title: "AR Data Analysis" } as unknown as ReportData;
+      const mockScanReportData = { sections: [], title: "Scan Analysis" } as unknown as ReportData;
 
-      (buildDataAnalysisReport as Mock).mockReturnValue(mockReportData);
+      (buildVideoAnalysisReport as Mock).mockReturnValue(mockVideoReportData);
+      (buildArDataAnalysisReport as Mock).mockReturnValue(mockArDataReportData);
+      (buildScanAnalysisReport as Mock).mockReturnValue(mockScanReportData);
 
-      await createInspectionReport(mockMeta, 10, 1, "report.pdf");
+      await createInspectionReports(mockMeta, 10, 1);
 
-      expect(logger.info).toHaveBeenCalledWith("Generating PDF...");
-      expect(buildDataAnalysisReport).toHaveBeenCalledWith(mockMeta, 10, 1, undefined);
-      expect(generatePdfReport).toHaveBeenCalledWith(mockReportData, "report.pdf");
-      expect(logger.info).toHaveBeenCalledWith("Report generated at: report.pdf");
+      expect(logger.info).toHaveBeenCalledWith("Generating Video Analysis PDF...");
+      expect(buildVideoAnalysisReport).toHaveBeenCalledWith(mockMeta, 10, 1);
+      expect(generatePdfReport).toHaveBeenCalledWith(mockVideoReportData, "video-analysis.pdf");
+      expect(logger.info).toHaveBeenCalledWith("Report generated at: video-analysis.pdf");
+
+      expect(logger.info).toHaveBeenCalledWith("Generating AR Data Analysis PDF...");
+      expect(buildArDataAnalysisReport).toHaveBeenCalledWith(mockMeta, 1);
+      expect(generatePdfReport).toHaveBeenCalledWith(mockArDataReportData, "ardata-analysis.pdf");
+      expect(logger.info).toHaveBeenCalledWith("Report generated at: ardata-analysis.pdf");
+
+      expect(logger.info).toHaveBeenCalledWith("Generating Scan Analysis PDF...");
+      expect(buildScanAnalysisReport).toHaveBeenCalledWith(mockMeta, 1, undefined);
+      expect(generatePdfReport).toHaveBeenCalledWith(mockScanReportData, "scan-analysis.pdf");
+      expect(logger.info).toHaveBeenCalledWith("Report generated at: scan-analysis.pdf");
     });
 
     it("should bubble up errors from PDF generator", async () => {
+      (buildVideoAnalysisReport as Mock).mockReturnValue({ sections: [], title: "Video" });
       (generatePdfReport as Mock).mockRejectedValue(new Error("PDF Error"));
-      await expect(createInspectionReport([], 0, 0, "out.pdf")).rejects.toThrow("PDF Error");
+      await expect(createInspectionReports([], 0, 0)).rejects.toThrow("PDF Error");
     });
   });
 
@@ -155,16 +174,20 @@ describe("inspectArtifacts Script", () => {
       expect(generatePdfReport).not.toHaveBeenCalled();
     });
 
-    it("should process artifacts and generate report", async () => {
+    it("should process artifacts and generate all three reports", async () => {
       const DIRS = ["/a", "/b"];
       (findArtifactDirectories as Mock).mockReturnValue(DIRS);
 
       // Setup different durations for 2 artifacts
       (extractVideoMetadata as Mock).mockResolvedValueOnce({ duration: 10 }).mockResolvedValueOnce({ duration: 30 });
 
-      // Mock PDF gen
-      const mockReportData = { sections: [] };
-      (buildDataAnalysisReport as Mock).mockReturnValue(mockReportData);
+      // Mock report builders
+      const mockVideoReportData = { sections: [], title: "Video" };
+      const mockArDataReportData = { sections: [], title: "ArData" };
+      const mockScanReportData = { sections: [], title: "Scan" };
+      (buildVideoAnalysisReport as Mock).mockReturnValue(mockVideoReportData);
+      (buildArDataAnalysisReport as Mock).mockReturnValue(mockArDataReportData);
+      (buildScanAnalysisReport as Mock).mockReturnValue(mockScanReportData);
 
       await main();
 
@@ -176,14 +199,14 @@ describe("inspectArtifacts Script", () => {
       expect(extractVideoMetadata).toHaveBeenCalledTimes(2);
 
       // Verify Average Logic (10 + 30) / 2 = 20
-      expect(buildDataAnalysisReport).toHaveBeenCalledWith(
-        expect.any(Array),
-        20, // Avg duration
-        2, // Video count
-        DIRS
-      );
+      expect(buildVideoAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 20, 2);
+      expect(buildArDataAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 2);
+      expect(buildScanAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 2, DIRS);
 
-      expect(generatePdfReport).toHaveBeenCalledWith(mockReportData, "data-analysis.pdf");
+      // Verify all three PDFs are generated
+      expect(generatePdfReport).toHaveBeenCalledWith(mockVideoReportData, "video-analysis.pdf");
+      expect(generatePdfReport).toHaveBeenCalledWith(mockArDataReportData, "ardata-analysis.pdf");
+      expect(generatePdfReport).toHaveBeenCalledWith(mockScanReportData, "scan-analysis.pdf");
     });
 
     it("should handle undefined/NaN durations robustly", async () => {
@@ -194,16 +217,18 @@ describe("inspectArtifacts Script", () => {
         .mockResolvedValueOnce({ duration: undefined }) // Undefined
         .mockResolvedValueOnce({ duration: 30 }); // Valid
 
+      // Mock report builders
+      (buildVideoAnalysisReport as Mock).mockReturnValue({ sections: [] });
+      (buildArDataAnalysisReport as Mock).mockReturnValue({ sections: [] });
+      (buildScanAnalysisReport as Mock).mockReturnValue({ sections: [] });
+
       await main();
 
       // Avg should ignore undefined: (10 + 30) / 2 = 20
-
-      expect(buildDataAnalysisReport).toHaveBeenCalledWith(
-        expect.any(Array),
-        20,
-        3, // Total artifact count passed to report is still 3
-        ["/a", "/b", "/c"]
-      );
+      // Total artifact count passed to report is still 3
+      expect(buildVideoAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 20, 3);
+      expect(buildArDataAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 3);
+      expect(buildScanAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 3, ["/a", "/b", "/c"]);
     });
   });
 });

@@ -1,21 +1,26 @@
 import * as path from "path";
 
-import { buildDataAnalysisReport } from "../templates/dataAnalysisReport";
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
+import { buildArDataAnalysisReport } from "../templates/arDataAnalysisReport";
+import { buildScanAnalysisReport } from "../templates/scanAnalysisReport";
+import { buildVideoAnalysisReport } from "../templates/videoAnalysisReport";
+import { extractArDataMetadata } from "../utils/arData/metadata";
 import { findArtifactDirectories } from "../utils/data/artifactIterator";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
 import { generatePdfReport } from "../utils/reportGenerator";
-import { extractArDataMetadata } from "../utils/arData/metadata";
 import { extractRawScanMetadata } from "../utils/room/metadata";
 import { extractVideoMetadata } from "../utils/video/metadata";
 
 /**
- * Script to analyze local artifacts and generate a PDF report.
+ * Script to analyze local artifacts and generate PDF reports.
  * - Extracts metadata (resolution, duration, room features).
  * - Runs all room utility checks (intersections, gaps, etc.).
  * - Generates charts (histograms, bar charts) for data distribution.
- * - Outputs `reports/data-analysis.pdf`.
+ * - Outputs three separate reports:
+ *   - `reports/video-analysis.pdf` - Video duration, framerate, resolution
+ *   - `reports/ardata-analysis.pdf` - Device models, camera settings, lighting
+ *   - `reports/scan-analysis.pdf` - Room dimensions, features, objects, errors
  */
 
 // 1. Video Metadata
@@ -53,20 +58,30 @@ export async function analyzeArtifact(dir: string): Promise<ArtifactAnalysis> {
   return metadata;
 }
 
-export async function createInspectionReport(
+export async function createInspectionReports(
   metadataList: ArtifactAnalysis[],
   avgDuration: number,
   videoCount: number,
-  reportPath: string,
   artifactDirs?: string[]
 ): Promise<void> {
-  logger.info("Generating PDF...");
+  const videoReportFile = "video-analysis.pdf";
+  const arDataReportFile = "ardata-analysis.pdf";
+  const scanReportFile = "scan-analysis.pdf";
 
-  const reportData = buildDataAnalysisReport(metadataList, avgDuration, videoCount, artifactDirs);
+  logger.info("Generating Video Analysis PDF...");
+  const videoReportData = buildVideoAnalysisReport(metadataList, avgDuration, videoCount);
+  await generatePdfReport(videoReportData, videoReportFile);
+  logger.info(`Report generated at: ${videoReportFile}`);
 
-  await generatePdfReport(reportData, reportPath);
+  logger.info("Generating AR Data Analysis PDF...");
+  const arDataReportData = buildArDataAnalysisReport(metadataList, videoCount);
+  await generatePdfReport(arDataReportData, arDataReportFile);
+  logger.info(`Report generated at: ${arDataReportFile}`);
 
-  logger.info(`Report generated at: ${reportPath}`);
+  logger.info("Generating Scan Analysis PDF...");
+  const scanReportData = buildScanAnalysisReport(metadataList, videoCount, artifactDirs);
+  await generatePdfReport(scanReportData, scanReportFile);
+  logger.info(`Report generated at: ${scanReportFile}`);
 }
 
 export async function main(): Promise<void> {
@@ -110,8 +125,7 @@ export async function main(): Promise<void> {
 
   // PDF Generation
   const videoCount = metadataList.length;
-  const REPORT_FILE = "data-analysis.pdf";
-  await createInspectionReport(metadataList, avgDuration, videoCount, REPORT_FILE, artifactDirs);
+  await createInspectionReports(metadataList, avgDuration, videoCount, artifactDirs);
 }
 
 if (require.main === module) {

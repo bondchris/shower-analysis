@@ -421,7 +421,9 @@ describe("Functional Pipeline Test", () => {
 
     // --- Step 7: Inspect Artifacts ---
     await inspectMain();
-    expect(fs.existsSync(path.join(tempDir, "reports", "data-analysis.pdf"))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, "reports", "video-analysis.pdf"))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, "reports", "ardata-analysis.pdf"))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, "reports", "scan-analysis.pdf"))).toBe(true);
 
     // 7b. Verify Cache Creation (Miss)
     // Check that metadata files were created

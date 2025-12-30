@@ -147,12 +147,18 @@ React-based PDF report generation:
       - `SVGIcon.tsx`: Generic icon component with automatic scaling
       - `iconConfig.tsx`: Centralized icon configuration mapping
       - `svgLoader.ts`: SVG file loader with CSS class support and color replacement
-- **`dataAnalysisReport.ts`**: Comprehensive data analysis report builder
-  - Generates reports with multiple chart types: KDE (kernel density estimation) charts for continuous data, bar charts for categorical data, pie charts for object attributes
-  - Modular architecture with helper functions: `buildKdeCharts`, `buildDeviceAndCameraCharts`, `buildErrorFeatureObjectCharts`, `buildAreaCharts`, `buildAttributePieCharts`
-  - Includes charts for: duration, lighting (ambient, color temp, ISO, brightness), device models,
-    camera settings, room areas, object distributions, feature prevalence, error detection, and
-    object attribute types (doors, chairs, sofas, tables, storage)
+- **`videoAnalysisReport.ts`**: Video metadata analysis report
+  - Duration KDE chart, framerate bar chart, resolution bar chart
+- **`arDataAnalysisReport.ts`**: AR data and camera analysis report
+  - Device model distribution, focal length, aperture, ambient intensity, color temperature, ISO, brightness
+- **`scanAnalysisReport.ts`**: Room scan data analysis report
+  - Uses modular chart builders from `dataAnalysisReport/charts/`
+  - Includes: section types, feature prevalence, capture errors, object distribution,
+    dimension charts, area charts, attribute pie charts, wall embedded charts
+- **`dataAnalysisReport/`**: Shared chart building utilities
+  - `charts/`: Modular chart builders (kdeCharts, deviceAndCameraCharts, prevalenceCharts, areaCharts, etc.)
+  - `layout.ts`: Layout constants for consistent sizing
+  - `kdeBounds.ts`: Dynamic KDE bounds calculation
 - **`validationReport.ts`**: Validation report builder
 - **`syncReport.ts`**: Sync report builder
 - **`styles/`**: CSS styles (Tailwind-based)
@@ -209,13 +215,16 @@ Room Analysis (room/ utilities)
     ↓
 Chart Generation (utils/chart/configBuilders)
     ↓
-Report Template (dataAnalysisReport.ts)
-    - Modular helper functions: buildKdeCharts, buildDeviceAndCameraCharts,
-      buildErrorFeatureObjectCharts, buildAreaCharts, buildAttributePieCharts
+Three Separate Report Templates:
+    ├─ videoAnalysisReport.ts → reports/video-analysis.pdf
+    │    Duration, Framerate, Resolution charts
+    ├─ arDataAnalysisReport.ts → reports/ardata-analysis.pdf
+    │    Device models, camera settings, lighting/exposure charts
+    └─ scanAnalysisReport.ts → reports/scan-analysis.pdf
+         Room dimensions, features, objects, errors
+         Uses: dataAnalysisReport/charts/* helpers
     ↓
 PDF Generation (reportGenerator.ts)
-    ↓
-reports/data-analysis.pdf
 ```
 
 ### Report Generation Pipeline
