@@ -130,7 +130,11 @@ npm run inspect
 - `reports/ardata-analysis.pdf`: AR data and camera analysis:
   - Device model distribution
   - Focal length and aperture settings
-  - Lighting conditions: Ambient Intensity, Color Temperature, ISO Speed, Brightness Value
+  - Timezone (UTC offset) distribution from EXIF metadata
+  - Time of day distribution showing when scans were taken (hour buckets, 00-23)
+  - AR data capture rate (FPS) and dropped frames percentage
+  - Dropped frames trend over time
+  - Lighting conditions: Average/Minimum/Maximum for Ambient Intensity, Color Temperature, ISO Speed, and Brightness Value
 
 - `reports/scan-analysis.pdf`: Room scan data analysis:
   - Section types and feature prevalence

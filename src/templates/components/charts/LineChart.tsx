@@ -72,7 +72,13 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
   const colorPalette = ["#4F46E5", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6"];
   const oneDataset = 1;
   const defaultBorderWidth = 2;
-  const maxXTicks = 15; // Limit x-axis ticks to prevent date label crowding
+  const maxYTicks = 10;
+  // Scale x-axis ticks based on chart width (fewer ticks for narrower charts)
+  const fullWidthTicks = 15;
+  const fullWidthReference = 650;
+  const ticksPerPixel = fullWidthTicks / fullWidthReference;
+  const minXTicks = 5;
+  const maxXTicks = Math.max(minXTicks, Math.round(width * ticksPerPixel));
   const legendBoxSize = 10;
   const legendLabelGap = 5;
   const legendItemGap = 18;
@@ -291,6 +297,7 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
             fontSize: 12,
             textAnchor: "middle"
           }}
+          numTicks={Math.min(Math.ceil(maxDataValue), maxYTicks)}
           scale={yScale}
           tickFormat={(value) => String(Math.round(Number(value)))}
           tickLabelProps={() => ({

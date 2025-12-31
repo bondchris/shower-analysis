@@ -8,10 +8,22 @@ export interface ArDataMetadata {
   deviceModel: string;
   lensFocalLength: string;
   lensAperture: string;
+  timezone: string;
+  scanDateTime: string;
   avgAmbientIntensity: number;
+  minAmbientIntensity: number;
+  maxAmbientIntensity: number;
   avgColorTemperature: number;
+  minColorTemperature: number;
+  maxColorTemperature: number;
   avgIso: number;
+  minIso: number;
+  maxIso: number;
   avgBrightness: number;
+  minBrightness: number;
+  maxBrightness: number;
+  arDataFramerate: number;
+  hasDroppedArFrames: boolean;
 }
 
 /**
@@ -28,7 +40,21 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
       const cachedContent = fs.readFileSync(metaCachePath, "utf-8");
       const cached = JSON.parse(cachedContent) as ArDataMetadata;
       // Invalidate cache if new fields are missing
-      if (typeof cached.deviceModel === "string") {
+      if (
+        typeof cached.deviceModel === "string" &&
+        typeof cached.timezone === "string" &&
+        typeof cached.scanDateTime === "string" &&
+        typeof cached.minAmbientIntensity === "number" &&
+        typeof cached.maxAmbientIntensity === "number" &&
+        typeof cached.minColorTemperature === "number" &&
+        typeof cached.maxColorTemperature === "number" &&
+        typeof cached.minIso === "number" &&
+        typeof cached.maxIso === "number" &&
+        typeof cached.minBrightness === "number" &&
+        typeof cached.maxBrightness === "number" &&
+        typeof cached.arDataFramerate === "number" &&
+        typeof cached.hasDroppedArFrames === "boolean"
+      ) {
         return cached;
       }
       // Fall through to re-extraction if stale
@@ -51,19 +77,41 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
       const firstFrame = frames[INITIAL_COUNT];
 
       const result: ArDataMetadata = {
+        arDataFramerate: 0,
         avgAmbientIntensity: 0,
         avgBrightness: 0,
         avgColorTemperature: 0,
         avgIso: 0,
         deviceModel: NOT_SET,
+        hasDroppedArFrames: false,
         lensAperture: NOT_SET,
         lensFocalLength: NOT_SET,
-        lensModel: NOT_SET
+        lensModel: NOT_SET,
+        maxAmbientIntensity: 0,
+        maxBrightness: 0,
+        maxColorTemperature: 0,
+        maxIso: 0,
+        minAmbientIntensity: 0,
+        minBrightness: 0,
+        minColorTemperature: 0,
+        minIso: 0,
+        scanDateTime: NOT_SET,
+        timezone: NOT_SET
       };
 
       if (frames.length > INITIAL_COUNT && firstFrame !== undefined) {
         // Lens Model & Device Info
         const exif = firstFrame.exifData;
+
+        // Timezone offset from EXIF OffsetTime (e.g., "-07:00", "+05:30")
+        if (exif.OffsetTime !== undefined && exif.OffsetTime !== NOT_SET) {
+          result.timezone = exif.OffsetTime.trim();
+        }
+
+        // Scan date/time from EXIF DateTimeOriginal (e.g., "2025:08:01 10:19:39")
+        if (exif.DateTimeOriginal !== undefined && exif.DateTimeOriginal !== NOT_SET) {
+          result.scanDateTime = exif.DateTimeOriginal.trim();
+        }
 
         // 1. EXIF Focal Length (takes precedence over parsed fallback)
         if (exif.FocalLength !== undefined && exif.FocalLength !== NOT_SET) {
@@ -119,22 +167,44 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
         }
       }
 
-      // Calculate Averages
+      // Calculate Averages, Minimum, and Maximum for all metrics
       let totalIntensity = 0;
       let totalTemperature = 0;
       let lightCount = 0;
+      let minIntensity = Infinity;
+      let maxIntensity = -Infinity;
+      let minTemperature = Infinity;
+      let maxTemperature = -Infinity;
 
       let totalISO = 0;
       let isoCount = 0;
+      let minIso = Infinity;
+      let maxIso = -Infinity;
 
       let totalBrightness = 0;
       let brightnessCount = 0;
+      let minBrightness = Infinity;
+      let maxBrightness = -Infinity;
 
       for (const frame of frames) {
         if (frame.lightEstimate) {
-          totalIntensity += frame.lightEstimate.ambientIntensity;
-          totalTemperature += frame.lightEstimate.ambientColorTemperature;
+          const intensity = frame.lightEstimate.ambientIntensity;
+          const temperature = frame.lightEstimate.ambientColorTemperature;
+          totalIntensity += intensity;
+          totalTemperature += temperature;
           lightCount++;
+          if (intensity < minIntensity) {
+            minIntensity = intensity;
+          }
+          if (intensity > maxIntensity) {
+            maxIntensity = intensity;
+          }
+          if (temperature < minTemperature) {
+            minTemperature = temperature;
+          }
+          if (temperature > maxTemperature) {
+            maxTemperature = temperature;
+          }
         }
 
         const isoRatings = frame.exifData.ISOSpeedRatings;
@@ -144,6 +214,12 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
           if (!isNaN(isoVal)) {
             totalISO += isoVal;
             isoCount++;
+            if (isoVal < minIso) {
+              minIso = isoVal;
+            }
+            if (isoVal > maxIso) {
+              maxIso = isoVal;
+            }
           }
         }
 
@@ -153,6 +229,12 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
           if (!isNaN(briVal)) {
             totalBrightness += briVal;
             brightnessCount++;
+            if (briVal < minBrightness) {
+              minBrightness = briVal;
+            }
+            if (briVal > maxBrightness) {
+              maxBrightness = briVal;
+            }
           }
         }
       }
@@ -160,14 +242,70 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
       if (lightCount > MIN_VALID_FRAMES) {
         result.avgAmbientIntensity = totalIntensity / lightCount;
         result.avgColorTemperature = totalTemperature / lightCount;
+        result.minAmbientIntensity = minIntensity;
+        result.maxAmbientIntensity = maxIntensity;
+        result.minColorTemperature = minTemperature;
+        result.maxColorTemperature = maxTemperature;
       }
 
       if (isoCount > MIN_VALID_FRAMES) {
         result.avgIso = totalISO / isoCount;
+        result.minIso = minIso;
+        result.maxIso = maxIso;
       }
 
       if (brightnessCount > MIN_VALID_FRAMES) {
         result.avgBrightness = totalBrightness / brightnessCount;
+        result.minBrightness = minBrightness;
+        result.maxBrightness = maxBrightness;
+      }
+
+      // Calculate AR Data Framerate from timestamps
+      // Uses the relative timestamp keys (seconds from start) to compute average interval
+      const minFramesForFramerate = 2;
+      const firstIndex = 0;
+      const lastIndexOffset = 1;
+      const minDuration = 0;
+      const minFrameCount = 0;
+      if (frames.length >= minFramesForFramerate) {
+        const relativeTimestamps = Object.keys(_arData.data)
+          .map((k) => parseFloat(k))
+          .filter((t) => !isNaN(t))
+          .sort((a, b) => a - b);
+        if (relativeTimestamps.length >= minFramesForFramerate) {
+          const firstTimestamp = relativeTimestamps[firstIndex];
+          const lastTimestamp = relativeTimestamps[relativeTimestamps.length - lastIndexOffset];
+          if (firstTimestamp !== undefined && lastTimestamp !== undefined) {
+            const totalDuration = lastTimestamp - firstTimestamp;
+            const frameCount = relativeTimestamps.length - lastIndexOffset;
+            if (totalDuration > minDuration && frameCount > minFrameCount) {
+              result.arDataFramerate = frameCount / totalDuration;
+
+              // Detect dropped frames by checking if any interval exceeds 1.5x the median
+              const minIntervalsForDroppedCheck = 3;
+              const secondFrameIndex = 1;
+              if (relativeTimestamps.length >= minIntervalsForDroppedCheck) {
+                const intervals: number[] = [];
+                for (let i = secondFrameIndex; i < relativeTimestamps.length; i++) {
+                  const prev = relativeTimestamps[i - secondFrameIndex];
+                  const curr = relativeTimestamps[i];
+                  if (prev !== undefined && curr !== undefined) {
+                    intervals.push(curr - prev);
+                  }
+                }
+                const midpointDivisor = 2;
+                const sortedIntervals = [...intervals].sort((a, b) => a - b);
+                const midIndex = Math.floor(sortedIntervals.length / midpointDivisor);
+                const median = sortedIntervals[midIndex];
+                const droppedFrameThreshold = 1.5;
+                if (median !== undefined) {
+                  const threshold = median * droppedFrameThreshold;
+                  result.hasDroppedArFrames = intervals.some((interval) => interval > threshold);
+                }
+              }
+            }
+          }
+        }
       }
 
       // Persist to cache

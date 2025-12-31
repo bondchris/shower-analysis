@@ -392,6 +392,16 @@ describe("discard main orchestration", () => {
       })
     );
   });
+
+  it("should run only mismatch phase when requested", async () => {
+    const { runMismatchOnly } = await import("../../../src/scripts/discard");
+    const result = await runMismatchOnly({
+      artifactDirs: [],
+      dryRun: true
+    });
+    expect(result).toBeDefined();
+    expect(result.processed).toBe(0);
+  });
 });
 
 describe("runDuplicatesPhase", () => {

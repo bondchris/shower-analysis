@@ -21,14 +21,26 @@ describe("extractArDataMetadata", () => {
 
   it("should return cached metadata if it exists and is valid", () => {
     const cachedData: ArDataMetadata = {
+      arDataFramerate: 4,
       avgAmbientIntensity: 500,
       avgBrightness: 3.5,
       avgColorTemperature: 4000,
       avgIso: 100,
       deviceModel: "Test Device",
+      hasDroppedArFrames: false,
       lensAperture: "f/1.8",
       lensFocalLength: "26mm",
-      lensModel: "Test Lens"
+      lensModel: "Test Lens",
+      maxAmbientIntensity: 600,
+      maxBrightness: 4.5,
+      maxColorTemperature: 5000,
+      maxIso: 200,
+      minAmbientIntensity: 400,
+      minBrightness: 2.5,
+      minColorTemperature: 3000,
+      minIso: 50,
+      scanDateTime: "2025:08:01 10:19:39",
+      timezone: "-07:00"
     };
 
     (fs.existsSync as Mock).mockReturnValue(true);
@@ -75,6 +87,33 @@ describe("extractArDataMetadata", () => {
 
     const result = extractArDataMetadata(mockDir);
     expect(result?.deviceModel).toBe("New Device");
+  });
+
+  it("falls back to extraction when cached metadata cannot be parsed", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockCachePath || p === mockArDataPath);
+
+    const validArData = {
+      data: {
+        "0": {
+          cameraResolution: { height: 120, width: 80 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: { LensModel: "Recovery Device back camera 5mm f/1.8" },
+          timestamp: 0
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockImplementation((p) => {
+      if (p === mockCachePath) {
+        return "{ invalid json";
+      }
+      return JSON.stringify(validArData);
+    });
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result?.deviceModel).toBe("Recovery Device");
+    expect(fs.readFileSync).toHaveBeenCalledWith(mockCachePath, "utf-8");
   });
 
   it("should extract metadata from arData.json if cache is missing", () => {
@@ -146,6 +185,32 @@ describe("extractArDataMetadata", () => {
     expect(result?.deviceModel).toBe("iPad Pro");
   });
 
+  it("uses raw FNumber string when it is non-numeric and unprefixed", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const nonNumericFNumberData = {
+      data: {
+        "1": {
+          cameraResolution: { height: 640, width: 480 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            FNumber: "weird",
+            FocalLength: "3mm",
+            LensModel: "Weird Lens"
+          },
+          timestamp: 1
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(nonNumericFNumberData));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result?.lensAperture).toBe("weird");
+    expect(result?.lensFocalLength).toBe("3mm");
+  });
+
   it("should return null if arData.json does not exist", () => {
     (fs.existsSync as Mock).mockReturnValue(false);
     const result = extractArDataMetadata(mockDir);
@@ -169,14 +234,26 @@ describe("extractArDataMetadata", () => {
     const result = extractArDataMetadata(mockDir);
 
     expect(result).toEqual({
+      arDataFramerate: 0,
       avgAmbientIntensity: 0,
       avgBrightness: 0,
       avgColorTemperature: 0,
       avgIso: 0,
       deviceModel: "",
+      hasDroppedArFrames: false,
       lensAperture: "",
       lensFocalLength: "",
-      lensModel: ""
+      lensModel: "",
+      maxAmbientIntensity: 0,
+      maxBrightness: 0,
+      maxColorTemperature: 0,
+      maxIso: 0,
+      minAmbientIntensity: 0,
+      minBrightness: 0,
+      minColorTemperature: 0,
+      minIso: 0,
+      scanDateTime: "",
+      timezone: ""
     });
   });
   it("should extract metadata from LensModel string when EXIF fields are missing", () => {
@@ -286,5 +363,662 @@ describe("extractArDataMetadata", () => {
       expect(result.avgIso).toBe(0);
       expect(result.avgBrightness).toBe(0);
     }
+  });
+
+  it("returns metadata even when cache write fails", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const arDataForWriteFailure = {
+      data: {
+        "0": {
+          cameraResolution: { height: 720, width: 1280 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            FNumber: "2.0",
+            LensModel: "Cache Fail Device back camera"
+          },
+          timestamp: 0
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataForWriteFailure));
+    (fs.writeFileSync as Mock).mockImplementation(() => {
+      throw new Error("disk full");
+    });
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result?.deviceModel).toBe("Cache Fail Device");
+    expect(fs.writeFileSync).toHaveBeenCalledWith(mockCachePath, expect.any(String));
+  });
+
+  it("aggregates min/max metrics across multiple frames", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const multiFrameData = {
+      data: {
+        "0": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            BrightnessValue: "1.2",
+            ISOSpeedRatings: "200",
+            LensModel: "Frame Zero"
+          },
+          lightEstimate: {
+            ambientColorTemperature: 4000,
+            ambientIntensity: 50
+          },
+          timestamp: 0
+        },
+        "1": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            BrightnessValue: "1.0",
+            ISOSpeedRatings: "150",
+            LensModel: "Frame One"
+          },
+          lightEstimate: {
+            ambientColorTemperature: 3500,
+            ambientIntensity: 30
+          },
+          timestamp: 1
+        },
+        "2": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            BrightnessValue: "1.5",
+            ISOSpeedRatings: "175",
+            LensModel: "Frame Two"
+          },
+          lightEstimate: {
+            ambientColorTemperature: 4200,
+            ambientIntensity: 40
+          },
+          timestamp: 2
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(multiFrameData));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.minAmbientIntensity).toBe(30);
+      expect(result.maxAmbientIntensity).toBe(50);
+      expect(result.avgAmbientIntensity).toBeCloseTo(40);
+      expect(result.minColorTemperature).toBe(3500);
+      expect(result.maxColorTemperature).toBe(4200);
+      expect(result.avgColorTemperature).toBeCloseTo(3900);
+      expect(result.minIso).toBe(150);
+      expect(result.maxIso).toBe(200);
+      expect(result.avgIso).toBeCloseTo(175);
+      expect(result.minBrightness).toBe(1.0);
+      expect(result.maxBrightness).toBe(1.5);
+      expect(result.avgBrightness).toBeCloseTo(1.233333, 5);
+    }
+  });
+
+  it("should extract timezone from EXIF OffsetTime field", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const arDataWithTimezone = {
+      data: {
+        "1": {
+          cameraResolution: { height: 1440, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            LensModel: "iPhone 16 Pro back camera 6.765mm f/1.78",
+            OffsetTime: "-07:00",
+            OffsetTimeOriginal: "-07:00"
+          },
+          timestamp: 1
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataWithTimezone));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.timezone).toBe("-07:00");
+    }
+  });
+
+  it("should handle positive timezone offsets", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const arDataWithPositiveTimezone = {
+      data: {
+        "1": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            LensModel: "iPhone 14 Pro back camera",
+            OffsetTime: "+05:30"
+          },
+          timestamp: 1
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataWithPositiveTimezone));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.timezone).toBe("+05:30");
+    }
+  });
+
+  it("should set timezone to empty string when OffsetTime is missing", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const arDataWithoutTimezone = {
+      data: {
+        "1": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            LensModel: "iPhone 12 Pro back camera"
+          },
+          timestamp: 1
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataWithoutTimezone));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.timezone).toBe("");
+    }
+  });
+
+  it("should extract scanDateTime from EXIF DateTimeOriginal field", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const arDataWithDateTime = {
+      data: {
+        "1": {
+          cameraResolution: { height: 1440, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            DateTimeOriginal: "2025:08:01 10:19:39",
+            LensModel: "iPhone 16 Pro back camera 6.765mm f/1.78",
+            OffsetTime: "-04:00"
+          },
+          timestamp: 1
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataWithDateTime));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.scanDateTime).toBe("2025:08:01 10:19:39");
+    }
+  });
+
+  it("should set scanDateTime to empty string when DateTimeOriginal is missing", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const arDataWithoutDateTime = {
+      data: {
+        "1": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {
+            LensModel: "iPhone 12 Pro back camera"
+          },
+          timestamp: 1
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataWithoutDateTime));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.scanDateTime).toBe("");
+    }
+  });
+
+  it("should calculate framerate from multiple timestamps", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    // Create 10 frames at 0.1 second intervals = 10 FPS
+    const framesPerSecond = 10;
+    const intervalSeconds = 0.1;
+    const arDataWithMultipleFrames = {
+      data: {} as Record<string, object>
+    };
+
+    for (let i = 0; i < framesPerSecond; i++) {
+      const timestamp = i * intervalSeconds;
+      arDataWithMultipleFrames.data[timestamp.toString()] = {
+        cameraResolution: { height: 1080, width: 1920 },
+        cameraTransform: new Array(16).fill(0),
+        exifData: { LensModel: "iPhone 14 Pro back camera" },
+        timestamp
+      };
+    }
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataWithMultipleFrames));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      // 9 frame intervals over 0.9 seconds = 10 FPS
+      expect(result.arDataFramerate).toBeCloseTo(10, 1);
+      expect(result.hasDroppedArFrames).toBe(false);
+    }
+  });
+
+  it("should detect dropped frames when interval exceeds 1.5x median", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    // Create frames with one large gap
+    // Timestamps: 0, 0.1, 0.2, 0.3, 0.7 (0.4 second gap vs normal 0.1)
+    const arDataWithDroppedFrame = {
+      data: {
+        "0": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: { LensModel: "iPhone 14 Pro back camera" },
+          timestamp: 0
+        },
+        "0.1": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {},
+          timestamp: 0.1
+        },
+        "0.2": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {},
+          timestamp: 0.2
+        },
+        "0.3": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {},
+          timestamp: 0.3
+        },
+        "0.7": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {},
+          timestamp: 0.7
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataWithDroppedFrame));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.arDataFramerate).toBeGreaterThan(0);
+      // 0.4 second gap is > 1.5x the median of 0.1 seconds
+      expect(result.hasDroppedArFrames).toBe(true);
+    }
+  });
+
+  it("should not detect dropped frames with consistent intervals", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    // Create frames with consistent intervals
+    const arDataConsistent = {
+      data: {
+        "0": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: { LensModel: "iPhone 14 Pro back camera" },
+          timestamp: 0
+        },
+        "0.1": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {},
+          timestamp: 0.1
+        },
+        "0.2": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {},
+          timestamp: 0.2
+        },
+        "0.3": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {},
+          timestamp: 0.3
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataConsistent));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.arDataFramerate).toBeCloseTo(10, 1);
+      expect(result.hasDroppedArFrames).toBe(false);
+    }
+  });
+
+  it("should handle only 2 frames for framerate without dropped frame detection", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    // Only 2 frames - enough for framerate but not for dropped frame detection (needs 3+)
+    const arDataTwoFrames = {
+      data: {
+        "0": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: { LensModel: "iPhone 14 Pro back camera" },
+          timestamp: 0
+        },
+        "0.5": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {},
+          timestamp: 0.5
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataTwoFrames));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      // 1 frame interval over 0.5 seconds = 2 FPS
+      expect(result.arDataFramerate).toBe(2);
+      // Not enough frames for dropped frame detection
+      expect(result.hasDroppedArFrames).toBe(false);
+    }
+  });
+
+  it("should handle unsorted timestamp keys correctly", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    // Keys are in order but tests that sorting works correctly
+    const arDataUnsortedKeys = {
+      data: {
+        "0": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: { LensModel: "iPhone 14 Pro back camera" },
+          timestamp: 0
+        },
+        "0.2": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {},
+          timestamp: 0.2
+        },
+        "0.4": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {},
+          timestamp: 0.4
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataUnsortedKeys));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      // Keys should be sorted: 0, 0.2, 0.4 = 3 frames
+      // 2 intervals over 0.4 seconds = 5 FPS
+      expect(result.arDataFramerate).toBe(5);
+      expect(result.hasDroppedArFrames).toBe(false);
+    }
+  });
+
+  it("should not calculate framerate when all frames have same timestamp", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    // All frames have timestamp 0 - totalDuration = 0
+    const arDataSameTimestamp = {
+      data: {
+        "0": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: { LensModel: "iPhone 14 Pro back camera" },
+          timestamp: 0
+        },
+        "0.0": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {},
+          timestamp: 0
+        },
+        "0.00": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: {},
+          timestamp: 0
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataSameTimestamp));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      // Duration is 0, so framerate should remain 0
+      expect(result.arDataFramerate).toBe(0);
+      expect(result.hasDroppedArFrames).toBe(false);
+    }
+  });
+
+  it("should handle single frame for framerate calculation", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    // Only 1 frame - not enough for framerate calculation
+    const arDataSingleFrame = {
+      data: {
+        "0": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: new Array(16).fill(0),
+          exifData: { LensModel: "iPhone 14 Pro back camera" },
+          timestamp: 0
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataSingleFrame));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      // Not enough frames for framerate calculation
+      expect(result.arDataFramerate).toBe(0);
+      expect(result.hasDroppedArFrames).toBe(false);
+    }
+  });
+
+  it("keeps default framerate when timestamps are filtered below minimum", async () => {
+    vi.resetModules();
+    vi.doMock("../../../../src/models/arData/arData", () => {
+      class MockArData {
+        data: Record<string, unknown>;
+
+        constructor(json: unknown) {
+          this.data = (json as { data: Record<string, unknown> }).data;
+        }
+      }
+
+      return { ArData: MockArData };
+    });
+
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const invalidTimestamps = {
+      data: {
+        alsoBad: { exifData: {}, timestamp: 1 },
+        bad: { exifData: {}, timestamp: 0 }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(invalidTimestamps));
+
+    const { extractArDataMetadata: extractArDataMetadataWithMock } =
+      await import("../../../../src/utils/arData/metadata");
+
+    const result = extractArDataMetadataWithMock(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.arDataFramerate).toBe(0);
+      expect(result.hasDroppedArFrames).toBe(false);
+    }
+
+    vi.unmock("../../../../src/models/arData/arData");
+  });
+
+  it("skips framerate calculation when timestamp bounds are undefined", async () => {
+    vi.resetModules();
+    vi.doMock("../../../../src/models/arData/arData", () => {
+      class MockArData {
+        data: Record<string, unknown>;
+
+        constructor(json: unknown) {
+          this.data = (json as { data: Record<string, unknown> }).data;
+        }
+      }
+
+      return { ArData: MockArData };
+    });
+
+    const parseFloatSpy = vi.spyOn(global, "parseFloat").mockImplementation((value: string | number) => {
+      if (value === "bad1" || value === "bad2") {
+        return undefined as unknown as number;
+      }
+      return Number.parseFloat(value as string);
+    });
+
+    const isNaNSpy = vi.spyOn(global, "isNaN").mockImplementation((value: unknown) => {
+      if (value === undefined) {
+        return false;
+      }
+      return Number.isNaN(value as number);
+    });
+
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const undefinedBoundsData = {
+      data: {
+        bad1: { exifData: {}, timestamp: 0 },
+        bad2: { exifData: {}, timestamp: 1 }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(undefinedBoundsData));
+
+    const { extractArDataMetadata: extractArDataMetadataWithUndefined } =
+      await import("../../../../src/utils/arData/metadata");
+
+    const result = extractArDataMetadataWithUndefined(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.arDataFramerate).toBe(0);
+      expect(result.hasDroppedArFrames).toBe(false);
+    }
+
+    parseFloatSpy.mockRestore();
+    isNaNSpy.mockRestore();
+    vi.unmock("../../../../src/models/arData/arData");
+  });
+
+  it("handles undefined intervals when median cannot be calculated", async () => {
+    vi.resetModules();
+    vi.doMock("../../../../src/models/arData/arData", () => {
+      class MockArData {
+        data: Record<string, unknown>;
+
+        constructor(json: unknown) {
+          this.data = (json as { data: Record<string, unknown> }).data;
+        }
+      }
+
+      return { ArData: MockArData };
+    });
+
+    const parseFloatSpy = vi.spyOn(global, "parseFloat").mockImplementation((value: string | number) => {
+      if (value === "bad-middle") {
+        return undefined as unknown as number;
+      }
+      return Number.parseFloat(value as string);
+    });
+
+    const isNaNSpy = vi.spyOn(global, "isNaN").mockImplementation((value: unknown) => {
+      if (value === undefined) {
+        return false;
+      }
+      return Number.isNaN(value as number);
+    });
+
+    const sortSpy = vi.spyOn(Array.prototype, "sort").mockImplementation(function forceOrder(this: number[]) {
+      return [0, undefined as unknown as number, 2];
+    });
+
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const undefinedIntervals = {
+      data: {
+        "0": { exifData: {}, timestamp: 0 },
+        "1": { exifData: {}, timestamp: 1 },
+        "bad-middle": { exifData: {}, timestamp: 0.5 }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(undefinedIntervals));
+
+    const { extractArDataMetadata: extractArDataMetadataWithIntervals } =
+      await import("../../../../src/utils/arData/metadata");
+
+    const result = extractArDataMetadataWithIntervals(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.arDataFramerate).toBeGreaterThan(0);
+      expect(result.hasDroppedArFrames).toBe(false);
+    }
+
+    sortSpy.mockRestore();
+    parseFloatSpy.mockRestore();
+    isNaNSpy.mockRestore();
+    vi.unmock("../../../../src/models/arData/arData");
   });
 });

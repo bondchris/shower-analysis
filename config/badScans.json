@@ -1817,6 +1817,12 @@
     "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
     "scanDate": "2025-08-06T15:28:32.108Z"
   },
+  "cd93cf17-7131-4989-b8cb-293c5ef0126a": {
+    "date": "2025-12-31T01:42:53.010Z",
+    "environment": "Lowe's Production",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2025-12-30T21:39:41.007387Z"
+  },
   "cddacefd-535f-4ec7-86ae-107e07150635": {
     "date": "2025-12-27T06:20:17.619Z",
     "environment": "Bond Demo",

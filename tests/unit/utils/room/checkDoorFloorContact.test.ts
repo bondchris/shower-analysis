@@ -155,6 +155,36 @@ describe("checkDoorFloorContact", () => {
     });
   });
 
+  it("should handle floor with transform Y coordinate being undefined", () => {
+    const doorHeight = 2.1;
+    const doorCenterY = doorHeight / 2;
+    const door = createDoorAtY("d1", doorCenterY, doorHeight);
+    const floor = createFloorAtY(0);
+    if (floor.transform) {
+      floor.transform[MAT_TY_IDX] = undefined as unknown as number;
+    }
+    const scan = createMockScan({ doors: [door], floors: [floor] });
+    // floorYLevel becomes DEFAULT_VALUE (0)
+    expect(checkDoorFloorContact(scan)).toBe(false);
+  });
+
+  it("should handle first floor being null/undefined in data", () => {
+    const doorHeight = 2.1;
+    const doorCenterY = doorHeight / 2;
+    const door = createDoorAtY("d1", doorCenterY, doorHeight);
+    // We manually create a scan object to bypass the RawScan constructor's map logic
+    // OR we just use an empty floors array which already covers the default 0 case.
+    // The goal was to hit line 27: if (firstFloor !== undefined)
+    // Since floors.length > 0 check already passed.
+    const scan = createMockScan({
+      doors: [door],
+      floors: []
+    });
+    // @ts-ignore - manually inject undefined to hit the branch
+    scan.floors = [undefined];
+    expect(checkDoorFloorContact(scan)).toBe(false);
+  });
+
   describe("Door validation", () => {
     it("should skip doors with invalid transform length", () => {
       const validDoor = createDoorAtY("d1", 1.05, 2.1);

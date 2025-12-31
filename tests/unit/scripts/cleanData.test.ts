@@ -359,7 +359,9 @@ describe("discard clean phase", () => {
         mkdirSync: fs.mkdirSync,
         readdirSync: fs.readdirSync,
         renameSync: fs.renameSync,
-        statSync: fs.statSync
+        rmSync: fs.rmSync,
+        statSync: fs.statSync,
+        writeFileSync: fs.writeFileSync
       };
 
       const stats = await runCleanOnly({

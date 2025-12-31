@@ -68,17 +68,11 @@ export function checkWallGaps(rawScan: RawScan): boolean {
 
   // Compare every wall against every other wall
   for (let i = 0; i < roomWalls.length; i++) {
-    const wA = roomWalls[i];
-    if (!wA) {
-      continue;
-    }
+    const wA = roomWalls[i] as { corners: Point[]; story?: number };
 
     // Check against subsequent walls (unique pairs)
     for (let j = i + NEXT_IDX_ONE; j < roomWalls.length; j++) {
-      const wB = roomWalls[j];
-      if (!wB) {
-        continue;
-      }
+      const wB = roomWalls[j] as { corners: Point[]; story?: number };
 
       let minGapDist = Number.MAX_VALUE;
 

@@ -5,7 +5,9 @@ import {
   getBarChartConfig,
   getHistogramConfig,
   getLineChartConfig,
-  getMixedChartConfig
+  getMixedChartConfig,
+  getPieChartConfig,
+  getScatterChartConfig
 } from "../../../src/utils/chart/configBuilders";
 import { kelvinToRgb } from "../../../src/utils/chart/colors";
 
@@ -49,10 +51,17 @@ describe("chartUtils", () => {
         expect(labels[0]).toBe("0-2");
       });
 
+      it("should ignore non-finite data values", () => {
+        const data = [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 0.5];
+        const { buckets } = calculateHistogramBins(data, { binSize: 1, max: 2, min: 0 });
+        expect(buckets).toEqual([0, 1, 0, 0]);
+      });
+
       it("should throw on invalid inputs", () => {
         expect(() => calculateHistogramBins([], { binSize: 0, max: 10, min: 0 })).toThrow(/Invalid binSize/);
         expect(() => calculateHistogramBins([], { binSize: 1, max: 0, min: 10 })).toThrow(/Invalid range/);
         expect(() => calculateHistogramBins([], { binSize: 0.0000001, max: 10000, min: 0 })).toThrow(/safety limit/);
+        expect(() => calculateHistogramBins([], { binSize: 1, max: 10, min: Number.NaN })).toThrow(/Invalid min\/max/);
       });
     });
 
@@ -187,6 +196,78 @@ describe("chartUtils", () => {
         const config = getMixedChartConfig(["A"], [], { width: 400 });
         if (config.type === "mixed") {
           expect(config.options.width).toBe(400);
+        }
+      });
+      it("propagates yLabels", () => {
+        const config = getMixedChartConfig(["A"], [], { yLabelLeft: "Left", yLabelRight: "Right" });
+        if (config.type === "mixed") {
+          expect(config.options.yLabelLeft).toBe("Left");
+          expect(config.options.yLabelRight).toBe("Right");
+        }
+      });
+    });
+
+    describe("getPieChartConfig", () => {
+      it("validates inputs", () => {
+        expect(() => getPieChartConfig(["A"], [1, 2])).toThrow(/does not match/);
+      });
+      it("propagates options including legendIconComponents", () => {
+        const icons = { A: () => null };
+        const config = getPieChartConfig(["A"], [1], {
+          legendIconComponents: icons,
+          shrinkToLegend: true,
+          title: "My Pie"
+        });
+        expect(config.type).toBe("pie");
+        if (config.type === "pie") {
+          expect(config.options.title).toBe("My Pie");
+          expect(config.options.legendIconComponents).toBe(icons);
+          expect(config.options.shrinkToLegend).toBe(true);
+        }
+      });
+
+      it("uses defaults when optional values are not provided", () => {
+        const config = getPieChartConfig(["A", "B"], [1, 2]);
+        expect(config.type).toBe("pie");
+        if (config.type === "pie") {
+          expect(config.options.title).toBeUndefined();
+          expect(config.options.legendIconComponents).toBeUndefined();
+          expect(config.options.shrinkToLegend).toBeUndefined();
+          expect(config.options.colors).toHaveLength(8);
+          expect(config.options.width).toBe(300);
+        }
+      });
+    });
+
+    describe("getScatterChartConfig", () => {
+      it("creates correct structure and propagates options", () => {
+        const config = getScatterChartConfig([], {
+          chartId: "scatter1",
+          title: "My Scatter",
+          width: 500,
+          xLabel: "X",
+          yLabel: "Y"
+        });
+        expect(config.type).toBe("scatter");
+        if (config.type === "scatter") {
+          expect(config.options.title).toBe("My Scatter");
+          expect(config.options.xLabel).toBe("X");
+          expect(config.options.yLabel).toBe("Y");
+          expect(config.options.width).toBe(500);
+          expect(config.options.chartId).toBe("scatter1");
+        }
+      });
+
+      it("applies defaults when options are omitted", () => {
+        const config = getScatterChartConfig([]);
+        expect(config.type).toBe("scatter");
+        if (config.type === "scatter") {
+          expect(config.height).toBe(300);
+          expect(config.options.title).toBeUndefined();
+          expect(config.options.xLabel).toBeUndefined();
+          expect(config.options.yLabel).toBeUndefined();
+          expect(config.options.width).toBeUndefined();
+          expect(config.options.chartId).toBeUndefined();
         }
       });
     });

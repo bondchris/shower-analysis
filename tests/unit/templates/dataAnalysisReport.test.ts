@@ -202,7 +202,7 @@ describe("buildDataAnalysisReport", () => {
     expect(sectionTitles).toContain("Duration");
     expect(sectionTitles).toContain("Device Model");
     expect(sectionTitles).toContain("Floor Area");
-    expect(sectionTitles).toContain("Ambient Intensity");
+    expect(sectionTitles).toContain("Average Ambient Intensity");
     expect(sectionTitles).toContain("Capture Errors");
     expect(sectionTitles).toContain("Feature Prevalence");
     expect(sectionTitles).toContain("Object Distribution");

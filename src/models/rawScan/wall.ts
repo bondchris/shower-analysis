@@ -143,11 +143,6 @@ export class Wall extends Surface {
         if (minTopY !== Number.POSITIVE_INFINITY) {
           return minTopY - minY;
         }
-        // Fallback: if all points are at the same Y, return the full span
-        const heightSpan = maxY - minY;
-        if (heightSpan > MIN_HEIGHT_VALUE) {
-          return heightSpan;
-        }
       }
       return null;
     }

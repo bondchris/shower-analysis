@@ -81,5 +81,33 @@ describe("Surface (Abstract)", () => {
       const surface = new TestSurface(data);
       expect(surface.area).toBe(0);
     });
+
+    it("should skip points with insufficient length in polygonCorners", () => {
+      const data: SurfaceData = {
+        ...BASE_DATA,
+        polygonCorners: [
+          [0, 0, 0],
+          [10, 0, 0],
+          [10, 10] // Length 2 < 3
+        ]
+      };
+      const surface = new TestSurface(data);
+      // It will only process segments where both points have length >= 3
+      // Here: [0,0,0]-[10,0,0] is processed.
+      // [10,0,0]-[10,10] is skipped.
+      // [10,10]-[0,0,0] is skipped.
+      // area += 0*0 - 10*0 = 0.
+      expect(surface.area).toBe(0);
+    });
+
+    it("should return 0 if dimensions has undefined values", () => {
+      const data = {
+        ...BASE_DATA,
+        dimensions: [undefined, 10, 0],
+        polygonCorners: []
+      } as unknown as SurfaceData;
+      const surface = new TestSurface(data);
+      expect(surface.area).toBe(0);
+    });
   });
 });

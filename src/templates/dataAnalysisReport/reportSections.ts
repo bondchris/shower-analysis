@@ -78,25 +78,25 @@ export function buildReportSections(
 
   chartSections.push({
     data: charts.ambient,
-    title: "Ambient Intensity",
+    title: "Average Ambient Intensity",
     type: "chart"
   });
 
   chartSections.push({
     data: charts.temperature,
-    title: "Color Temperature",
+    title: "Average Color Temperature",
     type: "chart"
   });
 
   chartSections.push({
     data: charts.iso,
-    title: "ISO Speed",
+    title: "Average ISO Speed",
     type: "chart"
   });
 
   chartSections.push({
     data: charts.brightness,
-    title: "Brightness Value",
+    title: "Average Brightness Value",
     type: "chart"
   });
 

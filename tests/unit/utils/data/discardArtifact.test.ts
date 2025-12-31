@@ -99,11 +99,46 @@ describe("discardArtifact", () => {
     expect(result).toBeNull();
   });
 
-  it("handles existing destination by appending timestamp", () => {
-    // Create existing destination
+  it("removes source when destination already exists instead of creating duplicates", () => {
+    // Create existing destination with some content
     const existingDest = path.join(discardedDir, "env", "artifact-id");
     fs.mkdirSync(existingDest, { recursive: true });
+    fs.writeFileSync(path.join(existingDest, "meta.json"), '{"existing": true}');
 
+    const result = discardArtifact(artifactDir, {
+      artifactsRoot: artifactsDir,
+      dataRoot: dataDir
+    });
+
+    // Should return the existing destination path
+    expect(result).toBe(existingDest);
+    // Source should be removed
+    expect(fs.existsSync(artifactDir)).toBe(false);
+    // Existing destination should still be there
+    expect(fs.existsSync(existingDest)).toBe(true);
+    // No timestamped duplicates should exist
+    const envContents = fs.readdirSync(path.join(discardedDir, "env"));
+    expect(envContents).toEqual(["artifact-id"]);
+  });
+
+  it("writes discard-reason.txt when reason is provided", () => {
+    const result = discardArtifact(artifactDir, {
+      artifactsRoot: artifactsDir,
+      dataRoot: dataDir,
+      reason: "Video too short (5.00s)"
+    });
+
+    expect(result).not.toBeNull();
+    if (result !== null) {
+      const reasonPath = path.join(result, "discard-reason.txt");
+      expect(fs.existsSync(reasonPath)).toBe(true);
+      const content = fs.readFileSync(reasonPath, "utf-8");
+      expect(content).toContain("Reason: Video too short (5.00s)");
+      expect(content).toContain("Discarded:");
+    }
+  });
+
+  it("does not write discard-reason.txt when reason is not provided", () => {
     const result = discardArtifact(artifactDir, {
       artifactsRoot: artifactsDir,
       dataRoot: dataDir
@@ -111,26 +146,37 @@ describe("discardArtifact", () => {
 
     expect(result).not.toBeNull();
     if (result !== null) {
-      expect(result).not.toBe(existingDest);
-      if (result.includes("artifact-id-")) {
-        expect(fs.existsSync(result)).toBe(true);
-      }
+      const reasonPath = path.join(result, "discard-reason.txt");
+      expect(fs.existsSync(reasonPath)).toBe(false);
     }
   });
 
   it("handles errors gracefully and returns null", () => {
+    // Track which paths have been checked for existence
+    const checkedPaths = new Set<string>();
+
     const mockFs = {
-      existsSync: vi.fn().mockReturnValue(true),
+      existsSync: vi.fn((p: fs.PathLike) => {
+        const pathStr = p.toString();
+        checkedPaths.add(pathStr);
+        // Return false for destination so renameSync is called
+        if (pathStr.includes("discarded-artifacts") && pathStr.includes("artifact-id")) {
+          return false;
+        }
+        return true;
+      }),
       mkdirSync: vi.fn(),
       renameSync: vi.fn().mockImplementation(() => {
         throw new Error("Permission denied");
-      })
+      }),
+      rmSync: vi.fn(),
+      writeFileSync: vi.fn()
     };
 
     const result = discardArtifact(artifactDir, {
       artifactsRoot: artifactsDir,
       dataRoot: dataDir,
-      fsImpl: mockFs
+      fsImpl: mockFs as Pick<typeof fs, "existsSync" | "mkdirSync" | "renameSync" | "rmSync" | "writeFileSync">
     });
 
     expect(result).toBeNull();
@@ -178,13 +224,15 @@ describe("discardArtifact", () => {
         return true;
       }),
       mkdirSync: vi.fn(),
-      renameSync: vi.fn()
+      renameSync: vi.fn(),
+      rmSync: vi.fn(),
+      writeFileSync: vi.fn()
     };
 
     discardArtifact(artifactDir, {
       artifactsRoot: artifactsDir,
       dataRoot: dataDir,
-      fsImpl: mockFs as Pick<typeof fs, "existsSync" | "mkdirSync" | "renameSync">
+      fsImpl: mockFs as Pick<typeof fs, "existsSync" | "mkdirSync" | "renameSync" | "rmSync" | "writeFileSync">
     });
 
     expect(mockFs.existsSync).toHaveBeenCalled();

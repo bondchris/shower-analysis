@@ -56,7 +56,10 @@ export interface CleanDataOptions {
   minDuration?: number;
   now?: () => Date;
   logger?: (msg: string) => void;
-  fs?: Pick<typeof fs, "existsSync" | "readdirSync" | "statSync" | "renameSync" | "mkdirSync">;
+  fs?: Pick<
+    typeof fs,
+    "existsSync" | "readdirSync" | "statSync" | "renameSync" | "mkdirSync" | "rmSync" | "writeFileSync"
+  >;
   ffprobe?: typeof ffmpeg.ffprobe;
 }
 
@@ -345,7 +348,7 @@ export async function runCleanPhase(options?: CleanPhaseOptions): Promise<CleanP
             stats.quarantinedCount++;
             log("  -> Quarantined folder.");
           } else {
-            const discardedPath = discardArtifact(dir, { artifactsRoot, dataRoot, fsImpl });
+            const discardedPath = discardArtifact(dir, { artifactsRoot, dataRoot, fsImpl, reason });
             if (discardedPath !== null) {
               stats.removedCount++;
               log("  -> Moved to discarded-artifacts folder.");
@@ -502,7 +505,8 @@ export async function processArtifact(
         try {
           const artifactsRoot = path.resolve(dir, "..", "..");
           const dataRoot = path.dirname(artifactsRoot);
-          const discardedPath = discardArtifact(dir, { artifactsRoot, dataRoot });
+          const filterReason = `Not a bathroom (Gemini ${modelName})`;
+          const discardedPath = discardArtifact(dir, { artifactsRoot, dataRoot, reason: filterReason });
           if (discardedPath !== null) {
             badScans[artifactId] = createBadScanEntry();
             stats.removed++;
@@ -767,10 +771,11 @@ export async function runDuplicatesPhase(options?: DuplicatesPhaseOptions): Prom
           stats.newDuplicateCount++;
         }
 
+        const duplicateReason = `Duplicate video (hash ${hash}) matches ${existingDuplicateIds.join(", ")}`;
         const badScanEntry: (typeof badScans)[string] = {
           date: new Date().toISOString(),
           environment,
-          reason: `Duplicate video (hash ${hash}) matches ${existingDuplicateIds.join(", ")}`
+          reason: duplicateReason
         };
         if (scanDate !== undefined) {
           badScanEntry.scanDate = scanDate;
@@ -782,7 +787,7 @@ export async function runDuplicatesPhase(options?: DuplicatesPhaseOptions): Prom
           try {
             const artifactsRoot = path.resolve(dir, "..", "..");
             const dataRoot = path.dirname(artifactsRoot);
-            const discardedPath = discardArtifact(dir, { artifactsRoot, dataRoot });
+            const discardedPath = discardArtifact(dir, { artifactsRoot, dataRoot, reason: duplicateReason });
             if (discardedPath === null) {
               throw new Error("Failed to move artifact to discarded-artifacts");
             }

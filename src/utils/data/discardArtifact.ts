@@ -4,16 +4,18 @@ import * as path from "path";
 interface DiscardOptions {
   dataRoot?: string;
   artifactsRoot?: string;
-  fsImpl?: Pick<typeof fs, "existsSync" | "mkdirSync" | "renameSync">;
+  reason?: string;
+  fsImpl?: Pick<typeof fs, "existsSync" | "mkdirSync" | "renameSync" | "rmSync" | "writeFileSync">;
 }
 
 /**
  * Moves an artifact directory to the discarded-artifacts folder, preserving the
  * relative path under `data/artifacts` (e.g., env/uuid -> env/uuid).
- * Creates intermediate directories as needed.
+ * Creates intermediate directories as needed. Optionally writes a discard-reason.txt
+ * file explaining why the artifact was discarded.
  *
  * @param artifactDir - Full path to the artifact directory to discard
- * @param options - Optional overrides for roots and filesystem impl
+ * @param options - Optional overrides for roots, filesystem impl, and discard reason
  * @returns Destination path or null on failure/safety violation
  */
 export function discardArtifact(artifactDir: string, options?: DiscardOptions): string | null {
@@ -43,17 +45,23 @@ export function discardArtifact(artifactDir: string, options?: DiscardOptions): 
       fsModule.mkdirSync(destDir, { recursive: true });
     }
 
-    // If destination already exists, append a timestamp to avoid collision
-    let finalDest = destPath;
+    // If destination already exists, remove the source since we already have a discarded copy.
+    // Creating timestamped duplicates wastes disk space with identical data.
     if (fsModule.existsSync(destPath)) {
-      const timestamp = Date.now();
-      const baseName = path.basename(destPath);
-      finalDest = path.join(destDir, `${baseName}-${timestamp.toString()}`);
+      fsModule.rmSync(artifactDir, { force: true, recursive: true });
+    } else {
+      fsModule.renameSync(artifactDir, destPath);
     }
 
-    fsModule.renameSync(artifactDir, finalDest);
+    // Write the discard reason file if a reason was provided
+    if (options?.reason !== undefined && options.reason !== "") {
+      const reasonPath = path.join(destPath, "discard-reason.txt");
+      const timestamp = new Date().toISOString();
+      const content = `Discarded: ${timestamp}\nReason: ${options.reason}\n`;
+      fsModule.writeFileSync(reasonPath, content);
+    }
 
-    return finalDest;
+    return destPath;
   } catch {
     return null;
   }

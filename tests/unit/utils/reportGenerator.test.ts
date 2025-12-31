@@ -110,11 +110,48 @@ describe("generatePdfReport", () => {
     expect(fs.mkdirSync).toHaveBeenCalledWith(expect.stringContaining("reports"), { recursive: true });
   });
 
+  it("exercises ensureSsrDom logic and measurement element", async () => {
+    // Calling generatePdfReport will trigger ensureSsrDom
+    await generatePdfReport({} as unknown as ReportData, "x.pdf");
+
+    // After ensureSsrDom, global document should be defined
+    const doc = globalThis.document;
+    expect(doc).toBeDefined();
+
+    // Test createElementNS for text
+    interface SsrSvgTextElement extends Element {
+      getComputedTextLength: () => number;
+    }
+    const textEl = doc.createElementNS("http://www.w3.org/2000/svg", "text") as unknown as SsrSvgTextElement;
+    expect(textEl).toBeDefined();
+    expect(textEl.getComputedTextLength).toBeDefined();
+
+    textEl.textContent = "Hello";
+    // averageCharWidthPx = 6. "Hello" length = 5. 5 * 6 = 30.
+    expect(textEl.getComputedTextLength()).toBe(30);
+
+    // Test createElementNS for other tags (svg/g)
+    const svgEl = doc.createElementNS("http://www.w3.org/2000/svg", "svg") as unknown as SVGSVGElement;
+    expect(svgEl).toBeDefined();
+    expect(svgEl.appendChild).toBeDefined();
+
+    // Test appendChild behavior
+    const anotherTextEl = {
+      getComputedTextLength: () => 12,
+      textContent: "Hi"
+    } as unknown as SsrSvgTextElement;
+    svgEl.appendChild(anotherTextEl);
+
+    // After appendChild, getElementById for measurement ID should return the appended element
+    const measurementId = "__react_svg_text_measurement_id";
+    expect(doc.getElementById(measurementId)).toBe(anotherTextEl as unknown as HTMLElement);
+  });
+
   it("waits for charts to render (predicate coverage)", async () => {
     await generatePdfReport({} as unknown as ReportData, "x.pdf");
     expect(page.waitForFunction).toHaveBeenCalled();
     // Get the predicate function passed to waitForFunction
-    const predicate = page.waitForFunction.mock.calls[0]?.[0] as () => boolean;
+    const predicate = page.waitForFunction.mock.calls[0]?.[0] as unknown as () => boolean;
 
     // Setup fake window for the predicate to run against
     const fakeWindow = { _chartsRendered: true };

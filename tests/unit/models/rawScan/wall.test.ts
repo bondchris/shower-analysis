@@ -107,6 +107,7 @@ describe("Wall", () => {
         [0, 10, 0],
         [10, 10, 0],
         [10, 5, 0],
+        [10, 5, 0], // Corrected duplicate
         [5, 5, 0], // Notch corner
         [5, 0, 0]
       ];

@@ -714,41 +714,38 @@ describe("buildSyncReport", () => {
       expect(data).not.toContain("and");
     });
 
-    it("should handle case where newErrors or knownErrors are empty (line 587)", () => {
+    it("should handle error reasons without status (line 668)", () => {
       const stats: SyncStats[] = [
-        {
-          arDataHistory: {},
-          arDataSize: 0,
+        createStats({
           env: "Production",
-          errors: [],
-          failed: 0,
-          found: 10,
-          initialLayoutHistory: {},
-          initialLayoutSize: 0,
-          knownFailures: 0,
-          new: 0,
-          newArDataSize: 0,
-          newFailures: 0,
-          newInitialLayoutSize: 0,
-          newPointCloudSize: 0,
-          newRawScanSize: 0,
-          newVideoSize: 0,
-          pointCloudHistory: {},
-          pointCloudSize: 0,
-          processedIds: new Set(),
-          rawScanHistory: {},
-          rawScanSize: 0,
-          skipped: 0,
-          videoHistory: {},
-          videoSize: 0
-        }
+          errors: [{ id: "scan1", reason: "Video download failed" }],
+          failed: 1,
+          found: 1
+        })
       ];
-
       const report = buildSyncReport(stats, {});
+      const listSection = report.sections.find((s) => s.title === "New Inaccessible");
+      const data = (listSection?.data as string[]).join(" ");
+      expect(data).toContain("Download failed (unknown) for Video");
+    });
 
-      // Should not have error sections when no errors
-      const errorSection = report.sections.find((s) => s.title === "Inaccessible Artifacts");
-      expect(errorSection).toBeUndefined();
+    it("should skip environment if no new or known errors remain (line 627)", () => {
+      const stats: SyncStats[] = [
+        createStats({
+          env: "Production",
+          errors: [{ id: "scan1", reason: "initialLayout download failed (404)" }],
+          failed: 1,
+          found: 1,
+          knownFailures: 1
+        })
+      ];
+      // known1 is known failure, and it's initialLayout, so it's filtered out
+      const failures: SyncFailureDatabase = {
+        scan1: { date: "2023-01-01", environment: "Production", reasons: ["initialLayout download failed (404)"] }
+      };
+      const report = buildSyncReport(stats, failures);
+      // Environment header should NOT exist because all errors were filtered
+      expect(report.sections.some((s) => s.title === "Environment: Production")).toBe(false);
     });
   });
 });

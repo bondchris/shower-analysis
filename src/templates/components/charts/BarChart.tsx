@@ -436,6 +436,28 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
 
           <AxisBottom
             scale={xScaleBand}
+            tickComponent={({ formattedValue, ...tickProps }) => {
+              const lines = (formattedValue ?? "").split("\n");
+              const lineHeight = 12;
+              const firstLineIndex = 0;
+              const singleLineThreshold = 1;
+              if (lines.length <= singleLineThreshold) {
+                return (
+                  <text {...tickProps} dy="0.71em" fill="#374151" fontSize={10} textAnchor="middle">
+                    {formattedValue}
+                  </text>
+                );
+              }
+              return (
+                <text {...tickProps} fill="#374151" fontSize={10} textAnchor="middle">
+                  {lines.map((line, idx) => (
+                    <tspan key={idx} x={tickProps.x} dy={idx === firstLineIndex ? "0.71em" : lineHeight}>
+                      {line}
+                    </tspan>
+                  ))}
+                </text>
+              );
+            }}
             tickLabelProps={() => ({
               dy: "0.25em",
               fill: "#374151",

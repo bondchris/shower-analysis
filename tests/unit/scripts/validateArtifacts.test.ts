@@ -338,29 +338,17 @@ describe("validateArtifacts script", () => {
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch"));
     });
 
-    it("should process multiple pages with concurrency", async () => {
-      mockFetchScanArtifacts
-        .mockResolvedValueOnce({
-          data: [{ arData: "a", id: "1", projectId: "p1", rawScan: "r", scanDate: "2025-01-01T10:00:00Z", video: "v" }],
-          pagination: { lastPage: 4, total: 4 }
-        })
-        .mockResolvedValueOnce({
-          data: [{ arData: "a", id: "2", projectId: "p1", rawScan: "r", scanDate: "2025-01-02T10:00:00Z", video: "v" }],
-          pagination: { lastPage: 4, total: 4 }
-        })
-        .mockResolvedValueOnce({
-          data: [{ arData: "a", id: "3", projectId: "p1", rawScan: "r", scanDate: "2025-01-03T10:00:00Z", video: "v" }],
-          pagination: { lastPage: 4, total: 4 }
-        })
-        .mockResolvedValueOnce({
-          data: [{ arData: "a", id: "4", projectId: "p1", rawScan: "r", scanDate: "2025-01-04T10:00:00Z", video: "v" }],
-          pagination: { lastPage: 4, total: 4 }
-        });
+    it("should process multiple pages with concurrency and hit race branch", async () => {
+      const TOTAL_PAGES = 10;
+      mockFetchScanArtifacts.mockResolvedValue({
+        data: [{ arData: "a", id: "1", projectId: "p1", rawScan: "r", scanDate: "2025-01-01T10:00:00Z", video: "v" }],
+        pagination: { lastPage: TOTAL_PAGES, total: TOTAL_PAGES }
+      });
 
       const stats = await validateEnvironment({ domain: "test.com", name: "Test Env" });
 
-      expect(stats.processed).toBe(4);
-      expect(mockFetchScanArtifacts).toHaveBeenCalledTimes(4);
+      expect(stats.processed).toBe(TOTAL_PAGES);
+      expect(mockFetchScanArtifacts).toHaveBeenCalledTimes(TOTAL_PAGES);
     });
   });
 

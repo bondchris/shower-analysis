@@ -2,6 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2025-12-31
+
+### [v0.60.0] Comprehensive AR Data Metrics, Capture Rate Analysis, and Color-Accurate Charts
+
+- **Extended AR Data Metrics**: Track min/max/avg for ambient intensity, color temperature, ISO,
+  and brightness values. Previously only averages were captured; now minimum and maximum values are
+  extracted and visualized in dedicated KDE charts.
+- **AR Data Capture Rate**: Calculate sampling framerate from AR data timestamps (FPS) showing how
+  frequently the device captured AR frames during scanning.
+- **Dropped Frames Detection**: Detect dropped AR frames by identifying intervals that exceed 1.5×
+  the median interval. Visualized with a pie chart showing percentage of scans with dropped frames
+  and a trend chart showing dropped frame rates over time.
+- **Timezone Extraction**: Extract timezone (UTC offset) from EXIF `OffsetTime` field, displayed as
+  a bar chart with abbreviated timezone names (e.g., "-07:00 MT", "+05:30 IST").
+- **Time of Day Analysis**: Added a "Time of Day (Hour)" bar chart showing when scans were taken,
+  extracted from EXIF `DateTimeOriginal` field with 24 hour buckets (00-23).
+- **Color-Accurate Chart Gradients**: Added `kelvinToRgb.ts` and `brightnessToRgb.ts` utilities that
+  convert color temperature (Kelvin) and brightness values (EV) to accurate hex colors. Charts now
+  display scientifically accurate gradients: warm orange tones for low color temperatures, cool blue
+  for high temperatures, and grayscale gradients for brightness values.
+- **AR Data Report Expansion**: The `ardata-analysis.pdf` report now includes 19 chart sections:
+  - Device Model, Focal Length & Aperture
+  - Timezone (UTC Offset), Time of Day (Hour)
+  - AR Data Capture Rate (FPS), Dropped Frames pie chart, Dropped Frames Over Time trend
+  - Ambient Intensity: Average, Minimum, Maximum KDE charts
+  - Color Temperature: Average, Minimum, Maximum KDE charts with Kelvin-accurate colors
+  - ISO Speed: Average, Minimum, Maximum KDE charts
+  - Brightness Value: Average, Minimum, Maximum KDE charts with EV-accurate grayscale
+- **Sync File Types Corrected**: Changed `pointCloud.json` to `pointCloud.ply` and
+  `initialLayout.json` to `initialLayout.png` to match actual file formats.
+- **Discard Reason Files Enhanced**: All discard operations (clean, filter, duplicates, sync
+  failures) now write a `discard-reason.txt` file with timestamp and reason.
+- **Duplicate Artifact Handling**: When discarding an artifact that already exists in
+  `discarded-artifacts/`, the source is now removed instead of creating timestamped duplicate
+  folders, reducing disk space waste.
+- **Multi-line Bar Chart Labels**: BarChart component now supports multi-line tick labels using
+  newline characters (e.g., for timezone offset with abbreviation).
+- **Chart Tick Scaling**: Line chart x-axis ticks now scale based on chart width, preventing
+  overcrowding on narrower charts.
+- **Wall Height Calculation Fix**: Removed fallback height span calculation in Wall model that could
+  produce incorrect values when all polygon points were at the same Y level.
+- **Test Coverage**: Expanded test coverage for AR data metadata extraction, chart utilities,
+  discard artifact handling, sync report generation, and validation scripts.
+
 ## 2025-12-30
 
 ### [v0.59.0] Split Data Analysis into Three Separate Reports

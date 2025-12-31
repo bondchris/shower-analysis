@@ -19,7 +19,7 @@ import { downloadFile, downloadJsonFile } from "../utils/sync/downloadHelpers";
  * - Downloads artifacts for configured environments.
  * - Skips artifacts already marked as "Bad Scans".
  * - Ensures valid synced artifacts have `video.mp4`, `arData.json`, and `rawScan.json`.
- * - Optionally downloads `pointCloud.json` and `initialLayout.json` if present in the artifact.
+ * - Optionally downloads `pointCloud.ply` and `initialLayout.png` if present in the artifact.
  * - Generates a sync report PDF.
  */
 
@@ -176,7 +176,7 @@ export async function processArtifact(
     // Download optional files if present
     if (typeof pointCloud === "string" && pointCloud.length > ZERO) {
       downloadPromises.push(
-        downloadJsonFile(pointCloud, path.join(artifactDir, "pointCloud.json"), "pointCloud").then((err) => {
+        downloadFile(pointCloud, path.join(artifactDir, "pointCloud.ply"), "pointCloud").then((err) => {
           if (err !== null) {
             const reason = typeof err === "string" ? err : "pointCloud download failed (unknown error)";
             result.errors.push({ date: artifact.scanDate, id: artifact.id, reason });
@@ -188,7 +188,7 @@ export async function processArtifact(
 
     if (typeof initialLayout === "string" && initialLayout.length > ZERO) {
       downloadPromises.push(
-        downloadJsonFile(initialLayout, path.join(artifactDir, "initialLayout.json"), "initialLayout").then((err) => {
+        downloadFile(initialLayout, path.join(artifactDir, "initialLayout.png"), "initialLayout").then((err) => {
           if (err !== null) {
             const reason = typeof err === "string" ? err : "initialLayout download failed (unknown error)";
             result.errors.push({ date: artifact.scanDate, id: artifact.id, reason });
@@ -212,7 +212,9 @@ export async function processArtifact(
       try {
         const dataRoot = path.resolve(dataDir, "..", "..");
         const artifactsRoot = path.join(dataRoot, "artifacts");
-        const discardedPath = discardArtifact(artifactDir, { artifactsRoot, dataRoot });
+        const errorReasons = result.errors.map((e) => e.reason).join("; ");
+        const syncReason = `Sync failed: ${errorReasons || "required file download failed"}`;
+        const discardedPath = discardArtifact(artifactDir, { artifactsRoot, dataRoot, reason: syncReason });
         if (discardedPath === null) {
           throw new Error("Failed to move artifact to discarded-artifacts");
         }
@@ -234,13 +236,13 @@ export async function processArtifact(
         result.arDataSize = arDataStats.size;
 
         // Track optional file sizes if they exist
-        const pointCloudPath = path.join(artifactDir, "pointCloud.json");
+        const pointCloudPath = path.join(artifactDir, "pointCloud.ply");
         if (fs.existsSync(pointCloudPath)) {
           const pointCloudStats = fs.statSync(pointCloudPath);
           result.pointCloudSize = pointCloudStats.size;
         }
 
-        const initialLayoutPath = path.join(artifactDir, "initialLayout.json");
+        const initialLayoutPath = path.join(artifactDir, "initialLayout.png");
         if (fs.existsSync(initialLayoutPath)) {
           const initialLayoutStats = fs.statSync(initialLayoutPath);
           result.initialLayoutSize = initialLayoutStats.size;

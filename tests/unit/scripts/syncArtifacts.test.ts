@@ -495,13 +495,17 @@ describe("syncArtifacts", () => {
     it("records default error message when pointCloud download returns non-string error", async () => {
       const artifactWithPointCloud = {
         ...artifact,
-        pointCloud: "https://example.com/pointCloud.json"
+        pointCloud: "https://example.com/pointCloud.ply"
       };
-      mockDownloadJsonFile.mockImplementation(async (_url: string, _outPath: string, type: string) => {
+      mockDownloadFile.mockImplementation(async (url: string, _outPath: string, label?: string) => {
         await Promise.resolve();
-        if (type === "pointCloud") {
+        if (label === "pointCloud") {
           return { error: "object error" } as unknown as string;
         }
+        if (url === "fail") {
+          return "download failed";
+        }
+        fs.writeFileSync(_outPath, "mock content");
         return null;
       });
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
@@ -520,13 +524,17 @@ describe("syncArtifacts", () => {
     it("records default error message when initialLayout download returns non-string error", async () => {
       const artifactWithInitialLayout = {
         ...artifact,
-        initialLayout: "https://example.com/initialLayout.json"
+        initialLayout: "https://example.com/initialLayout.png"
       };
-      mockDownloadJsonFile.mockImplementation(async (_url: string, _outPath: string, type: string) => {
+      mockDownloadFile.mockImplementation(async (url: string, _outPath: string, label?: string) => {
         await Promise.resolve();
-        if (type === "initialLayout") {
+        if (label === "initialLayout") {
           return { error: "object error" } as unknown as string;
         }
+        if (url === "fail") {
+          return "download failed";
+        }
+        fs.writeFileSync(_outPath, "mock content");
         return null;
       });
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
@@ -563,10 +571,10 @@ describe("syncArtifacts", () => {
     });
 
     // 11a) Optional pointCloud download
-    it("downloads pointCloud.json when pointCloud URL is present", async () => {
+    it("downloads pointCloud.ply when pointCloud URL is present", async () => {
       const artifactWithPointCloud = {
         ...artifact,
-        pointCloud: "https://example.com/pointCloud.json"
+        pointCloud: "https://example.com/pointCloud.ply"
       };
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
         data: [artifactWithPointCloud] as unknown as ArtifactResponse[],
@@ -575,19 +583,19 @@ describe("syncArtifacts", () => {
 
       await syncEnvironment(env);
 
-      expect(mockDownloadJsonFile).toHaveBeenCalledWith(
-        "https://example.com/pointCloud.json",
-        path.join(getArtifactDir("123"), "pointCloud.json"),
+      expect(mockDownloadFile).toHaveBeenCalledWith(
+        "https://example.com/pointCloud.ply",
+        path.join(getArtifactDir("123"), "pointCloud.ply"),
         "pointCloud"
       );
-      expect(fs.existsSync(path.join(getArtifactDir("123"), "pointCloud.json"))).toBe(true);
+      expect(fs.existsSync(path.join(getArtifactDir("123"), "pointCloud.ply"))).toBe(true);
     });
 
     // 11b) Optional initialLayout download
-    it("downloads initialLayout.json when initialLayout URL is present", async () => {
+    it("downloads initialLayout.png when initialLayout URL is present", async () => {
       const artifactWithInitialLayout = {
         ...artifact,
-        initialLayout: "https://example.com/initialLayout.json"
+        initialLayout: "https://example.com/initialLayout.png"
       };
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
         data: [artifactWithInitialLayout] as unknown as ArtifactResponse[],
@@ -596,20 +604,20 @@ describe("syncArtifacts", () => {
 
       await syncEnvironment(env);
 
-      expect(mockDownloadJsonFile).toHaveBeenCalledWith(
-        "https://example.com/initialLayout.json",
-        path.join(getArtifactDir("123"), "initialLayout.json"),
+      expect(mockDownloadFile).toHaveBeenCalledWith(
+        "https://example.com/initialLayout.png",
+        path.join(getArtifactDir("123"), "initialLayout.png"),
         "initialLayout"
       );
-      expect(fs.existsSync(path.join(getArtifactDir("123"), "initialLayout.json"))).toBe(true);
+      expect(fs.existsSync(path.join(getArtifactDir("123"), "initialLayout.png"))).toBe(true);
     });
 
     // 11c) Both optional files present
     it("downloads both pointCloud and initialLayout when both are present", async () => {
       const artifactWithBoth = {
         ...artifact,
-        initialLayout: "https://example.com/initialLayout.json",
-        pointCloud: "https://example.com/pointCloud.json"
+        initialLayout: "https://example.com/initialLayout.png",
+        pointCloud: "https://example.com/pointCloud.ply"
       };
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
         data: [artifactWithBoth] as unknown as ArtifactResponse[],
@@ -618,32 +626,36 @@ describe("syncArtifacts", () => {
 
       await syncEnvironment(env);
 
-      expect(mockDownloadJsonFile).toHaveBeenCalledWith(
-        "https://example.com/pointCloud.json",
-        path.join(getArtifactDir("123"), "pointCloud.json"),
+      expect(mockDownloadFile).toHaveBeenCalledWith(
+        "https://example.com/pointCloud.ply",
+        path.join(getArtifactDir("123"), "pointCloud.ply"),
         "pointCloud"
       );
-      expect(mockDownloadJsonFile).toHaveBeenCalledWith(
-        "https://example.com/initialLayout.json",
-        path.join(getArtifactDir("123"), "initialLayout.json"),
+      expect(mockDownloadFile).toHaveBeenCalledWith(
+        "https://example.com/initialLayout.png",
+        path.join(getArtifactDir("123"), "initialLayout.png"),
         "initialLayout"
       );
-      expect(fs.existsSync(path.join(getArtifactDir("123"), "pointCloud.json"))).toBe(true);
-      expect(fs.existsSync(path.join(getArtifactDir("123"), "initialLayout.json"))).toBe(true);
+      expect(fs.existsSync(path.join(getArtifactDir("123"), "pointCloud.ply"))).toBe(true);
+      expect(fs.existsSync(path.join(getArtifactDir("123"), "initialLayout.png"))).toBe(true);
     });
 
     // 11d) pointCloud download failure (should not fail artifact)
     it("records error but does not fail artifact when pointCloud download fails", async () => {
       const artifactWithPointCloud = {
         ...artifact,
-        pointCloud: "https://example.com/pointCloud.json"
+        pointCloud: "https://example.com/pointCloud.ply"
       };
-      mockDownloadJsonFile.mockImplementation(async (_url: string, _outPath: string, type: string) => {
+      mockDownloadFile.mockImplementation(async (url: string, outPath: string, label?: string) => {
         await Promise.resolve();
-        if (type === "pointCloud") {
+        if (label === "pointCloud") {
           return "pointCloud download failed";
         }
-        return null; // Other downloads succeed
+        if (url === "fail") {
+          return "download failed";
+        }
+        fs.writeFileSync(outPath, "mock content");
+        return null;
       });
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
         data: [artifactWithPointCloud] as unknown as ArtifactResponse[],
@@ -663,14 +675,18 @@ describe("syncArtifacts", () => {
     it("records error but does not fail artifact when initialLayout download fails", async () => {
       const artifactWithInitialLayout = {
         ...artifact,
-        initialLayout: "https://example.com/initialLayout.json"
+        initialLayout: "https://example.com/initialLayout.png"
       };
-      mockDownloadJsonFile.mockImplementation(async (_url: string, _outPath: string, type: string) => {
+      mockDownloadFile.mockImplementation(async (url: string, outPath: string, label?: string) => {
         await Promise.resolve();
-        if (type === "initialLayout") {
+        if (label === "initialLayout") {
           return "initialLayout download failed";
         }
-        return null; // Other downloads succeed
+        if (url === "fail") {
+          return "download failed";
+        }
+        fs.writeFileSync(outPath, "mock content");
+        return null;
       });
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
         data: [artifactWithInitialLayout] as unknown as ArtifactResponse[],
@@ -692,7 +708,7 @@ describe("syncArtifacts", () => {
       const pointCloudSize = 5000;
       const artifactWithPointCloud = {
         ...artifact,
-        pointCloud: "https://example.com/pointCloud.json",
+        pointCloud: "https://example.com/pointCloud.ply",
         scanDate: scanDateValue
       };
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
@@ -700,10 +716,10 @@ describe("syncArtifacts", () => {
         pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
       });
 
-      // Create the pointCloud.json file with non-zero size
+      // Create the pointCloud.ply file with non-zero size
       const artifactDir = getArtifactDir("123");
       fs.mkdirSync(artifactDir, { recursive: true });
-      fs.writeFileSync(path.join(artifactDir, "pointCloud.json"), JSON.stringify({ data: "x".repeat(pointCloudSize) }));
+      fs.writeFileSync(path.join(artifactDir, "pointCloud.ply"), JSON.stringify({ data: "x".repeat(pointCloudSize) }));
 
       const stats = await syncEnvironment(env);
 
@@ -719,7 +735,7 @@ describe("syncArtifacts", () => {
       const initialLayoutSize = 3000;
       const artifactWithInitialLayout = {
         ...artifact,
-        initialLayout: "https://example.com/initialLayout.json",
+        initialLayout: "https://example.com/initialLayout.png",
         scanDate: scanDateValue
       };
       MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
@@ -727,11 +743,11 @@ describe("syncArtifacts", () => {
         pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
       });
 
-      // Create the initialLayout.json file with non-zero size
+      // Create the initialLayout.png file with non-zero size
       const artifactDir = getArtifactDir("123");
       fs.mkdirSync(artifactDir, { recursive: true });
       fs.writeFileSync(
-        path.join(artifactDir, "initialLayout.json"),
+        path.join(artifactDir, "initialLayout.png"),
         JSON.stringify({ layout: "y".repeat(initialLayoutSize) })
       );
 
@@ -788,11 +804,11 @@ describe("syncArtifacts", () => {
 
       await syncEnvironment(env);
 
-      const pointCloudCalls = (mockDownloadJsonFile as unknown as Mock).mock.calls.filter(
+      const pointCloudCalls = (mockDownloadFile as unknown as Mock).mock.calls.filter(
         (call) => call[2] === "pointCloud"
       );
       expect(pointCloudCalls).toHaveLength(0);
-      expect(fs.existsSync(path.join(getArtifactDir("123"), "pointCloud.json"))).toBe(false);
+      expect(fs.existsSync(path.join(getArtifactDir("123"), "pointCloud.ply"))).toBe(false);
     });
 
     // 11g) Skips pointCloud when empty string
@@ -808,11 +824,11 @@ describe("syncArtifacts", () => {
 
       await syncEnvironment(env);
 
-      const pointCloudCalls = (mockDownloadJsonFile as unknown as Mock).mock.calls.filter(
+      const pointCloudCalls = (mockDownloadFile as unknown as Mock).mock.calls.filter(
         (call) => call[2] === "pointCloud"
       );
       expect(pointCloudCalls).toHaveLength(0);
-      expect(fs.existsSync(path.join(getArtifactDir("123"), "pointCloud.json"))).toBe(false);
+      expect(fs.existsSync(path.join(getArtifactDir("123"), "pointCloud.ply"))).toBe(false);
     });
 
     // 11h) Skips initialLayout when null or empty
@@ -828,11 +844,11 @@ describe("syncArtifacts", () => {
 
       await syncEnvironment(env);
 
-      const initialLayoutCalls = (mockDownloadJsonFile as unknown as Mock).mock.calls.filter(
+      const initialLayoutCalls = (mockDownloadFile as unknown as Mock).mock.calls.filter(
         (call) => call[2] === "initialLayout"
       );
       expect(initialLayoutCalls).toHaveLength(0);
-      expect(fs.existsSync(path.join(getArtifactDir("123"), "initialLayout.json"))).toBe(false);
+      expect(fs.existsSync(path.join(getArtifactDir("123"), "initialLayout.png"))).toBe(false);
     });
 
     // 11i) Skips initialLayout when empty string
@@ -848,11 +864,11 @@ describe("syncArtifacts", () => {
 
       await syncEnvironment(env);
 
-      const initialLayoutCalls = (mockDownloadJsonFile as unknown as Mock).mock.calls.filter(
+      const initialLayoutCalls = (mockDownloadFile as unknown as Mock).mock.calls.filter(
         (call) => call[2] === "initialLayout"
       );
       expect(initialLayoutCalls).toHaveLength(0);
-      expect(fs.existsSync(path.join(getArtifactDir("123"), "initialLayout.json"))).toBe(false);
+      expect(fs.existsSync(path.join(getArtifactDir("123"), "initialLayout.png"))).toBe(false);
     });
 
     // 12) Initial Page Failure
