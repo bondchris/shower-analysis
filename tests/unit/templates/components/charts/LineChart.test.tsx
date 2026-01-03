@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 import React from "react";
+import * as visxScale from "@visx/scale";
 import { LineChart } from "../../../../../src/templates/components/charts/LineChart";
 import { LineChartConfig } from "../../../../../src/models/chart/lineChartConfig";
 
@@ -25,7 +26,15 @@ vi.mock("@visx/shape", () => ({
   LinePath: () => <path />
 }));
 vi.mock("@visx/text", () => ({ Text: () => <text /> }));
-vi.mock("@visx/axis", () => ({ AxisBottom: () => <g />, AxisLeft: () => <g />, AxisRight: () => <g /> }));
+let capturedTickValues: string[] | undefined;
+vi.mock("@visx/axis", () => ({
+  AxisBottom: (props: { tickValues?: string[] }) => {
+    capturedTickValues = props.tickValues;
+    return <g />;
+  },
+  AxisLeft: () => <g />,
+  AxisRight: () => <g />
+}));
 vi.mock("@visx/grid", () => ({ GridColumns: () => <g />, GridRows: () => <g /> }));
 
 describe("LineChart", () => {
@@ -33,6 +42,11 @@ describe("LineChart", () => {
   const DATA_A = 10;
   const DATA_B = 20;
   const DATA_C = 30;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    capturedTickValues = undefined;
+  });
 
   it("should render without crashing with minimal config", () => {
     const config: LineChartConfig = {
@@ -248,6 +262,171 @@ describe("LineChart", () => {
       },
       type: "line"
     };
+    const { container } = render(<LineChart config={config} />);
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("falls back to labels when first or last tick label is missing", () => {
+    const labelCount = 20;
+    const labels = new Array<string>(labelCount);
+    for (let i = 1; i < labelCount - 1; i++) {
+      labels[i] = `Label-${String(i)}`;
+    }
+    const dataValues = Array.from({ length: labelCount }, () => DATA_A);
+
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: dataValues, label: "Missing labels" }],
+      height: HEIGHT,
+      labels,
+      options: { title: "Missing labels", yLabel: "Y" },
+      type: "line"
+    };
+
+    render(<LineChart config={config} />);
+
+    expect(capturedTickValues).toEqual(labels);
+  });
+
+  it("renders reference line even when labels contain null gaps", () => {
+    const labels = new Array<string>(3);
+    labels[0] = "1";
+    labels[2] = "5";
+
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B, DATA_C], label: "Test" }],
+      height: HEIGHT,
+      labels,
+      options: {
+        title: "Reference with null label",
+        verticalReferenceLine: {
+          label: "Ref: 5",
+          value: 5
+        },
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+
+    const { container } = render(<LineChart config={config} />);
+
+    const line = container.querySelector("line[stroke-dasharray]");
+    expect(line).not.toBeNull();
+    expect(container.querySelector("text")?.textContent).toBe("Ref: 5");
+  });
+
+  it("falls back ticks and skips invalid scale outputs while still drawing the reference line", () => {
+    const realScaleLinear = visxScale.scaleLinear;
+    const linearSpy = vi
+      .spyOn(visxScale, "scaleLinear")
+      .mockImplementation((config: Parameters<typeof visxScale.scaleLinear>[0]) => {
+        const realScale = realScaleLinear(config);
+        const wrapped = ((value: number) => {
+          if (value === 999) {
+            return "bad-value" as unknown as number;
+          }
+          return realScale(value);
+        }) as unknown as ReturnType<typeof visxScale.scaleLinear>;
+        return wrapped;
+      });
+
+    const labels = new Array<string>(3);
+    labels[1] = "2";
+
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, 999, DATA_B], label: "Gappy labels" }],
+      height: HEIGHT,
+      labels,
+      options: {
+        title: "Reference with gaps",
+        verticalReferenceLine: { label: "Target", value: 2 },
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+
+    const { container } = render(<LineChart config={config} />);
+
+    expect(capturedTickValues).toEqual(labels);
+    const referenceLine = container.querySelector("line[stroke-dasharray]");
+    expect(referenceLine).not.toBeNull();
+
+    linearSpy.mockRestore();
+  });
+
+  it("skips points when scales return non-numeric values", () => {
+    const realScalePoint = visxScale.scalePoint;
+    const realScaleLinear = visxScale.scaleLinear;
+
+    const pointSpy = vi
+      .spyOn(visxScale, "scalePoint")
+      .mockImplementation((config: Parameters<typeof visxScale.scalePoint>[0]) => {
+        const realScale = realScalePoint(config);
+        const wrapped = ((value: string) => {
+          if (value === "bad-x") {
+            return "not-a-number" as unknown as number;
+          }
+          return realScale(value);
+        }) as unknown as ReturnType<typeof visxScale.scalePoint>;
+        return wrapped;
+      });
+
+    const linearSpy = vi
+      .spyOn(visxScale, "scaleLinear")
+      .mockImplementation((config: Parameters<typeof visxScale.scaleLinear>[0]) => {
+        const realScale = realScaleLinear(config);
+        const wrapped = ((value: number) => {
+          if (value === 999) {
+            return "not-a-number" as unknown as number;
+          }
+          return realScale(value);
+        }) as unknown as ReturnType<typeof visxScale.scaleLinear>;
+        return wrapped;
+      });
+
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, 999], label: "Bad points" }],
+      height: HEIGHT,
+      labels: ["bad-x", "good-x"],
+      options: { title: "Bad scale values", yLabel: "Y" },
+      type: "line"
+    };
+
+    const { container } = render(<LineChart config={config} />);
+    expect(container.querySelector("svg")).not.toBeNull();
+
+    pointSpy.mockRestore();
+    linearSpy.mockRestore();
+  });
+
+  it("skips labels that become undefined after numeric parsing when finding reference line", () => {
+    const labels = ["10", "20", "30"];
+    let accessCount = 0;
+    Object.defineProperty(labels, 1, {
+      configurable: true,
+      get() {
+        accessCount++;
+        if (accessCount === 1) {
+          return "20";
+        }
+        return undefined as unknown as string;
+      }
+    });
+
+    const config: LineChartConfig = {
+      datasets: [{ borderColor: "red", data: [DATA_A, DATA_B, DATA_C], label: "Test" }],
+      height: HEIGHT,
+      labels,
+      options: {
+        title: "Test Chart",
+        verticalReferenceLine: {
+          label: "Ref",
+          value: 20
+        },
+        yLabel: "Y"
+      },
+      type: "line"
+    };
+
     const { container } = render(<LineChart config={config} />);
     expect(container.querySelector("svg")).not.toBeNull();
   });

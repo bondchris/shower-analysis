@@ -128,12 +128,14 @@ npm run inspect
   - Resolution distribution
 
 - `reports/ardata-analysis.pdf`: AR data and camera analysis:
-  - Device model distribution
-  - Focal length and aperture settings
-  - Timezone (UTC offset) distribution from EXIF metadata
-  - Time of day distribution showing when scans were taken (hour buckets, 00-23)
-  - AR data capture rate (FPS) and dropped frames percentage
-  - Dropped frames trend over time
+  - Device model distribution (release-aware ordering), focal length, and aperture settings
+  - Timezone (UTC offset) and time-of-day distributions
+  - AR data capture rate (FPS), dropped frame percentage pie chart, dropped frame trend, and average dropped frame percentage over time
+  - Scan efficiency scatter plot showing path length vs. displacement (path length is total distance traveled, displacement is straight-line start-to-end distance) with zoomed inset
+  - Movement speed KDE overlay with minimum, average, and maximum speed curves (min/max calculated using a 5-second sliding window)
+  - Phone tilt/roll/pan protractor charts with illustrations, average angle markers, and overflow percentages
+  - Fast motion signals: maximum tilt/roll/pan speed KDEs, fast motion pies (> 5 °/s), and timing line charts showing when fast motion occurs during scans
+  - Full 360° rotation detection plus partial rotation coverage curve derived from pan histograms
   - Lighting conditions: Average/Minimum/Maximum for Ambient Intensity, Color Temperature, ISO Speed, and Brightness Value
 
 - `reports/scan-analysis.pdf`: Room scan data analysis:
@@ -198,7 +200,7 @@ This generates coverage reports in multiple formats:
 - **JSON**: `coverage/coverage-final.json`
 - **LCOV**: `coverage/lcov.info` (for CI/CD integration)
 
-Coverage thresholds are set at 80% for lines, functions, branches, and statements.
+Coverage thresholds are set at 99% for lines, functions, branches, and statements.
 
 ### Full Pipeline
 

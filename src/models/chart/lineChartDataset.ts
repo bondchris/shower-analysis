@@ -4,6 +4,7 @@ export interface LineChartDataset {
   borderColor: string;
   borderWidth?: number;
   fill?: boolean;
+  backgroundColor?: string;
   gradientFrom?: string;
   gradientTo?: string;
   gradientDirection?: "vertical" | "horizontal";

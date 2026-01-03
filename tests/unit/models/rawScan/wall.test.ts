@@ -389,5 +389,24 @@ describe("Wall", () => {
       const height = wall.getMinimumCeilingHeight();
       expect(height).toBe(5);
     });
+
+    it("should return null when polygon corners lack defined Y values", () => {
+      const wall = new Wall({ category: {} } as WallData);
+      delete (wall as { dimensions?: number[] }).dimensions;
+      wall.polygonCorners = [
+        [0, undefined as unknown as number, 0],
+        [1, undefined as unknown as number, 0],
+        [2, undefined as unknown as number, 0]
+      ];
+
+      expect(wall.getMinimumCeilingHeight()).toBeNull();
+    });
+
+    it("should not report a height when dimensions are present but non-positive", () => {
+      const wall = new Wall({ category: {} } as WallData);
+      delete (wall as { polygonCorners?: number[][] }).polygonCorners;
+      wall.dimensions = [3, 0, 1];
+      expect(wall.getMinimumCeilingHeight()).toBeNull();
+    });
   });
 });

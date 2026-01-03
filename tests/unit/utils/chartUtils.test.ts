@@ -57,6 +57,34 @@ describe("chartUtils", () => {
         expect(buckets).toEqual([0, 1, 0, 0]);
       });
 
+      it("should skip increments when bucket slots are missing", () => {
+        const originalFill = Array.prototype.fill;
+        const fillSpy = vi.spyOn(Array.prototype, "fill");
+
+        fillSpy.mockImplementation(function fillWithHoles(
+          this: (number | undefined)[],
+          value: number,
+          start?: number,
+          end?: number
+        ): (number | undefined)[] {
+          const result = originalFill.call(this, value, start, end);
+          this[0] = undefined; // underflow bucket
+          this[1] = undefined; // first main bucket
+          this[this.length - 1] = undefined; // overflow bucket
+          return result;
+        });
+
+        try {
+          const { buckets } = calculateHistogramBins([-5, 1, 6, 12], { binSize: 5, max: 10, min: 0 });
+          expect(buckets[0]).toBeUndefined();
+          expect(buckets[1]).toBeUndefined();
+          expect(buckets[buckets.length - 1]).toBeUndefined();
+          expect(buckets[2]).toBe(1);
+        } finally {
+          fillSpy.mockRestore();
+        }
+      });
+
       it("should throw on invalid inputs", () => {
         expect(() => calculateHistogramBins([], { binSize: 0, max: 10, min: 0 })).toThrow(/Invalid binSize/);
         expect(() => calculateHistogramBins([], { binSize: 1, max: 0, min: 10 })).toThrow(/Invalid range/);

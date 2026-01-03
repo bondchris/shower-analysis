@@ -41,10 +41,14 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
   const rotationSin = 0.707; // sin(45°)
   const tickLabelFontSize = 9;
   const axisLineAndTickSpace = 20;
-  const xAxisLabelHeight = 16;
+  const xAxisLabelFontSize = 12;
+  const xAxisLabelPadding = 0;
   // Estimate vertical space needed for rotated tick labels
   const rotatedLabelVerticalSpace = maxTickLength * charWidthEstimate * rotationSin;
-  const xAxisLabelSpace = options.xLabel !== undefined && options.xLabel !== "" ? xAxisLabelHeight : zeroValue;
+  const xAxisLabelSpace =
+    options.xLabel !== undefined && options.xLabel !== ""
+      ? xLabelDyPx + xAxisLabelFontSize + xAxisLabelPadding
+      : zeroValue;
   const bottomMargin = axisLineAndTickSpace + rotatedLabelVerticalSpace + tickLabelFontSize + xAxisLabelSpace;
   const leftMargin = 60;
 
@@ -79,6 +83,48 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
   const ticksPerPixel = fullWidthTicks / fullWidthReference;
   const minXTicks = 5;
   const maxXTicks = Math.max(minXTicks, Math.round(width * ticksPerPixel));
+
+  // Calculate tick values that always include first and last labels
+  const getTickValues = (): string[] => {
+    const numLabels = labels.length;
+    if (numLabels <= maxXTicks) {
+      return labels;
+    }
+
+    const tickValues: string[] = [];
+    const firstLabel = labels[zeroValue];
+    const singleElementOffset = 1;
+    const lastIdx = numLabels - singleElementOffset;
+    const lastLabel = labels[lastIdx];
+
+    if (firstLabel === undefined || lastLabel === undefined) {
+      return labels;
+    }
+
+    // Always include first label
+    tickValues.push(firstLabel);
+
+    // Calculate interior ticks (excluding first and last)
+    const firstAndLastCount = 2;
+    const interiorTicks = maxXTicks - firstAndLastCount;
+    if (interiorTicks > zeroValue) {
+      const step = lastIdx / (interiorTicks + singleElementOffset);
+      for (let i = singleElementOffset; i <= interiorTicks; i++) {
+        const idx = Math.round(step * i);
+        const label = labels[idx];
+        if (label !== undefined && label !== firstLabel && label !== lastLabel) {
+          tickValues.push(label);
+        }
+      }
+    }
+
+    // Always include last label
+    tickValues.push(lastLabel);
+
+    return tickValues;
+  };
+
+  const tickValues = getTickValues();
   const legendBoxSize = 10;
   const legendLabelGap = 5;
   const legendItemGap = 18;
@@ -152,7 +198,10 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
         <GridRows height={yMax} scale={yScale} stroke="#e5e7eb" width={xMax} />
 
         {datasets.map((dataset, idx) => {
-          const color = dataset.borderColor || colorPalette[idx % colorPalette.length];
+          const defaultColor = "#000";
+          const emptyStringLength = 0;
+          const paletteColor = colorPalette[idx % colorPalette.length] ?? defaultColor;
+          const color = dataset.borderColor.length > emptyStringLength ? dataset.borderColor : paletteColor;
           const points = dataset.data
             .map((value, i) => {
               if (value === null || !Number.isFinite(value)) {
@@ -181,9 +230,24 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
           const solidOpacity = 0.2;
           const fullOpacity = 1;
           const strokeOpacity = 1;
-          const fallbackColor = "#000";
           const useVerticalLines = dataset.verticalLines ?? options.verticalLines === true;
           const baselineY = yMax;
+
+          // Determine fill color: backgroundColor > gradient > solid color
+          const datasetBgColor = dataset.backgroundColor ?? "";
+          const emptyLength = 0;
+          const hasBackgroundColor = datasetBgColor.length > emptyLength;
+          const getAreaFillColor = (): string => {
+            if (hasBackgroundColor) {
+              return datasetBgColor;
+            }
+            if (hasGradient) {
+              return `url(#${fillGradientId})`;
+            }
+            return color;
+          };
+          const areaFillColor = getAreaFillColor();
+          const areaFillOpacity = hasBackgroundColor || hasGradient ? fullOpacity : solidOpacity;
 
           return (
             <React.Fragment key={idx}>
@@ -191,19 +255,19 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
                 <>
                   {/* Gradient for fill area */}
                   <LinearGradient
-                    from={dataset.gradientFrom ?? color ?? fallbackColor}
+                    from={dataset.gradientFrom ?? color}
                     fromOpacity={gradientOpacity}
                     id={fillGradientId}
-                    to={dataset.gradientTo ?? color ?? fallbackColor}
+                    to={dataset.gradientTo ?? color}
                     toOpacity={dataset.gradientDirection === "horizontal" ? fillOpacityStart : fillOpacityEnd}
                     vertical={dataset.gradientDirection !== "horizontal"}
                   />
                   {/* Gradient for stroke (line) - always horizontal for temperature scale */}
                   <LinearGradient
-                    from={dataset.gradientFrom ?? color ?? fallbackColor}
+                    from={dataset.gradientFrom ?? color}
                     fromOpacity={strokeOpacity}
                     id={strokeGradientId}
-                    to={dataset.gradientTo ?? color ?? fallbackColor}
+                    to={dataset.gradientTo ?? color}
                     toOpacity={strokeOpacity}
                     vertical={false}
                   />
@@ -230,8 +294,8 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
                     <AreaClosed<{ x: number; y: number }>
                       curve={curveType}
                       data={points}
-                      fill={hasGradient ? `url(#${fillGradientId})` : color}
-                      fillOpacity={hasGradient ? fullOpacity : solidOpacity}
+                      fill={areaFillColor}
+                      fillOpacity={areaFillOpacity}
                       x={(d) => d.x}
                       y={(d) => d.y}
                       yScale={yScale}
@@ -270,13 +334,12 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
 
         <AxisBottom
           label={options.xLabel ?? ""}
+          labelOffset={xLabelDyPx}
           labelProps={{
-            dy: xLabelDyPx,
             fill: "#374151",
             fontSize: 12,
             textAnchor: "middle"
           }}
-          numTicks={Math.min(labels.length, maxXTicks)}
           scale={xScale}
           tickLabelProps={() => ({
             angle: -45,
@@ -286,6 +349,7 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
             fontSize: 9,
             textAnchor: "end"
           })}
+          tickValues={tickValues}
           top={yMax}
         />
 
@@ -299,7 +363,12 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
           }}
           numTicks={Math.min(Math.ceil(maxDataValue), maxYTicks)}
           scale={yScale}
-          tickFormat={(value) => String(Math.round(Number(value)))}
+          tickFormat={(value) => {
+            const decimalPlaces = options.yDecimalPlaces ?? zeroValue;
+            const formatted = Number(value).toFixed(decimalPlaces);
+            const suffix = options.yTickSuffix ?? "";
+            return `${formatted}${suffix}`;
+          }}
           tickLabelProps={() => ({
             dx: "-0.25em",
             dy: "0.25em",

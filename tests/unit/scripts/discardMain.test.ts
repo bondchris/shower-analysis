@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { FfprobeData } from "fluent-ffmpeg";
 
 import { BadScanDatabase } from "../../../src/models/badScanRecord";
 import { CheckedScanDatabase } from "../../../src/models/checkedScanRecord";
+import { DiscardReportInput } from "../../../src/models/discardStats";
 
 // Mocks
 vi.mock("../../../src/utils/data/badScans", () => ({
@@ -174,6 +176,47 @@ describe("discard main orchestration", () => {
     expect(findArtifactDirectories).toHaveBeenCalled();
   });
 
+  it("ignores bad scan ids without database entries when collecting new bad scans", async () => {
+    const mod = await import("../../../src/scripts/discard");
+    const { buildDiscardReport } = await import("../../../src/templates/discardReport");
+
+    const badScans: BadScanDatabase = {};
+    const checkedScans: CheckedScanDatabase = {};
+
+    const cleanSpy = vi
+      .spyOn(mod, "runCleanPhase")
+      .mockImplementation(async (options): Promise<Awaited<ReturnType<typeof mod.runCleanPhase>>> => {
+        badScans["missingEntry"] = undefined as unknown as (typeof badScans)[string];
+        await Promise.resolve();
+        return {
+          databases: options?.databases ?? { badScans, checkedScans },
+          remainingArtifacts: [],
+          stats: {
+            failedDeletes: [],
+            quarantinedCount: 0,
+            removedCount: 0,
+            skippedCleanCount: 0
+          }
+        };
+      });
+
+    await mod.main({
+      artifactDirs: [],
+      databases: { badScans, checkedScans },
+      dryRun: true,
+      skipDuplicates: true,
+      skipFilter: true,
+      skipMismatch: true
+    });
+
+    const callArgs = (buildDiscardReport as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as
+      | DiscardReportInput
+      | undefined;
+    expect(callArgs?.newBadScans).toEqual([]);
+
+    cleanSpy.mockRestore();
+  });
+
   it("saves during filter phase when work is present and saveInterval triggers", async () => {
     const { runFilterPhase } = await import("../../../src/scripts/discard");
     const { saveBadScans } = await import("../../../src/utils/data/badScans");
@@ -270,6 +313,38 @@ describe("discard main orchestration", () => {
     );
   });
 
+  it("collects newly added bad scans between stages", async () => {
+    const { main } = await import("../../../src/scripts/discard");
+    const { buildDiscardReport } = await import("../../../src/templates/discardReport");
+
+    const ffprobe = vi.fn((_: string, cb: (err: Error | null, data: FfprobeData) => void) => {
+      cb(null, { format: { duration: 1 } } as FfprobeData);
+    }) as unknown as typeof import("fluent-ffmpeg").ffprobe;
+
+    const badDb: BadScanDatabase = {
+      cached: { date: "2024-01-01", environment: "env", reason: "Existing cached" }
+    };
+
+    await main({
+      artifactDirs: ["/mock/data/artifacts/env/newbad"],
+      databases: { badScans: badDb, checkedScans: {} },
+      dryRun: false,
+      ffprobe,
+      minDuration: 12,
+      skipDuplicates: true,
+      skipFilter: true,
+      skipMismatch: true
+    });
+
+    const reportCall = (buildDiscardReport as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as
+      | { newBadScans?: { id: string; stage: string }[] }
+      | undefined;
+
+    expect(reportCall?.newBadScans).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "newbad", stage: "clean" })])
+    );
+  });
+
   it("includes duplicate entries with scanDate in badScanHistory", async () => {
     const { main } = await import("../../../src/scripts/discard");
     const { buildDiscardReport } = await import("../../../src/templates/discardReport");
@@ -361,6 +436,76 @@ describe("discard main orchestration", () => {
     expect(reportCall?.countsByEnv?.["env"]?.duplicateCached).toBe(1);
     expect(reportCall?.countsByEnv?.["env"]?.notBathroomCached).toBe(1);
     expect(reportCall?.countsByEnv?.["env"]?.tooShortCached).toBe(1);
+  });
+
+  it("counts new bad scans by reason category for the current run", async () => {
+    const fs = await import("fs");
+    const { hashVideoInDirectory } = await import("../../../src/utils/video/hash");
+    const { findDuplicateArtifacts } = await import("../../../src/utils/data/videoHashes");
+    const { buildDiscardReport } = await import("../../../src/templates/discardReport");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
+    const mockFindDuplicates = findDuplicateArtifacts as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockImplementation((p: string) => {
+      if (typeof p === "string" && p.endsWith("meta.json")) {
+        return JSON.stringify({ scanDate: "2024-01-01T00:00:00Z" });
+      }
+      return Buffer.from("video");
+    });
+
+    mockHash.mockResolvedValue("dup-hash");
+
+    mockFindDuplicates.mockImplementation((_, hash: string) => (hash === "dup-hash" ? ["existing"] : []));
+
+    mockGenerateContent.mockReset();
+    mockGenerateContent.mockResolvedValue("YES");
+    mockGenerateContent.mockResolvedValueOnce("NO").mockResolvedValueOnce("YES");
+
+    const ffprobe = vi.fn((filePath: string, cb: (err: Error | null, data: FfprobeData) => void) => {
+      const isShort = filePath.includes("artifact-short");
+      cb(null, { format: { duration: isShort ? 5 : 20 } } as FfprobeData);
+    }) as unknown as typeof import("fluent-ffmpeg").ffprobe;
+
+    const { main } = await import("../../../src/scripts/discard");
+
+    await main({
+      artifactDirs: [
+        "/mock/data/artifacts/env/artifact-short",
+        "/mock/data/artifacts/env/artifact-not-bathroom",
+        "/mock/data/artifacts/env/artifact-duplicate"
+      ],
+      concurrency: 1,
+      dataDir: "/mock/data/artifacts",
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: false,
+      ffprobe,
+      minDuration: 10,
+      skipMismatch: true,
+      videoHashes: {}
+    });
+
+    const reportCall = (buildDiscardReport as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as
+      | {
+          countsByEnv?: Record<string, { duplicateNew?: number; notBathroomNew?: number; tooShortNew?: number }>;
+        }
+      | undefined;
+
+    expect(reportCall?.countsByEnv?.["env"]?.tooShortNew).toBe(1);
+    expect(reportCall?.countsByEnv?.["env"]?.notBathroomNew).toBe(1);
+    expect(reportCall?.countsByEnv?.["env"]?.duplicateNew).toBe(1);
+
+    mockReadFileSync.mockReset();
+    mockReadFileSync.mockReturnValue(Buffer.from("video"));
+    mockHash.mockReset();
+    mockHash.mockResolvedValue(null);
+    mockFindDuplicates.mockReset();
+    mockFindDuplicates.mockReturnValue([]);
+    mockGenerateContent.mockReset();
+    mockGenerateContent.mockResolvedValue("YES");
   });
 
   it("includes badScanHistory entries with scanDate", async () => {
@@ -576,6 +721,20 @@ describe("runDuplicatesPhase", () => {
     expect(result.stats.newDuplicateCount).toBe(0);
     expect(result.duplicates[0]?.isNew).toBe(false);
   });
+
+  it("returns only stats from runDuplicatesOnly helper", async () => {
+    const { runDuplicatesOnly } = await import("../../../src/scripts/discard");
+
+    const result = await runDuplicatesOnly({ artifactDirs: [] });
+
+    expect(result).toEqual({
+      duplicateCount: 0,
+      errors: 0,
+      newDuplicateCount: 0,
+      processed: 0,
+      skippedCached: 0
+    });
+  });
 });
 
 describe("runMismatchPhase", () => {
@@ -749,6 +908,31 @@ describe("runDuplicatesPhase - edge cases", () => {
       videoHashes: {}
     });
 
+    expect(result.stats.errors).toBe(1);
+    expect(result.remainingArtifacts).toContain("/mock/data/artifacts/env/artifact1");
+  });
+
+  it("warns and records an error when hashing fails", async () => {
+    const fs = await import("fs");
+    const { logger } = await import("../../../src/utils/logger");
+    const { hashVideoInDirectory } = await import("../../../src/utils/video/hash");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(true);
+    mockHash.mockRejectedValue(new Error("hash failure"));
+
+    const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runDuplicatesPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact1"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true,
+      videoHashes: {}
+    });
+
+    expect(logger.warn).toHaveBeenCalled();
     expect(result.stats.errors).toBe(1);
     expect(result.remainingArtifacts).toContain("/mock/data/artifacts/env/artifact1");
   });

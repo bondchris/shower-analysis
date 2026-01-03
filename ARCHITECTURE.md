@@ -99,7 +99,8 @@ Organized by domain:
   - `syncFailures.ts`: Tracks synchronization failures
   - `artifactIterator.ts`: Centralized artifact discovery via `meta.json`
   - `rawScanExtractor.ts`: Extracts data from rawScan.json files (areas, object attributes, confidence counts)
-- **`math/`**: Mathematical operations (`vector`, `polygon`, `segment`, `transform`, `constants`)
+- **`deviceSorting.ts`**: Release-order-aware grouping and separator insertion for device model charts
+- **`math/`**: Mathematical operations (`vector`, `polygon`, `segment`, `transform`, `constants`) plus 3D path distance calculations and phone tilt/roll/pan extraction from AR camera transforms
 - **`room/`**: Room validation and analysis functions
   - `metadata.ts`: Extracts room metadata (area, counts, features)
   - Wall gap detection
@@ -110,7 +111,7 @@ Organized by domain:
   - Nib wall detection
   - External opening detection
 - **`arData/`**: Augmented reality data utilities
-  - `metadata.ts`: Extracts AR data metadata (frames, camera resolution, EXIF, light estimates)
+  - `metadata.ts`: Extracts AR data metadata (frames, camera resolution, EXIF, light estimates, dropped frame metrics, 3D path lengths, sliding-window speeds, and phone motion histograms)
 - **`video/`**: Video analysis utilities
   - `metadata.ts`: Extracts video metadata (duration, fps, resolution) with caching
 - **`sync/`**: Synchronization helpers
@@ -143,6 +144,7 @@ React-based PDF report generation:
     - `LineChart.tsx`: Line and area charts with gradient support and dynamic x-axis labels
     - `MixedChart.tsx`: Combined bar and line charts with dual y-axes
     - `PieChart.tsx`: Pie charts with percentage labels, custom legend icons, and dynamic padding
+    - `ProtractorChart.tsx`: Polar histogram for phone orientation with average angle markers and overflow percentages
     - **`legend-icons/`**: SVG-based legend icon system:
       - `SVGIcon.tsx`: Generic icon component with automatic scaling
       - `iconConfig.tsx`: Centralized icon configuration mapping
@@ -150,7 +152,10 @@ React-based PDF report generation:
 - **`videoAnalysisReport.ts`**: Video metadata analysis report
   - Duration KDE chart, framerate bar chart, resolution bar chart
 - **`arDataAnalysisReport.ts`**: AR data and camera analysis report
-  - Device model distribution, focal length, aperture, ambient intensity, color temperature, ISO, brightness
+  - Device models (release-aware ordering), focal length, aperture, timezone/time-of-day, AR data
+    framerate, dropped-frame trends, scan efficiency with zoomed inset, movement speed curves,
+    phone tilt/roll/pan protractor charts with fast-motion timing and 360° rotation coverage,
+    lighting/exposure metrics
 - **`scanAnalysisReport.ts`**: Room scan data analysis report
   - Uses modular chart builders from `dataAnalysisReport/charts/`
   - Includes: section types, feature prevalence, capture errors, object distribution,
@@ -162,6 +167,7 @@ React-based PDF report generation:
 - **`validationReport.ts`**: Validation report builder
 - **`syncReport.ts`**: Sync report builder
 - **`styles/`**: CSS styles (Tailwind-based)
+- **`assets/images/`**: Phone tilt/roll/pan reference illustrations used in AR data protractor charts
 
 ## Data Flow
 

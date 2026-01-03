@@ -25,7 +25,8 @@ import { CaptureCharts } from "../types";
 
 export function buildAttributePieCharts(
   artifactDirs: string[],
-  layout: LayoutConstants
+  layout: LayoutConstants,
+  distinctColorsOverride?: string[]
 ): Partial<
   Pick<
     CaptureCharts,
@@ -57,7 +58,7 @@ export function buildAttributePieCharts(
   const INITIAL_COUNT = 0;
   const INCREMENT_STEP = 1;
 
-  const distinctColors = [
+  const distinctColors = distinctColorsOverride ?? [
     "#4E79A7", // Blue
     "#F28E2B", // Orange
     "#E15759", // Red

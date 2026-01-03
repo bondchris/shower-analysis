@@ -1,6 +1,17 @@
+import { vi } from "vitest";
+
 import { Point } from "../../../../src/models/point";
 import { TRANSFORM_SIZE } from "../../../../src/utils/math/constants";
-import { getPosition, transformPoint } from "../../../../src/utils/math/transform";
+import {
+  distance3D,
+  getHorizontalForward,
+  getPhonePanAngle,
+  getPhoneRollAngle,
+  getPhoneTiltAngle,
+  getPosition,
+  getPosition3D,
+  transformPoint
+} from "../../../../src/utils/math/transform";
 import { magnitudeSquared } from "../../../../src/utils/math/vector";
 
 describe("transform utils", () => {
@@ -451,6 +462,510 @@ describe("transform utils", () => {
         const clone = [...transform];
 
         getPosition(transform);
+
+        expect(transform).toEqual(clone);
+      });
+    });
+  });
+
+  describe("getPosition3D", () => {
+    describe("1. Happy Path / Core Behavior", () => {
+      it("should extract 3D position when matrix is valid", () => {
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[12] = 3.5;
+        transform[13] = -1.25;
+        transform[14] = 7.75;
+
+        expect(getPosition3D(transform)).toEqual({ x: 3.5, y: -1.25, z: 7.75 });
+      });
+    });
+
+    describe("2. Length / Validation Logic", () => {
+      it("should return origin when matrix length is invalid", () => {
+        const invalidTransform = new Array(5).fill(0) as number[];
+
+        expect(getPosition3D(invalidTransform)).toEqual({ x: 0, y: 0, z: 0 });
+      });
+    });
+
+    describe("3. Nullish / Sparse Arrays", () => {
+      it("should default undefined entries to zero", () => {
+        const sparseTransform = new Array(TRANSFORM_SIZE) as number[];
+        sparseTransform[12] = undefined as unknown as number;
+        sparseTransform[13] = 4;
+
+        expect(getPosition3D(sparseTransform)).toEqual({ x: 0, y: 4, z: 0 });
+      });
+
+      it("should fall back to zero when only the Y index is missing", () => {
+        const sparseTransform = new Array(TRANSFORM_SIZE) as number[];
+        sparseTransform[12] = 1.5;
+        sparseTransform[14] = -2.5;
+
+        expect(getPosition3D(sparseTransform)).toEqual({ x: 1.5, y: 0, z: -2.5 });
+      });
+    });
+  });
+
+  describe("distance3D", () => {
+    it("should return zero distance for identical points", () => {
+      const point = { x: 2, y: -3, z: 5 };
+
+      expect(distance3D(point, point)).toBe(0);
+    });
+
+    it("should calculate Euclidean distance between two points", () => {
+      const a = { x: 0, y: 0, z: 0 };
+      const b = { x: 1, y: 2, z: 2 };
+
+      expect(distance3D(a, b)).toBeCloseTo(3);
+    });
+  });
+
+  describe("getPhoneTiltAngle", () => {
+    describe("1. Core Behavior - Protractor Angle Convention", () => {
+      it("should return 90° for camera pointing horizontally forward", () => {
+        // Camera looking along -Z axis (standard forward direction)
+        // Forward vector at indices 8, 9, 10 = (0, 0, -1)
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 0; // Fx
+        transform[9] = 0; // Fy
+        transform[10] = -1; // Fz
+        expect(getPhoneTiltAngle(transform)).toBeCloseTo(90);
+      });
+
+      it("should return 0° for camera pointing straight down", () => {
+        // Forward vector = (0, -1, 0) means looking down
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 0; // Fx
+        transform[9] = -1; // Fy
+        transform[10] = 0; // Fz
+        expect(getPhoneTiltAngle(transform)).toBeCloseTo(0);
+      });
+
+      it("should return 180° for camera pointing straight up", () => {
+        // Forward vector = (0, 1, 0) means looking up
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 0; // Fx
+        transform[9] = 1; // Fy
+        transform[10] = 0; // Fz
+        expect(getPhoneTiltAngle(transform)).toBeCloseTo(180);
+      });
+
+      it("should return ~45° for 45° forward tilt (looking down)", () => {
+        // Forward vector pointing down and forward at 45°
+        const angle45Radians = Math.PI / 4;
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 0; // Fx
+        transform[9] = -Math.sin(angle45Radians); // Fy (negative = looking down)
+        transform[10] = -Math.cos(angle45Radians); // Fz
+        expect(getPhoneTiltAngle(transform)).toBeCloseTo(45);
+      });
+
+      it("should return ~135° for 45° backward tilt (looking up)", () => {
+        // Forward vector pointing up and forward at 45°
+        const angle45Radians = Math.PI / 4;
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 0; // Fx
+        transform[9] = Math.sin(angle45Radians); // Fy (positive = looking up)
+        transform[10] = -Math.cos(angle45Radians); // Fz
+        expect(getPhoneTiltAngle(transform)).toBeCloseTo(135);
+      });
+
+      it("should return 270° for camera pointing horizontally with phone upside down", () => {
+        // Phone tilted past vertical - UP vector points down (upY < -0.5 threshold)
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[5] = -0.8; // Up Y (strongly negative = phone upside down)
+        transform[8] = 0; // Fx
+        transform[9] = 0; // Fy (horizontal)
+        transform[10] = 1; // Fz
+        expect(getPhoneTiltAngle(transform)).toBeCloseTo(270);
+      });
+
+      it("should return ~315° for looking down with phone upside down", () => {
+        // Phone upside down and looking down at 45° pitch
+        const angle45Radians = Math.PI / 4;
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[5] = -0.8; // Up Y (strongly negative = phone upside down)
+        transform[8] = 0; // Fx
+        transform[9] = -Math.sin(angle45Radians); // Fy (negative = looking down)
+        transform[10] = Math.cos(angle45Radians); // Fz
+        expect(getPhoneTiltAngle(transform)).toBeCloseTo(315);
+      });
+
+      it("should return ~225° for looking up with phone upside down", () => {
+        // Phone upside down and looking up at 45° pitch
+        const angle45Radians = Math.PI / 4;
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[5] = -0.8; // Up Y (strongly negative = phone upside down)
+        transform[8] = 0; // Fx
+        transform[9] = Math.sin(angle45Radians); // Fy (positive = looking up)
+        transform[10] = Math.cos(angle45Radians); // Fz
+        expect(getPhoneTiltAngle(transform)).toBeCloseTo(225);
+      });
+
+      it("should treat near-zero upY as right-side up (landscape mode)", () => {
+        // In landscape mode, upY is near zero - should be treated as 0-180° range
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[5] = -0.1; // Up Y (near zero, above threshold)
+        transform[8] = 0; // Fx
+        transform[9] = 0; // Fy (horizontal)
+        transform[10] = 1; // Fz
+        expect(getPhoneTiltAngle(transform)).toBeCloseTo(90);
+      });
+    });
+
+    describe("2. Edge Cases", () => {
+      it("should return 90° for invalid matrix (too short)", () => {
+        const transform: number[] = [1, 0, 0, 0, 0, 1];
+        expect(getPhoneTiltAngle(transform)).toBe(90);
+      });
+
+      it("should return 90° for empty matrix", () => {
+        expect(getPhoneTiltAngle([])).toBe(90);
+      });
+
+      it("should return 90° for zero vector", () => {
+        // Edge case: zero forward vector
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        expect(getPhoneTiltAngle(transform)).toBeCloseTo(90);
+      });
+
+      it("should default to horizontal when vectors are undefined but length is valid", () => {
+        const transform = new Array(TRANSFORM_SIZE) as number[];
+
+        expect(getPhoneTiltAngle(transform)).toBeCloseTo(90);
+      });
+
+      it("should handle forward vector with X component", () => {
+        // Looking forward-right at 45° yaw, horizontal pitch
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        const sqrt2Over2 = Math.sqrt(2) / 2;
+        transform[8] = sqrt2Over2; // Fx
+        transform[9] = 0; // Fy
+        transform[10] = -sqrt2Over2; // Fz
+        expect(getPhoneTiltAngle(transform)).toBeCloseTo(90);
+      });
+
+      it("should normalize negative protractor angles back into [0, 360)", () => {
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[10] = 1; // Forward Z to keep atan2 inputs simple
+
+        const atan2Spy = vi.spyOn(Math, "atan2").mockReturnValue(-10);
+
+        const angle = getPhoneTiltAngle(transform);
+
+        atan2Spy.mockRestore();
+
+        const pitchDegrees = -10 * (180 / Math.PI);
+        const rawAngle = 90 + pitchDegrees;
+        const normalizedAngle = rawAngle % 360 < 0 ? (rawAngle % 360) + 360 : rawAngle % 360;
+
+        expect(angle).toBeCloseTo(normalizedAngle);
+      });
+    });
+
+    describe("3. Immutability", () => {
+      it("should not mutate input array", () => {
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 0;
+        transform[9] = 0;
+        transform[10] = -1;
+        const clone = [...transform];
+
+        getPhoneTiltAngle(transform);
+
+        expect(transform).toEqual(clone);
+      });
+    });
+  });
+
+  describe("getPhoneRollAngle", () => {
+    describe("1. Core Behavior - Roll Angle Convention", () => {
+      it("should return 0° for phone perfectly upright (no roll)", () => {
+        // Standard orientation: RIGHT = (1, 0, 0), UP = (0, 1, 0)
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[0] = 1; // RIGHT.x
+        transform[1] = 0; // RIGHT.y
+        transform[2] = 0; // RIGHT.z
+        transform[4] = 0; // UP.x
+        transform[5] = 1; // UP.y
+        transform[6] = 0; // UP.z
+        expect(getPhoneRollAngle(transform)).toBeCloseTo(0);
+      });
+
+      it("should return ~90° for phone rolled 90° clockwise", () => {
+        // Rolled 90° CW: RIGHT = (0, -1, 0), UP = (1, 0, 0)
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[0] = 0; // RIGHT.x
+        transform[1] = -1; // RIGHT.y (pointing down)
+        transform[2] = 0; // RIGHT.z
+        transform[4] = 1; // UP.x
+        transform[5] = 0; // UP.y
+        transform[6] = 0; // UP.z
+        expect(getPhoneRollAngle(transform)).toBeCloseTo(90);
+      });
+
+      it("should return ~180° for phone rolled upside down", () => {
+        // Rolled 180°: RIGHT = (-1, 0, 0), UP = (0, -1, 0)
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[0] = -1; // RIGHT.x
+        transform[1] = 0; // RIGHT.y
+        transform[2] = 0; // RIGHT.z
+        transform[4] = 0; // UP.x
+        transform[5] = -1; // UP.y
+        transform[6] = 0; // UP.z
+        expect(getPhoneRollAngle(transform)).toBeCloseTo(180);
+      });
+
+      it("should return ~270° for phone rolled 90° counter-clockwise", () => {
+        // Rolled 270° (90° CCW): RIGHT = (0, 1, 0), UP = (-1, 0, 0)
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[0] = 0; // RIGHT.x
+        transform[1] = 1; // RIGHT.y (pointing up)
+        transform[2] = 0; // RIGHT.z
+        transform[4] = -1; // UP.x
+        transform[5] = 0; // UP.y
+        transform[6] = 0; // UP.z
+        expect(getPhoneRollAngle(transform)).toBeCloseTo(270);
+      });
+
+      it("should return ~45° for phone rolled 45° clockwise", () => {
+        // Rolled 45° CW
+        const angle45Radians = Math.PI / 4;
+        const cos45 = Math.cos(angle45Radians);
+        const sin45 = Math.sin(angle45Radians);
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[0] = cos45; // RIGHT.x
+        transform[1] = -sin45; // RIGHT.y
+        transform[2] = 0; // RIGHT.z
+        transform[4] = sin45; // UP.x
+        transform[5] = cos45; // UP.y
+        transform[6] = 0; // UP.z
+        expect(getPhoneRollAngle(transform)).toBeCloseTo(45);
+      });
+
+      it("should return ~315° for phone rolled 45° counter-clockwise", () => {
+        // Rolled 315° (45° CCW)
+        const angle45Radians = Math.PI / 4;
+        const cos45 = Math.cos(angle45Radians);
+        const sin45 = Math.sin(angle45Radians);
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[0] = cos45; // RIGHT.x
+        transform[1] = sin45; // RIGHT.y
+        transform[2] = 0; // RIGHT.z
+        transform[4] = -sin45; // UP.x
+        transform[5] = cos45; // UP.y
+        transform[6] = 0; // UP.z
+        expect(getPhoneRollAngle(transform)).toBeCloseTo(315);
+      });
+
+      it("should handle yawed phone with no roll", () => {
+        // Phone yawed 90° (facing +X), no roll: RIGHT = (0, 0, 1), UP = (0, 1, 0)
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[0] = 0; // RIGHT.x
+        transform[1] = 0; // RIGHT.y
+        transform[2] = 1; // RIGHT.z
+        transform[4] = 0; // UP.x
+        transform[5] = 1; // UP.y
+        transform[6] = 0; // UP.z
+        expect(getPhoneRollAngle(transform)).toBeCloseTo(0);
+      });
+
+      it("should handle yawed phone with 90° CW roll", () => {
+        // Phone yawed 90° and rolled 90° CW: RIGHT = (0, -1, 0), UP = (0, 0, 1)
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[0] = 0; // RIGHT.x
+        transform[1] = -1; // RIGHT.y
+        transform[2] = 0; // RIGHT.z
+        transform[4] = 0; // UP.x
+        transform[5] = 0; // UP.y
+        transform[6] = 1; // UP.z
+        expect(getPhoneRollAngle(transform)).toBeCloseTo(90);
+      });
+    });
+
+    describe("2. Edge Cases", () => {
+      it("should return 0° for invalid matrix (too short)", () => {
+        const transform: number[] = [1, 0, 0, 0, 0, 1];
+        expect(getPhoneRollAngle(transform)).toBe(0);
+      });
+
+      it("should return 0° for empty matrix", () => {
+        expect(getPhoneRollAngle([])).toBe(0);
+      });
+
+      it("should return 0° for zero vectors", () => {
+        // Edge case: zero vectors (atan2(0, 0) is implementation-defined but typically 0)
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        expect(getPhoneRollAngle(transform)).toBeCloseTo(0);
+      });
+
+      it("should default to no roll when vectors are undefined but length is valid", () => {
+        const transform = new Array(TRANSFORM_SIZE) as number[];
+
+        expect(getPhoneRollAngle(transform)).toBeCloseTo(0);
+      });
+    });
+
+    describe("3. Immutability", () => {
+      it("should not mutate input array", () => {
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[1] = 0; // RIGHT.y
+        transform[5] = 1; // UP.y
+        const clone = [...transform];
+
+        getPhoneRollAngle(transform);
+
+        expect(transform).toEqual(clone);
+      });
+    });
+  });
+
+  describe("getHorizontalForward", () => {
+    describe("1. Core Behavior", () => {
+      it("should extract forward X and Z components from valid matrix", () => {
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 0.5; // Forward X
+        transform[10] = -0.866; // Forward Z
+        const result = getHorizontalForward(transform);
+        expect(result.forwardX).toBeCloseTo(0.5);
+        expect(result.forwardZ).toBeCloseTo(-0.866);
+      });
+
+      it("should return default forward (-Z) for camera looking along -Z axis", () => {
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 0; // Forward X
+        transform[10] = -1; // Forward Z
+        const result = getHorizontalForward(transform);
+        expect(result.forwardX).toBe(0);
+        expect(result.forwardZ).toBe(-1);
+      });
+    });
+
+    describe("2. Edge Cases", () => {
+      it("should return default for invalid matrix length", () => {
+        const result = getHorizontalForward([1, 2, 3]);
+        expect(result.forwardX).toBe(0);
+        expect(result.forwardZ).toBe(-1);
+      });
+
+      it("should return default for empty matrix", () => {
+        const result = getHorizontalForward([]);
+        expect(result.forwardX).toBe(0);
+        expect(result.forwardZ).toBe(-1);
+      });
+
+      it("should default undefined values to 0", () => {
+        const transform = new Array(TRANSFORM_SIZE) as number[];
+        const result = getHorizontalForward(transform);
+        expect(result.forwardX).toBe(0);
+        expect(result.forwardZ).toBe(0);
+      });
+    });
+  });
+
+  describe("getPhonePanAngle", () => {
+    describe("1. Core Behavior - Pan Angle Convention", () => {
+      it("should return 0° when camera points same direction as initial", () => {
+        // Camera looking along -Z axis, same as initial
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 0; // Forward X
+        transform[10] = -1; // Forward Z
+        expect(getPhonePanAngle(transform, 0, -1)).toBeCloseTo(0);
+      });
+
+      it("should return ~90° when camera turns 90° clockwise from initial", () => {
+        // Camera now looking along -X axis (turned right)
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = -1; // Forward X
+        transform[10] = 0; // Forward Z
+        // Initial was looking along -Z (0, -1)
+        expect(getPhonePanAngle(transform, 0, -1)).toBeCloseTo(90);
+      });
+
+      it("should return ~180° when camera turns 180° from initial", () => {
+        // Camera now looking along +Z axis (turned around)
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 0; // Forward X
+        transform[10] = 1; // Forward Z
+        // Initial was looking along -Z (0, -1)
+        expect(getPhonePanAngle(transform, 0, -1)).toBeCloseTo(180);
+      });
+
+      it("should return ~270° when camera turns 90° counter-clockwise from initial", () => {
+        // Camera now looking along +X axis (turned left)
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 1; // Forward X
+        transform[10] = 0; // Forward Z
+        // Initial was looking along -Z (0, -1)
+        expect(getPhonePanAngle(transform, 0, -1)).toBeCloseTo(270);
+      });
+
+      it("should return ~45° for 45° clockwise turn", () => {
+        // Camera turned 45° right
+        const angle45Radians = Math.PI / 4;
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = -Math.sin(angle45Radians); // Forward X
+        transform[10] = -Math.cos(angle45Radians); // Forward Z
+        // Initial was looking along -Z (0, -1)
+        expect(getPhonePanAngle(transform, 0, -1)).toBeCloseTo(45);
+      });
+
+      it("should work with non-standard initial direction", () => {
+        // Initial was looking along -X axis (0, -1 normalized to X)
+        // Current is looking same direction
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = -1; // Forward X
+        transform[10] = 0; // Forward Z
+        expect(getPhonePanAngle(transform, -1, 0)).toBeCloseTo(0);
+      });
+
+      it("should correctly calculate angle when initial is diagonal", () => {
+        // Initial was looking along (-1, -1) normalized
+        const sqrt2Over2 = Math.sqrt(2) / 2;
+        // Current is same direction
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = -sqrt2Over2;
+        transform[10] = -sqrt2Over2;
+        expect(getPhonePanAngle(transform, -sqrt2Over2, -sqrt2Over2)).toBeCloseTo(0);
+      });
+    });
+
+    describe("2. Edge Cases", () => {
+      it("should return 0° for invalid matrix (too short)", () => {
+        expect(getPhonePanAngle([1, 0, 0, 0, 0, 1], 0, -1)).toBe(0);
+      });
+
+      it("should return 0° for empty matrix", () => {
+        expect(getPhonePanAngle([], 0, -1)).toBe(0);
+      });
+
+      it("should return 0° when initial has no horizontal component", () => {
+        // Initial direction has near-zero magnitude
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 1;
+        transform[10] = 0;
+        expect(getPhonePanAngle(transform, 0, 0)).toBe(0);
+      });
+
+      it("should return 0° when current has no horizontal component", () => {
+        // Current forward vector has near-zero horizontal magnitude
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 0;
+        transform[10] = 0;
+        expect(getPhonePanAngle(transform, 0, -1)).toBe(0);
+      });
+    });
+
+    describe("3. Immutability", () => {
+      it("should not mutate input array", () => {
+        const transform: number[] = new Array(TRANSFORM_SIZE).fill(0) as number[];
+        transform[8] = 0;
+        transform[10] = -1;
+        const clone = [...transform];
+
+        getPhonePanAngle(transform, 0, -1);
 
         expect(transform).toEqual(clone);
       });

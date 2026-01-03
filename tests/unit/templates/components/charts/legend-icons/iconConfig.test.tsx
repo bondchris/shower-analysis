@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  CircularEllipticIcon,
+  RectangularIcon,
+  SwivelIcon,
+  UnidentifiedIcon,
   createIconComponent,
   iconConfig
 } from "../../../../../../src/templates/components/charts/legend-icons/iconConfig";
@@ -17,6 +21,10 @@ describe("iconConfig", () => {
   const TEST_Y = 20;
   const TEST_LEGEND_BOX_SIZE = 12;
   const MOCK_SVG_CONTENT = '<path fill="#ff0000" d="M0,0"/>';
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
 
   describe("iconConfig object", () => {
     it("should contain all expected icon configurations", () => {
@@ -36,6 +44,7 @@ describe("iconConfig", () => {
         "singleSeat",
         "star",
         "stool",
+        "swivel",
         "unidentified"
       ];
 
@@ -98,6 +107,37 @@ describe("iconConfig", () => {
       const gElement = container.querySelector("g");
       expect(gElement?.getAttribute("transform")).toContain(`scale(${String(expectedScale)})`);
       expect(svgLoader.loadSvgContent).toHaveBeenCalledWith(diningConfig.svgPath, TEST_COLOR);
+    });
+  });
+
+  describe("pre-created icon components", () => {
+    const iconsToValidate = [
+      ["circularElliptic", CircularEllipticIcon],
+      ["rectangular", RectangularIcon],
+      ["swivel", SwivelIcon],
+      ["unidentified", UnidentifiedIcon]
+    ] as const;
+
+    it.each(iconsToValidate)("should render %s icon export using its configuration", (iconName, IconComponent) => {
+      const loadSvgSpy = vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
+      loadSvgSpy.mockClear();
+
+      const { container } = render(
+        <IconComponent color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
+      );
+
+      const iconConfigEntry = iconConfig[iconName];
+      if (iconConfigEntry === undefined) {
+        throw new Error(`icon config not found for ${iconName}`);
+      }
+
+      const expectedScale = TEST_LEGEND_BOX_SIZE / iconConfigEntry.viewBoxSize;
+      const gElement = container.querySelector("g");
+      expect(gElement?.getAttribute("transform")).toContain(`scale(${String(expectedScale)})`);
+      expect(loadSvgSpy).toHaveBeenCalledWith(iconConfigEntry.svgPath, TEST_COLOR);
+
+      const capitalizedIconName = iconName.charAt(0).toUpperCase() + iconName.slice(1).replace(/([A-Z])/g, "$1");
+      expect(IconComponent.displayName).toBe(`${capitalizedIconName}Icon`);
     });
   });
 });

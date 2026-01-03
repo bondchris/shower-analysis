@@ -217,6 +217,26 @@ describe("MixedChart", () => {
       expect(areaSpy).toHaveBeenCalledTimes(ONE_CALL);
       expect(lineSpy).toHaveBeenCalledTimes(ONE_CALL);
     });
+
+    it("renders bars alongside a filled line dataset", () => {
+      renderChart({
+        datasets: [
+          { borderColor: DEFAULT_COLOR, data: [DATA_10, DATA_20], label: "Bars", type: "bar" },
+          {
+            backgroundColor: "#abcdef",
+            borderColor: DEFAULT_COLOR,
+            data: [DATA_1, DATA_2],
+            fill: true,
+            label: "Filled"
+          }
+        ],
+        labels: ["a", "b"]
+      });
+
+      expect(barSpy).toHaveBeenCalledTimes(TWO_CALLS);
+      expect(areaSpy).toHaveBeenCalledTimes(ONE_CALL);
+      expect(lineSpy).toHaveBeenCalledTimes(ONE_CALL);
+    });
   });
 
   describe("Filtering Logic", () => {

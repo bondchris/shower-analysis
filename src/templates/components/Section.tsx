@@ -1,5 +1,6 @@
 import React from "react";
 import { ChartConfiguration } from "../../models/chart/chartConfiguration";
+import { PieChartConfig } from "../../models/chart/pieChartConfig";
 import { ReportSection } from "../../models/report";
 import { BarChart, Histogram, LineChart, MixedChart, PieChart, ScatterChart } from "./charts";
 import { Table } from "./Table";
@@ -29,7 +30,7 @@ export const Section: React.FC<SectionProps> = ({ section }) => {
     6: "text-xs font-semibold mb-1 text-gray-500"
   };
 
-  const chartTitleClass = "text-sm font-semibold text-center mb-0 mt-8 text-gray-700";
+  const chartTitleClass = "text-sm font-semibold text-center mb-0 mt-4 text-gray-700";
 
   const getTitleClassName = () => {
     if (section.type === "header") {
@@ -83,10 +84,10 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
 
     case "chart": {
       const chartConfig = section.data as ChartConfiguration;
-      const isScatterChart = chartConfig.type === "scatter";
-      const justifyClass = isScatterChart ? "justify-center" : "justify-start";
+      const shouldCenter = chartConfig.type === "scatter" || chartConfig.type === "pie";
+      const justifyClass = shouldCenter ? "justify-center" : "justify-start";
       return (
-        <div className={`mb-6 mt-0 flex w-full ${justifyClass} break-inside-avoid [&>svg]:block`}>
+        <div className={`mb-4 mt-0 flex w-full ${justifyClass} break-inside-avoid [&>svg]:block`}>
           {chartConfig.type === "line" && <LineChart config={chartConfig} />}
           {chartConfig.type === "histogram" && <Histogram config={chartConfig} />}
           {chartConfig.type === "bar" && <BarChart config={chartConfig} />}
@@ -97,29 +98,143 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
       );
     }
 
-    case "chart-row":
+    case "chart-row": {
       if (!Array.isArray(section.data)) {
         return null;
       }
+      const charts = section.data as { title?: string; data: ChartConfiguration }[];
+      const chartCount = charts.length;
+      const SINGLE_CHART_COUNT = 1;
+      const TWO_CHART_COUNT = 2;
+      const defaultWidth = 0;
+      const minChartsForGap = 2;
+      const gapCountOffset = 1;
+      const defaultGapCount = 0;
+      const getChartWidth = (chart: { data: ChartConfiguration }): number => {
+        const options = chart.data.options as { width?: number } | undefined;
+        return options?.width ?? defaultWidth;
+      };
+      const totalWidth = charts.reduce((sum: number, chart) => sum + getChartWidth(chart), defaultWidth);
+      const hasCustomWidths = totalWidth > defaultWidth;
+
+      // Account for gap between charts (gap-1 = 0.25rem = 4px)
+      // Using gap-1 instead of gap-5 to reduce space between charts
+      const gapPixels = 4;
+      const numGaps = charts.length >= minChartsForGap ? charts.length - gapCountOffset : defaultGapCount;
+      const totalGap = gapPixels * numGaps;
+
+      // Calculate scale factor to make widths fit within available space minus gaps
+      // This ensures combined chart widths + gaps don't exceed container
+      const defaultScaleFactor = 1;
+      const scaleFactor =
+        hasCustomWidths && totalWidth > defaultWidth ? (totalWidth - totalGap) / totalWidth : defaultScaleFactor;
+
+      const estimatePieChartMinWidth = (pieConfig: PieChartConfig): number => {
+        const fallbackBaseWidth = 300;
+        const baseWidth = pieConfig.options.width ?? fallbackBaseWidth;
+        const chartHeight = pieConfig.height;
+        const divisorForDimensions = 2;
+        const margin = 20;
+        const minDimension = Math.min(baseWidth, chartHeight);
+        const halfDimension = minDimension / divisorForDimensions;
+        const outerRadius = halfDimension - margin;
+
+        const labelOffset = 15;
+        const estimatedLabelTextWidth = 40;
+        const labelCharWidthEstimate = 6;
+        const maxLabelDistance = outerRadius + labelOffset;
+        const halfLabelWidth = estimatedLabelTextWidth / divisorForDimensions;
+        const maxLabelExtension = maxLabelDistance + halfLabelWidth;
+        const paddingMultiplier = 2;
+        const minWidthForPieLabels = maxLabelExtension * paddingMultiplier;
+
+        const legendBoxSize = 12;
+        const legendLabelGap = 4;
+        const legendWidthBuffer = 10;
+        let maxLegendItemWidth = 0;
+        for (const label of pieConfig.labels) {
+          const textWidth = label.length * labelCharWidthEstimate;
+          const itemWidth = legendBoxSize + legendLabelGap + textWidth;
+          if (itemWidth > maxLegendItemWidth) {
+            maxLegendItemWidth = itemWidth;
+          }
+        }
+        const minWidthForLegend = maxLegendItemWidth + legendWidthBuffer;
+
+        return Math.max(baseWidth, minWidthForPieLabels, minWidthForLegend);
+      };
+
+      const isPieChartConfig = (config: ChartConfiguration): config is PieChartConfig => config.type === "pie";
+
+      const getEffectiveWidth = (chart: { data: ChartConfiguration }): number => {
+        if (isPieChartConfig(chart.data)) {
+          return estimatePieChartMinWidth(chart.data);
+        }
+        return getChartWidth(chart);
+      };
+
+      // Precompute adjusted widths so layout logic is consistent between padding and item sizing
+      const adjustedWidths = charts.map((chart) => {
+        const chartWidth = getEffectiveWidth(chart);
+        if (!hasCustomWidths || chartWidth === defaultWidth) {
+          return chartWidth;
+        }
+        return Math.floor(chartWidth * scaleFactor);
+      });
+
+      // Default layout for rows
+      let rowJustifyClass = "justify-between";
+      let rowGapClass = "gap-1";
+      const rowStyle: React.CSSProperties | undefined = undefined;
+      const useTwoColumnGrid = hasCustomWidths && chartCount === TWO_CHART_COUNT;
+
+      // Center rows with a single chart
+      if (hasCustomWidths && chartCount === SINGLE_CHART_COUNT) {
+        rowJustifyClass = "justify-center";
+        rowGapClass = "gap-0";
+      }
+
+      // For two fixed-width charts, place centers at 1/3 and 2/3 of the row width
+      if (useTwoColumnGrid) {
+        rowJustifyClass = "justify-center";
+        rowGapClass = "gap-0";
+      }
+
+      const rowClass = useTwoColumnGrid ? "grid grid-cols-2" : `flex ${rowJustifyClass} ${rowGapClass}`;
+
       return (
-        <div className="mb-2 flex justify-between gap-5 break-inside-avoid [&_svg]:block">
-          {(section.data as { title?: string; data: ChartConfiguration }[]).map((chart, i) => (
-            <div key={i} className="flex-1 text-center min-w-0 overflow-visible">
-              {chart.title !== undefined && (
-                <h5 className="mb-2 mt-8 text-center text-sm font-semibold text-gray-700">{chart.title}</h5>
-              )}
-              <div className="flex w-full justify-center overflow-visible">
-                {chart.data.type === "line" && <LineChart config={chart.data} />}
-                {chart.data.type === "histogram" && <Histogram config={chart.data} />}
-                {chart.data.type === "bar" && <BarChart config={chart.data} />}
-                {chart.data.type === "mixed" && <MixedChart config={chart.data} />}
-                {chart.data.type === "pie" && <PieChart config={chart.data} />}
-                {chart.data.type === "scatter" && <ScatterChart config={chart.data} />}
+        <div className={`mb-2 ${rowClass} break-inside-avoid [&_svg]:block`} style={rowStyle}>
+          {charts.map((chart, i) => {
+            const chartWidth = getChartWidth(chart);
+            // Scale down the width to account for gaps
+            const adjustedWidth = adjustedWidths[i] ?? chartWidth;
+            const flexStyle =
+              !useTwoColumnGrid && hasCustomWidths && adjustedWidth > defaultWidth
+                ? { flex: `0 0 ${String(adjustedWidth)}px` }
+                : undefined;
+            const containerClass =
+              useTwoColumnGrid || !hasCustomWidths
+                ? "text-center min-w-0 overflow-visible"
+                : "flex-1 text-center min-w-0 overflow-visible";
+            return (
+              <div key={i} className={containerClass} style={flexStyle}>
+                {chart.title !== undefined && (
+                  <h5 className="mb-2 mt-4 text-center text-sm font-semibold text-gray-700">{chart.title}</h5>
+                )}
+                <div className="flex w-full justify-center overflow-visible">
+                  {chart.data.type === "line" && <LineChart config={chart.data} />}
+                  {chart.data.type === "histogram" && <Histogram config={chart.data} />}
+                  {chart.data.type === "bar" && <BarChart config={chart.data} />}
+                  {chart.data.type === "mixed" && <MixedChart config={chart.data} />}
+                  {chart.data.type === "pie" && <PieChart config={chart.data} />}
+                  {chart.data.type === "scatter" && <ScatterChart config={chart.data} />}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       );
+    }
 
     case "header":
       return null;

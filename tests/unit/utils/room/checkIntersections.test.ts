@@ -1,3 +1,6 @@
+import { vi } from "vitest";
+
+import { Point } from "../../../../src/models/point";
 import { WallData } from "../../../../src/models/rawScan/wall";
 import { checkIntersections } from "../../../../src/utils/room/analysis/checkIntersections";
 import {
@@ -926,6 +929,99 @@ describe("checkIntersections", () => {
       });
 
       const res = checkIntersections(createMockScan({ walls: [w1, w2] }));
+      expect(res.hasWallWallIntersectionErrors).toBe(false);
+    });
+
+    it("should skip degenerate object boxes during pairwise checks", () => {
+      const flatLeading = createObject("flat-leading", { dimensions: [0, 0, 0] });
+      const solid = createObject("solid-center", {
+        dimensions: [1, 1, 1],
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.5, 0, 0.5, 1]
+      });
+      const flatTrailing = createObject("flat-trailing", {
+        dimensions: [0, 0, 0],
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1]
+      });
+
+      const res = checkIntersections(createMockScan({ objects: [flatLeading, solid, flatTrailing] }));
+
+      expect(res.hasObjectIntersectionErrors).toBe(false);
+      expect(res.hasWallObjectIntersectionErrors).toBe(false);
+    });
+
+    it("should skip null wall segments when walls lack corner geometry", () => {
+      const nullWalls = [
+        createExternalWall("w-null-1", { dimensions: [], polygonCorners: [], transform: [] }),
+        createExternalWall("w-null-2", { dimensions: [], polygonCorners: [], transform: [] })
+      ];
+      const scan = createMockScan({ objects: [], walls: nullWalls });
+      const segmentWithStory = { p1: new Point(0, 0), p2: new Point(1, 0), story: 1, wallIndex: 1 };
+      const wallsArray = scan.walls as unknown as WallData[];
+      // Force a missing segment entry to exercise the null-segment guard.
+      wallsArray.map = (() => [undefined, segmentWithStory]) as unknown as typeof wallsArray.map;
+      (scan as unknown as { walls: typeof wallsArray }).walls = wallsArray;
+
+      const res = checkIntersections(scan);
+
+      expect(res.hasWallWallIntersectionErrors).toBe(false);
+    });
+
+    it("should ignore empty embedded polygons then flag overlapping openings", () => {
+      const openings = [
+        createOpening("empty-1", null, {
+          dimensions: [1, 1, 0.2],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        }),
+        createOpening("valid-1", null, {
+          dimensions: [1, 1, 0.2],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.1, 0, 0, 1]
+        }),
+        createOpening("empty-2", null, {
+          dimensions: [1, 1, 0.2],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.2, 0, 0, 1]
+        }),
+        createOpening("valid-2", null, {
+          dimensions: [1, 1, 0.2],
+          story: 1,
+          transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.15, 0, 0, 1]
+        })
+      ];
+
+      const originalMap = Array.prototype.map;
+      let mapCallCount = 0;
+      const mapSpy = vi.spyOn(Array.prototype, "map").mockImplementation(function mapEmbeddedInnerCorners(
+        this: unknown[],
+        callback: (value: unknown, index: number, array: unknown[]) => unknown,
+        thisArg?: unknown
+      ) {
+        // Insert empty polygons on the first and third embedded items to exercise both guards.
+        if (
+          Array.isArray(this) &&
+          this.length === 4 &&
+          this.every((pointCandidate) => pointCandidate instanceof Point)
+        ) {
+          mapCallCount += 1;
+          if (mapCallCount === 1 || mapCallCount === 3) {
+            return [];
+          }
+        }
+
+        return originalMap.call(this, callback, thisArg);
+      });
+
+      let res: ReturnType<typeof checkIntersections>;
+      try {
+        res = checkIntersections(createMockScan({ objects: [], openings, walls: [] }));
+      } finally {
+        mapSpy.mockRestore();
+      }
+
+      expect(res.hasEmbeddedObjectIntersectionErrors).toBe(true);
+      expect(res.hasObjectIntersectionErrors).toBe(false);
+      expect(res.hasWallObjectIntersectionErrors).toBe(false);
       expect(res.hasWallWallIntersectionErrors).toBe(false);
     });
   });

@@ -36,6 +36,15 @@ export function calculateKde(data: number[], options: { min: number; max: number
   const sqrt2Pi = Math.sqrt(PI_FACTOR * Math.PI);
   const EXP_FACTOR = -0.5;
 
+  // Calculate decimal places needed based on step size
+  // Ensures each label is unique by having enough precision to distinguish steps
+  const minDecimalPlaces = 0;
+  const maxDecimalPlaces = 10;
+  const stepThreshold = 1;
+  const calculatedDecimalPlaces =
+    step >= stepThreshold ? minDecimalPlaces : Math.max(minDecimalPlaces, Math.ceil(-Math.log10(step)));
+  const labelDecimalPlaces = Math.min(calculatedDecimalPlaces, maxDecimalPlaces);
+
   for (let i = 0; i < resolution; i++) {
     const offset = i * step;
     const x = min + offset;
@@ -44,17 +53,12 @@ export function calculateKde(data: number[], options: { min: number; max: number
       const u = (x - d) / h;
       sumKernel += Math.exp(EXP_FACTOR * u * u) / sqrt2Pi;
     }
-    // Density * N gives approximate count density per unit
-    // We multiply by N so the magnitude reflects point counts roughly
-    // value = (1/h) * sumKernel
-    // This is the sum of kernels.
-    // If we want Density: (1 / (n * h)) * sumKernel
-    // If we want "Sum of kernels": (1/h) * sumKernel
-    // We'll return Sum of Kernels (scaled density) for nicer Y-axis values
-    const unit = 1;
-    const value = (unit / h) * sumKernel;
+    // Sum of Gaussian kernel contributions at this x position
+    // Each data point contributes a value between 0 and 1/sqrt(2π) ≈ 0.4
+    // The sum reflects how many data points are near this x value
+    // Maximum possible value is approximately n * 0.4 when all points cluster at x
+    const value = sumKernel;
 
-    const labelDecimalPlaces = 1;
     labels.push(x.toFixed(labelDecimalPlaces));
     values.push(value);
   }
@@ -65,18 +69,21 @@ export function calculateKde(data: number[], options: { min: number; max: number
 /**
  * Calculates dynamic min/max bounds for a KDE chart based on the data.
  * Finds the range where values are above half of the first meaningful y-axis tick.
+ * Optional dependencies allow injecting custom KDE and scale implementations for testing.
  */
 export function calculateDynamicKdeBounds(
   data: number[],
   initialMin: number,
   initialMax: number,
-  resolution: number
+  resolution: number,
+  dependencies?: { calculateKdeFn?: typeof calculateKde; scaleLinearFn?: typeof scaleLinear }
 ): { max: number; min: number } {
   const zeroValue = 0;
   const thresholdDivisor = 2;
   const resolutionOffset = 1;
   const paddingRatio = 0.05;
   const decrementStep = 1;
+  const { calculateKdeFn = calculateKde, scaleLinearFn = scaleLinear } = dependencies ?? {};
 
   const validData = data.filter((d) => Number.isFinite(d) && d > zeroValue);
   if (validData.length === zeroValue) {
@@ -88,7 +95,7 @@ export function calculateDynamicKdeBounds(
   const actualDataMax = Math.max(...validData);
 
   // Calculate KDE with initial wide range
-  const initialKde = calculateKde(data, { max: initialMax, min: initialMin, resolution });
+  const initialKde = calculateKdeFn(data, { max: initialMax, min: initialMin, resolution });
 
   // Calculate the first y-axis tick using the actual scale library (same as chart)
   // The yScale uses domain [0, maxDataValue] with nice: true
@@ -98,7 +105,7 @@ export function calculateDynamicKdeBounds(
   }
 
   // Use the actual scale library to calculate ticks (same as LineChart component)
-  const yScale = scaleLinear<number>({
+  const yScale = scaleLinearFn<number>({
     domain: [zeroValue, maxKdeValue],
     nice: true
   });

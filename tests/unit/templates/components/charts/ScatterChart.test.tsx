@@ -17,7 +17,9 @@ vi.mock("@visx/grid", () => ({
 }));
 
 vi.mock("@visx/axis", () => ({
+  AxisBottom: ({ label }: { label?: string }) => <g data-testid="visx-axis-bottom" data-label={label} />,
   AxisLeft: ({ label }: { label?: string }) => <g data-testid="visx-axis-left" data-label={label} />,
+  AxisRight: ({ label }: { label?: string }) => <g data-testid="visx-axis-right" data-label={label} />,
   AxisTop: ({ label }: { label?: string }) => <g data-testid="visx-axis-top" data-label={label} />
 }));
 
@@ -268,6 +270,32 @@ describe("ScatterChart", () => {
     expect(screen.getByTestId("visx-grid-rows")).toBeInTheDocument();
   });
 
+  it("should render independent axes domains with finite data", () => {
+    const config: ScatterChartConfig = {
+      ...baseConfig,
+      options: { independentAxes: true }
+    };
+    const { container } = render(<ScatterChart config={config} />);
+    expect(container.querySelectorAll("circle").length).toBeGreaterThan(0);
+    expect(container.querySelector("line")).toBeNull();
+  });
+
+  it("should use default domains when independent axes lack finite values", () => {
+    const config: ScatterChartConfig = {
+      ...baseConfig,
+      datasets: [
+        {
+          data: [{ x: Number.NaN, y: Number.NaN }],
+          label: "Invalid Dataset"
+        }
+      ],
+      options: { independentAxes: true }
+    };
+    const { container } = render(<ScatterChart config={config} />);
+    expect(container.querySelectorAll("circle")).toHaveLength(0);
+    expect(container.querySelector("line")).toBeNull();
+  });
+
   it("should handle points with both custom color and opacity", () => {
     const customColor = "#00ff00";
     const opacity = 0.7;
@@ -314,5 +342,18 @@ describe("ScatterChart", () => {
     circles.forEach((circle) => {
       expect(circle).toBeInTheDocument();
     });
+  });
+
+  it("should render zoomed axes with fallback labels", () => {
+    const config: ScatterChartConfig = {
+      ...baseConfig,
+      options: {
+        ...baseConfig.options,
+        zoomBox: { xMax: 60, xMin: 5, yMax: 60, yMin: 10 }
+      }
+    };
+    render(<ScatterChart config={config} />);
+    expect(screen.getByTestId("visx-axis-bottom")).toHaveAttribute("data-label", "");
+    expect(screen.getByTestId("visx-axis-right")).toBeInTheDocument();
   });
 });

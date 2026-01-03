@@ -100,6 +100,19 @@ describe("Surface (Abstract)", () => {
       expect(surface.area).toBe(0);
     });
 
+    it("should ignore segments when polygon points have missing coordinate values", () => {
+      const data: SurfaceData = {
+        ...BASE_DATA,
+        polygonCorners: [
+          [0, undefined as unknown as number, 0],
+          [10, 0, 0],
+          [0, 0, 0]
+        ]
+      };
+      const surface = new TestSurface(data);
+      expect(surface.area).toBe(0);
+    });
+
     it("should return 0 if dimensions has undefined values", () => {
       const data = {
         ...BASE_DATA,

@@ -128,6 +128,10 @@ export async function main(): Promise<void> {
   await createInspectionReports(metadataList, avgDuration, videoCount, artifactDirs);
 }
 
+export async function runCli(runner: () => Promise<void> = main): Promise<void> {
+  await runner().catch((err: unknown) => logger.error(err));
+}
+
 if (require.main === module) {
-  main().catch((err: unknown) => logger.error(err));
+  runCli().catch((err: unknown) => logger.error(err));
 }

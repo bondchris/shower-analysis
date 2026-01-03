@@ -239,6 +239,10 @@ export async function main() {
   await generateReport(allStats);
 }
 
+export async function runCli(runner: () => Promise<void> = main): Promise<void> {
+  await runner().catch((err: unknown) => logger.error(err));
+}
+
 if (require.main === module) {
-  main().catch((err: unknown) => logger.error(err));
+  runCli().catch((err: unknown) => logger.error(err));
 }

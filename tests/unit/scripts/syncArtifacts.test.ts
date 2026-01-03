@@ -5,7 +5,7 @@ import { Mock, MockedClass, MockedFunction, afterEach, beforeEach, describe, exp
 
 import { SyncStats } from "../../../src/models/syncStats";
 import * as syncArtifactsModule from "../../../src/scripts/syncArtifacts";
-import { generateSyncReport, main, runCli, syncEnvironment } from "../../../src/scripts/syncArtifacts";
+import { generateSyncReport, main, runCli, syncEnvironment, testExports } from "../../../src/scripts/syncArtifacts";
 import { ArtifactResponse, SpatialService } from "../../../src/services/spatialService";
 import { buildSyncReport } from "../../../src/templates/syncReport";
 import { getBadScans } from "../../../src/utils/data/badScans";
@@ -258,6 +258,23 @@ describe("syncArtifacts", () => {
       }
 
       expect(mockLoggerError).toHaveBeenCalledWith(expect.stringContaining("Failed to discard incomplete artifact"));
+    });
+
+    it("falls back to the default discard reason when download errors are empty", async () => {
+      mockDownloadFile.mockResolvedValue("");
+
+      MockSpatialService.prototype.fetchScanArtifacts.mockResolvedValue({
+        data: [artifact] as unknown as ArtifactResponse[],
+        pagination: { currentPage: 1, from: 1, lastPage: 1, perPage: 10, to: 1, total: 1 }
+      });
+
+      const stats = await syncEnvironment(env);
+
+      expect(stats.failed).toBe(1);
+      const discardReasonPath = path.join(getDiscardedDir("123"), "discard-reason.txt");
+      expect(fs.existsSync(discardReasonPath)).toBe(true);
+      const reasonContent = fs.readFileSync(discardReasonPath, "utf8");
+      expect(reasonContent).toContain("required file download failed");
     });
 
     // 6) Undefined error warning
@@ -965,6 +982,48 @@ describe("syncArtifacts", () => {
       expect(stats.new).toBe(1);
       expect(stats.failed).toBe(0);
       expect(stats.skipped).toBe(0);
+    });
+  });
+
+  describe("pLimit", () => {
+    const createDeferred = () => {
+      let resolve: () => void = () => undefined;
+      const promise = new Promise<void>((res) => {
+        resolve = res;
+      });
+      return { promise, resolve };
+    };
+
+    it("runs queued work after next when concurrency limit is exceeded", async () => {
+      const limit = testExports.pLimit(1);
+      const events: string[] = [];
+
+      const first = createDeferred();
+      const second = createDeferred();
+
+      const firstTask = limit(async () => {
+        events.push("first-start");
+        await first.promise;
+        events.push("first-end");
+      });
+
+      const secondTask = limit(async () => {
+        events.push("second-start");
+        await second.promise;
+        events.push("second-end");
+      });
+
+      await Promise.resolve();
+      expect(events).toEqual(["first-start"]);
+
+      first.resolve();
+      await firstTask;
+      await Promise.resolve();
+      expect(events).toEqual(["first-start", "first-end", "second-start"]);
+
+      second.resolve();
+      await secondTask;
+      expect(events).toEqual(["first-start", "first-end", "second-start", "second-end"]);
     });
   });
 

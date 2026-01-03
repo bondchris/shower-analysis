@@ -230,5 +230,33 @@ describe("inspectArtifacts Script", () => {
       expect(buildArDataAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 3);
       expect(buildScanAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 3, ["/a", "/b", "/c"]);
     });
+
+    it("should use zero average duration when no valid durations are present", async () => {
+      (findArtifactDirectories as Mock).mockReturnValue(["/only"]);
+      (extractVideoMetadata as Mock).mockResolvedValue({ duration: undefined });
+
+      const mockVideoReportData = { sections: [], title: "Video" };
+      const mockArDataReportData = { sections: [], title: "AR" };
+      const mockScanReportData = { sections: [], title: "Scan" };
+      (buildVideoAnalysisReport as Mock).mockReturnValue(mockVideoReportData);
+      (buildArDataAnalysisReport as Mock).mockReturnValue(mockArDataReportData);
+      (buildScanAnalysisReport as Mock).mockReturnValue(mockScanReportData);
+
+      await main();
+
+      expect(buildVideoAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 0, 1);
+      expect(buildArDataAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 1);
+      expect(buildScanAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 1, ["/only"]);
+    });
+
+    it("logs errors when CLI invocation rejects", async () => {
+      const mod = await import("../../../src/scripts/inspectArtifacts");
+      const failingRunner = vi.fn().mockRejectedValue(new Error("boom"));
+
+      await mod.runCli(failingRunner);
+
+      expect(failingRunner).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(expect.any(Error));
+    });
   });
 });

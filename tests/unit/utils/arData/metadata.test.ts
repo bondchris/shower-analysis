@@ -26,7 +26,13 @@ describe("extractArDataMetadata", () => {
       avgBrightness: 3.5,
       avgColorTemperature: 4000,
       avgIso: 100,
+      avgSpeed: 0.16,
       deviceModel: "Test Device",
+      droppedArFrameCount: 0,
+      droppedArFramePercentage: 0,
+      fastPanTimings: [],
+      fastRollTimings: [],
+      fastTiltTimings: [],
       hasDroppedArFrames: false,
       lensAperture: "f/1.8",
       lensFocalLength: "26mm",
@@ -35,12 +41,30 @@ describe("extractArDataMetadata", () => {
       maxBrightness: 4.5,
       maxColorTemperature: 5000,
       maxIso: 200,
+      maxPanSpeed: 6.5,
+      maxRollSpeed: 8.2,
+      maxSpeed: 0.25,
+      maxTiltSpeed: 10.5,
       minAmbientIntensity: 400,
       minBrightness: 2.5,
       minColorTemperature: 3000,
       minIso: 50,
+      minSpeed: 0.1,
+      panCalculationVersion: 1,
+      phonePanHistogram: new Array<number>(3601).fill(0),
+      phoneRollHistogram: new Array<number>(1801).fill(0),
+      phoneRollLeftOverflow: 0,
+      phoneRollRightOverflow: 0,
+      phoneTiltHistogram: new Array<number>(1801).fill(0),
+      phoneTiltLeftOverflow: 0,
+      phoneTiltRightOverflow: 0,
+      rollCalculationVersion: 2,
       scanDateTime: "2025:08:01 10:19:39",
-      timezone: "-07:00"
+      tiltCalculationVersion: 2,
+      timezone: "-07:00",
+      totalDisplacement: 3.2,
+      totalDistanceTraveled: 5.5,
+      totalScanDurationSeconds: 20
     };
 
     (fs.existsSync as Mock).mockReturnValue(true);
@@ -239,7 +263,13 @@ describe("extractArDataMetadata", () => {
       avgBrightness: 0,
       avgColorTemperature: 0,
       avgIso: 0,
+      avgSpeed: 0,
       deviceModel: "",
+      droppedArFrameCount: 0,
+      droppedArFramePercentage: 0,
+      fastPanTimings: [],
+      fastRollTimings: [],
+      fastTiltTimings: [],
       hasDroppedArFrames: false,
       lensAperture: "",
       lensFocalLength: "",
@@ -248,14 +278,33 @@ describe("extractArDataMetadata", () => {
       maxBrightness: 0,
       maxColorTemperature: 0,
       maxIso: 0,
+      maxPanSpeed: 0,
+      maxRollSpeed: 0,
+      maxSpeed: 0,
+      maxTiltSpeed: 0,
       minAmbientIntensity: 0,
       minBrightness: 0,
       minColorTemperature: 0,
       minIso: 0,
+      minSpeed: 0,
+      panCalculationVersion: 1,
+      phonePanHistogram: new Array<number>(3601).fill(0),
+      phoneRollHistogram: new Array<number>(1801).fill(0),
+      phoneRollLeftOverflow: 0,
+      phoneRollRightOverflow: 0,
+      phoneTiltHistogram: new Array<number>(1801).fill(0),
+      phoneTiltLeftOverflow: 0,
+      phoneTiltRightOverflow: 0,
+      rollCalculationVersion: 2,
       scanDateTime: "",
-      timezone: ""
+      tiltCalculationVersion: 2,
+      timezone: "",
+      totalDisplacement: 0,
+      totalDistanceTraveled: 0,
+      totalScanDurationSeconds: 0
     });
   });
+
   it("should extract metadata from LensModel string when EXIF fields are missing", () => {
     // Setup specific mock for this test
     const specificMockExif = {
@@ -628,6 +677,8 @@ describe("extractArDataMetadata", () => {
       // 9 frame intervals over 0.9 seconds = 10 FPS
       expect(result.arDataFramerate).toBeCloseTo(10, 1);
       expect(result.hasDroppedArFrames).toBe(false);
+      expect(result.droppedArFrameCount).toBe(0);
+      expect(result.droppedArFramePercentage).toBe(0);
     }
   });
 
@@ -680,6 +731,9 @@ describe("extractArDataMetadata", () => {
       expect(result.arDataFramerate).toBeGreaterThan(0);
       // 0.4 second gap is > 1.5x the median of 0.1 seconds
       expect(result.hasDroppedArFrames).toBe(true);
+      expect(result.droppedArFrameCount).toBe(1);
+      // 1 out of 4 intervals = 25%
+      expect(result.droppedArFramePercentage).toBe(25);
     }
   });
 
@@ -724,6 +778,8 @@ describe("extractArDataMetadata", () => {
     if (result) {
       expect(result.arDataFramerate).toBeCloseTo(10, 1);
       expect(result.hasDroppedArFrames).toBe(false);
+      expect(result.droppedArFrameCount).toBe(0);
+      expect(result.droppedArFramePercentage).toBe(0);
     }
   });
 
@@ -758,6 +814,8 @@ describe("extractArDataMetadata", () => {
       expect(result.arDataFramerate).toBe(2);
       // Not enough frames for dropped frame detection
       expect(result.hasDroppedArFrames).toBe(false);
+      expect(result.droppedArFrameCount).toBe(0);
+      expect(result.droppedArFramePercentage).toBe(0);
     }
   });
 
@@ -961,6 +1019,159 @@ describe("extractArDataMetadata", () => {
     vi.unmock("../../../../src/models/arData/arData");
   });
 
+  it("should calculate min/max speed using 5-second sliding window", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    // Create 24 frames over 12 seconds (2 FPS) with varying movement speeds
+    // Phase 1 (0-6 sec): slow movement - 0.1 m/s
+    // Phase 2 (6-12 sec): fast movement - 0.5 m/s
+    const arDataWithVaryingSpeeds = {
+      data: {} as Record<string, object>
+    };
+
+    const framesPerSecond = 2;
+    const frameInterval = 1 / framesPerSecond;
+    const slowSpeed = 0.1; // meters per second
+    const fastSpeed = 0.5; // meters per second
+    const phaseTransitionTime = 6; // seconds
+    const totalDuration = 12; // seconds
+
+    let cumulativePosition = 0;
+
+    for (let i = 0; i <= totalDuration * framesPerSecond; i++) {
+      const timestamp = i * frameInterval;
+      const isSlowPhase = timestamp < phaseTransitionTime;
+      const speedMps = isSlowPhase ? slowSpeed : fastSpeed;
+
+      // Add distance traveled since last frame (except for first frame)
+      if (i > 0) {
+        cumulativePosition += speedMps * frameInterval;
+      }
+
+      arDataWithVaryingSpeeds.data[timestamp.toString()] = {
+        cameraResolution: { height: 1080, width: 1920 },
+        cameraTransform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, cumulativePosition, 0, 0, 1],
+        exifData: { LensModel: "iPhone 14 Pro back camera" },
+        timestamp
+      };
+    }
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataWithVaryingSpeeds));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      const metersToFeet = 3.28084;
+      // Min speed window should be in the slow phase (~0.1 m/s = ~0.328 ft/s)
+      expect(result.minSpeed).toBeCloseTo(slowSpeed * metersToFeet, 1);
+      // Max speed window should be in the fast phase (~0.5 m/s = ~1.64 ft/s)
+      expect(result.maxSpeed).toBeCloseTo(fastSpeed * metersToFeet, 1);
+    }
+  });
+
+  it("should not set min/max speed when scan is shorter than sliding window", () => {
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    // Only 2 seconds of data - no valid 5-second window possible
+    const arDataShortScan = {
+      data: {
+        "0": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+          exifData: { LensModel: "iPhone 14 Pro back camera" },
+          timestamp: 0
+        },
+        "1": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1],
+          exifData: {},
+          timestamp: 1
+        },
+        "2": {
+          cameraResolution: { height: 1080, width: 1920 },
+          cameraTransform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1],
+          exifData: {},
+          timestamp: 2
+        }
+      }
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(arDataShortScan));
+
+    const result = extractArDataMetadata(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      // No valid 5-second window, so min/max speed should remain 0
+      expect(result.minSpeed).toBe(0);
+      expect(result.maxSpeed).toBe(0);
+    }
+  });
+
+  it("computes sliding-window speed/angles on a tiny fixture and flags dropped frames", async () => {
+    vi.resetModules();
+
+    vi.doMock("../../../../src/utils/math/transform", () => {
+      let tiltIdx = 0;
+      let rollIdx = 0;
+      let panIdx = 0;
+      const tiltAngles = [0, 10, 20, 30, 40];
+      const rollAngles = [0, 20, 40, 60, 80];
+      const panAngles = [0, 45, 90, 135, 180];
+
+      return {
+        distance3D: vi.fn((a: { x: number }, b: { x: number }) => Math.abs(b.x - a.x)),
+        getHorizontalForward: vi.fn(() => ({ forwardX: 1, forwardZ: 0 })),
+        getPhonePanAngle: vi.fn(() => panAngles[panIdx++] ?? 0),
+        getPhoneRollAngle: vi.fn(() => rollAngles[rollIdx++] ?? 0),
+        getPhoneTiltAngle: vi.fn(() => tiltAngles[tiltIdx++] ?? 0),
+        getPosition3D: vi.fn((transform: number[]) => ({
+          x: transform[0] ?? 0,
+          y: 0,
+          z: 0
+        }))
+      };
+    });
+
+    const timestamps = [0, 1, 5.5, 8, 10];
+
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+    (fs.writeFileSync as Mock).mockImplementation(() => undefined);
+    (fs.readFileSync as Mock).mockReturnValue(
+      JSON.stringify({
+        data: timestamps.reduce<Record<string, unknown>>((acc, timestamp) => {
+          const cameraTransform = new Array<number>(16).fill(0);
+          cameraTransform[0] = timestamp;
+          acc[timestamp.toString()] = {
+            cameraResolution: { height: 1080, width: 1920 },
+            cameraTransform,
+            exifData: { LensModel: "Test Lens" },
+            timestamp
+          };
+          return acc;
+        }, {})
+      })
+    );
+
+    const { extractArDataMetadata: extractWithSlidingWindows } = await import("../../../../src/utils/arData/metadata");
+
+    const result = extractWithSlidingWindows(mockDir);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(result.hasDroppedArFrames).toBe(true);
+      expect(result.droppedArFrameCount).toBe(1);
+      expect(result.minSpeed).toBeCloseTo(3.28, 2);
+      expect(result.maxSpeed).toBeCloseTo(3.28, 2);
+      expect(result.maxTiltSpeed).toBeGreaterThan(0);
+      expect(result.maxRollSpeed).toBeGreaterThan(0);
+      expect(result.maxPanSpeed).toBeGreaterThan(0);
+    }
+
+    vi.unmock("../../../../src/utils/math/transform");
+  });
+
   it("handles undefined intervals when median cannot be calculated", async () => {
     vi.resetModules();
     vi.doMock("../../../../src/models/arData/arData", () => {
@@ -1020,5 +1231,92 @@ describe("extractArDataMetadata", () => {
     parseFloatSpy.mockRestore();
     isNaNSpy.mockRestore();
     vi.unmock("../../../../src/models/arData/arData");
+  });
+
+  it("builds tilt, roll, and pan histograms with overflow and fast timings", async () => {
+    vi.resetModules();
+
+    const tiltAngles = [0, 30, 60, 200, 300];
+    const rollAngles = [10, 170, 200, 300, 30];
+    const panAngles = [350, 10, 20, 30, 340];
+    const timestamps = [0, 2, 5, 7, 10];
+
+    vi.doMock("../../../../src/utils/math/transform", () => {
+      let tiltIndex = 0;
+      let rollIndex = 0;
+      let panIndex = 0;
+
+      return {
+        distance3D: vi.fn((a: { x: number }, b: { x: number }) => Math.abs(b.x - a.x)),
+        getHorizontalForward: vi.fn(() => ({ forwardX: 1, forwardZ: 0 })),
+        getPhonePanAngle: vi.fn(() => panAngles[panIndex++] ?? 0),
+        getPhoneRollAngle: vi.fn(() => rollAngles[rollIndex++] ?? 0),
+        getPhoneTiltAngle: vi.fn(() => tiltAngles[tiltIndex++] ?? 0),
+        getPosition3D: vi.fn((transform: number[]) => ({
+          x: transform[0] ?? 0,
+          y: 0,
+          z: 0
+        }))
+      };
+    });
+
+    (fs.existsSync as Mock).mockImplementation((p) => p === mockArDataPath);
+
+    const transformLength = 16;
+    const testArData = {
+      data: {} as Record<string, unknown>
+    };
+
+    for (const timestamp of timestamps) {
+      const cameraTransform = new Array<number>(transformLength).fill(0);
+      cameraTransform[0] = timestamp;
+
+      testArData.data[timestamp.toString()] = {
+        cameraResolution: { height: 1080, width: 1920 },
+        cameraTransform,
+        exifData: {
+          FNumber: "1.8",
+          FocalLength: "4mm",
+          LensModel: "Mock Device back camera 4mm f/1.8"
+        },
+        timestamp
+      };
+    }
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(testArData));
+
+    const { extractArDataMetadata: extractArDataMetadataWithTransforms } =
+      await import("../../../../src/utils/arData/metadata");
+
+    const result = extractArDataMetadataWithTransforms(mockDir);
+
+    expect(result).not.toBeNull();
+
+    if (result) {
+      expect(result.phoneTiltHistogram[0]).toBe(1);
+      expect(result.phoneTiltHistogram[300]).toBe(1);
+      expect(result.phoneTiltHistogram[600]).toBe(1);
+      expect(result.phoneTiltRightOverflow).toBe(1);
+      expect(result.phoneTiltLeftOverflow).toBe(1);
+      expect(result.maxTiltSpeed).toBeCloseTo(48, 5);
+      expect(result.fastTiltTimings).toEqual([25, 45, 75]);
+
+      expect(result.phoneRollHistogram[100]).toBe(1);
+      expect(result.phoneRollHistogram[1700]).toBe(1);
+      expect(result.phoneRollRightOverflow).toBe(1);
+      expect(result.phoneRollLeftOverflow).toBe(1);
+      expect(result.maxRollSpeed).toBeCloseTo(74, 5);
+      expect(result.fastRollTimings).toEqual([25, 45, 75]);
+
+      expect(result.phonePanHistogram[3500]).toBe(1);
+      expect(result.phonePanHistogram[100]).toBe(1);
+      expect(result.phonePanHistogram[200]).toBe(1);
+      expect(result.phonePanHistogram[300]).toBe(1);
+      expect(result.phonePanHistogram[3400]).toBe(1);
+      expect(result.maxPanSpeed).toBeCloseTo(12, 5);
+      expect(result.fastPanTimings).toEqual([25, 75]);
+    }
+
+    vi.unmock("../../../../src/utils/math/transform");
   });
 });

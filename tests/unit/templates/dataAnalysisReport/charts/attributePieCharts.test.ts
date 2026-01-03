@@ -4,6 +4,22 @@ import { getPieChartConfig } from "../../../../../src/utils/chart/configBuilders
 import { getDoorIsOpenCounts, getObjectAttributeCounts } from "../../../../../src/utils/data/rawScanExtractor";
 import { LayoutConstants, computeLayoutConstants } from "../../../../../src/templates/dataAnalysisReport/layout";
 
+let startCaseMock: ((label: string) => string) | null = null;
+
+vi.mock("lodash", async () => {
+  const actual = await vi.importActual<typeof import("lodash")>("lodash");
+
+  return {
+    ...actual,
+    startCase: (label: string) => {
+      if (startCaseMock !== null) {
+        return startCaseMock(label);
+      }
+      return actual.startCase(label);
+    }
+  };
+});
+
 vi.mock("../../../../../src/utils/chart/configBuilders", () => ({
   getPieChartConfig: vi.fn().mockReturnValue({ type: "pie" })
 }));
@@ -18,6 +34,7 @@ describe("buildAttributePieCharts", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    startCaseMock = null;
     layout = computeLayoutConstants();
   });
 
@@ -328,5 +345,169 @@ describe("buildAttributePieCharts", () => {
     buildAttributePieCharts(artifactDirs, layout);
 
     expect(getPieChartConfig).toHaveBeenCalled();
+  });
+
+  it("should use fallback color when palette is exhausted", () => {
+    const artifactDirs = ["/test/dir1"];
+    (getDoorIsOpenCounts as ReturnType<typeof vi.fn>).mockReturnValue({
+      A: 1,
+      B: 1,
+      C: 1,
+      D: 1
+    });
+    (getObjectAttributeCounts as ReturnType<typeof vi.fn>).mockReturnValue({});
+
+    buildAttributePieCharts(artifactDirs, layout, []);
+
+    const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+    const doorCall = pieChartCalls[0];
+    expect(doorCall).toBeDefined();
+    if (doorCall !== undefined) {
+      const options = doorCall[2] as { colors?: string[] };
+      expect(options.colors).toBeDefined();
+      expect(options.colors?.every((color) => color === "#4E79A7")).toBe(true);
+    }
+  });
+
+  it("falls back to default color when distinctColors has gaps", () => {
+    const artifactDirs = ["/test/dir1"];
+    (getDoorIsOpenCounts as ReturnType<typeof vi.fn>).mockReturnValue({
+      A: 2,
+      B: 3,
+      C: 4
+    });
+    (getObjectAttributeCounts as ReturnType<typeof vi.fn>).mockReturnValue({});
+
+    const paletteWithGap = ["#111111", undefined as unknown as string];
+
+    buildAttributePieCharts(artifactDirs, layout, paletteWithGap);
+
+    const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+    const doorCall = pieChartCalls[0];
+    expect(doorCall).toBeDefined();
+    if (doorCall !== undefined) {
+      const options = doorCall[2] as { colors?: string[] };
+      expect(options.colors).toBeDefined();
+      expect(options.colors?.every((color) => color === paletteWithGap[0])).toBe(true);
+    }
+  });
+
+  it("reuses palette colors when shared labels exceed provided palette", () => {
+    const artifactDirs = ["/test/dir1"];
+    const shortPalette = ["#123456"];
+
+    (getDoorIsOpenCounts as ReturnType<typeof vi.fn>).mockReturnValue({
+      alpha: 1,
+      beta: 1
+    });
+    (getObjectAttributeCounts as ReturnType<typeof vi.fn>).mockImplementation((_dirs, type) => {
+      if (type === "ChairType") {
+        return { alpha: 2, beta: 1 };
+      }
+      return {};
+    });
+
+    buildAttributePieCharts(artifactDirs, layout, shortPalette);
+
+    const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+    const doorCall = pieChartCalls.find(
+      ([labels]) => Array.isArray(labels) && labels.includes("alpha") && labels.includes("beta")
+    );
+    expect(doorCall).toBeDefined();
+    if (doorCall !== undefined) {
+      const options = doorCall[2] as { colors?: string[] };
+      expect(options.colors).toEqual([shortPalette[0], shortPalette[0]]);
+    }
+
+    const chairTypeCall = pieChartCalls.find(
+      ([labels]) => Array.isArray(labels) && labels.includes("Alpha") && labels.includes("Beta")
+    );
+    expect(chairTypeCall).toBeDefined();
+    if (chairTypeCall !== undefined) {
+      const options = chairTypeCall[2] as { colors?: string[] };
+      expect(options.colors).toEqual([shortPalette[0], shortPalette[0]]);
+    }
+  });
+
+  it("falls back to default color when shared labels have undefined palette entries", () => {
+    const artifactDirs = ["/test/dir1"];
+    const undefinedPalette = [undefined as unknown as string];
+    const defaultColor = "#4E79A7";
+
+    (getDoorIsOpenCounts as ReturnType<typeof vi.fn>).mockReturnValue({
+      shared: 1
+    });
+    (getObjectAttributeCounts as ReturnType<typeof vi.fn>).mockImplementation((_dirs, type) => {
+      if (type === "SofaType") {
+        return { shared: 2 };
+      }
+      return {};
+    });
+
+    buildAttributePieCharts(artifactDirs, layout, undefinedPalette);
+
+    const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+
+    const doorCall = pieChartCalls.find(([labels]) => Array.isArray(labels) && labels.includes("shared"));
+    expect(doorCall).toBeDefined();
+    if (doorCall !== undefined) {
+      const options = doorCall[2] as { colors?: string[] };
+      expect(options.colors).toEqual([defaultColor]);
+    }
+
+    const sofaTypeCall = pieChartCalls.find(([labels]) => Array.isArray(labels) && labels.includes("Shared"));
+    expect(sofaTypeCall).toBeDefined();
+    if (sofaTypeCall !== undefined) {
+      const options = sofaTypeCall[2] as { colors?: string[] };
+      expect(options.colors).toEqual([defaultColor]);
+    }
+  });
+
+  it("omits legend icons when display labels cannot be resolved", () => {
+    const artifactDirs = ["/test/dir1"];
+    const mockStartCase = vi.fn(() => undefined as unknown as string);
+    startCaseMock = mockStartCase;
+
+    (getDoorIsOpenCounts as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getObjectAttributeCounts as ReturnType<typeof vi.fn>).mockReturnValue({
+      cabinet: 1,
+      circularElliptic: 1,
+      dining: 1,
+      existing: 1,
+      four: 1,
+      missing: 1,
+      rectangular: 1,
+      shelf: 1,
+      singleSeat: 1,
+      star: 1,
+      stool: 1,
+      swivel: 1,
+      unidentified: 1
+    });
+
+    const originalMapGet = Map.prototype.get;
+    const mapPrototype = Map.prototype as { get: (key: unknown) => unknown };
+    mapPrototype.get = function mapGetMock(key: unknown) {
+      if (typeof key === "string") {
+        return undefined;
+      }
+      return originalMapGet.call(this, key as never);
+    };
+
+    try {
+      buildAttributePieCharts(artifactDirs, layout);
+      expect(mockStartCase).toHaveBeenCalled();
+
+      const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+      const tableShapeCall = pieChartCalls.find(([labels]) => Array.isArray(labels) && labels.includes("Circular"));
+      expect(tableShapeCall).toBeDefined();
+      if (tableShapeCall !== undefined) {
+        const options = tableShapeCall[2] as { legendIconComponents?: unknown };
+        expect(options.legendIconComponents).toBeUndefined();
+      }
+    } finally {
+      mapPrototype.get = originalMapGet as (key: unknown) => unknown;
+      startCaseMock = null;
+    }
   });
 });

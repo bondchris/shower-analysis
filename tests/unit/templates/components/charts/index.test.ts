@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { BarChart, Histogram, LineChart, MixedChart } from "../../../../../src/templates/components/charts";
+import {
+  BarChart,
+  Histogram,
+  LineChart,
+  MixedChart,
+  ProtractorChart
+} from "../../../../../src/templates/components/charts";
 
 describe("Charts Index", () => {
   it("exports BarChart", () => {
@@ -17,5 +23,9 @@ describe("Charts Index", () => {
 
   it("exports MixedChart", () => {
     expect(MixedChart).toBeDefined();
+  });
+
+  it("exports ProtractorChart", () => {
+    expect(ProtractorChart).toBeDefined();
   });
 });

@@ -546,6 +546,59 @@ describe("buildSyncReport", () => {
     expect(config.datasets[1]?.data[1]).toBe(100 / 1 / (1024 * 1024));
   });
 
+  it("returns null points when artifact counts stay zero for all dates", () => {
+    vi.mocked(dateRangeModule.getGlobalDateRange).mockReturnValue(["2023-01-15", "2023-01-16"]);
+
+    const stats: SyncStats[] = [
+      createStats({
+        rawScanHistory: {
+          "2023-01-15": { count: 0, totalSize: 0 },
+          "2023-01-16": { count: 0, totalSize: 0 }
+        }
+      })
+    ];
+
+    const report = buildSyncReport(stats, {});
+    const chartSection = report.sections.find((s) => s.title === "Average RawScan Size Over Time");
+    const config = chartSection?.data as MixedChartConfig;
+
+    const nullDataset = new Array(config.labels.length).fill(null);
+
+    // All datasets should return null when counts and cumulative totals remain zero
+    expect(config.datasets[0]?.data).toEqual(nullDataset); // cumulative total size
+    expect(config.datasets[1]?.data).toEqual(nullDataset); // daily average
+    expect(config.datasets[2]?.data).toEqual(nullDataset); // cumulative average
+  });
+
+  it("keeps aggregated video size series null when all counts are zero", () => {
+    vi.mocked(dateRangeModule.getGlobalDateRange).mockReturnValue(["2023-01-15", "2023-01-16"]);
+
+    const stats: SyncStats[] = [
+      createStats({
+        videoHistory: {
+          "2023-01-15": { count: 0, totalSize: 0 },
+          "2023-01-16": { count: 0, totalSize: 0 }
+        }
+      }),
+      createStats({
+        env: "Staging",
+        videoHistory: {
+          "2023-01-15": { count: 0, totalSize: 0 },
+          "2023-01-16": { count: 0, totalSize: 0 }
+        }
+      })
+    ];
+
+    const report = buildSyncReport(stats, {});
+    const chartSection = report.sections.find((s) => s.title === "Average Video Size Over Time");
+    const config = chartSection?.data as MixedChartConfig;
+
+    const nullDataset = new Array(config.labels.length).fill(null);
+    expect(config.datasets[0]?.data).toEqual(nullDataset);
+    expect(config.datasets[1]?.data).toEqual(nullDataset);
+    expect(config.datasets[2]?.data).toEqual(nullDataset);
+  });
+
   describe("Error formatting branch coverage", () => {
     it("should format single error per artifact (line 570)", () => {
       const stats: SyncStats[] = [

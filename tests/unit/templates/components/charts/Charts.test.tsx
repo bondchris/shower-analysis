@@ -12,6 +12,7 @@ import { MixedChartConfig } from "../../../../../src/models/chart/mixedChartConf
 // We just want to ensure our wrapper components render without crashing
 vi.mock("@visx/group", () => ({ Group: ({ children }: { children: React.ReactNode }) => <g>{children}</g> }));
 vi.mock("@visx/shape", () => ({
+  AreaClosed: () => <path data-testid="mixed-area" />,
   Bar: () => <rect />,
   Line: () => <line data-testid="separator-line" />,
   LinePath: () => <path />
@@ -216,5 +217,25 @@ describe("Chart Components", () => {
     };
     const { container } = render(<MixedChart config={dualConfig} />);
     expect(container).toBeInTheDocument();
+  });
+
+  it("MixedChart renders filled line dataset", () => {
+    const filledConfig: MixedChartConfig = {
+      ...mixedConfig,
+      datasets: [
+        {
+          backgroundColor: "rgba(0,0,255,0.2)",
+          borderColor: "blue",
+          data: [DATA_D, DATA_E],
+          fill: true,
+          label: "Filled line",
+          type: "line"
+        }
+      ]
+    };
+
+    const { getAllByTestId, container } = render(<MixedChart config={filledConfig} />);
+    expect(container).toBeInTheDocument();
+    expect(getAllByTestId("mixed-area").length).toBeGreaterThan(0);
   });
 });

@@ -15,11 +15,19 @@ vi.mock("@visx/grid", () => ({ GridColumns: () => <g />, GridRows: () => <g /> }
 
 // Enhanced Mock for Axis to test tickFormat
 interface AxisProps {
+  tickComponent?: (props: { formattedValue: string; x?: number; dy?: string; y?: number }) => React.ReactNode;
   tickFormat?: (v: string) => string;
 }
 
 vi.mock("@visx/axis", () => ({
-  AxisBottom: () => <g data-testid="axis-bottom" />,
+  AxisBottom: (props: AxisProps) => {
+    if (props.tickComponent !== undefined) {
+      // Exercise multi-line tick rendering path
+      const maybeNode = props.tickComponent({ formattedValue: "Line1\nLine2", x: 0, y: 0 });
+      expect(maybeNode).not.toBeUndefined();
+    }
+    return <g data-testid="axis-bottom" />;
+  },
   AxisLeft: (props: AxisProps) => {
     if (props.tickFormat !== undefined) {
       // Exercise the tickFormat function for coverage

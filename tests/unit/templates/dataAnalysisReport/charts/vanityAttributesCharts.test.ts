@@ -275,6 +275,49 @@ describe("buildVanityAttributesCharts", () => {
     }
   });
 
+  it("sorts unknown vanity types after known order and alphabetically", () => {
+    const artifactDirs = ["/test/dir1"];
+    (getSinkCounts as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({
+      alpha: 3,
+      mystery: 2,
+      normal: 4
+    });
+
+    buildVanityAttributesCharts(artifactDirs, layout);
+
+    const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+    const vanityTypeCall = pieChartCalls.find((call) => call[0] !== undefined);
+    expect(vanityTypeCall).toBeDefined();
+    if (vanityTypeCall !== undefined) {
+      const labels = vanityTypeCall[0] as string[];
+      expect(labels[0]).toBe("normal");
+      expect(labels.slice(1)).toEqual(["alpha", "mystery"]);
+    }
+  });
+
+  it("sorts unknown vanity types after known ordering", () => {
+    const artifactDirs = ["/test/dir1"];
+    (getSinkCounts as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({
+      mystery: 3,
+      normal: 4,
+      "sink only": 2
+    });
+
+    buildVanityAttributesCharts(artifactDirs, layout);
+
+    const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+    const vanityTypeCall = pieChartCalls.find((call) => call[0] !== undefined);
+    expect(vanityTypeCall).toBeDefined();
+    if (vanityTypeCall !== undefined) {
+      const labels = vanityTypeCall[0] as string[];
+      expect(labels[0]).toBe("normal");
+      expect(labels[1]).toBe("sink only");
+      expect(labels[labels.length - 1]).toBe("mystery");
+    }
+  });
+
   it("should handle color fallback when index exceeds distinctColors length", () => {
     const artifactDirs = ["/test/dir1"];
     // Create enough sink counts to exceed distinctColors array length (10 colors)

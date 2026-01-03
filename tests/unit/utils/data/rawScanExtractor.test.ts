@@ -5,6 +5,7 @@ import {
   convertAreasToSquareFeet,
   convertLengthsToFeet,
   convertLengthsToInches,
+  getArtifactsWithNarrowDoors,
   getArtifactsWithSmallWalls,
   getDoorAreas,
   getDoorIsOpenCounts,
@@ -320,6 +321,32 @@ describe("rawScanExtractor", () => {
       const result = getArtifactsWithSmallWalls(artifactDirs);
 
       expect(result.size).toBe(0);
+    });
+  });
+
+  describe("getArtifactsWithNarrowDoors", () => {
+    it("returns directories when door widths fall below threshold", () => {
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) =>
+        filePath.endsWith("rawScan.json")
+      );
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+        JSON.stringify({
+          coreModel: "test",
+          doors: [{ dimensions: [0.5, 2] }],
+          floors: [],
+          objects: [],
+          openings: [],
+          sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
+          story: 1,
+          version: 2,
+          walls: [],
+          windows: []
+        })
+      );
+
+      const result = getArtifactsWithNarrowDoors(["/test/dir1"]);
+
+      expect(result.has("/test/dir1")).toBe(true);
     });
   });
 });

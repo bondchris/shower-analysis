@@ -1,8 +1,11 @@
 import convert from "convert-units";
+import { vi } from "vitest";
 
+import { Point } from "../../../../src/models/point";
 import { ObjectItem } from "../../../../src/models/rawScan/objectItem";
 import { WallData } from "../../../../src/models/rawScan/wall";
 import { checkToiletGaps } from "../../../../src/utils/room/analysis/checkToiletGaps";
+import * as transformUtils from "../../../../src/utils/math/transform";
 import { createExternalWall, createMockScan, createToilet } from "./testHelpers";
 
 describe("checkToiletGaps", () => {
@@ -88,6 +91,26 @@ describe("checkToiletGaps", () => {
       expect(checkToiletGaps(scan)).toBe(true);
     });
 
+    it("should skip falsy walls before compatibility checks", () => {
+      const scan = createMockScan({
+        objects: [createToilet("t1")],
+        walls: [createFlushWall("wValid")]
+      });
+      (scan as unknown as { walls: (WallData | boolean)[] }).walls = [
+        false as unknown as WallData,
+        createFlushWall("wValid")
+      ];
+      expect(checkToiletGaps(scan)).toBe(false);
+    });
+
+    it("should fail when walls exist but none match the toilet story", () => {
+      const scan = createMockScan({
+        objects: [createToilet("t1", { story: 2 })],
+        walls: [createFlushWall("w1", { story: 0 }), createFlushWall("w2")]
+      });
+      expect(checkToiletGaps(scan)).toBe(true);
+    });
+
     it("should use closest wall", () => {
       const t1 = createToilet("t1");
       const wClose = createFlushWall("w_close");
@@ -99,6 +122,28 @@ describe("checkToiletGaps", () => {
       const scan = createMockScan({
         objects: [t1],
         walls: [wClose, wFar]
+      });
+      expect(checkToiletGaps(scan)).toBe(false);
+    });
+
+    it("should pick the nearest compatible wall even when some walls are skipped", () => {
+      const toilet = createToilet("t1");
+
+      const wDifferentStory = createFlushWall("w_other_story", { story: 2 });
+
+      const wFar = createExternalWall("w_far");
+      if (wFar.transform) {
+        wFar.transform[14] = -0.6; // Farther than threshold
+      }
+
+      const wNear = createFlushWall("w_near");
+      if (wNear.transform) {
+        wNear.transform[14] = -0.26; // Within touching threshold of backface at -0.25
+      }
+
+      const scan = createMockScan({
+        objects: [toilet],
+        walls: [wDifferentStory, wFar, wNear]
       });
       expect(checkToiletGaps(scan)).toBe(false);
     });
@@ -235,6 +280,31 @@ describe("checkToiletGaps", () => {
 
       const scan = createMockScan({ objects: [t1], walls: [wBadPoints, wValid] });
       expect(checkToiletGaps(scan)).toBe(false);
+    });
+
+    it("should ignore undefined corner pairs when computing closest wall distance", () => {
+      const originalTransformPoint = transformUtils.transformPoint;
+      let callCount = 0;
+      vi.spyOn(transformUtils, "transformPoint").mockImplementation((p: Point, m: number[]) => {
+        callCount += 1;
+        if (callCount === 2) {
+          return undefined as unknown as Point;
+        }
+        return originalTransformPoint(p, m);
+      });
+
+      const nearWall = createExternalWall("w_near", {
+        polygonCorners: [
+          [0, 0],
+          [0, 0],
+          [0, 0]
+        ],
+        transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -0.25, 1]
+      });
+
+      const scan = createMockScan({ objects: [createToilet("t1")], walls: [nearWall] });
+      expect(checkToiletGaps(scan)).toBe(false);
+      vi.restoreAllMocks();
     });
   });
 });

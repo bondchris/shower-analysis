@@ -13,7 +13,9 @@ vi.mock("../../../../src/templates/components/charts", () => ({
   BarChart: () => <div data-testid="mock-barchart" />,
   Histogram: () => <div data-testid="mock-histogram" />,
   LineChart: () => <div data-testid="mock-linechart" />,
-  MixedChart: () => <div data-testid="mock-mixedchart" />
+  MixedChart: () => <div data-testid="mock-mixedchart" />,
+  PieChart: () => <div data-testid="mock-piechart" />,
+  ScatterChart: () => <div data-testid="mock-scatterchart" />
 }));
 
 describe("Section Component", () => {
@@ -110,6 +112,10 @@ describe("Section Component", () => {
         {
           data: { datasets: [], labels: [], type: "mixed" },
           title: "Chart 4"
+        },
+        {
+          data: { datasets: [], labels: [], type: "scatter" },
+          title: "Chart 5"
         }
       ],
       type: "chart-row"
@@ -119,10 +125,12 @@ describe("Section Component", () => {
     expect(screen.getByText("Chart 2")).toBeInTheDocument();
     expect(screen.getByText("Chart 3")).toBeInTheDocument();
     expect(screen.getByText("Chart 4")).toBeInTheDocument();
+    expect(screen.getByText("Chart 5")).toBeInTheDocument();
     expect(screen.getByTestId("mock-barchart")).toBeInTheDocument();
     expect(screen.getByTestId("mock-linechart")).toBeInTheDocument();
     expect(screen.getByTestId("mock-histogram")).toBeInTheDocument();
     expect(screen.getByTestId("mock-mixedchart")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-scatterchart")).toBeInTheDocument();
   });
 
   it("renders page-break as a styled div", () => {
@@ -208,6 +216,18 @@ describe("Section Component", () => {
       };
       const { container } = render(<Section section={section} />);
       expect(container.querySelector("p")).toBeEmptyDOMElement();
+    });
+
+    it("returns null when react-component section has no component", () => {
+      const section: ReportSection = {
+        data: undefined,
+        type: "react-component"
+      };
+      const { container } = render(<Section section={section} />);
+      const wrapper = container.firstElementChild;
+      expect(wrapper).not.toBeNull();
+      expect(wrapper?.childElementCount).toBe(0);
+      expect(wrapper?.textContent).toBe("");
     });
   });
 });

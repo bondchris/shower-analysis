@@ -145,6 +145,31 @@ describe("generatePdfReport", () => {
     // After appendChild, getElementById for measurement ID should return the appended element
     const measurementId = "__react_svg_text_measurement_id";
     expect(doc.getElementById(measurementId)).toBe(anotherTextEl as unknown as HTMLElement);
+    expect(doc.getElementById("not-measurement")).toBeNull();
+  });
+
+  it("returns zero length when measurement element is cleared before append", async () => {
+    await generatePdfReport({} as unknown as ReportData, "x.pdf");
+
+    const doc = globalThis.document as unknown as {
+      createElementNS: (
+        ns: string,
+        tag: string
+      ) => {
+        appendChild?: (el: unknown) => void;
+        getComputedTextLength?: () => number;
+      };
+    };
+
+    const textEl = doc.createElementNS("http://www.w3.org/2000/svg", "text");
+    const svgEl = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+
+    // Remove the shared measurement element so the null-return branch executes
+    svgEl.appendChild?.(null);
+    expect(textEl.getComputedTextLength?.()).toBe(0);
+
+    // Restore measurement element for any subsequent tests
+    svgEl.appendChild?.(textEl);
   });
 
   it("waits for charts to render (predicate coverage)", async () => {

@@ -89,11 +89,30 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
   // Ensure SVG is wide enough: center + maxLabelExtension must be <= width/2
   // So: width >= 2 * (centerX + maxLabelExtension) where centerX = width/2
   // This simplifies to: width >= 2 * maxLabelExtension
-  const minWidth = maxLabelExtension * paddingMultiplier;
+  const minWidthForPieLabels = maxLabelExtension * paddingMultiplier;
 
-  // Always ensure minimum width, but if base width is larger, use that
-  // This ensures labels never clip while preserving larger chart sizes
-  const width = Math.max(baseWidth, minWidth);
+  // Also calculate the minimum width needed for legend items on a single row
+  // Legend uses: legendBoxSize + legendLabelGap + textWidth per item, plus legendItemGap between items
+  // These values must match the legend rendering constants below
+  const legendBoxSizeForWidth = 12;
+  const legendLabelGapForWidth = 4;
+  let maxLegendItemWidth = zeroValue;
+  for (const textWidth of effectiveLabelWidths) {
+    const itemWidth = legendBoxSizeForWidth + legendLabelGapForWidth + textWidth;
+    if (itemWidth > maxLegendItemWidth) {
+      maxLegendItemWidth = itemWidth;
+    }
+  }
+  // Add small buffer for centering
+  const legendWidthBuffer = 10;
+  const minWidthForLegend = maxLegendItemWidth + legendWidthBuffer;
+
+  // Use the largest requirement among pie labels, legend item width, and requested base width
+  const minWidth = Math.max(baseWidth, minWidthForPieLabels, minWidthForLegend);
+
+  // Always ensure minimum width rather than forcing a single wide legend row
+  // This keeps charts within the page width while still preventing label clipping
+  const width = minWidth;
 
   // Calculate how much padding was added to width
   const widthPadding = width - baseWidth;
@@ -313,7 +332,7 @@ export const PieChart: React.FC<PieChartProps> = ({ config }) => {
   const totalHeight = shrinkToLegend ? legendEndY : Math.max(legendEndY, height);
 
   return (
-    <svg height={totalHeight} width={width}>
+    <svg height={totalHeight} width={width} style={{ overflow: "visible" }}>
       <Group left={centerX} top={centerY}>
         <Pie
           cornerRadius={3}

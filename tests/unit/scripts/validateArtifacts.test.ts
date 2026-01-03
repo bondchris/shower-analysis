@@ -411,4 +411,16 @@ describe("validateArtifacts script", () => {
       expect(mockGeneratePdfReport).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe("runCli", () => {
+    it("logs errors when CLI invocation rejects", async () => {
+      const mod = await import("../../../src/scripts/validateArtifacts");
+      const failingRunner = vi.fn().mockRejectedValue(new Error("boom"));
+
+      await mod.runCli(failingRunner);
+
+      expect(failingRunner).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(expect.any(Error));
+    });
+  });
 });

@@ -76,6 +76,8 @@ function pLimit(concurrency: number) {
   return run;
 }
 
+export const testExports = { pLimit };
+
 interface ArtifactResult {
   new: number;
   skipped: number;

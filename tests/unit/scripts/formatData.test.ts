@@ -4,6 +4,7 @@ import * as path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ArData, run, sortArData, sortRawScan } from "../../../src/scripts/formatData";
+import * as artifactIterator from "../../../src/utils/data/artifactIterator";
 import { logger } from "../../../src/utils/logger";
 
 // Mock dependencies
@@ -214,6 +215,15 @@ describe("formatData", () => {
       }
     });
 
+    it("falls back to the default artifacts path when no dataDir is provided", async () => {
+      const findSpy = vi.spyOn(artifactIterator, "findArtifactDirectories").mockReturnValue([]);
+
+      const stats = await run();
+
+      expect(findSpy).toHaveBeenCalledWith(path.join(process.cwd(), "data", "artifacts"));
+      expect(stats).toEqual({ found: 0, processed: 0, skipped: 0 });
+    });
+
     it("creates arDataFormatted.json for valid arData.json files", async () => {
       const fileDir = path.join(tmpDir, "artifact1");
       fs.mkdirSync(fileDir);
@@ -381,6 +391,16 @@ describe("formatData", () => {
       expect(stats.processed).toBe(0);
       expect(stats.found).toBe(1);
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Failed to parse JSON"));
+    });
+
+    it("logs errors when CLI invocation rejects", async () => {
+      const mod = await import("../../../src/scripts/formatData");
+      const failingRunner = vi.fn().mockRejectedValue(new Error("boom"));
+
+      await mod.runCli(failingRunner);
+
+      expect(failingRunner).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(expect.any(Error));
     });
   });
 });

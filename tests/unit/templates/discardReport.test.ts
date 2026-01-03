@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ChartConfiguration } from "../../../src/models/chart/chartConfiguration";
 import { BarChartConfig } from "../../../src/models/chart/barChartConfig";
-import { DateMismatch, DiscardReportInput } from "../../../src/models/discardStats";
+import { DateMismatch, DiscardReportInput, EnvCounts } from "../../../src/models/discardStats";
 import { buildDiscardReport } from "../../../src/templates/discardReport";
 import { LineChartConfig } from "../../../src/models/chart/lineChartConfig";
 
@@ -473,11 +473,33 @@ describe("buildDiscardReport", () => {
 
       const report = buildDiscardReport(input);
       const listSection = report.sections.find((s) => s.title === "Duplicates" && s.type === "list");
-      const items = listSection?.data as string[];
+      if (listSection === undefined) {
+        throw new Error("Expected duplicates list section");
+      }
+      const items = listSection.data as string[];
       // Should be sorted: production/a-id, production/b-id, staging/z-id
       expect(items[0]).toContain("a-id");
       expect(items[0]).toContain("b-id");
       expect(items[0]).toContain("z-id");
+    });
+
+    it("skips duplicate artifact ids for the same hash", () => {
+      const input = createBaseInput({
+        badScanHistory: [
+          { environment: "production", id: "dup-1", reason: "Duplicate video (hash abc123)" },
+          { environment: "production", id: "dup-1", reason: "Duplicate video (hash abc123) seen again" }
+        ]
+      });
+
+      const report = buildDiscardReport(input);
+      const listSection = report.sections.find((s) => s.title === "Duplicates" && s.type === "list");
+      if (listSection === undefined) {
+        throw new Error("Expected duplicates list section");
+      }
+      const items = listSection.data as string[];
+      const firstHashBlock = items[0] ?? "";
+      const occurrences = (firstHashBlock.match(/dup-1/g) ?? []).length;
+      expect(occurrences).toBe(1);
     });
   });
 
@@ -514,6 +536,20 @@ describe("buildDiscardReport", () => {
       expect(listSection).toBeDefined();
       const items = listSection?.data as string[];
       expect(items[0]).toContain("0.00s");
+    });
+
+    it("skips environments without short videos", () => {
+      const input = createBaseInput({
+        badScanHistory: [
+          { environment: "production", id: "s1", reason: "Video too short (5s)" },
+          { environment: "qa", id: "other-1", reason: "Other discard reason" }
+        ]
+      });
+
+      const report = buildDiscardReport(input);
+      const envHeaders = report.sections.filter((s) => s.title?.startsWith("Environment:") === true);
+      expect(envHeaders.some((s) => s.title === "Environment: production")).toBe(true);
+      expect(envHeaders.some((s) => s.title === "Environment: qa")).toBe(false);
     });
   });
 
@@ -553,6 +589,20 @@ describe("buildDiscardReport", () => {
       expect(items[0]).toContain("n1");
       expect(items[0]).not.toContain("(Gemini");
     });
+
+    it("skips environments without non-bathroom entries", () => {
+      const input = createBaseInput({
+        badScanHistory: [
+          { environment: "production", id: "n1", reason: "Not a bathroom (Gemini 1.5)" },
+          { environment: "qa", id: "other-1", reason: "Other discard reason" }
+        ]
+      });
+
+      const report = buildDiscardReport(input);
+      const envHeaders = report.sections.filter((s) => s.title?.startsWith("Environment:") === true);
+      expect(envHeaders.some((s) => s.title === "Environment: production")).toBe(true);
+      expect(envHeaders.some((s) => s.title === "Environment: qa")).toBe(false);
+    });
   });
 
   describe("mismatch detail sections", () => {
@@ -589,6 +639,49 @@ describe("buildDiscardReport", () => {
       // Check that production environment section exists
       const prodEnvHeader = report.sections.find((s) => s.title === "Environment: production");
       expect(prodEnvHeader).toBeDefined();
+    });
+
+    it("skips environments without mismatches even when present in counts", () => {
+      const input = createBaseInput({
+        countsByEnv: {
+          production: {
+            duplicateCached: 0,
+            duplicateNew: 0,
+            notBathroomCached: 0,
+            notBathroomNew: 0,
+            processed: 0,
+            tooShortCached: 0,
+            tooShortNew: 0,
+            validCached: 0,
+            validNew: 0
+          },
+          staging: {
+            duplicateCached: 0,
+            duplicateNew: 0,
+            notBathroomCached: 0,
+            notBathroomNew: 0,
+            processed: 0,
+            tooShortCached: 0,
+            tooShortNew: 0,
+            validCached: 0,
+            validNew: 0
+          }
+        },
+        dateMismatches: [
+          {
+            diffHours: 25,
+            environment: "production",
+            id: "m1",
+            scanDate: "2024-08-01T10:00:00Z",
+            videoDate: "2024-08-02T11:00:00Z"
+          }
+        ]
+      });
+
+      const report = buildDiscardReport(input);
+      const envHeaders = report.sections.filter((s) => s.title?.startsWith("Environment:") === true);
+      expect(envHeaders.some((s) => s.title === "Environment: production")).toBe(true);
+      expect(envHeaders.some((s) => s.title === "Environment: staging")).toBe(false);
     });
 
     it("pads single digit day values with space", () => {
@@ -691,6 +784,22 @@ describe("buildDiscardReport", () => {
       const config = chartSection?.data as LineChartConfig;
       // Should use default colors (cycling through 4 colors)
       expect(config.datasets.length).toBe(5);
+    });
+
+    it("defaults summary counts to zero when environment data is missing", () => {
+      const input = createBaseInput({
+        countsByEnv: {
+          production: {} as unknown as EnvCounts
+        }
+      });
+
+      const report = buildDiscardReport(input);
+      const summarySection = report.sections.find((s) => s.title === "Processing Summary");
+      expect(summarySection).toBeDefined();
+
+      const rows = summarySection?.data as string[][];
+      const valueCells = rows.flatMap((row) => row.slice(1));
+      expect(new Set(valueCells)).toEqual(new Set(["0"]));
     });
   });
 });

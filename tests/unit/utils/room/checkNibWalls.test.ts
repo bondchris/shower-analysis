@@ -1,6 +1,10 @@
 import convert from "convert-units";
+import { vi } from "vitest";
 
 import { checkNibWalls } from "../../../../src/utils/room/analysis/checkNibWalls";
+import { NIB_WALL_THRESHOLD_FT } from "../../../../src/utils/room/constants";
+import { Point } from "../../../../src/models/point";
+import * as transformUtils from "../../../../src/utils/math/transform";
 import { createExternalWall, createMockScan } from "./testHelpers";
 
 describe("checkNibWalls", () => {
@@ -206,6 +210,41 @@ describe("checkNibWalls", () => {
     });
   });
   describe("Coverage Improvements", () => {
+    it("should detect a nib wall shorter than the configured threshold", () => {
+      const thresholdMeters = convert(NIB_WALL_THRESHOLD_FT).from("ft").to("m");
+      const wallJustUnderThreshold = createExternalWall("w-short", {
+        polygonCorners: [
+          [0, 0],
+          [thresholdMeters - 0.01, 0]
+        ]
+      });
+      expect(checkNibWalls(createMockScan({ walls: [wallJustUnderThreshold] }))).toBe(true);
+    });
+
+    it("should skip undefined transformed corners and still find a nib wall", () => {
+      const originalTransformPoint = transformUtils.transformPoint;
+      let callCount = 0;
+      vi.spyOn(transformUtils, "transformPoint").mockImplementation((p: Point, m: number[]) => {
+        callCount += 1;
+        if (callCount === 2) {
+          return undefined as unknown as Point;
+        }
+        return originalTransformPoint(p, m);
+      });
+
+      const thresholdMeters = convert(NIB_WALL_THRESHOLD_FT).from("ft").to("m");
+      const wallWithNoisyCorner = createExternalWall("w-noisy", {
+        polygonCorners: [
+          [0, 0],
+          [thresholdMeters - 0.05, 0],
+          [thresholdMeters - 0.05, 0.05]
+        ]
+      });
+
+      expect(checkNibWalls(createMockScan({ walls: [wallWithNoisyCorner] }))).toBe(true);
+      vi.restoreAllMocks();
+    });
+
     it("should ignore walls with invalid transforms", () => {
       // Wall is short enough to be a nib (< 0.3m), but transform is invalid
       const w1 = createExternalWall("w1", {

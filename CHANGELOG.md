@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-01-06
+
+### [v0.61.0] Phone Motion Analytics, Movement Speeds, and Zoomed Charts
+
+- **Phone Orientation Analysis**: Extract tilt, roll, and pan angles from AR camera transforms; cache
+  histograms with overflow percentages and render new protractor charts (with reference
+  illustrations) for tilt, roll, and full 360° pan profiles.
+- **Movement Distance & Speed Metrics**: Compute path length, displacement, scan duration, and
+  sliding-window min/avg/max speeds; add scan efficiency scatter plot (with zoomed detail) plus a
+  movement speed KDE overlay.
+- **Rotation Coverage & Fast Motion Signals**: Detect scans that complete a full 360° rotation and
+  chart partial rotation coverage; track fast tilt/roll/pan events (> 5 °/s) with pie charts,
+  timing line charts, and maximum angular speed KDEs.
+- **Chart & Layout Upgrades**: Scatter charts now support independent axes and zoom boxes; line
+  charts format y-axis values with decimals/suffixes; pie/section layout improvements keep
+  dual-chart rows centered with custom widths and prevent legend clipping.
+- **Device Sorting & Test Coverage**: Centralize device model sorting by release order, expose
+  script entrypoints for testing, and raise coverage thresholds to 99% while excluding
+  interface-only models; new unit tests cover SpatialService caching, device sorting, motion math,
+  and chart components.
+
 ## 2025-12-31
 
 ### [v0.60.0] Comprehensive AR Data Metrics, Capture Rate Analysis, and Color-Accurate Charts
@@ -12,8 +33,11 @@ All notable changes to this project will be documented in this file.
 - **AR Data Capture Rate**: Calculate sampling framerate from AR data timestamps (FPS) showing how
   frequently the device captured AR frames during scanning.
 - **Dropped Frames Detection**: Detect dropped AR frames by identifying intervals that exceed 1.5×
-  the median interval. Visualized with a pie chart showing percentage of scans with dropped frames
-  and a trend chart showing dropped frame rates over time.
+  the median interval. Visualized with a pie chart showing percentage of scans with dropped frames,
+  a trend chart showing dropped frame rates over time, and a new chart showing the average dropped
+  frame percentage per scan over time. Both `droppedArFrameCount` and `droppedArFramePercentage`
+  fields are now tracked for each artifact, with percentage providing normalized comparison across
+  videos of different lengths.
 - **Timezone Extraction**: Extract timezone (UTC offset) from EXIF `OffsetTime` field, displayed as
   a bar chart with abbreviated timezone names (e.g., "-07:00 MT", "+05:30 IST").
 - **Time of Day Analysis**: Added a "Time of Day (Hour)" bar chart showing when scans were taken,
@@ -22,10 +46,10 @@ All notable changes to this project will be documented in this file.
   convert color temperature (Kelvin) and brightness values (EV) to accurate hex colors. Charts now
   display scientifically accurate gradients: warm orange tones for low color temperatures, cool blue
   for high temperatures, and grayscale gradients for brightness values.
-- **AR Data Report Expansion**: The `ardata-analysis.pdf` report now includes 19 chart sections:
+- **AR Data Report Expansion**: The `ardata-analysis.pdf` report now includes 20 chart sections:
   - Device Model, Focal Length & Aperture
   - Timezone (UTC Offset), Time of Day (Hour)
-  - AR Data Capture Rate (FPS), Dropped Frames pie chart, Dropped Frames Over Time trend
+  - AR Data Capture Rate (FPS), Artifacts with Dropped Frames pie chart, Artifacts with Dropped Frames Over Time trend, Average Dropped Frame Percentage Over Time
   - Ambient Intensity: Average, Minimum, Maximum KDE charts
   - Color Temperature: Average, Minimum, Maximum KDE charts with Kelvin-accurate colors
   - ISO Speed: Average, Minimum, Maximum KDE charts

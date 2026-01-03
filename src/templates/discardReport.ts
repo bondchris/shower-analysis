@@ -448,7 +448,7 @@ function buildShortVideosDetailSection(badScanHistory: BadScanHistoryEntry[]): R
     type: "text"
   });
 
-  const envSet = new Set(shortVideos.map((entry) => entry.environment));
+  const envSet = new Set(badScanHistory.map((entry) => entry.environment));
   const sortedEnvs = Array.from(envSet).sort();
 
   sortedEnvs.forEach((env) => {
@@ -505,7 +505,7 @@ function buildNonBathroomDetailSection(badScanHistory: BadScanHistoryEntry[]): R
     type: "text"
   });
 
-  const envSet = new Set(nonBathrooms.map((entry) => entry.environment));
+  const envSet = new Set(badScanHistory.map((entry) => entry.environment));
   const sortedEnvs = Array.from(envSet).sort();
 
   sortedEnvs.forEach((env) => {
@@ -661,7 +661,7 @@ function buildMismatchOverTimeSection(mismatches: DateMismatch[]): ReportSection
   };
 }
 
-function buildMismatchDetailSections(mismatches: DateMismatch[]): ReportSection[] {
+function buildMismatchDetailSections(mismatches: DateMismatch[], environments: string[] = []): ReportSection[] {
   const sections: ReportSection[] = [];
   const noMismatches = 0;
 
@@ -675,7 +675,7 @@ function buildMismatchDetailSections(mismatches: DateMismatch[]): ReportSection[
     type: "text"
   });
 
-  const envSet = new Set(mismatches.map((m) => m.environment));
+  const envSet = new Set([...mismatches.map((m) => m.environment), ...environments]);
   const sortedEnvs = Array.from(envSet).sort();
 
   sortedEnvs.forEach((env) => {
@@ -763,7 +763,7 @@ export function buildDiscardReport(input: DiscardReportInput): ReportData {
   const duplicatesDetailSections = buildDuplicatesDetailSection(input.badScanHistory);
   sections.push(...duplicatesDetailSections);
 
-  const mismatchDetailSections = buildMismatchDetailSections(input.dateMismatches);
+  const mismatchDetailSections = buildMismatchDetailSections(input.dateMismatches, Object.keys(input.countsByEnv));
   sections.push(...mismatchDetailSections);
 
   if (input.dryRun) {

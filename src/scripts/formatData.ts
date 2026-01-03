@@ -179,6 +179,10 @@ export async function run(dataDir?: string): Promise<RunStats> {
   return { found: totalFiles, processed, skipped };
 }
 
+export async function runCli(runner: () => Promise<RunStats> = run): Promise<void> {
+  await runner().catch((err: unknown) => logger.error(err));
+}
+
 if (require.main === module) {
-  run().catch((err: unknown) => logger.error(err));
+  runCli().catch((err: unknown) => logger.error(err));
 }

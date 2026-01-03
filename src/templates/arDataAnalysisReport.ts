@@ -1,15 +1,25 @@
+import * as fs from "fs";
+import * as path from "path";
 import React from "react";
 
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
 import { ChartConfiguration } from "../models/chart/chartConfiguration";
 import { LineChartConfig } from "../models/chart/lineChartConfig";
+import { ProtractorChartConfig } from "../models/chart/protractorChartConfig";
 import { ReportData, ReportSection } from "../models/report";
 import { brightnessToHex } from "../utils/chart/brightnessToRgb";
-import { getBarChartConfig, getLineChartConfig, getPieChartConfig } from "../utils/chart/configBuilders";
+import {
+  getBarChartConfig,
+  getLineChartConfig,
+  getPieChartConfig,
+  getScatterChartConfig
+} from "../utils/chart/configBuilders";
 import { getGlobalDateRange } from "../utils/chart/dateRange";
+import { calculateDynamicKdeBounds, calculateKde } from "../utils/chart/kde";
 import { kelvinToHex } from "../utils/chart/kelvinToRgb";
 import { sortDeviceModels } from "../utils/deviceSorting";
 import { LineChart } from "./components/charts/LineChart";
+import { ProtractorChart } from "./components/charts/ProtractorChart";
 import { buildDynamicKde } from "./dataAnalysisReport/kdeBounds";
 import { computeLayoutConstants } from "./dataAnalysisReport/layout";
 
@@ -20,16 +30,29 @@ interface ArDataCharts {
   brightness: ChartConfiguration;
   deviceModel: ChartConfiguration;
   droppedFrames: ChartConfiguration;
+  fastPanTiming: ChartConfiguration;
+  fastPans: ChartConfiguration;
+  fastRollTiming: ChartConfiguration;
+  fastRolls: ChartConfiguration;
+  fastTiltTiming: ChartConfiguration;
+  fastTilts: ChartConfiguration;
   focalLength: ChartConfiguration;
+  fullRotation: ChartConfiguration;
   iso: ChartConfiguration;
+  movementSpeed: ChartConfiguration;
+  partialRotationCoverage: ChartConfiguration;
   maxAmbient: ChartConfiguration;
   maxBrightness: ChartConfiguration;
   maxIso: ChartConfiguration;
+  maxPanSpeed: ChartConfiguration;
+  maxRollSpeed: ChartConfiguration;
   maxTemperature: ChartConfiguration;
+  maxTiltSpeed: ChartConfiguration;
   minAmbient: ChartConfiguration;
   minBrightness: ChartConfiguration;
   minIso: ChartConfiguration;
   minTemperature: ChartConfiguration;
+  scanEfficiency: ChartConfiguration;
   temperature: ChartConfiguration;
   timeOfDay: ChartConfiguration;
   timezone: ChartConfiguration;
@@ -121,21 +144,20 @@ function buildArDataCharts(metadataList: ArtifactAnalysis[]): ArDataCharts {
   const signGroupIndex = 1;
   const hoursGroupIndex = 2;
   const minutesGroupIndex = 3;
-  const offsetGroupIndex = 1;
   const parseTimezoneOffset = (label: string): number => {
     // Extract the offset portion from labels like "-07:00 (MT)" or just "-07:00"
-    const offsetMatch = /^([+-]\d{2}:\d{2})/.exec(label);
-    if (offsetMatch === null) {
-      return sortEqual;
-    }
-    const offset = offsetMatch[offsetGroupIndex] ?? "";
-    const match = /^([+-])(\d{2}):(\d{2})$/.exec(offset);
+    const match = /^([+-])(\d{2}):(\d{2})/.exec(label);
     if (match === null) {
       return sortEqual;
     }
     const sign = match[signGroupIndex] === "-" ? sortBefore : sortAfter;
-    const hours = parseInt(match[hoursGroupIndex] ?? "0", radix);
-    const minutes = parseInt(match[minutesGroupIndex] ?? "0", radix);
+    const hoursStr = match[hoursGroupIndex];
+    const minutesStr = match[minutesGroupIndex];
+    if (hoursStr === undefined || minutesStr === undefined) {
+      return sortEqual;
+    }
+    const hours = parseInt(hoursStr, radix);
+    const minutes = parseInt(minutesStr, radix);
     const hoursInMinutes = hours * minutesPerHour;
     const totalMinutes = hoursInMinutes + minutes;
     return sign * totalMinutes;
@@ -186,7 +208,8 @@ function buildArDataCharts(metadataList: ArtifactAnalysis[]): ArDataCharts {
       const hour = parseHourFromDateTime(m.scanDateTime);
       if (hour !== null) {
         const hourLabel = hour.toString().padStart(hourLabelDigits, "0");
-        timeOfDayMap[hourLabel] = (timeOfDayMap[hourLabel] ?? initialCount) + incrementStep;
+        const currentHourCount = timeOfDayMap[hourLabel] ?? initialCount;
+        timeOfDayMap[hourLabel] = currentHourCount + incrementStep;
       }
     }
   }
@@ -299,6 +322,104 @@ function buildArDataCharts(metadataList: ArtifactAnalysis[]): ArDataCharts {
     title: "",
     width: layout.HALF_CHART_WIDTH
   });
+
+  // Scan Efficiency Scatter Chart
+  // Shows path length (total distance traveled) vs. displacement (start-to-end distance)
+  // Includes a zoomed detail view of the clustered region
+  const efficiencyPoints = metadataList
+    .filter((m) => m.totalDistanceTraveled > noResults && m.totalDisplacement > noResults)
+    .map((m) => ({
+      x: m.totalDistanceTraveled,
+      y: m.totalDisplacement
+    }));
+
+  const zoomPathLengthMin = 10;
+  const zoomPathLengthMax = 60;
+  const zoomDisplacementMin = 0;
+  const zoomDisplacementMax = 5;
+
+  const scanEfficiency = getScatterChartConfig(
+    [
+      {
+        data: efficiencyPoints,
+        label: "Scans",
+        pointColor: "#8b5cf6",
+        pointRadius: 1.5
+      }
+    ],
+    {
+      chartId: "scanEfficiency",
+      height: layout.HALF_CHART_HEIGHT,
+      independentAxes: true,
+      title: "",
+      width: layout.FULL_CHART_WIDTH,
+      xLabel: "Path Length (feet)",
+      yLabel: "Displacement (feet)",
+      zoomBox: {
+        xMax: zoomPathLengthMax,
+        xMin: zoomPathLengthMin,
+        yMax: zoomDisplacementMax,
+        yMin: zoomDisplacementMin
+      }
+    }
+  );
+
+  // Movement Speed KDE Chart (min/avg/max overlay using shared bounds)
+  const avgSpeedVals = metadataList.map((m) => m.avgSpeed).filter((v) => v > noResults);
+  const minSpeedVals = metadataList.map((m) => m.minSpeed).filter((v) => v > noResults);
+  const maxSpeedVals = metadataList.map((m) => m.maxSpeed).filter((v) => v > noResults);
+  const speedInitialMin = 0;
+  const speedInitialMax = 2;
+  const speedKdeResolution = 200;
+  const combinedSpeedVals = [...avgSpeedVals, ...minSpeedVals, ...maxSpeedVals];
+  const speedBounds = calculateDynamicKdeBounds(
+    combinedSpeedVals,
+    speedInitialMin,
+    speedInitialMax,
+    speedKdeResolution
+  );
+  const combinedSpeedLabels = calculateKde(combinedSpeedVals, {
+    max: speedBounds.max,
+    min: speedBounds.min,
+    resolution: speedKdeResolution
+  }).labels;
+  const buildSpeedDataset = (data: number[], label: string, borderColor: string, backgroundColor: string) => {
+    const kde = calculateKde(data, {
+      max: speedBounds.max,
+      min: speedBounds.min,
+      resolution: speedKdeResolution
+    });
+    const emptySpeedValues =
+      combinedSpeedLabels.length === initialCount
+        ? []
+        : new Array<number>(combinedSpeedLabels.length).fill(initialCount);
+    const values = kde.values.length === initialCount ? emptySpeedValues : kde.values;
+    return {
+      backgroundColor,
+      borderColor,
+      borderWidth: 2,
+      data: values,
+      fill: false,
+      label
+    };
+  };
+  const movementSpeed = getLineChartConfig(
+    combinedSpeedLabels,
+    [
+      buildSpeedDataset(minSpeedVals, "Minimum Speed", "#0ea5e9", "rgba(14, 165, 233, 0.15)"),
+      buildSpeedDataset(avgSpeedVals, "Average Speed", "#10b981", "rgba(16, 185, 129, 0.2)"),
+      buildSpeedDataset(maxSpeedVals, "Maximum Speed", "#f97316", "rgba(249, 115, 22, 0.18)")
+    ],
+    {
+      chartId: "movementSpeed",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: layout.FULL_CHART_WIDTH,
+      xLabel: "ft/s",
+      yLabel: "Density"
+    }
+  );
 
   // Ambient Intensity KDE Chart (Average)
   const intensityVals = metadataList.map((m) => m.avgAmbientIntensity).filter((v) => v > noResults);
@@ -535,88 +656,58 @@ function buildArDataCharts(metadataList: ArtifactAnalysis[]): ArDataCharts {
   const isoInitialMin = 0;
   const isoInitialMax = 800;
   const isoKdeResolution = 200;
+  const isoPalette = {
+    background: "rgba(99, 102, 241, 0.2)",
+    border: "#6366f1"
+  };
+  const createIsoDataset = (values: number[]) => ({
+    backgroundColor: isoPalette.background,
+    borderColor: isoPalette.border,
+    borderWidth: 2,
+    data: values,
+    fill: true,
+    label: "Density"
+  });
   const { kde: isoKde } = buildDynamicKde(isoVals, isoInitialMin, isoInitialMax, isoKdeResolution);
-  const iso = getLineChartConfig(
-    isoKde.labels,
-    [
-      {
-        borderColor: "#6366f1",
-        borderWidth: 2,
-        data: isoKde.values,
-        fill: true,
-        label: "Density"
-      }
-    ],
-    {
-      chartId: "iso",
-      height: layout.HALF_CHART_HEIGHT,
-      smooth: true,
-      title: "",
-      width: layout.FULL_CHART_WIDTH,
-      xLabel: "ISO",
-      yLabel: "Count"
-    }
-  );
+  const iso = getLineChartConfig(isoKde.labels, [createIsoDataset(isoKde.values)], {
+    chartId: "iso",
+    height: layout.HALF_CHART_HEIGHT,
+    smooth: true,
+    title: "",
+    width: layout.FULL_CHART_WIDTH,
+    xLabel: "ISO",
+    yLabel: "Count"
+  });
 
   // Minimum ISO KDE Chart (lower sensitivity = less noise)
   const minIsoVals = metadataList.map((m) => m.minIso).filter((v) => v > noResults);
   const minIsoInitialMin = 0;
   const minIsoInitialMax = 2000;
   const { kde: minIsoKde } = buildDynamicKde(minIsoVals, minIsoInitialMin, minIsoInitialMax, isoKdeResolution);
-  const minIso = getLineChartConfig(
-    minIsoKde.labels,
-    [
-      {
-        borderColor: "#4338ca",
-        borderWidth: 2,
-        data: minIsoKde.values,
-        fill: true,
-        gradientDirection: "horizontal",
-        gradientFrom: "#312e81",
-        gradientTo: "#6366f1",
-        label: "Density"
-      }
-    ],
-    {
-      chartId: "minIso",
-      height: layout.HALF_CHART_HEIGHT,
-      smooth: true,
-      title: "",
-      width: layout.HALF_CHART_WIDTH,
-      xLabel: "ISO",
-      yLabel: "Count"
-    }
-  );
+  const minIso = getLineChartConfig(minIsoKde.labels, [createIsoDataset(minIsoKde.values)], {
+    chartId: "minIso",
+    height: layout.HALF_CHART_HEIGHT,
+    smooth: true,
+    title: "",
+    width: layout.HALF_CHART_WIDTH,
+    xLabel: "ISO",
+    yLabel: "Count"
+  });
 
   // Maximum ISO KDE Chart (higher sensitivity = more noise potential)
   const maxIsoVals = metadataList.map((m) => m.maxIso).filter((v) => v > noResults);
   const maxIsoInitialMin = 0;
   const maxIsoInitialMax = 5000;
   const { kde: maxIsoKde } = buildDynamicKde(maxIsoVals, maxIsoInitialMin, maxIsoInitialMax, isoKdeResolution);
-  const maxIso = getLineChartConfig(
-    maxIsoKde.labels,
-    [
-      {
-        borderColor: "#a78bfa",
-        borderWidth: 2,
-        data: maxIsoKde.values,
-        fill: true,
-        gradientDirection: "horizontal",
-        gradientFrom: "#8b5cf6",
-        gradientTo: "#c4b5fd",
-        label: "Density"
-      }
-    ],
-    {
-      chartId: "maxIso",
-      height: layout.HALF_CHART_HEIGHT,
-      smooth: true,
-      title: "",
-      width: layout.HALF_CHART_WIDTH,
-      xLabel: "ISO",
-      yLabel: "Count"
-    }
-  );
+  const maxIso = getLineChartConfig(maxIsoKde.labels, [createIsoDataset(maxIsoKde.values)], {
+    chartId: "maxIso",
+    height: layout.HALF_CHART_HEIGHT,
+    smooth: true,
+    title: "",
+    width: layout.HALF_CHART_WIDTH,
+    xLabel: "ISO",
+    yLabel: "Count"
+  });
 
   // Brightness KDE Chart (Average)
   // Uses brightness-to-grayscale conversion: -6 = black, 15 = white
@@ -732,6 +823,424 @@ function buildArDataCharts(metadataList: ArtifactAnalysis[]): ArDataCharts {
     }
   );
 
+  // Maximum Tilt Speed KDE Chart (5-second sliding window)
+  // Shows the distribution of maximum angular velocity of phone tilt across scans
+  // Initial max set to 200 to capture outliers (some values exceed 100°/s)
+  const maxTiltSpeedVals = metadataList.map((m) => m.maxTiltSpeed).filter((v) => v > noResults);
+  const maxTiltSpeedInitialMin = 0;
+  const maxTiltSpeedInitialMax = 200;
+  const maxTiltSpeedKdeResolution = 200;
+  const { kde: maxTiltSpeedKde } = buildDynamicKde(
+    maxTiltSpeedVals,
+    maxTiltSpeedInitialMin,
+    maxTiltSpeedInitialMax,
+    maxTiltSpeedKdeResolution
+  );
+  const twoPartsOfThree = 2;
+  const threePartsTotal = 3;
+  const twoThirdsWidthRatio = twoPartsOfThree / threePartsTotal;
+  const maxTiltSpeed = getLineChartConfig(
+    maxTiltSpeedKde.labels,
+    [
+      {
+        backgroundColor: "rgba(139, 92, 246, 0.3)",
+        borderColor: "#8b5cf6",
+        borderWidth: 2,
+        data: maxTiltSpeedKde.values,
+        fill: true,
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "maxTiltSpeed",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: Math.round(layout.PAGE_CONTENT_WIDTH * twoThirdsWidthRatio),
+      xLabel: "°/s",
+      yLabel: "Count"
+    }
+  );
+
+  // Fast Tilts Pie Chart
+  // Shows percentage of scans with maximum tilt speed greater than 5 °/s
+  const fastTiltThreshold = 5;
+  const fastTiltCount = metadataList.filter((m) => m.maxTiltSpeed > fastTiltThreshold).length;
+  const noFastTiltCount = metadataList.length - fastTiltCount;
+  const onePartOfThree = 1;
+  const oneThirdWidthRatio = onePartOfThree / threePartsTotal;
+  const fastTilts = getPieChartConfig(["Fast Tilts", "No Fast Tilts"], [fastTiltCount, noFastTiltCount], {
+    colors: ["#f97316", "#22c55e"],
+    height: pieChartHeight,
+    title: "",
+    width: Math.round(layout.PAGE_CONTENT_WIDTH * oneThirdWidthRatio)
+  });
+
+  // Fast Tilt Timing Line Chart
+  // Shows when during scans fast tilts occur (as percentage of scan progress)
+  // Use 1001 bins (0-1000 inclusive) for 0.1% granularity to capture ~240 samples per 60s scan at 4fps
+  // Each bin counts the number of unique artifacts that have at least one fast tilt at that percentage
+  const percentBins = 1001;
+  const binsPerPercent = 10;
+  const fastTiltTimingCounts: number[] = new Array<number>(percentBins).fill(initialCount);
+  const firstBinIdx = 0;
+  const lastBinIdx = 1000;
+
+  for (const artifact of metadataList) {
+    if (!Array.isArray(artifact.fastTiltTimings)) {
+      continue;
+    }
+    // Track which bins this artifact contributes to (each artifact counts at most once per bin)
+    const binsForThisArtifact = new Set<number>();
+    for (const percentage of artifact.fastTiltTimings) {
+      const binIdx = Math.min(Math.max(Math.round(percentage * binsPerPercent), firstBinIdx), lastBinIdx);
+      binsForThisArtifact.add(binIdx);
+    }
+    // Increment each bin that this artifact contributed to
+    for (const binIdx of binsForThisArtifact) {
+      const currentVal = fastTiltTimingCounts[binIdx] ?? initialCount;
+      fastTiltTimingCounts[binIdx] = currentVal + incrementStep;
+    }
+  }
+
+  const fastTiltTimingLabels: string[] = [];
+  for (let i = 0; i < percentBins; i++) {
+    if (i === firstBinIdx) {
+      fastTiltTimingLabels.push("Scan Start");
+    } else if (i === lastBinIdx) {
+      fastTiltTimingLabels.push("Scan End");
+    } else {
+      const percentValue = i / binsPerPercent;
+      fastTiltTimingLabels.push(`${String(percentValue)}%`);
+    }
+  }
+
+  const fastTiltTiming = getLineChartConfig(
+    fastTiltTimingLabels,
+    [
+      {
+        borderColor: "#f97316",
+        borderWidth: 2,
+        data: fastTiltTimingCounts,
+        label: "Fast Tilts",
+        verticalLines: true
+      }
+    ],
+    {
+      chartId: "fastTiltTiming",
+      height: layout.HALF_CHART_HEIGHT,
+      title: "",
+      width: layout.FULL_CHART_WIDTH,
+      xLabel: "Scan Progress",
+      yLabel: "Count"
+    }
+  );
+
+  // Maximum Roll Speed KDE Chart (5-second sliding window)
+  // Shows the distribution of maximum angular velocity of phone roll across scans
+  const maxRollSpeedVals = metadataList.map((m) => m.maxRollSpeed).filter((v) => v > noResults);
+  const maxRollSpeedInitialMin = 0;
+  const maxRollSpeedInitialMax = 200;
+  const maxRollSpeedKdeResolution = 200;
+  const { kde: maxRollSpeedKde } = buildDynamicKde(
+    maxRollSpeedVals,
+    maxRollSpeedInitialMin,
+    maxRollSpeedInitialMax,
+    maxRollSpeedKdeResolution
+  );
+  const maxRollSpeed = getLineChartConfig(
+    maxRollSpeedKde.labels,
+    [
+      {
+        backgroundColor: "rgba(59, 130, 246, 0.3)",
+        borderColor: "#3b82f6",
+        borderWidth: 2,
+        data: maxRollSpeedKde.values,
+        fill: true,
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "maxRollSpeed",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: Math.round(layout.PAGE_CONTENT_WIDTH * twoThirdsWidthRatio),
+      xLabel: "°/s",
+      yLabel: "Count"
+    }
+  );
+
+  // Fast Rolls Pie Chart
+  // Shows percentage of scans with maximum roll speed greater than 5 °/s
+  const fastRollThreshold = 5;
+  const fastRollCount = metadataList.filter((m) => m.maxRollSpeed > fastRollThreshold).length;
+  const noFastRollCount = metadataList.length - fastRollCount;
+  const fastRolls = getPieChartConfig(["Fast Rolls", "No Fast Rolls"], [fastRollCount, noFastRollCount], {
+    colors: ["#3b82f6", "#22c55e"],
+    height: pieChartHeight,
+    title: "",
+    width: Math.round(layout.PAGE_CONTENT_WIDTH * oneThirdWidthRatio)
+  });
+
+  // Fast Roll Timing Line Chart
+  // Shows when during scans fast rolls occur (as percentage of scan progress)
+  const fastRollTimingCounts: number[] = new Array<number>(percentBins).fill(initialCount);
+
+  for (const artifact of metadataList) {
+    if (!Array.isArray(artifact.fastRollTimings)) {
+      continue;
+    }
+    // Track which bins this artifact contributes to (each artifact counts at most once per bin)
+    const binsForThisArtifact = new Set<number>();
+    for (const percentage of artifact.fastRollTimings) {
+      const binIdx = Math.min(Math.max(Math.round(percentage * binsPerPercent), firstBinIdx), lastBinIdx);
+      binsForThisArtifact.add(binIdx);
+    }
+    // Increment each bin that this artifact contributed to
+    for (const binIdx of binsForThisArtifact) {
+      const currentVal = fastRollTimingCounts[binIdx] ?? initialCount;
+      fastRollTimingCounts[binIdx] = currentVal + incrementStep;
+    }
+  }
+
+  const fastRollTimingLabels: string[] = [];
+  for (let i = 0; i < percentBins; i++) {
+    if (i === firstBinIdx) {
+      fastRollTimingLabels.push("Scan Start");
+    } else if (i === lastBinIdx) {
+      fastRollTimingLabels.push("Scan End");
+    } else {
+      const percentValue = i / binsPerPercent;
+      fastRollTimingLabels.push(`${String(percentValue)}%`);
+    }
+  }
+
+  const fastRollTiming = getLineChartConfig(
+    fastRollTimingLabels,
+    [
+      {
+        borderColor: "#3b82f6",
+        borderWidth: 2,
+        data: fastRollTimingCounts,
+        label: "Fast Rolls",
+        verticalLines: true
+      }
+    ],
+    {
+      chartId: "fastRollTiming",
+      height: layout.HALF_CHART_HEIGHT,
+      title: "",
+      width: layout.FULL_CHART_WIDTH,
+      xLabel: "Scan Progress",
+      yLabel: "Count"
+    }
+  );
+
+  // Maximum Pan Speed KDE Chart (5-second sliding window)
+  // Shows the distribution of maximum angular velocity of phone pan across scans
+  const maxPanSpeedVals = metadataList.map((m) => m.maxPanSpeed).filter((v) => v > noResults);
+  const maxPanSpeedInitialMin = 0;
+  const maxPanSpeedInitialMax = 200;
+  const maxPanSpeedKdeResolution = 200;
+  const { kde: maxPanSpeedKde } = buildDynamicKde(
+    maxPanSpeedVals,
+    maxPanSpeedInitialMin,
+    maxPanSpeedInitialMax,
+    maxPanSpeedKdeResolution
+  );
+  const maxPanSpeed = getLineChartConfig(
+    maxPanSpeedKde.labels,
+    [
+      {
+        backgroundColor: "rgba(16, 185, 129, 0.3)",
+        borderColor: "#10b981",
+        borderWidth: 2,
+        data: maxPanSpeedKde.values,
+        fill: true,
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "maxPanSpeed",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: Math.round(layout.PAGE_CONTENT_WIDTH * twoThirdsWidthRatio),
+      xLabel: "°/s",
+      yLabel: "Count"
+    }
+  );
+
+  // Fast Pans Pie Chart
+  // Shows percentage of scans with maximum pan speed greater than 5 °/s
+  const fastPanThreshold = 5;
+  const fastPanCount = metadataList.filter((m) => m.maxPanSpeed > fastPanThreshold).length;
+  const noFastPanCount = metadataList.length - fastPanCount;
+  const fastPans = getPieChartConfig(["Fast Pans", "No Fast Pans"], [fastPanCount, noFastPanCount], {
+    colors: ["#10b981", "#9ca3af"],
+    height: pieChartHeight,
+    title: "",
+    width: Math.round(layout.PAGE_CONTENT_WIDTH * oneThirdWidthRatio)
+  });
+
+  // Fast Pan Timing Line Chart
+  // Shows when during scans fast pans occur (as percentage of scan progress)
+  const fastPanTimingCounts: number[] = new Array<number>(percentBins).fill(initialCount);
+
+  for (const artifact of metadataList) {
+    if (!Array.isArray(artifact.fastPanTimings)) {
+      continue;
+    }
+    // Track which bins this artifact contributes to (each artifact counts at most once per bin)
+    const binsForThisArtifact = new Set<number>();
+    for (const percentage of artifact.fastPanTimings) {
+      const binIdx = Math.min(Math.max(Math.round(percentage * binsPerPercent), firstBinIdx), lastBinIdx);
+      binsForThisArtifact.add(binIdx);
+    }
+    // Increment each bin that this artifact contributed to
+    for (const binIdx of binsForThisArtifact) {
+      const currentVal = fastPanTimingCounts[binIdx] ?? initialCount;
+      fastPanTimingCounts[binIdx] = currentVal + incrementStep;
+    }
+  }
+
+  const fastPanTimingLabels: string[] = [];
+  for (let i = 0; i < percentBins; i++) {
+    if (i === firstBinIdx) {
+      fastPanTimingLabels.push("Scan Start");
+    } else if (i === lastBinIdx) {
+      fastPanTimingLabels.push("Scan End");
+    } else {
+      const percentValue = i / binsPerPercent;
+      fastPanTimingLabels.push(`${String(percentValue)}%`);
+    }
+  }
+
+  const fastPanTiming = getLineChartConfig(
+    fastPanTimingLabels,
+    [
+      {
+        borderColor: "#10b981",
+        borderWidth: 2,
+        data: fastPanTimingCounts,
+        label: "Fast Pans",
+        verticalLines: true
+      }
+    ],
+    {
+      chartId: "fastPanTiming",
+      height: layout.HALF_CHART_HEIGHT,
+      title: "",
+      width: layout.FULL_CHART_WIDTH,
+      xLabel: "Scan Progress",
+      yLabel: "Count"
+    }
+  );
+
+  // Full Rotation Detection Pie Chart
+  // A scan is considered to have completed a full 360° rotation if all 36 ten-degree
+  // sectors have at least one reading in the phonePanHistogram.
+  // The histogram has 3601 bins (0-360° at 0.1° resolution, inclusive of both endpoints).
+  // Each 10° sector spans 100 bins (e.g., sector 0 = bins 0-99 covering 0°-9.9°).
+  const sectorCount = 36;
+  const binsPerSector = 100;
+  const panHistogramLength = 3601;
+
+  // Count how many sectors have coverage in a histogram
+  const countSectorsCovered = (histogram: number[]): number => {
+    if (!Array.isArray(histogram) || histogram.length !== panHistogramLength) {
+      return initialCount;
+    }
+    let coveredCount = initialCount;
+    for (let sector = 0; sector < sectorCount; sector++) {
+      const sectorStart = sector * binsPerSector;
+      const sectorEnd = sectorStart + binsPerSector;
+      for (let bin = sectorStart; bin < sectorEnd; bin++) {
+        const binCount = histogram[bin] ?? initialCount;
+        if (binCount > initialCount) {
+          coveredCount++;
+          break;
+        }
+      }
+    }
+    return coveredCount;
+  };
+
+  const hasFullRotation = (histogram: number[]): boolean => {
+    return countSectorsCovered(histogram) === sectorCount;
+  };
+
+  const fullRotationCount = metadataList.filter((m) => hasFullRotation(m.phonePanHistogram)).length;
+  const partialRotationCount = metadataList.length - fullRotationCount;
+  const fullRotation = getPieChartConfig(
+    ["Full 360° Rotation", "Partial Rotation"],
+    [fullRotationCount, partialRotationCount],
+    {
+      colors: ["#22c55e", "#f59e0b"],
+      height: pieChartHeight,
+      title: "",
+      width: Math.round(layout.PAGE_CONTENT_WIDTH * oneThirdWidthRatio)
+    }
+  );
+
+  // Partial Rotation Coverage Line Chart
+  // Shows distribution of coverage for scans with less than 360° rotation
+  const percentMultiplier = 100;
+  const coverageInitialMin = 0;
+  const coverageInitialMax = 100;
+  const coverageResolution = 200;
+  const coveragePercentages: number[] = [];
+  for (const artifact of metadataList) {
+    const sectorsCovered = countSectorsCovered(artifact.phonePanHistogram);
+    if (sectorsCovered < sectorCount) {
+      // Calculate percentage coverage for partial rotations so we can build a smooth density curve
+      const percentCoverage = (sectorsCovered / sectorCount) * percentMultiplier;
+      coveragePercentages.push(percentCoverage);
+    }
+  }
+
+  const hasPartialCoverage = coveragePercentages.length > initialCount;
+  let coverageLabels: string[] = [];
+  let coverageValues: number[] = [];
+  if (hasPartialCoverage) {
+    const { kde: coverageKde } = buildDynamicKde(
+      coveragePercentages,
+      coverageInitialMin,
+      coverageInitialMax,
+      coverageResolution
+    );
+    coverageLabels = coverageKde.labels;
+    coverageValues = coverageKde.values;
+  } else {
+    const percentBinCount = 101;
+    coverageLabels = Array.from({ length: percentBinCount }, (_, idx) => `${String(idx)}%`);
+    coverageValues = new Array<number>(percentBinCount).fill(initialCount);
+  }
+
+  const partialRotationCoverage = getLineChartConfig(
+    coverageLabels,
+    [
+      {
+        backgroundColor: "rgba(249, 115, 22, 0.3)",
+        borderColor: "#f97316",
+        borderWidth: 2,
+        data: coverageValues,
+        fill: true,
+        label: "Partial Rotations"
+      }
+    ],
+    {
+      chartId: "partialRotationCoverage",
+      height: 230,
+      smooth: true,
+      title: "",
+      width: Math.round(layout.PAGE_CONTENT_WIDTH * twoThirdsWidthRatio),
+      xLabel: "",
+      yLabel: "Count"
+    }
+  );
+
   return {
     ambient,
     aperture,
@@ -739,16 +1248,29 @@ function buildArDataCharts(metadataList: ArtifactAnalysis[]): ArDataCharts {
     brightness,
     deviceModel,
     droppedFrames,
+    fastPanTiming,
+    fastPans,
+    fastRollTiming,
+    fastRolls,
+    fastTiltTiming,
+    fastTilts,
     focalLength,
+    fullRotation,
     iso,
     maxAmbient,
     maxBrightness,
     maxIso,
+    maxPanSpeed,
+    maxRollSpeed,
     maxTemperature,
+    maxTiltSpeed,
     minAmbient,
     minBrightness,
     minIso,
     minTemperature,
+    movementSpeed,
+    partialRotationCoverage,
+    scanEfficiency,
     temperature,
     timeOfDay,
     timezone
@@ -820,7 +1342,7 @@ function buildDroppedFramesOverTimeSection(metadataList: ArtifactAnalysis[]): Re
     height: 300,
     labels: sortedDates,
     options: {
-      title: "Dropped Frames Over Time",
+      title: "Artifacts with Dropped Frames Over Time",
       yLabel: "% of Scans"
     },
     type: "line"
@@ -831,7 +1353,418 @@ function buildDroppedFramesOverTimeSection(metadataList: ArtifactAnalysis[]): Re
   return {
     component: ChartComponent,
     data: chartConfig,
-    title: "Dropped Frames Over Time",
+    title: "Artifacts with Dropped Frames Over Time",
+    type: "react-component"
+  };
+}
+
+function buildAvgDroppedFramePercentageOverTimeSection(metadataList: ArtifactAnalysis[]): ReportSection | null {
+  const noEntries = 0;
+  const minDatesForChart = 2;
+  const datePartIndex = 0;
+  const defaultCount = 0;
+  const countIncrement = 1;
+
+  // Group artifacts by scan date and sum dropped frame percentages
+  const dateDroppedPercentageSums = new Map<string, number>();
+  const dateTotalCounts = new Map<string, number>();
+  const datesToCount = new Set<string>();
+
+  for (const artifact of metadataList) {
+    if (artifact.scanDateTime === "") {
+      continue;
+    }
+    // Parse EXIF date format "YYYY:MM:DD HH:MM:SS" to extract date
+    const datePart = artifact.scanDateTime.split(" ")[datePartIndex];
+    if (datePart === undefined || datePart === "") {
+      continue;
+    }
+    // Convert "YYYY:MM:DD" to "YYYY-MM-DD" for consistency
+    const dateKey = datePart.replace(/:/g, "-");
+    if (dateKey.startsWith("0001")) {
+      continue;
+    }
+    datesToCount.add(dateKey);
+
+    dateTotalCounts.set(dateKey, (dateTotalCounts.get(dateKey) ?? defaultCount) + countIncrement);
+    const currentSum = dateDroppedPercentageSums.get(dateKey) ?? defaultCount;
+    dateDroppedPercentageSums.set(dateKey, currentSum + artifact.droppedArFramePercentage);
+  }
+
+  const sortedDataDates = Array.from(datesToCount).sort();
+  if (sortedDataDates.length < minDatesForChart) {
+    return null;
+  }
+
+  // Use global date range for consistent x-axis
+  const sortedDates = getGlobalDateRange();
+
+  // Calculate average dropped frame percentage per date
+  const data = sortedDates.map((date) => {
+    const total = dateTotalCounts.get(date) ?? noEntries;
+    const sumPercentage = dateDroppedPercentageSums.get(date) ?? noEntries;
+    if (total === noEntries) {
+      return noEntries;
+    }
+    return sumPercentage / total;
+  });
+
+  const chartConfig: LineChartConfig = {
+    datasets: [
+      {
+        borderColor: "#f97316",
+        data,
+        label: "Avg Dropped Frame %",
+        verticalLines: true
+      }
+    ],
+    height: 300,
+    labels: sortedDates,
+    options: {
+      title: "Average Dropped Frame Percentage Over Time",
+      yDecimalPlaces: 1,
+      yLabel: "% of Frames Dropped",
+      yTickSuffix: "%"
+    },
+    type: "line"
+  };
+
+  const ChartComponent = (): React.ReactElement => React.createElement(LineChart, { config: chartConfig });
+
+  return {
+    component: ChartComponent,
+    data: chartConfig,
+    title: "Average Dropped Frame Percentage Over Time",
+    type: "react-component"
+  };
+}
+
+function loadPhoneTiltImageBase64(): string {
+  const imagePath = path.join(process.cwd(), "src", "templates", "assets", "images", "phone-tilt.png");
+  const imageBuffer = fs.readFileSync(imagePath);
+  return `data:image/png;base64,${imageBuffer.toString("base64")}`;
+}
+
+function loadPhoneRollImageBase64(): string {
+  const imagePath = path.join(process.cwd(), "src", "templates", "assets", "images", "phone-roll.png");
+  const imageBuffer = fs.readFileSync(imagePath);
+  return `data:image/png;base64,${imageBuffer.toString("base64")}`;
+}
+
+function loadPhonePanImageBase64(): string {
+  const imagePath = path.join(process.cwd(), "src", "templates", "assets", "images", "phone-pan.png");
+  const imageBuffer = fs.readFileSync(imagePath);
+  return `data:image/png;base64,${imageBuffer.toString("base64")}`;
+}
+
+function buildPhoneTiltSection(metadataList: ArtifactAnalysis[]): ReportSection | null {
+  const layout = computeLayoutConstants();
+  const binsPerDegree = 10;
+  const maxAngleDegrees = 180;
+  const maxBinIndex = maxAngleDegrees * binsPerDegree;
+  const histogramSizeOffset = 1;
+  const histogramSize = maxBinIndex + histogramSizeOffset;
+  const noCount = 0;
+  const startIndex = 0;
+
+  const aggregatedHistogram: number[] = new Array<number>(histogramSize).fill(noCount);
+  let leftOverflowCount = noCount;
+  let rightOverflowCount = noCount;
+
+  for (const artifact of metadataList) {
+    if (!Array.isArray(artifact.phoneTiltHistogram)) {
+      continue;
+    }
+    for (let i = startIndex; i < artifact.phoneTiltHistogram.length && i < histogramSize; i++) {
+      const count = artifact.phoneTiltHistogram[i];
+      if (typeof count === "number") {
+        const currentTotal = aggregatedHistogram[i] ?? noCount;
+        aggregatedHistogram[i] = currentTotal + count;
+      }
+    }
+    leftOverflowCount += artifact.phoneTiltLeftOverflow;
+    rightOverflowCount += artifact.phoneTiltRightOverflow;
+  }
+
+  const totalCount = aggregatedHistogram.reduce((sum, count) => sum + count, noCount);
+  if (totalCount === noCount) {
+    return null;
+  }
+
+  const twoThirdsWidthRatio = 0.6;
+  const chartWidth = Math.round(layout.PAGE_CONTENT_WIDTH * twoThirdsWidthRatio);
+
+  const chartConfig: ProtractorChartConfig = {
+    height: layout.HALF_CHART_HEIGHT,
+    histogram: aggregatedHistogram,
+    leftOverflowCount,
+    options: {
+      chartId: "phoneTilt",
+      lineColor: "#8b5cf6",
+      title: "",
+      width: chartWidth
+    },
+    rightOverflowCount,
+    type: "protractor"
+  };
+
+  const imageDataUri = loadPhoneTiltImageBase64();
+
+  const ChartComponent = (): React.ReactElement =>
+    React.createElement(
+      "div",
+      {
+        style: {
+          alignItems: "center",
+          display: "flex",
+          gap: "20px",
+          justifyContent: "center",
+          width: "100%"
+        }
+      },
+      React.createElement(
+        "div",
+        {
+          style: {
+            alignItems: "center",
+            display: "flex",
+            flex: "1",
+            justifyContent: "center"
+          }
+        },
+        React.createElement("img", {
+          alt: "Phone tilt illustration",
+          src: imageDataUri,
+          style: {
+            maxHeight: `${String(layout.HALF_CHART_HEIGHT)}px`,
+            maxWidth: "100%",
+            objectFit: "contain"
+          }
+        })
+      ),
+      React.createElement(
+        "div",
+        {
+          style: {
+            flex: "2"
+          }
+        },
+        React.createElement(ProtractorChart, { config: chartConfig })
+      )
+    );
+
+  return {
+    component: ChartComponent,
+    data: chartConfig,
+    title: "Phone Tilt Profile",
+    type: "react-component"
+  };
+}
+
+function buildPhoneRollSection(metadataList: ArtifactAnalysis[]): ReportSection | null {
+  const layout = computeLayoutConstants();
+  const binsPerDegree = 10;
+  const maxAngleDegrees = 180;
+  const maxBinIndex = maxAngleDegrees * binsPerDegree;
+  const histogramSizeOffset = 1;
+  const histogramSize = maxBinIndex + histogramSizeOffset;
+  const noCount = 0;
+  const startIndex = 0;
+
+  const aggregatedHistogram: number[] = new Array<number>(histogramSize).fill(noCount);
+  let leftOverflowCount = noCount;
+  let rightOverflowCount = noCount;
+
+  for (const artifact of metadataList) {
+    if (!Array.isArray(artifact.phoneRollHistogram)) {
+      continue;
+    }
+    for (let i = startIndex; i < artifact.phoneRollHistogram.length && i < histogramSize; i++) {
+      const count = artifact.phoneRollHistogram[i];
+      if (typeof count === "number") {
+        const currentTotal = aggregatedHistogram[i] ?? noCount;
+        aggregatedHistogram[i] = currentTotal + count;
+      }
+    }
+    leftOverflowCount += artifact.phoneRollLeftOverflow;
+    rightOverflowCount += artifact.phoneRollRightOverflow;
+  }
+
+  const totalCount = aggregatedHistogram.reduce((sum, count) => sum + count, noCount);
+  if (totalCount === noCount) {
+    return null;
+  }
+
+  const twoThirdsWidthRatio = 0.6;
+  const chartWidth = Math.round(layout.PAGE_CONTENT_WIDTH * twoThirdsWidthRatio);
+
+  const chartConfig: ProtractorChartConfig = {
+    height: layout.HALF_CHART_HEIGHT,
+    histogram: aggregatedHistogram,
+    leftOverflowCount,
+    options: {
+      chartId: "phoneRoll",
+      lineColor: "#3b82f6",
+      title: "",
+      width: chartWidth
+    },
+    rightOverflowCount,
+    type: "protractor"
+  };
+
+  const imageDataUri = loadPhoneRollImageBase64();
+
+  const ChartComponent = (): React.ReactElement =>
+    React.createElement(
+      "div",
+      {
+        style: {
+          alignItems: "center",
+          display: "flex",
+          gap: "20px",
+          justifyContent: "center",
+          width: "100%"
+        }
+      },
+      React.createElement(
+        "div",
+        {
+          style: {
+            alignItems: "center",
+            display: "flex",
+            flex: "1",
+            justifyContent: "center"
+          }
+        },
+        React.createElement("img", {
+          alt: "Phone roll illustration",
+          src: imageDataUri,
+          style: {
+            maxHeight: `${String(layout.HALF_CHART_HEIGHT)}px`,
+            maxWidth: "100%",
+            objectFit: "contain"
+          }
+        })
+      ),
+      React.createElement(
+        "div",
+        {
+          style: {
+            flex: "2"
+          }
+        },
+        React.createElement(ProtractorChart, { config: chartConfig })
+      )
+    );
+
+  return {
+    component: ChartComponent,
+    data: chartConfig,
+    title: "Phone Roll Profile",
+    type: "react-component"
+  };
+}
+
+function buildPhonePanSection(metadataList: ArtifactAnalysis[]): ReportSection | null {
+  const layout = computeLayoutConstants();
+  const binsPerDegree = 10;
+  const maxAngleDegrees = 360;
+  const maxBinIndex = maxAngleDegrees * binsPerDegree;
+  const histogramSizeOffset = 1;
+  const histogramSize = maxBinIndex + histogramSizeOffset;
+  const noCount = 0;
+  const startIndex = 0;
+
+  const aggregatedHistogram: number[] = new Array<number>(histogramSize).fill(noCount);
+
+  for (const artifact of metadataList) {
+    if (!Array.isArray(artifact.phonePanHistogram)) {
+      continue;
+    }
+    for (let i = startIndex; i < artifact.phonePanHistogram.length && i < histogramSize; i++) {
+      const count = artifact.phonePanHistogram[i];
+      if (typeof count === "number") {
+        const currentTotal = aggregatedHistogram[i] ?? noCount;
+        aggregatedHistogram[i] = currentTotal + count;
+      }
+    }
+  }
+
+  const totalCount = aggregatedHistogram.reduce((sum, count) => sum + count, noCount);
+  if (totalCount === noCount) {
+    return null;
+  }
+
+  const twoThirdsWidthRatio = 0.6;
+  const chartWidth = Math.round(layout.PAGE_CONTENT_WIDTH * twoThirdsWidthRatio);
+  const zeroAtTopAngleOffset = 90;
+
+  const chartConfig: ProtractorChartConfig = {
+    height: layout.HALF_CHART_HEIGHT,
+    histogram: aggregatedHistogram,
+    leftOverflowCount: noCount,
+    options: {
+      angleOffsetDegrees: zeroAtTopAngleOffset,
+      chartId: "phonePan",
+      fullCircle: true,
+      lineColor: "#10b981",
+      showAverage: false,
+      title: "",
+      width: chartWidth
+    },
+    rightOverflowCount: noCount,
+    type: "protractor"
+  };
+
+  const imageDataUri = loadPhonePanImageBase64();
+
+  const ChartComponent = (): React.ReactElement =>
+    React.createElement(
+      "div",
+      {
+        style: {
+          alignItems: "center",
+          display: "flex",
+          gap: "20px",
+          justifyContent: "center",
+          width: "100%"
+        }
+      },
+      React.createElement(
+        "div",
+        {
+          style: {
+            alignItems: "center",
+            display: "flex",
+            flex: "1",
+            justifyContent: "center"
+          }
+        },
+        React.createElement("img", {
+          alt: "Phone pan illustration",
+          src: imageDataUri,
+          style: {
+            maxHeight: `${String(layout.HALF_CHART_HEIGHT)}px`,
+            maxWidth: "100%",
+            objectFit: "contain"
+          }
+        })
+      ),
+      React.createElement(
+        "div",
+        {
+          style: {
+            flex: "2"
+          }
+        },
+        React.createElement(ProtractorChart, { config: chartConfig })
+      )
+    );
+
+  return {
+    component: ChartComponent,
+    data: chartConfig,
+    title: "Phone Pan Profile",
     type: "react-component"
   };
 }
@@ -884,7 +1817,7 @@ function buildArDataReportSections(
       },
       {
         data: charts.droppedFrames,
-        title: "Dropped Frames"
+        title: "Artifacts with Dropped Frames"
       }
     ],
     type: "chart-row"
@@ -895,8 +1828,119 @@ function buildArDataReportSections(
     sections.push(droppedFramesOverTime);
   }
 
+  const avgDroppedFramePercentageOverTime = buildAvgDroppedFramePercentageOverTimeSection(metadataList);
+  if (avgDroppedFramePercentageOverTime !== null) {
+    sections.push(avgDroppedFramePercentageOverTime);
+  }
+
   sections.push({
-    title: "Ambient Intensity (lux)",
+    data: charts.scanEfficiency,
+    title: "Scan Efficiency",
+    type: "chart"
+  });
+
+  sections.push({
+    title: "Movement Speed",
+    type: "header"
+  });
+
+  sections.push({
+    data: charts.movementSpeed,
+    title: "Min / Avg / Max Speed Distribution",
+    type: "chart"
+  });
+
+  const phoneTiltSection = buildPhoneTiltSection(metadataList);
+  if (phoneTiltSection !== null) {
+    sections.push(phoneTiltSection);
+  }
+
+  sections.push({
+    data: [
+      {
+        data: charts.fastTilts,
+        title: "Scans with Fast Tilts (>5 °/s)"
+      },
+      {
+        data: charts.maxTiltSpeed,
+        title: "Maximum Tilt Speed"
+      }
+    ],
+    type: "chart-row"
+  });
+
+  sections.push({
+    data: charts.fastTiltTiming,
+    title: "Fast Tilt Timing During Scan",
+    type: "chart"
+  });
+
+  const phoneRollSection = buildPhoneRollSection(metadataList);
+  if (phoneRollSection !== null) {
+    sections.push(phoneRollSection);
+  }
+
+  sections.push({
+    data: [
+      {
+        data: charts.fastRolls,
+        title: "Scans with Fast Rolls (>5 °/s)"
+      },
+      {
+        data: charts.maxRollSpeed,
+        title: "Maximum Roll Speed"
+      }
+    ],
+    type: "chart-row"
+  });
+
+  sections.push({
+    data: charts.fastRollTiming,
+    title: "Fast Roll Timing During Scan",
+    type: "chart"
+  });
+
+  const phonePanSection = buildPhonePanSection(metadataList);
+  if (phonePanSection !== null) {
+    sections.push(phonePanSection);
+  }
+
+  sections.push({
+    data: [
+      {
+        data: charts.fastPans,
+        title: "Scans with Fast Pans (>5 °/s)"
+      },
+      {
+        data: charts.maxPanSpeed,
+        title: "Maximum Pan Speed"
+      }
+    ],
+    type: "chart-row"
+  });
+
+  sections.push({
+    data: charts.fastPanTiming,
+    title: "Fast Pan Timing During Scan",
+    type: "chart"
+  });
+
+  sections.push({
+    data: [
+      {
+        data: charts.fullRotation,
+        title: "Scans with Full 360° Rotation"
+      },
+      {
+        data: charts.partialRotationCoverage,
+        title: "Partial Rotation Coverage"
+      }
+    ],
+    type: "chart-row"
+  });
+
+  sections.push({
+    title: "Ambient Intensity",
     type: "header"
   });
 
@@ -921,7 +1965,7 @@ function buildArDataReportSections(
   });
 
   sections.push({
-    title: "Color Temperature (Kelvin)",
+    title: "Color Temperature",
     type: "header"
   });
 
@@ -971,7 +2015,7 @@ function buildArDataReportSections(
   });
 
   sections.push({
-    title: "Brightness Value (EV)",
+    title: "Brightness Value",
     type: "header"
   });
 

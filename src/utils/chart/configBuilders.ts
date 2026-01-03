@@ -250,6 +250,12 @@ export function getScatterChartConfig(
   if (options.chartId !== undefined) {
     configOptions.chartId = options.chartId;
   }
+  if (options.independentAxes !== undefined) {
+    configOptions.independentAxes = options.independentAxes;
+  }
+  if (options.zoomBox !== undefined) {
+    configOptions.zoomBox = options.zoomBox;
+  }
 
   return {
     datasets,

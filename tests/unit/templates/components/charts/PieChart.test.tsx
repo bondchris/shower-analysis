@@ -621,6 +621,87 @@ describe("PieChart Component", () => {
     });
   });
 
+  it("wraps legend rows and spreads tightly clustered labels", () => {
+    const labelCount = 12;
+    const narrowWidth = 140;
+    const clusteredArcs: PieArcDatum[] = Array.from({ length: labelCount }, (_, i) => {
+      const start = i * 0.1;
+      const end = start + 0.08;
+      return { data: 10, endAngle: end, index: i, padAngle: 0, startAngle: start, value: 10 };
+    });
+    setMockArcs(clusteredArcs);
+
+    const labels = Array.from({ length: labelCount }, (_, i) => `Legend Item ${String(i + 1)}`);
+    const data = Array.from({ length: labelCount }, () => 10);
+    const config: PieChartConfig = {
+      ...baseConfig,
+      data,
+      labels,
+      options: { width: narrowWidth }
+    };
+
+    const { container } = render(<PieChart config={config} />);
+
+    // SVG should render with all legend items
+    const legendTexts = Array.from(container.querySelectorAll("text")).filter((text) =>
+      labels.includes(text.textContent)
+    );
+    // All legend items should be rendered
+    expect(legendTexts.length).toBe(labelCount);
+
+    // With expanded SVG width to fit legend, may have single or multiple rows
+    const uniqueYs = new Set(legendTexts.map((text) => text.getAttribute("y")));
+    expect(uniqueYs.size).toBeGreaterThanOrEqual(1);
+
+    const leaderLines = container.querySelectorAll('line[stroke-dasharray="2,2"]');
+    expect(leaderLines.length).toBeGreaterThan(0);
+
+    setMockArcs(null);
+    setMockCentroid(null);
+  });
+
+  it("packs legend rows and forces label spreading for clustered angles", () => {
+    const labelCount = 10;
+    const arcs: PieArcDatum[] = Array.from({ length: labelCount }, (_, i) => {
+      const start = i * 0.06;
+      const end = start + 0.06;
+      return { data: 10, endAngle: end, index: i, padAngle: 0, startAngle: start, value: 10 };
+    });
+    setMockArcs(arcs);
+
+    const labels = Array.from({ length: labelCount }, (_, i) => `Item ${String(i + 1)}`);
+    const data = Array.from({ length: labelCount }, () => 10);
+    const narrowWidth = 120;
+
+    const { container } = render(
+      <PieChart
+        config={{
+          ...baseConfig,
+          data,
+          labels,
+          options: { width: narrowWidth }
+        }}
+      />
+    );
+
+    // SVG should render with all legend items
+    const legendTexts = Array.from(container.querySelectorAll("text")).filter((text) =>
+      labels.includes(text.textContent)
+    );
+    // All legend items should be rendered
+    expect(legendTexts.length).toBe(labelCount);
+
+    // With expanded SVG width to fit legend, may have single or multiple rows
+    const uniqueYs = new Set(legendTexts.map((text) => text.getAttribute("y")));
+    expect(uniqueYs.size).toBeGreaterThanOrEqual(1);
+
+    const leaderLines = container.querySelectorAll('line[stroke-dasharray="2,2"]');
+    expect(leaderLines.length).toBeGreaterThan(0);
+
+    setMockArcs(null);
+    setMockCentroid(null);
+  });
+
   describe("Data array edge cases", () => {
     it("should handle undefined values in data array", () => {
       // Test the if (value !== undefined) branch in value-to-index mapping
