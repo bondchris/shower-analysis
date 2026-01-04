@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render } from "@testing-library/react";
+import { renderIconInSvg } from "./testUtils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CircularEllipticIcon,
@@ -61,7 +61,7 @@ describe("iconConfig", () => {
       vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
       const TestIcon = createIconComponent("cabinet");
-      const { container } = render(
+      const { container } = renderIconInSvg(
         <TestIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
       );
 
@@ -95,7 +95,7 @@ describe("iconConfig", () => {
       vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
       const TestIcon = createIconComponent("dining");
-      const { container } = render(
+      const { container } = renderIconInSvg(
         <TestIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
       );
 
@@ -122,7 +122,7 @@ describe("iconConfig", () => {
       const loadSvgSpy = vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
       loadSvgSpy.mockClear();
 
-      const { container } = render(
+      const { container } = renderIconInSvg(
         <IconComponent color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
       );
 

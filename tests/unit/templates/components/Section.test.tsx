@@ -85,6 +85,63 @@ describe("Section Component", () => {
     render(<Section section={section} />);
     expect(screen.getByTestId("mock-mixedchart")).toBeInTheDocument();
   });
+
+  it("renders a chart via mock (pie)", () => {
+    const section: ReportSection = {
+      data: {
+        data: [10, 20],
+        height: 160,
+        labels: ["One", "Two"],
+        options: {},
+        type: "pie"
+      },
+      title: "Pie Chart",
+      type: "chart"
+    };
+    render(<Section section={section} />);
+    expect(screen.getByText("Pie Chart")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-piechart")).toBeInTheDocument();
+  });
+
+  it("renders side notes next to a chart inside a chart-row", () => {
+    const section: ReportSection = {
+      data: [
+        {
+          data: {
+            datasets: [],
+            height: 100,
+            labels: [],
+            options: { sideNotes: ["Row Note A", "Row Note B"], width: 180 },
+            type: "bar"
+          },
+          title: "Row Chart"
+        }
+      ],
+      type: "chart-row"
+    };
+    render(<Section section={section} />);
+    expect(screen.getByTestId("mock-barchart")).toBeInTheDocument();
+    expect(screen.getByText("Row Note A")).toBeInTheDocument();
+    expect(screen.getByText("Row Note B")).toBeInTheDocument();
+  });
+
+  it("renders side notes next to a chart", () => {
+    const section: ReportSection = {
+      data: {
+        datasets: [],
+        height: 100,
+        labels: [],
+        options: { sideNotes: ["Note A", "Note B"], width: 200 },
+        type: "bar"
+      },
+      title: "Chart With Notes",
+      type: "chart"
+    };
+    render(<Section section={section} />);
+    expect(screen.getByTestId("mock-barchart")).toBeInTheDocument();
+    expect(screen.getByText("Note A")).toBeInTheDocument();
+    expect(screen.getByText("Note B")).toBeInTheDocument();
+  });
   it("renders summary type (same as text)", () => {
     const section: ReportSection = {
       data: "Summary content",
@@ -131,6 +188,103 @@ describe("Section Component", () => {
     expect(screen.getByTestId("mock-histogram")).toBeInTheDocument();
     expect(screen.getByTestId("mock-mixedchart")).toBeInTheDocument();
     expect(screen.getByTestId("mock-scatterchart")).toBeInTheDocument();
+  });
+
+  it("falls back to chart widths when scaling chart rows", () => {
+    const floorSpy = vi.spyOn(Math, "floor");
+    floorSpy.mockReturnValueOnce(undefined as unknown as number);
+
+    const section: ReportSection = {
+      data: [
+        {
+          data: { datasets: [], labels: [], options: { width: 240 }, type: "bar" },
+          title: "Wide Bar"
+        },
+        {
+          data: { data: [5, 15], height: 180, labels: ["A", "B"], options: {}, type: "pie" },
+          title: "Pie Without Width"
+        },
+        {
+          data: { datasets: [], height: 140, options: { width: 120 }, type: "scatter" },
+          title: "Scatter"
+        }
+      ],
+      type: "chart-row"
+    };
+    render(<Section section={section} />);
+    const barContainer = screen.getByText("Wide Bar").closest("div");
+    expect(barContainer?.style.flex).toBe("0 0 240px");
+    expect(screen.getByTestId("mock-piechart")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-scatterchart")).toBeInTheDocument();
+    floorSpy.mockRestore();
+  });
+
+  it("renders side notes for each chart type inside a chart-row", () => {
+    const section: ReportSection = {
+      data: [
+        {
+          data: {
+            datasets: [],
+            height: 120,
+            labels: [],
+            options: { sideNotes: ["Line side notes"], width: 100 },
+            type: "line"
+          },
+          title: "Line"
+        },
+        {
+          data: {
+            datasets: [],
+            height: 120,
+            labels: [],
+            options: { sideNotes: ["Histogram side notes"], width: 110 },
+            type: "histogram"
+          },
+          title: "Histogram"
+        },
+        {
+          data: {
+            datasets: [],
+            height: 120,
+            labels: [],
+            options: { sideNotes: ["Mixed side notes"], width: 120 },
+            type: "mixed"
+          },
+          title: "Mixed"
+        },
+        {
+          data: {
+            data: [1, 2],
+            height: 150,
+            labels: ["One", "Two"],
+            options: { sideNotes: ["Pie side notes"], width: 130 },
+            type: "pie"
+          },
+          title: "Pie"
+        },
+        {
+          data: {
+            datasets: [],
+            height: 140,
+            options: { sideNotes: ["Scatter side notes"], width: 140 },
+            type: "scatter"
+          },
+          title: "Scatter"
+        }
+      ],
+      type: "chart-row"
+    };
+    render(<Section section={section} />);
+    expect(screen.getByText("Line side notes")).toBeInTheDocument();
+    expect(screen.getByText("Histogram side notes")).toBeInTheDocument();
+    expect(screen.getByText("Mixed side notes")).toBeInTheDocument();
+    expect(screen.getByText("Pie side notes")).toBeInTheDocument();
+    expect(screen.getByText("Scatter side notes")).toBeInTheDocument();
+    expect(screen.getAllByTestId("mock-linechart").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("mock-histogram").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("mock-mixedchart").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("mock-piechart").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("mock-scatterchart").length).toBeGreaterThan(0);
   });
 
   it("renders page-break as a styled div", () => {

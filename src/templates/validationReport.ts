@@ -444,11 +444,20 @@ export function buildValidationReport(allStats: EnvStats[]): ReportData {
   const charts = generateValidationCharts(allStats);
 
   const INITIAL_ERROR_COUNT = 0;
-  const ZERO = 0;
+  const zeroArtifacts = 0;
   const PERCENTAGE_BASE = 100;
   const NO_STATS = 0;
   const DECIMAL_PLACES = 1;
   const LAST_ELEMENT_OFFSET = 1;
+  const NO_LIST_ITEMS = 0;
+  const escapeHtml = (value: string): string =>
+    value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  const formatId = (value: string): string => `<span class="font-mono">${escapeHtml(value)}</span>`;
 
   if (allStats.length === NO_STATS) {
     return {
@@ -477,7 +486,7 @@ export function buildValidationReport(allStats: EnvStats[]): ReportData {
   const processedRow = ["Processed Artifacts"];
   sortedStats.forEach((stat) => {
     const total = stat.totalArtifacts; // Use stat.totalArtifacts as the total for this environment
-    if (total > ZERO) {
+    if (total > zeroArtifacts) {
       const percentage = ((stat.processed / total) * PERCENTAGE_BASE).toFixed(DECIMAL_PLACES);
       // De-emphasize the percentage visually
       processedRow.push(
@@ -609,6 +618,58 @@ export function buildValidationReport(allStats: EnvStats[]): ReportData {
       type: "chart"
     });
   }
+
+  const addIdListSection = (title: string, entriesByEnv: { env: string; lines: string[] }[], emptyMessage: string) => {
+    sections.push({ title, type: "header" });
+    if (entriesByEnv.length === NO_LIST_ITEMS) {
+      sections.push({ data: emptyMessage, type: "text" });
+      return;
+    }
+
+    entriesByEnv.forEach(({ env, lines }) => {
+      if (lines.length === NO_LIST_ITEMS) {
+        return;
+      }
+      const listTitle = `${title} - ${env}`;
+      sections.push({ data: lines, level: 3, title: listTitle, type: "list" });
+    });
+  };
+
+  const invalidScanDateEntries = sortedStats
+    .map((stat) => ({
+      env: stat.name,
+      lines: stat.invalidScanDateDetails.map(({ id, scanDate }) => {
+        const formattedId = formatId(id);
+        const displayDate = scanDate === "" ? "(missing scanDate value)" : escapeHtml(scanDate);
+        return `${formattedId} - ${displayDate}`;
+      })
+    }))
+    .filter(({ lines }) => lines.length > NO_LIST_ITEMS);
+  addIdListSection("Invalid scanDate", invalidScanDateEntries, "No artifacts have invalid scanDate values.");
+
+  const missingProjectIdEntries = sortedStats
+    .map((stat) => ({
+      env: stat.name,
+      lines: stat.missingProjectIdIds.map((id) => formatId(id))
+    }))
+    .filter(({ lines }) => lines.length > NO_LIST_ITEMS);
+  addIdListSection("Missing projectId", missingProjectIdEntries, "No artifacts are missing projectId.");
+
+  const missingRequiredEntries = sortedStats
+    .map((stat) => ({
+      env: stat.name,
+      lines: stat.missingRequiredArtifacts.map(({ id, missingFields }) => {
+        const formattedId = formatId(id);
+        const missingList = missingFields.join(", ");
+        return `${formattedId} - missing ${missingList}`;
+      })
+    }))
+    .filter(({ lines }) => lines.length > NO_LIST_ITEMS);
+  addIdListSection(
+    "Missing Required Properties",
+    missingRequiredEntries,
+    "No artifacts are missing required properties."
+  );
 
   return {
     sections,

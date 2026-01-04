@@ -29,6 +29,20 @@ npm install
 
 Follow these steps to manage your dataset and generate insights.
 
+Reports are prefixed with their pipeline stage for quick context: `0 - Validation Report.pdf`, `1 - Sync Report.pdf`, `2 - Discard Report.pdf`, and `3.x` files for inspection outputs.
+
+### 0. Validate Artifacts
+
+Check for the existence of critical properties (`rawScan`, `arData`, `video`) and generate an error trend report.
+
+```bash
+npm run validate
+```
+
+**Output**:
+
+- `reports/0 - Validation Report.pdf`: Summarizes artifact counts, missing properties, error trends, and lists IDs with invalid scanDate, missing projectId, or missing required artifacts.
+
 ### 1. Sync Artifacts
 
 Download raw artifact data (`video.mp4`, `rawScan.json`, `arData.json`) to your local machine.
@@ -45,21 +59,9 @@ npm run sync
 
 **Output**:
 
-- `reports/sync-report.pdf`: Includes Video Size Trends, Inaccessible Artifacts Over Time, and download stats.
+- `reports/1 - Sync Report.pdf`: Includes Video Size Trends, Inaccessible Artifacts Over Time, and download stats.
 
-### 2. Validate Artifacts
-
-Check for the existence of critical properties (`rawScan`, `arData`, `video`) and generate an error trend report.
-
-```bash
-npm run validate
-```
-
-**Output**:
-
-- `reports/validation-report.pdf`: Summarizes artifact counts, missing properties, and error trends.
-
-### 3. Discard Invalid or Non-Bathroom Videos
+### 2. Discard Invalid or Non-Bathroom Videos
 
 Combines video integrity checks with Gemini vision filtering to remove unusable artifacts.
 
@@ -77,13 +79,15 @@ npm run discard
 - Removes non-bathroom videos via Gemini; successful checks are cached in `config/checkedScans.json` to avoid re-processing.
 - Hashes videos with BLAKE3 and detects duplicate videos across environments using `config/videoHashes.json`. Moves duplicates to `data/discarded-artifacts` and records them as bad scans.
 - Detects date mismatches between API scan dates and video creation metadata (> 24 hours difference).
+- Flags stray `avcC` bytes before the primary video header and reports affected artifacts as header anomalies.
 - Respects `DRY_RUN=1` and `BATHROOM_FILTER_CONCURRENCY` to control write behavior and parallelism.
 
 **Output**:
 
-- `reports/discard-report.pdf`: Clean/filter/duplicate counts, bad scan deltas, trend charts (short videos, non-bathrooms, duplicates), date mismatch analysis, and new bad scans by environment.
+- `reports/2 - Discard Report.pdf`: Clean/filter/duplicate counts, bad scan deltas, trend charts (short videos, non-bathrooms, duplicates),
+  date mismatch and header anomaly analysis, and new bad scans by environment.
 
-### 4. Format Data
+### Prep: Format Data
 
 Standardizes JSON files for better diffing and readability.
 
@@ -96,7 +100,7 @@ npm run format-data
 - Sorts `arData.json` keys chronologically.
 - Saves standardized output to `arDataFormatted.json`.
 
-### 5. Clear Metadata Cache
+### Prep: Clear Metadata Cache
 
 Invalidates cached metadata files to force regeneration with updated detection logic.
 
@@ -112,7 +116,7 @@ npm run clear-cache
 
 **Note**: After clearing the cache, run `npm run inspect` to regenerate metadata files.
 
-### 6. Inspect Data
+### 3. Inspect Data
 
 Deep analysis of metadata, lighting, room features, and camera settings.
 
@@ -122,12 +126,14 @@ npm run inspect
 
 **Output** (three separate reports):
 
-- `reports/video-analysis.pdf`: Video metadata analysis:
+- `reports/3.1 - Video Analysis.pdf`: Video metadata analysis:
   - Duration distribution with average reference line
   - Framerate distribution
   - Resolution distribution
+  - Bitrate summary (exact Mbps values rounded to 0.1 Mbps, bar chart) and color space distribution
+- Encoding parameters: Profile, Level, B-frames per GOP distributions, GOP length consistency (max/avg/min/variance charts), and entropy coding summarized alongside codec/color details
 
-- `reports/ardata-analysis.pdf`: AR data and camera analysis:
+- `reports/3.2 - AR Data Analysis.pdf`: AR data and camera analysis:
   - Device model distribution (release-aware ordering), focal length, and aperture settings
   - Timezone (UTC offset) and time-of-day distributions
   - AR data capture rate (FPS), dropped frame percentage pie chart, dropped frame trend, and average dropped frame percentage over time
@@ -138,7 +144,7 @@ npm run inspect
   - Full 360° rotation detection plus partial rotation coverage curve derived from pan histograms
   - Lighting conditions: Average/Minimum/Maximum for Ambient Intensity, Color Temperature, ISO Speed, and Brightness Value
 
-- `reports/scan-analysis.pdf`: Room scan data analysis:
+- `reports/3.3 - Scan Analysis.pdf`: Room scan data analysis:
   - Section types and feature prevalence
   - Capture errors and object distribution with confidence levels
   - Object attribute breakdowns (doors, chairs, sofas, tables, storage, vanity)

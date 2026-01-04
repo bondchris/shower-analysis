@@ -22,9 +22,12 @@ const getValidDateKey = (scanDate: unknown): string | null => {
 export function applyArtifactToStats(stats: EnvStats, item: ArtifactResponse): void {
   const REQUIRED_FIELDS: (keyof ArtifactResponse)[] = ["id", "scanDate", "rawScan", "arData", "video"];
   const WARNING_FIELDS: (keyof ArtifactResponse)[] = ["projectId"];
+  const REQUIRED_ARTIFACT_FIELDS: (keyof ArtifactResponse)[] = ["video", "rawScan", "arData"];
   const INITIAL_ERROR_COUNT = 0;
   const ERROR_INCREMENT = 1;
   const NO_MISSING_FIELDS = 0;
+  const artifactId = typeof item.id === "string" ? item.id : null;
+  const scanDateValue = typeof item.scanDate === "string" ? item.scanDate : "";
 
   stats.processed++;
   const missingFields = REQUIRED_FIELDS.filter((field) => item[field] === undefined || item[field] === null);
@@ -33,6 +36,9 @@ export function applyArtifactToStats(stats: EnvStats, item: ArtifactResponse): v
   // Check for invalid date
   if (typeof item.scanDate === "string" && item.scanDate.startsWith("0001")) {
     issues.push("scanDate (invalid)");
+    if (artifactId !== null) {
+      stats.invalidScanDateDetails.push({ id: artifactId, scanDate: scanDateValue });
+    }
   }
 
   // Check for floors with parent ids set
@@ -56,6 +62,16 @@ export function applyArtifactToStats(stats: EnvStats, item: ArtifactResponse): v
   }
 
   const missingWarnings = WARNING_FIELDS.filter((field) => item[field] === undefined || item[field] === null);
+  if (missingWarnings.includes("projectId") && artifactId !== null) {
+    stats.missingProjectIdIds.push(artifactId);
+  }
+
+  const missingRequiredArtifacts = REQUIRED_ARTIFACT_FIELDS.filter(
+    (field) => item[field] === undefined || item[field] === null
+  );
+  if (missingRequiredArtifacts.length > NO_MISSING_FIELDS && artifactId !== null) {
+    stats.missingRequiredArtifacts.push({ id: artifactId, missingFields: missingRequiredArtifacts });
+  }
 
   // Track property presence dynamically (both total and by date)
   const propertyDate = getValidDateKey(item.scanDate);
@@ -127,7 +143,10 @@ export async function validateEnvironment(env: { domain: string; name: string })
     artifactsWithWarnings: 0,
     cleanScansByDate: {},
     errorsByDate: {},
+    invalidScanDateDetails: [],
     missingCounts: {},
+    missingProjectIdIds: [],
+    missingRequiredArtifacts: [],
     name: env.name,
     pageErrors: {},
     processed: 0,
@@ -226,8 +245,9 @@ export async function generateReport(allStats: EnvStats[]) {
   // Pass allStats directly; charts are built internally now
   const reportData = buildValidationReport(allStats);
 
-  await generatePdfReport(reportData, "validation-report.pdf");
-  logger.info(`Report generated at: reports/validation-report.pdf`);
+  const reportFileName = "0 - Validation Report.pdf";
+  await generatePdfReport(reportData, reportFileName);
+  logger.info(`Report generated at: reports/${reportFileName}`);
 }
 
 export async function main() {

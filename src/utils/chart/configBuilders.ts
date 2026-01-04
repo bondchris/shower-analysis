@@ -146,6 +146,9 @@ export function getBarChartConfig(
   if (options.artifactCountsPerLabel !== undefined) {
     configOptions.artifactCountsPerLabel = options.artifactCountsPerLabel;
   }
+  if (options.sideNotes !== undefined) {
+    configOptions.sideNotes = options.sideNotes;
+  }
 
   return {
     data,

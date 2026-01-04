@@ -119,20 +119,20 @@ describe("inspectArtifacts Script", () => {
 
       await createInspectionReports(mockMeta, 10, 1);
 
-      expect(logger.info).toHaveBeenCalledWith("Generating Video Analysis PDF...");
+      expect(logger.info).toHaveBeenCalledWith("Generating 3.1 - Video Analysis PDF...");
       expect(buildVideoAnalysisReport).toHaveBeenCalledWith(mockMeta, 10, 1);
-      expect(generatePdfReport).toHaveBeenCalledWith(mockVideoReportData, "video-analysis.pdf");
-      expect(logger.info).toHaveBeenCalledWith("Report generated at: video-analysis.pdf");
+      expect(generatePdfReport).toHaveBeenCalledWith(mockVideoReportData, "3.1 - Video Analysis.pdf");
+      expect(logger.info).toHaveBeenCalledWith("Report generated at: 3.1 - Video Analysis.pdf");
 
-      expect(logger.info).toHaveBeenCalledWith("Generating AR Data Analysis PDF...");
+      expect(logger.info).toHaveBeenCalledWith("Generating 3.2 - AR Data Analysis PDF...");
       expect(buildArDataAnalysisReport).toHaveBeenCalledWith(mockMeta, 1);
-      expect(generatePdfReport).toHaveBeenCalledWith(mockArDataReportData, "ardata-analysis.pdf");
-      expect(logger.info).toHaveBeenCalledWith("Report generated at: ardata-analysis.pdf");
+      expect(generatePdfReport).toHaveBeenCalledWith(mockArDataReportData, "3.2 - AR Data Analysis.pdf");
+      expect(logger.info).toHaveBeenCalledWith("Report generated at: 3.2 - AR Data Analysis.pdf");
 
-      expect(logger.info).toHaveBeenCalledWith("Generating Scan Analysis PDF...");
+      expect(logger.info).toHaveBeenCalledWith("Generating 3.3 - Scan Analysis PDF...");
       expect(buildScanAnalysisReport).toHaveBeenCalledWith(mockMeta, 1, undefined);
-      expect(generatePdfReport).toHaveBeenCalledWith(mockScanReportData, "scan-analysis.pdf");
-      expect(logger.info).toHaveBeenCalledWith("Report generated at: scan-analysis.pdf");
+      expect(generatePdfReport).toHaveBeenCalledWith(mockScanReportData, "3.3 - Scan Analysis.pdf");
+      expect(logger.info).toHaveBeenCalledWith("Report generated at: 3.3 - Scan Analysis.pdf");
     });
 
     it("should bubble up errors from PDF generator", async () => {
@@ -204,9 +204,9 @@ describe("inspectArtifacts Script", () => {
       expect(buildScanAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 2, DIRS);
 
       // Verify all three PDFs are generated
-      expect(generatePdfReport).toHaveBeenCalledWith(mockVideoReportData, "video-analysis.pdf");
-      expect(generatePdfReport).toHaveBeenCalledWith(mockArDataReportData, "ardata-analysis.pdf");
-      expect(generatePdfReport).toHaveBeenCalledWith(mockScanReportData, "scan-analysis.pdf");
+      expect(generatePdfReport).toHaveBeenCalledWith(mockVideoReportData, "3.1 - Video Analysis.pdf");
+      expect(generatePdfReport).toHaveBeenCalledWith(mockArDataReportData, "3.2 - AR Data Analysis.pdf");
+      expect(generatePdfReport).toHaveBeenCalledWith(mockScanReportData, "3.3 - Scan Analysis.pdf");
     });
 
     it("should handle undefined/NaN durations robustly", async () => {

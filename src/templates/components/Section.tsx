@@ -14,12 +14,22 @@ export const Section: React.FC<SectionProps> = ({ section }) => {
   const MIN_LEVEL = 1;
   const MAX_LEVEL = 6;
   const MIN_TITLE_LEN = 0;
+  const EMPTY_LIST_LENGTH = 0;
+  const chartConfig = section.type === "chart" ? (section.data as ChartConfiguration | undefined) : undefined;
+  const chartOptions = chartConfig?.options as { width?: number; sideNotes?: string[] } | undefined;
+  const chartWidth = chartOptions?.width;
+  const sideNotes = chartOptions?.sideNotes ?? [];
+  const hasSideNotes = sideNotes.length > EMPTY_LIST_LENGTH;
 
   const validLevel = Math.max(MIN_LEVEL, Math.min(MAX_LEVEL, section.level ?? DEFAULT_LEVEL));
   const HeaderTag = `h${String(validLevel)}` as React.ElementType;
   const showTitle = section.title !== undefined && section.title.length > MIN_TITLE_LEN;
 
   const wrapperClass = ["chart", "summary", "chart-row"].includes(section.type) ? "break-inside-avoid" : "";
+  const wrapperStyle =
+    section.type === "chart" && !hasSideNotes && chartWidth !== undefined
+      ? { width: `${String(chartWidth)}px` }
+      : undefined;
 
   const headerClasses: Record<number, string> = {
     1: "text-2xl font-bold text-center mb-2 text-gray-900", // Mostly handled by ReportShell but good fallback
@@ -31,6 +41,8 @@ export const Section: React.FC<SectionProps> = ({ section }) => {
   };
 
   const chartTitleClass = "text-sm font-semibold text-center mb-0 mt-4 text-gray-700";
+  const headerStyle =
+    section.type === "chart" && chartWidth !== undefined ? { width: `${String(chartWidth)}px` } : undefined;
 
   const getTitleClassName = () => {
     if (section.type === "header") {
@@ -43,20 +55,26 @@ export const Section: React.FC<SectionProps> = ({ section }) => {
   };
 
   return (
-    <div className={wrapperClass}>
-      {showTitle && <HeaderTag className={getTitleClassName()}>{section.title}</HeaderTag>}
+    <div className={wrapperClass} style={wrapperStyle}>
+      {showTitle && (
+        <HeaderTag className={getTitleClassName()} style={headerStyle}>
+          {section.title}
+        </HeaderTag>
+      )}
       <SectionContent section={section} />
     </div>
   );
 };
 
 const SectionContent: React.FC<SectionProps> = ({ section }) => {
+  const textOptions = (section.options as { className?: string } | undefined) ?? {};
+
   switch (section.type) {
     case "text":
-      return <p>{(section.data as string | undefined) ?? ""}</p>;
+      return <p className={textOptions.className}>{(section.data as string | undefined) ?? ""}</p>;
 
     case "summary":
-      return <p>{(section.data as string | undefined) ?? ""}</p>;
+      return <p className={textOptions.className}>{(section.data as string | undefined) ?? ""}</p>;
 
     case "table":
       return (
@@ -86,14 +104,45 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
       const chartConfig = section.data as ChartConfiguration;
       const shouldCenter = chartConfig.type === "scatter" || chartConfig.type === "pie";
       const justifyClass = shouldCenter ? "justify-center" : "justify-start";
-      return (
-        <div className={`mb-4 mt-0 flex w-full ${justifyClass} break-inside-avoid [&>svg]:block`}>
+      const chartOptions = chartConfig.options as { sideNotes?: string[]; width?: number } | undefined;
+      const sideNotes = chartOptions?.sideNotes ?? [];
+      const EMPTY_SIDE_NOTES_LENGTH = 0;
+      const hasSideNotes = sideNotes.length > EMPTY_SIDE_NOTES_LENGTH;
+      const chartWidthStyle =
+        chartOptions?.width !== undefined ? { width: `${String(chartOptions.width)}px` } : undefined;
+
+      const renderChart = () => (
+        <>
           {chartConfig.type === "line" && <LineChart config={chartConfig} />}
           {chartConfig.type === "histogram" && <Histogram config={chartConfig} />}
           {chartConfig.type === "bar" && <BarChart config={chartConfig} />}
           {chartConfig.type === "mixed" && <MixedChart config={chartConfig} />}
           {chartConfig.type === "pie" && <PieChart config={chartConfig} />}
           {chartConfig.type === "scatter" && <ScatterChart config={chartConfig} />}
+        </>
+      );
+
+      if (hasSideNotes) {
+        return (
+          <div className="mb-4 mt-0 flex w-full items-center justify-start gap-4 break-inside-avoid">
+            <div className="flex-shrink-0 [&>svg]:block" style={chartWidthStyle}>
+              {renderChart()}
+            </div>
+            <div className="flex-1 text-center text-[9px] text-gray-700 leading-snug space-y-1">
+              {sideNotes.map((note, index) => (
+                <div key={index}>{note}</div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div
+          className={`mb-4 mt-0 flex w-full ${justifyClass} break-inside-avoid [&>svg]:block`}
+          style={chartWidthStyle}
+        >
+          {renderChart()}
         </div>
       );
     }
@@ -190,7 +239,7 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
 
       // Center rows with a single chart
       if (hasCustomWidths && chartCount === SINGLE_CHART_COUNT) {
-        rowJustifyClass = "justify-center";
+        rowJustifyClass = "justify-start";
         rowGapClass = "gap-0";
       }
 
@@ -208,9 +257,19 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
             const chartWidth = getChartWidth(chart);
             // Scale down the width to account for gaps
             const adjustedWidth = adjustedWidths[i] ?? chartWidth;
+            const chartOptions = chart.data.options as { sideNotes?: string[]; width?: number } | undefined;
+            const sideNotes = chartOptions?.sideNotes ?? [];
+            const EMPTY_SIDE_NOTES_LENGTH = 0;
+            const hasSideNotes = sideNotes.length > EMPTY_SIDE_NOTES_LENGTH;
             const flexStyle =
-              !useTwoColumnGrid && hasCustomWidths && adjustedWidth > defaultWidth
+              !hasSideNotes && !useTwoColumnGrid && hasCustomWidths && adjustedWidth > defaultWidth
                 ? { flex: `0 0 ${String(adjustedWidth)}px` }
+                : undefined;
+            const chartWidthStyle =
+              chartOptions?.width !== undefined ? { width: `${String(chartOptions.width)}px` } : undefined;
+            const titleStyle =
+              hasSideNotes && chartWidthStyle !== undefined
+                ? { ...chartWidthStyle, marginLeft: "auto", marginRight: "auto" }
                 : undefined;
             const containerClass =
               useTwoColumnGrid || !hasCustomWidths
@@ -218,17 +277,44 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
                 : "flex-1 text-center min-w-0 overflow-visible";
             return (
               <div key={i} className={containerClass} style={flexStyle}>
-                {chart.title !== undefined && (
-                  <h5 className="mb-2 mt-4 text-center text-sm font-semibold text-gray-700">{chart.title}</h5>
+                {chart.title !== undefined && !hasSideNotes && (
+                  <h5 className="mb-2 mt-4 text-center text-sm font-semibold text-gray-700" style={titleStyle}>
+                    {chart.title}
+                  </h5>
                 )}
-                <div className="flex w-full justify-center overflow-visible">
-                  {chart.data.type === "line" && <LineChart config={chart.data} />}
-                  {chart.data.type === "histogram" && <Histogram config={chart.data} />}
-                  {chart.data.type === "bar" && <BarChart config={chart.data} />}
-                  {chart.data.type === "mixed" && <MixedChart config={chart.data} />}
-                  {chart.data.type === "pie" && <PieChart config={chart.data} />}
-                  {chart.data.type === "scatter" && <ScatterChart config={chart.data} />}
-                </div>
+                {hasSideNotes ? (
+                  <div className="flex w-full items-center justify-start gap-4 overflow-visible">
+                    <div className="flex-shrink-0" style={chartWidthStyle}>
+                      {chart.title !== undefined && (
+                        <h5 className="mb-2 mt-4 text-center text-sm font-semibold text-gray-700">{chart.title}</h5>
+                      )}
+                      <div className="[&>svg]:block">
+                        {chart.data.type === "line" && <LineChart config={chart.data} />}
+                        {chart.data.type === "histogram" && <Histogram config={chart.data} />}
+                        {chart.data.type === "bar" && <BarChart config={chart.data} />}
+                        {chart.data.type === "mixed" && <MixedChart config={chart.data} />}
+                        {chart.data.type === "pie" && <PieChart config={chart.data} />}
+                        {chart.data.type === "scatter" && <ScatterChart config={chart.data} />}
+                      </div>
+                    </div>
+                    <div className="flex-1 text-center text-[9px] text-gray-700 leading-snug space-y-1">
+                      {sideNotes.map((note, noteIndex) => (
+                        <div key={noteIndex}>{note}</div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex w-full justify-center overflow-visible">
+                    <div className="[&>svg]:block" style={chartWidthStyle}>
+                      {chart.data.type === "line" && <LineChart config={chart.data} />}
+                      {chart.data.type === "histogram" && <Histogram config={chart.data} />}
+                      {chart.data.type === "bar" && <BarChart config={chart.data} />}
+                      {chart.data.type === "mixed" && <MixedChart config={chart.data} />}
+                      {chart.data.type === "pie" && <PieChart config={chart.data} />}
+                      {chart.data.type === "scatter" && <ScatterChart config={chart.data} />}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

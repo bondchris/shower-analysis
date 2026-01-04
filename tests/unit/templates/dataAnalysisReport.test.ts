@@ -184,11 +184,11 @@ describe("buildDataAnalysisReport", () => {
     expect(report.title).toBe("Artifact Data Analysis");
     expect(report.subtitle).toBe("Artifacts: 1");
 
-    // Video Analysis (H2), Duration, Frame/Res Row, Page Break, AR Data Analysis (H2), Device, Focal/Aperture Row, Ambient, Temp, ISO, Brightness,
+    // Video Analysis (H2), Duration, Frame/Res Row, Bitrate Row, Page Break, AR Data Analysis (H2), Device, Focal/Aperture Row, Ambient, Temp, ISO, Brightness,
     // Scan Data Analysis (H2), Summary Analysis (H3), Section Types, Capture Errors, Feature Prevalence,
     // Object Analysis (H3), Object Distribution, Floor Analysis (H3), Floor Area
-    // 20 (window/door/opening area charts only added when artifactDirs provided)
-    const EXPECTED_SECTION_COUNT = 20;
+    // 21 (window/door/opening area charts only added when artifactDirs provided)
+    const EXPECTED_SECTION_COUNT = 21;
     expect(report.sections).toHaveLength(EXPECTED_SECTION_COUNT);
 
     // Verify specific chart sections exist

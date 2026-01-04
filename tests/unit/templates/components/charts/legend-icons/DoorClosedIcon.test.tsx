@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render } from "@testing-library/react";
+import { renderIconInSvg } from "./testUtils";
 import { describe, expect, it, vi } from "vitest";
 import { DoorClosedIcon } from "../../../../../../src/templates/components/charts/legend-icons/iconConfig";
 import * as svgLoader from "../../../../../../src/templates/components/charts/legend-icons/svgLoader";
@@ -19,7 +19,7 @@ describe("DoorClosedIcon", () => {
   it("should render with correct transform and scale", () => {
     vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <DoorClosedIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
     );
 
@@ -34,7 +34,7 @@ describe("DoorClosedIcon", () => {
   it("should call loadSvgContent with correct path and color", () => {
     const loadSvgContentSpy = vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
-    render(<DoorClosedIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />);
+    renderIconInSvg(<DoorClosedIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />);
 
     expect(loadSvgContentSpy).toHaveBeenCalledWith("src/templates/assets/icons/door-closed.svg", TEST_COLOR);
   });
@@ -42,7 +42,7 @@ describe("DoorClosedIcon", () => {
   it("should render SVG content from loadSvgContent", () => {
     vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <DoorClosedIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
     );
 
@@ -55,7 +55,7 @@ describe("DoorClosedIcon", () => {
     vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
     const largeBoxSize = 24;
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <DoorClosedIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={largeBoxSize} />
     );
 
@@ -68,7 +68,7 @@ describe("DoorClosedIcon", () => {
     const differentColor = "#00ff00";
     vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(`<path fill="${differentColor}" d="M12 1"/>`);
 
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <DoorClosedIcon color={differentColor} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
     );
 
@@ -81,7 +81,7 @@ describe("DoorClosedIcon", () => {
 
     const customX = 50;
     const customY = 100;
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <DoorClosedIcon color={TEST_COLOR} x={customX} y={customY} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
     );
 

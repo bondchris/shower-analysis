@@ -202,7 +202,7 @@ Report Template (validationReport.ts)
     ↓
 PDF Generation (reportGenerator.ts)
     ↓
-reports/validation-report.pdf
+reports/0 - Validation Report.pdf
 ```
 
 ### Inspection Flow
@@ -222,11 +222,11 @@ Room Analysis (room/ utilities)
 Chart Generation (utils/chart/configBuilders)
     ↓
 Three Separate Report Templates:
-    ├─ videoAnalysisReport.ts → reports/video-analysis.pdf
+    ├─ videoAnalysisReport.ts → reports/3.1 - Video Analysis.pdf
     │    Duration, Framerate, Resolution charts
-    ├─ arDataAnalysisReport.ts → reports/ardata-analysis.pdf
+    ├─ arDataAnalysisReport.ts → reports/3.2 - AR Data Analysis.pdf
     │    Device models, camera settings, lighting/exposure charts
-    └─ scanAnalysisReport.ts → reports/scan-analysis.pdf
+    └─ scanAnalysisReport.ts → reports/3.3 - Scan Analysis.pdf
          Room dimensions, features, objects, errors
          Uses: dataAnalysisReport/charts/* helpers
     ↓

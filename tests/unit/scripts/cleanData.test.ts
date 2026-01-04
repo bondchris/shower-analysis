@@ -4,6 +4,7 @@ import path from "path";
 import { Mock, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import os from "os";
+import { BadScanDatabase } from "../../../src/models/badScanRecord";
 import { probeVideo, runCleanOnly, runCleanPhase } from "../../../src/scripts/discard";
 import { getBadScans, saveBadScans } from "../../../src/utils/data/badScans";
 import { getCheckedScans, saveCheckedScans } from "../../../src/utils/data/checkedScans";
@@ -198,6 +199,28 @@ describe("discard clean phase", () => {
       // Artifact should be moved to discarded-artifacts, not deleted
       expect(discardArtifact).toHaveBeenCalled();
       expect(stats.removedCount).toBe(1);
+    });
+
+    it("handles missing video when meta.json is absent", async () => {
+      const artifactDir = path.join(dataDir, "artifact_no_meta");
+      fs.mkdirSync(artifactDir);
+
+      const result = await runCleanPhase({
+        artifactDirs: [artifactDir],
+        badScansFile,
+        dataDir,
+        databases: { badScans: mockBadScans as unknown as BadScanDatabase, checkedScans: mockCheckedScans },
+        dryRun: true,
+        fs,
+        logger: mockLogger,
+        saveResults: false
+      });
+      const stats = result.stats;
+
+      expect(mockBadScans["artifact_no_meta"]).toBeDefined();
+      expect(Object.prototype.hasOwnProperty.call(mockBadScans["artifact_no_meta"] ?? {}, "scanDate")).toBe(false);
+      expect(stats.removedCount).toBe(0);
+      expect(stats.quarantinedCount).toBe(0);
     });
 
     it("handles invalid video", async () => {

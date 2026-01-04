@@ -4,6 +4,7 @@ export interface CaptureCharts {
   ambient: ChartConfiguration;
   area: ChartConfiguration;
   brightness: ChartConfiguration;
+  bitrateValues: ChartConfiguration;
   duration: ChartConfiguration;
   errors: ChartConfiguration;
   features: ChartConfiguration;

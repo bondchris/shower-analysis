@@ -51,7 +51,10 @@ describe("buildValidationReport", () => {
       artifactsWithWarnings: 0,
       cleanScansByDate: {},
       errorsByDate: {},
+      invalidScanDateDetails: [],
       missingCounts: {},
+      missingProjectIdIds: [],
+      missingRequiredArtifacts: [],
       name: "Test",
       pageErrors: {},
       processed: 10,
@@ -78,7 +81,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 0,
         cleanScansByDate: { "2023-01-01": 50, "2023-01-02": 50 },
         errorsByDate: {},
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "Production",
         pageErrors: {},
         processed: 100,
@@ -94,7 +100,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 5,
         cleanScansByDate: {},
         errorsByDate: {},
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "Staging",
         pageErrors: {},
         processed: 5,
@@ -150,7 +159,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 4,
         cleanScansByDate: {},
         errorsByDate: {},
+        invalidScanDateDetails: [],
         missingCounts: { floorPlan: 1, rawScan: 2 },
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "EnvDetails",
         pageErrors: {},
         processed: 4,
@@ -166,7 +178,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 0,
         cleanScansByDate: {},
         errorsByDate: {},
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "EnvMissingCounts",
         pageErrors: {},
         processed: 1,
@@ -190,6 +205,66 @@ describe("buildValidationReport", () => {
       ["Missing projectId", "1", "0", expect.stringContaining("1")],
       ["thumbnail", "3", "0", expect.stringContaining("3")]
     ]);
+  });
+
+  it("adds issue id lists in the requested order", () => {
+    const stats: EnvStats[] = [
+      {
+        artifactsWithIssues: 2,
+        artifactsWithWarnings: 1,
+        cleanScansByDate: {},
+        errorsByDate: {},
+        invalidScanDateDetails: [{ id: "bad-date", scanDate: "0001-01-01T00:00:00Z" }],
+        missingCounts: {},
+        missingProjectIdIds: ["missing-project"],
+        missingRequiredArtifacts: [{ id: "missing-artifacts", missingFields: ["video", "rawScan"] }],
+        name: "EnvWithIssues",
+        pageErrors: {},
+        processed: 2,
+        propertyCounts: {},
+        propertyCountsByDate: {},
+        totalArtifacts: 2,
+        totalScansByDate: {},
+        warningCounts: { projectId: 1 },
+        warningsByDate: {}
+      }
+    ];
+
+    const report = buildValidationReport(stats);
+    const titles = report.sections.map((section) => section.title);
+
+    const invalidIndex = titles.indexOf("Invalid scanDate");
+    const missingProjectIndex = titles.indexOf("Missing projectId");
+    const missingRequiredIndex = titles.indexOf("Missing Required Properties");
+
+    expect(invalidIndex).toBeGreaterThanOrEqual(0);
+    expect(missingProjectIndex).toBeGreaterThan(invalidIndex);
+    expect(missingRequiredIndex).toBeGreaterThan(missingProjectIndex);
+
+    const missingRequiredList = report.sections.find(
+      (section) =>
+        section.type === "list" &&
+        Array.isArray(section.data) &&
+        (section.data as string[]).some((line) => line.includes("missing video, rawScan"))
+    );
+
+    const missingProjectList = report.sections.find(
+      (section) =>
+        section.type === "list" &&
+        Array.isArray(section.data) &&
+        (section.data as string[]).some((line) => line.includes("missing-project"))
+    );
+
+    const invalidDateList = report.sections.find(
+      (section) =>
+        section.type === "list" &&
+        Array.isArray(section.data) &&
+        (section.data as string[]).some((line) => line.includes("bad-date") && line.includes("0001-01-01T00:00:00Z"))
+    );
+
+    expect(missingRequiredList).toBeDefined();
+    expect(missingProjectList).toBeDefined();
+    expect(invalidDateList).toBeDefined();
   });
 
   it("should log errors when chart generation fails", () => {
@@ -230,7 +305,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 0,
         cleanScansByDate: { "2023-01-01": 50, "2023-01-02": 50 },
         errorsByDate: {},
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "Production",
         pageErrors: {},
         processed: 100,
@@ -262,7 +340,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 0,
         cleanScansByDate: { "2024-05-01": 5, "2024-05-02": 5 },
         errorsByDate: {},
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "SparseProperties",
         pageErrors: {},
         processed: 10,
@@ -298,7 +379,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 0,
         cleanScansByDate: {},
         errorsByDate: {},
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "EnvWithProperties",
         pageErrors: {},
         processed: 15,
@@ -333,7 +417,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 1,
         cleanScansByDate: { "2024-01-01": 1 },
         errorsByDate: {},
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "EnvWithWarnings",
         pageErrors: {},
         processed: 2,
@@ -374,7 +461,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 0,
         cleanScansByDate: { "2024-01-01": 1 },
         errorsByDate: {},
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "EnvVolume",
         pageErrors: {},
         processed: 1,
@@ -411,7 +501,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 0,
         cleanScansByDate: { "2024-03-01": 5 },
         errorsByDate: { "2024-03-01": 1 },
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "EnvSuccess",
         pageErrors: {},
         processed: 5,
@@ -451,7 +544,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 0,
         cleanScansByDate: { "2024-04-01": 4 },
         errorsByDate: { "2024-04-01": 1 },
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "EnvErrorChart",
         pageErrors: {},
         processed: 4,
@@ -491,7 +587,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 0,
         cleanScansByDate: {},
         errorsByDate: {},
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "EnvMissingTotals",
         pageErrors: {},
         processed: 5,
@@ -525,7 +624,10 @@ describe("buildValidationReport", () => {
         artifactsWithWarnings: 0,
         cleanScansByDate: { "2024-02-01": 10 },
         errorsByDate: {},
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "EnvProperties",
         pageErrors: {},
         processed: 10,

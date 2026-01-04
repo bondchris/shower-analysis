@@ -24,7 +24,7 @@ export const ReportShell: React.FC<ReportShellProps> = ({ css, data }) => {
         <h1 className="mb-2 text-center text-2xl font-bold text-gray-900">{data.title}</h1>
         <div className="mb-5 text-center text-xs text-gray-500">Generated: {new Date().toLocaleString()}</div>
         {data.subtitle !== undefined && (
-          <div className="mb-10 text-center text-base font-medium text-black">{data.subtitle}</div>
+          <div className="mb-2 text-center text-base font-medium text-black">{data.subtitle}</div>
         )}
 
         {data.sections.map((section, index) => (

@@ -436,6 +436,7 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
 
           <AxisBottom
             scale={xScaleBand}
+            tickValues={labels}
             tickComponent={({ formattedValue, ...tickProps }) => {
               const lines = (formattedValue ?? "").split("\n");
               const lineHeight = 12;

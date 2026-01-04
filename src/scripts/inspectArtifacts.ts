@@ -18,19 +18,40 @@ import { extractVideoMetadata } from "../utils/video/metadata";
  * - Runs all room utility checks (intersections, gaps, etc.).
  * - Generates charts (histograms, bar charts) for data distribution.
  * - Outputs three separate reports:
- *   - `reports/video-analysis.pdf` - Video duration, framerate, resolution
- *   - `reports/ardata-analysis.pdf` - Device models, camera settings, lighting
- *   - `reports/scan-analysis.pdf` - Room dimensions, features, objects, errors
+ *   - `reports/3.1 - Video Analysis.pdf` - Video duration, framerate, resolution
+ *   - `reports/3.2 - AR Data Analysis.pdf` - Device models, camera settings, lighting
+ *   - `reports/3.3 - Scan Analysis.pdf` - Room dimensions, features, objects, errors
  */
 
 // 1. Video Metadata
 async function addVideoMetadata(dir: string, metadata: ArtifactAnalysis): Promise<void> {
   const videoMeta = await extractVideoMetadata(dir);
   if (videoMeta) {
+    const missingBitrate = 0;
+    const missingLevel = 0;
+    const missingBFrames = 0;
+    const missingBitDepth = 0;
+    const missingGop = 0;
     metadata.width = videoMeta.width;
     metadata.height = videoMeta.height;
     metadata.fps = videoMeta.fps;
     metadata.duration = videoMeta.duration;
+    metadata.bitrate = videoMeta.bitrate ?? missingBitrate;
+    metadata.codecName = videoMeta.codecName ?? "";
+    metadata.videoProfile = videoMeta.profile ?? "";
+    metadata.videoLevel = videoMeta.level ?? missingLevel;
+    metadata.bFrameCount = videoMeta.bFrames ?? missingBFrames;
+    metadata.colorTransfer = videoMeta.colorTransfer ?? "";
+    metadata.colorRange = videoMeta.colorRange ?? "";
+    metadata.colorSpace = videoMeta.colorSpace ?? "";
+    metadata.pixelFormat = videoMeta.pixelFormat ?? "";
+    metadata.bitDepth = videoMeta.bitDepth ?? missingBitDepth;
+    metadata.entropyCoding = videoMeta.entropyCoding ?? "";
+    metadata.gopSize = videoMeta.gopSize ?? missingGop;
+    metadata.maxGopDistance = videoMeta.maxGopDistance ?? missingGop;
+    metadata.avgGopDistance = videoMeta.avgGopDistance ?? missingGop;
+    metadata.minGopDistance = videoMeta.minGopDistance ?? missingGop;
+    metadata.gopVariance = videoMeta.gopVariance ?? missingGop;
   }
 }
 
@@ -64,21 +85,21 @@ export async function createInspectionReports(
   videoCount: number,
   artifactDirs?: string[]
 ): Promise<void> {
-  const videoReportFile = "video-analysis.pdf";
-  const arDataReportFile = "ardata-analysis.pdf";
-  const scanReportFile = "scan-analysis.pdf";
+  const videoReportFile = "3.1 - Video Analysis.pdf";
+  const arDataReportFile = "3.2 - AR Data Analysis.pdf";
+  const scanReportFile = "3.3 - Scan Analysis.pdf";
 
-  logger.info("Generating Video Analysis PDF...");
+  logger.info("Generating 3.1 - Video Analysis PDF...");
   const videoReportData = buildVideoAnalysisReport(metadataList, avgDuration, videoCount);
   await generatePdfReport(videoReportData, videoReportFile);
   logger.info(`Report generated at: ${videoReportFile}`);
 
-  logger.info("Generating AR Data Analysis PDF...");
+  logger.info("Generating 3.2 - AR Data Analysis PDF...");
   const arDataReportData = buildArDataAnalysisReport(metadataList, videoCount);
   await generatePdfReport(arDataReportData, arDataReportFile);
   logger.info(`Report generated at: ${arDataReportFile}`);
 
-  logger.info("Generating Scan Analysis PDF...");
+  logger.info("Generating 3.3 - Scan Analysis PDF...");
   const scanReportData = buildScanAnalysisReport(metadataList, videoCount, artifactDirs);
   await generatePdfReport(scanReportData, scanReportFile);
   logger.info(`Report generated at: ${scanReportFile}`);

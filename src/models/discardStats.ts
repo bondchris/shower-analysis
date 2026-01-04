@@ -9,6 +9,12 @@ export interface DateMismatch {
   isNew?: boolean;
 }
 
+export interface VideoHeaderAnomaly {
+  id: string;
+  environment: string;
+  isNew?: boolean;
+}
+
 export interface CleanDataStats {
   removedCount: number;
   quarantinedCount: number;
@@ -83,6 +89,7 @@ export interface DiscardReportInput {
   badScanHistory: BadScanHistoryEntry[];
   countsByEnv: Record<string, EnvCounts>;
   dateMismatches: DateMismatch[];
+  videoHeaderAnomalies: VideoHeaderAnomaly[];
   discardedOnDiskCount?: number;
   filterStats: FilterStats;
   duplicateStats: DuplicateStats;

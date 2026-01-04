@@ -114,6 +114,30 @@ describe("discard filter phase", () => {
       expect(mockService.generateContent).not.toHaveBeenCalled();
     });
 
+    it("handles Gemini NO classification when meta.json is missing", async () => {
+      const existsSync = fs.existsSync as Mock;
+      const readFileSync = fs.readFileSync as Mock;
+
+      let callCount = 0;
+      existsSync.mockImplementation(() => {
+        callCount++;
+        // 1: video check, 2: meta safety check, 3: scanDate read (simulate removal)
+        if (callCount === 3) {
+          return false;
+        }
+        return true;
+      });
+      readFileSync.mockReturnValue(Buffer.from("video data"));
+      mockService.generateContent.mockResolvedValue("NO");
+
+      const result = await processArtifact(MOCK_DIR, mockService, mockBadScans, checkedScanIds, mockCheckedScans, {
+        dryRun: true
+      });
+
+      expect(result.removed).toBe(1);
+      expect(discardArtifact).not.toHaveBeenCalled();
+    });
+
     it("keeps artifact if Gemini says YES", async () => {
       mockService.generateContent.mockResolvedValue("YES");
 

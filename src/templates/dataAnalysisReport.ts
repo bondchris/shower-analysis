@@ -11,6 +11,7 @@ import { buildErrorFeatureObjectCharts } from "./dataAnalysisReport/charts/preva
 import { computeLayoutConstants } from "./dataAnalysisReport/layout";
 import { buildReportSections } from "./dataAnalysisReport/reportSections";
 import { CaptureCharts } from "./dataAnalysisReport/types";
+import { buildBitrateCharts } from "./shared/bitrateCharts";
 
 export { CaptureCharts } from "./dataAnalysisReport/types";
 
@@ -23,6 +24,7 @@ export function buildDataAnalysisReport(
   const layout = computeLayoutConstants();
   const charts: Partial<CaptureCharts> = {};
 
+  Object.assign(charts, buildBitrateCharts(metadataList, layout));
   Object.assign(charts, buildKdeCharts(metadataList, layout, avgDuration));
   Object.assign(charts, buildDeviceAndCameraCharts(metadataList, layout));
   Object.assign(charts, buildErrorFeatureObjectCharts(metadataList, artifactDirs, layout));

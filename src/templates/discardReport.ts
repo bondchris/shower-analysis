@@ -1,5 +1,11 @@
 import React from "react";
-import { BadScanHistoryEntry, DateMismatch, DiscardReportInput, DiscardedArtifact } from "../models/discardStats";
+import {
+  BadScanHistoryEntry,
+  DateMismatch,
+  DiscardReportInput,
+  DiscardedArtifact,
+  VideoHeaderAnomaly
+} from "../models/discardStats";
 import { LineChartConfig } from "../models/chart/lineChartConfig";
 import { LineChartDataset } from "../models/chart/lineChartDataset";
 import { ReportData, ReportSection } from "../models/report";
@@ -19,7 +25,12 @@ function escapeHtml(value: string): string {
 function buildSummarySection(input: DiscardReportInput): ReportSection {
   const defaultCount = 0;
   const incrementCount = 1;
-  const envs = Object.keys(input.countsByEnv).sort();
+  const envSet = new Set([
+    ...Object.keys(input.countsByEnv),
+    ...input.dateMismatches.map((m) => m.environment),
+    ...input.videoHeaderAnomalies.map((entry) => entry.environment)
+  ]);
+  const envs = Array.from(envSet).sort();
   const headers = ["", ...envs, "Total"];
   const tableData: string[][] = [];
 
@@ -47,8 +58,6 @@ function buildSummarySection(input: DiscardReportInput): ReportSection {
         (input.countsByEnv[env]?.validCached ?? defaultCount) + (input.countsByEnv[env]?.validNew ?? defaultCount)
     )
   );
-  // Valid - Cached
-  tableData.push(buildRow("    Cached", (env) => input.countsByEnv[env]?.validCached ?? defaultCount));
   // Valid - New
   tableData.push(buildRow("    New", (env) => input.countsByEnv[env]?.validNew ?? defaultCount));
 
@@ -61,8 +70,6 @@ function buildSummarySection(input: DiscardReportInput): ReportSection {
         (input.countsByEnv[env]?.tooShortCached ?? defaultCount) + (input.countsByEnv[env]?.tooShortNew ?? defaultCount)
     )
   );
-  // Video < X s - Cached
-  tableData.push(buildRow("    Cached", (env) => input.countsByEnv[env]?.tooShortCached ?? defaultCount));
   // Video < X s - New
   tableData.push(buildRow("    New", (env) => input.countsByEnv[env]?.tooShortNew ?? defaultCount));
 
@@ -75,8 +82,6 @@ function buildSummarySection(input: DiscardReportInput): ReportSection {
         (input.countsByEnv[env]?.notBathroomNew ?? defaultCount)
     )
   );
-  // Not a Bathroom - Cached
-  tableData.push(buildRow("    Cached", (env) => input.countsByEnv[env]?.notBathroomCached ?? defaultCount));
   // Not a Bathroom - New
   tableData.push(buildRow("    New", (env) => input.countsByEnv[env]?.notBathroomNew ?? defaultCount));
 
@@ -89,10 +94,22 @@ function buildSummarySection(input: DiscardReportInput): ReportSection {
         (input.countsByEnv[env]?.duplicateNew ?? defaultCount)
     )
   );
-  // Duplicate Video - Cached
-  tableData.push(buildRow("    Cached", (env) => input.countsByEnv[env]?.duplicateCached ?? defaultCount));
   // Duplicate Video - New
   tableData.push(buildRow("    New", (env) => input.countsByEnv[env]?.duplicateNew ?? defaultCount));
+
+  // Video Header Anomaly rows (counts by environment)
+  const headerAnomalyByEnv: Record<string, number> = {};
+  const newHeaderAnomalyByEnv: Record<string, number> = {};
+  input.videoHeaderAnomalies.forEach((entry) => {
+    headerAnomalyByEnv[entry.environment] = (headerAnomalyByEnv[entry.environment] ?? defaultCount) + incrementCount;
+    if (entry.isNew === true) {
+      newHeaderAnomalyByEnv[entry.environment] =
+        (newHeaderAnomalyByEnv[entry.environment] ?? defaultCount) + incrementCount;
+    }
+  });
+
+  tableData.push(buildRow("Video Header Anomaly", (env) => headerAnomalyByEnv[env] ?? defaultCount));
+  tableData.push(buildRow("    New", (env) => newHeaderAnomalyByEnv[env] ?? defaultCount));
 
   // Date Mismatch rows (counts by environment from dateMismatches array)
   const totalMismatchByEnv: Record<string, number> = {};
@@ -110,19 +127,17 @@ function buildSummarySection(input: DiscardReportInput): ReportSection {
   const rowClassArray = [
     "bg-sky-100 font-semibold text-sky-800 print:print-color-adjust-exact", // 0: Artifacts Processed
     "bg-green-100 font-semibold text-green-800 print:print-color-adjust-exact", // 1: Valid
-    "bg-green-50 text-green-800 print:print-color-adjust-exact", // 2: Valid - Cached
-    "bg-green-50 text-green-800 print:print-color-adjust-exact", // 3: Valid - New
-    "bg-red-100 font-semibold text-red-800 print:print-color-adjust-exact", // 4: Video < X s
-    "bg-red-50 text-red-800 print:print-color-adjust-exact", // 5: Video < X s - Cached
-    "bg-red-50 text-red-800 print:print-color-adjust-exact", // 6: Video < X s - New
-    "bg-red-100 font-semibold text-red-800 print:print-color-adjust-exact", // 7: Not a Bathroom
-    "bg-red-50 text-red-800 print:print-color-adjust-exact", // 8: Not a Bathroom - Cached
-    "bg-red-50 text-red-800 print:print-color-adjust-exact", // 9: Not a Bathroom - New
-    "bg-red-100 font-semibold text-red-800 print:print-color-adjust-exact", // 10: Duplicate Video
-    "bg-red-50 text-red-800 print:print-color-adjust-exact", // 11: Duplicate Video - Cached
-    "bg-red-50 text-red-800 print:print-color-adjust-exact", // 12: Duplicate Video - New
-    "bg-orange-100 font-semibold text-orange-800 print:print-color-adjust-exact", // 13: Date Mismatch
-    "bg-orange-50 text-orange-800 print:print-color-adjust-exact" // 14: Date Mismatch - New
+    "bg-green-50 text-green-800 print:print-color-adjust-exact", // 2: Valid - New
+    "bg-red-100 font-semibold text-red-800 print:print-color-adjust-exact", // 3: Video < X s
+    "bg-red-50 text-red-800 print:print-color-adjust-exact", // 4: Video < X s - New
+    "bg-red-100 font-semibold text-red-800 print:print-color-adjust-exact", // 5: Not a Bathroom
+    "bg-red-50 text-red-800 print:print-color-adjust-exact", // 6: Not a Bathroom - New
+    "bg-red-100 font-semibold text-red-800 print:print-color-adjust-exact", // 7: Duplicate Video
+    "bg-red-50 text-red-800 print:print-color-adjust-exact", // 8: Duplicate Video - New
+    "bg-yellow-100 font-semibold text-yellow-800 print:print-color-adjust-exact", // 9: Video Header Anomaly
+    "bg-yellow-50 text-yellow-800 print:print-color-adjust-exact", // 10: Video Header Anomaly - New
+    "bg-yellow-100 font-semibold text-yellow-800 print:print-color-adjust-exact", // 11: Date Mismatch
+    "bg-yellow-50 text-yellow-800 print:print-color-adjust-exact" // 12: Date Mismatch - New
   ];
   const rowClasses: Record<number, string> = Object.fromEntries(
     rowClassArray.map((className, index) => [index, className])
@@ -431,7 +446,7 @@ function buildDuplicatesDetailSection(badScanHistory: BadScanHistoryEntry[]): Re
   return sections;
 }
 
-function buildShortVideosDetailSection(badScanHistory: BadScanHistoryEntry[]): ReportSection[] {
+function buildShortVideosDetailSection(badScanHistory: BadScanHistoryEntry[], minDuration: number): ReportSection[] {
   const sections: ReportSection[] = [];
   const shortVideoPrefix = "Video too short";
 
@@ -444,7 +459,7 @@ function buildShortVideosDetailSection(badScanHistory: BadScanHistoryEntry[]): R
 
   sections.push({ title: "Short Videos", type: "header" });
   sections.push({
-    data: "Videos shorter than the minimum duration threshold.",
+    data: `Videos shorter than the minimum duration threshold (${minDuration.toString()}s).`,
     type: "text"
   });
 
@@ -661,6 +676,47 @@ function buildMismatchOverTimeSection(mismatches: DateMismatch[]): ReportSection
   };
 }
 
+function buildHeaderAnomalySections(anomalies: VideoHeaderAnomaly[], environments: string[] = []): ReportSection[] {
+  const sections: ReportSection[] = [];
+  const noAnomalies = 0;
+
+  if (anomalies.length === noAnomalies) {
+    return sections;
+  }
+
+  sections.push({ title: "Video Header Anomalies", type: "header" });
+  sections.push({
+    data: "Detected stray avcC bytes before the primary avcC atom in the bitstream.",
+    type: "text"
+  });
+
+  const envSet = new Set([...anomalies.map((entry) => entry.environment), ...environments]);
+  const sortedEnvs = Array.from(envSet).sort();
+
+  sortedEnvs.forEach((env) => {
+    const envAnomalies = anomalies.filter((entry) => entry.environment === env);
+    if (envAnomalies.length === noAnomalies) {
+      return;
+    }
+
+    const sortedAnomalies = [...envAnomalies].sort((a, b) => a.id.localeCompare(b.id));
+    const items = sortedAnomalies.map((entry) => {
+      const id = `<span class="font-mono">${escapeHtml(entry.id)}</span>`;
+      return entry.isNew === true ? `${id} (new)` : id;
+    });
+
+    sections.push({ level: 3, title: `Environment: ${env}`, type: "header" });
+    sections.push({
+      data: items,
+      level: 4,
+      title: "Artifacts",
+      type: "list"
+    });
+  });
+
+  return sections;
+}
+
 function buildMismatchDetailSections(mismatches: DateMismatch[], environments: string[] = []): ReportSection[] {
   const sections: ReportSection[] = [];
   const noMismatches = 0;
@@ -754,7 +810,7 @@ export function buildDiscardReport(input: DiscardReportInput): ReportData {
     sections.push(failedMovesSection);
   }
 
-  const shortVideosDetailSections = buildShortVideosDetailSection(input.badScanHistory);
+  const shortVideosDetailSections = buildShortVideosDetailSection(input.badScanHistory, input.minDuration);
   sections.push(...shortVideosDetailSections);
 
   const nonBathroomDetailSections = buildNonBathroomDetailSection(input.badScanHistory);
@@ -762,6 +818,9 @@ export function buildDiscardReport(input: DiscardReportInput): ReportData {
 
   const duplicatesDetailSections = buildDuplicatesDetailSection(input.badScanHistory);
   sections.push(...duplicatesDetailSections);
+
+  const headerAnomalySections = buildHeaderAnomalySections(input.videoHeaderAnomalies, Object.keys(input.countsByEnv));
+  sections.push(...headerAnomalySections);
 
   const mismatchDetailSections = buildMismatchDetailSections(input.dateMismatches, Object.keys(input.countsByEnv));
   sections.push(...mismatchDetailSections);

@@ -1232,7 +1232,7 @@ function buildArDataCharts(metadataList: ArtifactAnalysis[]): ArDataCharts {
     ],
     {
       chartId: "partialRotationCoverage",
-      height: 230,
+      height: layout.HALF_CHART_HEIGHT,
       smooth: true,
       title: "",
       width: Math.round(layout.PAGE_CONTENT_WIDTH * twoThirdsWidthRatio),

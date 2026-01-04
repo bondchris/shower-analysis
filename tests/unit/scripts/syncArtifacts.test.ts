@@ -1037,7 +1037,7 @@ describe("syncArtifacts", () => {
       expect(mockBuildSyncReport).toHaveBeenCalledWith(stats, known);
       expect(mockGeneratePdfReport).toHaveBeenCalledWith(
         expect.objectContaining({ title: "Mock Report" }),
-        "sync-report.pdf"
+        "1 - Sync Report.pdf"
       );
     });
   });

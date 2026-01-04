@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { Mock, describe, expect, it, vi } from "vitest";
 import { ReportData } from "../../../../src/models/report";
 import { ReportShell } from "../../../../src/templates/components/ReportShell";
@@ -21,10 +21,10 @@ describe("ReportShell Component", () => {
   };
 
   it("renders title, subtitle and sections", () => {
-    render(<ReportShell data={mockData} css=".test {}" />);
+    const markup = renderToStaticMarkup(<ReportShell data={mockData} css=".test {}" />);
 
-    expect(screen.getByText("My Report")).toBeInTheDocument();
-    expect(screen.getByText("Draft Version")).toBeInTheDocument();
+    expect(markup).toContain("My Report");
+    expect(markup).toContain("Draft Version");
 
     const FIRST_SECTION_INDEX = 0;
     const TOTAL_SECTIONS = 2;
@@ -38,18 +38,10 @@ describe("ReportShell Component", () => {
   });
 
   it("injects css into head", () => {
-    // Rendering checks on head are tricky in JSDOM sometimes,
-    // but we can check if the style tag exists with content
-    // Wait, testing-library renders into a div in body usually.
-    // But ReportShell renders <html>...
-    // When rendering <html> in React inside JSDOM container, it might be stripped or handled.
-    // However, let's just inspect if we can find the style tag.
-    // We might need { container }
+    const customCss = ".my-custom-css { color: red; }";
+    const markup = renderToStaticMarkup(<ReportShell css={customCss} data={mockData} />);
 
-    // Since ReportShell renders <html>, <head>, <body>, it might modify the document or render inside the container.
-    // In JSDOM with React Testing Library, <head> rendering via Portal or direct is common, but <html> children might be preserved.
-    // Let's check if the style text is present anywhere in the document.
-    render(<ReportShell css=".my-custom-css { color: red; }" data={mockData} />);
-    expect(document.documentElement.innerHTML).toContain(".my-custom-css { color: red; }");
+    expect(markup).toContain("<style");
+    expect(markup).toContain(customCss);
   });
 });

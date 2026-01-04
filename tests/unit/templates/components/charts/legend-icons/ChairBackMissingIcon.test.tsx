@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render } from "@testing-library/react";
+import { renderIconInSvg } from "./testUtils";
 import { describe, expect, it, vi } from "vitest";
 import { ChairBackMissingIcon } from "../../../../../../src/templates/components/charts/legend-icons/iconConfig";
 import * as svgLoader from "../../../../../../src/templates/components/charts/legend-icons/svgLoader";
@@ -19,7 +19,7 @@ describe("ChairBackMissingIcon", () => {
   it("should render with correct transform and scale", () => {
     vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <ChairBackMissingIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
     );
 
@@ -34,7 +34,9 @@ describe("ChairBackMissingIcon", () => {
   it("should call loadSvgContent with correct path and color", () => {
     const loadSvgContentSpy = vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
-    render(<ChairBackMissingIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />);
+    renderIconInSvg(
+      <ChairBackMissingIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
+    );
 
     expect(loadSvgContentSpy).toHaveBeenCalledWith("src/templates/assets/icons/chair-back-missing.svg", TEST_COLOR);
   });
@@ -42,7 +44,7 @@ describe("ChairBackMissingIcon", () => {
   it("should render SVG content from loadSvgContent", () => {
     vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <ChairBackMissingIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
     );
 
@@ -55,7 +57,7 @@ describe("ChairBackMissingIcon", () => {
     vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
     const largeBoxSize = 24;
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <ChairBackMissingIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={largeBoxSize} />
     );
 
@@ -68,7 +70,7 @@ describe("ChairBackMissingIcon", () => {
     const differentColor = "#00ff00";
     vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(`<path fill="${differentColor}" d="M0,0"/>`);
 
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <ChairBackMissingIcon color={differentColor} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
     );
 
@@ -81,7 +83,7 @@ describe("ChairBackMissingIcon", () => {
 
     const customX = 50;
     const customY = 100;
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <ChairBackMissingIcon color={TEST_COLOR} x={customX} y={customY} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
     );
 

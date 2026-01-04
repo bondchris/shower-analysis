@@ -1,6 +1,7 @@
 export interface EnvStats {
   artifactsWithIssues: number;
   artifactsWithWarnings: number;
+  invalidScanDateDetails: { id: string; scanDate: string }[];
   errorsByDate: Record<string, number>;
   warningsByDate: Record<string, number>;
   cleanScansByDate: Record<string, number>;
@@ -11,6 +12,8 @@ export interface EnvStats {
   totalArtifacts: number;
   propertyCounts: Record<string, number>;
   propertyCountsByDate: Record<string, Record<string, number>>;
+  missingProjectIdIds: string[];
+  missingRequiredArtifacts: { id: string; missingFields: string[] }[];
   name: string;
   pageErrors: Record<number, string>;
 }

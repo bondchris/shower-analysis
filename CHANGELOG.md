@@ -2,7 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
-## 2026-01-06
+## 2026-01-03
+
+### [v0.62.0] Stage-Prefixed Reports, Video Encoding Insights, and Header Anomaly Detection
+
+- **Stage-Numbered Outputs**: All generated PDFs now carry pipeline prefixes (`0 - Validation`, `1 - Sync`,
+  `2 - Discard`, `3.x - Analysis`), with scripts, architecture docs, and README updated to match the reordered flow.
+- **Validation Drilldowns**: The validation report lists artifacts with invalid scanDate values, missing projectId, or
+  missing required assets (video/rawScan/arData) per environment alongside the existing summary tables.
+- **Richer Video Metadata**: Video extraction now captures bitrate, codec/profile/level, B-frame/ref counts, GOP size
+  plus min/avg/max/variance, color transfer/range/space, pixel format, bit depth, entropy coding mode, and
+  creationTime, refreshing caches when any fields are missing.
+- **Encoding-Focused Video Report**: Video analysis adds bitrate histograms (Mbps), color space and encoding summary
+  lines, profile/level and B-frame charts, and GOP charts (max/avg/min/variance) with side notes for long tails.
+- **Header Anomaly Detection**: Discard mismatch stage scans active and discarded artifacts for stray avcC bytes ahead
+  of the primary header, caches results, and surfaces counts and detail lists in the discard report with new summary
+  rows.
+- **Report Context Improvements**: Discard report clarifies the short-video threshold and includes header anomaly
+  summaries; inspection logging reflects the new report names.
+
+## 2026-01-01
 
 ### [v0.61.0] Phone Motion Analytics, Movement Speeds, and Zoomed Charts
 

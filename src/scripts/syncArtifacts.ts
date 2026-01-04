@@ -492,7 +492,7 @@ export async function syncEnvironment(env: { domain: string; name: string }): Pr
 
 export async function generateSyncReport(allStats: SyncStats[], knownFailures: SyncFailureDatabase) {
   const reportData = buildSyncReport(allStats, knownFailures);
-  await generatePdfReport(reportData, "sync-report.pdf");
+  await generatePdfReport(reportData, "1 - Sync Report.pdf");
 }
 
 export async function main() {

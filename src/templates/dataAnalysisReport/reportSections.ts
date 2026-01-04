@@ -43,6 +43,16 @@ export function buildReportSections(
   });
 
   chartSections.push({
+    data: [
+      {
+        data: charts.bitrateValues,
+        title: "Bitrate"
+      }
+    ],
+    type: "chart-row"
+  });
+
+  chartSections.push({
     data: "",
     title: "",
     type: "page-break"

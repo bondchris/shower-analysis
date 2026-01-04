@@ -67,7 +67,10 @@ describe("validateArtifacts script", () => {
         artifactsWithWarnings: 0,
         cleanScansByDate: {},
         errorsByDate: {},
+        invalidScanDateDetails: [],
         missingCounts: {},
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "Test Env",
         pageErrors: {},
         processed: 0,
@@ -117,6 +120,7 @@ describe("validateArtifacts script", () => {
 
       expect(stats.artifactsWithIssues).toBe(1);
       expect(stats.missingCounts).toHaveProperty("scanDate (invalid)", 1);
+      expect(stats.invalidScanDateDetails).toEqual([{ id: "test-id", scanDate: "0001-01-01T00:00:00Z" }]);
       expect(stats.totalScansByDate["0001-01-01"]).toBeUndefined();
     });
 
@@ -126,6 +130,7 @@ describe("validateArtifacts script", () => {
 
       expect(stats.artifactsWithWarnings).toBe(1);
       expect(stats.warningCounts).toHaveProperty("projectId", 1);
+      expect(stats.missingProjectIdIds).toEqual(["test-id"]);
     });
 
     it("should track dynamic properties", () => {
@@ -261,6 +266,20 @@ describe("validateArtifacts script", () => {
       expect(stats.propertyCounts["extraNull"]).toBeUndefined();
       expect(stats.propertyCounts["extraUndefined"]).toBeUndefined();
     });
+
+    it("records missing required artifacts with their ids", () => {
+      const artifact = createArtifact({
+        arData: undefined,
+        rawScan: undefined,
+        video: undefined
+      } as unknown as Partial<ArtifactResponse>);
+
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.missingRequiredArtifacts).toEqual([
+        { id: "test-id", missingFields: ["video", "rawScan", "arData"] }
+      ]);
+    });
   });
 
   describe("validateEnvironment", () => {
@@ -359,7 +378,10 @@ describe("validateArtifacts script", () => {
         artifactsWithWarnings: 1,
         cleanScansByDate: { "2025-01-01": 1, "2025-01-02": 1 },
         errorsByDate: { "2025-01-01": 1 },
+        invalidScanDateDetails: [],
         missingCounts: { id: 1 },
+        missingProjectIdIds: [],
+        missingRequiredArtifacts: [],
         name: "Env 1",
         pageErrors: {},
         processed: 4,

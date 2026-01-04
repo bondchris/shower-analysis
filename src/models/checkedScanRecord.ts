@@ -11,6 +11,8 @@ export interface CheckedScanEntry {
   mismatchDiffHours?: number;
   mismatchScanDate?: string;
   mismatchVideoDate?: string;
+  avcAnomalyCheckedDate?: string;
+  avcAnomalyDetected?: boolean;
 }
 
 export type CheckedScanDatabase = Record<string, CheckedScanEntry>;

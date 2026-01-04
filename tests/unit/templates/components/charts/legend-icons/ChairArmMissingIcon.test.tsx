@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render } from "@testing-library/react";
+import { renderIconInSvg } from "./testUtils";
 import { describe, expect, it, vi } from "vitest";
 import { ChairArmMissingIcon } from "../../../../../../src/templates/components/charts/legend-icons/iconConfig";
 import * as svgLoader from "../../../../../../src/templates/components/charts/legend-icons/svgLoader";
@@ -19,7 +19,7 @@ describe("ChairArmMissingIcon", () => {
   it("should render with correct transform and scale", () => {
     vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <ChairArmMissingIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
     );
 
@@ -34,7 +34,9 @@ describe("ChairArmMissingIcon", () => {
   it("should call loadSvgContent with correct path and color", () => {
     const loadSvgContentSpy = vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
-    render(<ChairArmMissingIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />);
+    renderIconInSvg(
+      <ChairArmMissingIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
+    );
 
     expect(loadSvgContentSpy).toHaveBeenCalledWith("src/templates/assets/icons/chair-arm-missing.svg", TEST_COLOR);
   });
@@ -42,7 +44,7 @@ describe("ChairArmMissingIcon", () => {
   it("should render SVG content from loadSvgContent", () => {
     vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <ChairArmMissingIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
     );
 
@@ -55,7 +57,7 @@ describe("ChairArmMissingIcon", () => {
     vi.spyOn(svgLoader, "loadSvgContent").mockReturnValue(MOCK_SVG_CONTENT);
 
     const largeBoxSize = 24;
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <ChairArmMissingIcon color={TEST_COLOR} x={TEST_X} y={TEST_Y} legendBoxSize={largeBoxSize} />
     );
 
@@ -70,7 +72,7 @@ describe("ChairArmMissingIcon", () => {
       `<path class="cls-1" stroke="${differentColor}" d="M7.22,13h9.57"/>`
     );
 
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <ChairArmMissingIcon color={differentColor} x={TEST_X} y={TEST_Y} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
     );
 
@@ -83,7 +85,7 @@ describe("ChairArmMissingIcon", () => {
 
     const customX = 50;
     const customY = 100;
-    const { container } = render(
+    const { container } = renderIconInSvg(
       <ChairArmMissingIcon color={TEST_COLOR} x={customX} y={customY} legendBoxSize={TEST_LEGEND_BOX_SIZE} />
     );
 

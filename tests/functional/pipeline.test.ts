@@ -86,7 +86,23 @@ vi.mock("fluent-ffmpeg", () => {
           const duration = file.includes("scan-short-video") ? 5 : 15;
           cb(null, {
             format: { duration, tags: { creation_time: "2023-01-01T00:00:00Z" } },
-            streams: [{ codec_type: "video", height: 1080, r_frame_rate: "30/1", width: 1920 }]
+            streams: [
+              {
+                bits_per_raw_sample: "8",
+                codec_name: "h264",
+                codec_type: "video",
+                color_range: "pc",
+                color_space: "bt709",
+                color_transfer: "bt709",
+                has_b_frames: 2,
+                height: 1080,
+                level: 30,
+                pix_fmt: "yuvj420p",
+                profile: "Main",
+                r_frame_rate: "30/1",
+                width: 1920
+              }
+            ]
           });
         })
       }
@@ -254,7 +270,7 @@ describe("Functional Pipeline Test", () => {
     expect(mockedAxios.get).toHaveBeenNthCalledWith(2, expect.stringContaining("page=2"), expect.anything());
 
     // Verify Report Creation
-    expect(fs.existsSync(path.join(tempDir, "reports", "validation-report.pdf"))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, "reports", "0 - Validation Report.pdf"))).toBe(true);
 
     // --- Step 2: Cache Logic Verifications ---
 
@@ -295,7 +311,7 @@ describe("Functional Pipeline Test", () => {
     expect(fs.existsSync(path.join(validPath, "arData.json"))).toBe(true);
 
     // Verify Sync Report exists
-    expect(fs.existsSync(path.join(tempDir, "reports", "sync-report.pdf"))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, "reports", "1 - Sync Report.pdf"))).toBe(true);
 
     // Verify Failure was handled
     // "scan-bad-date" was mocked to throw "Simulated Download Failure".
@@ -421,9 +437,9 @@ describe("Functional Pipeline Test", () => {
 
     // --- Step 7: Inspect Artifacts ---
     await inspectMain();
-    expect(fs.existsSync(path.join(tempDir, "reports", "video-analysis.pdf"))).toBe(true);
-    expect(fs.existsSync(path.join(tempDir, "reports", "ardata-analysis.pdf"))).toBe(true);
-    expect(fs.existsSync(path.join(tempDir, "reports", "scan-analysis.pdf"))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, "reports", "3.1 - Video Analysis.pdf"))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, "reports", "3.2 - AR Data Analysis.pdf"))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, "reports", "3.3 - Scan Analysis.pdf"))).toBe(true);
 
     // 7b. Verify Cache Creation (Miss)
     // Check that metadata files were created

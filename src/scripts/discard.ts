@@ -16,7 +16,8 @@ import {
   DuplicateStats,
   DuplicateVideo,
   EnvCounts,
-  FilterStats
+  FilterStats,
+  VideoHeaderAnomaly
 } from "../models/discardStats";
 import { GeminiService } from "../services/geminiService";
 import { buildDiscardReport } from "../templates/discardReport";
@@ -126,6 +127,8 @@ export interface MismatchStats {
   mismatchCount: number;
   newMismatchCount: number;
   skippedCached: number;
+  headerAnomalyCount: number;
+  newHeaderAnomalyCount: number;
   errors: number;
 }
 
@@ -142,6 +145,7 @@ export interface MismatchPhaseResult {
   stats: MismatchStats;
   databases: DiscardDatabases;
   dateMismatches: DateMismatch[];
+  videoHeaderAnomalies: VideoHeaderAnomaly[];
 }
 
 export interface DiscardOptions
@@ -870,13 +874,16 @@ export async function runMismatchPhase(options?: MismatchPhaseOptions): Promise<
 
   const stats: MismatchStats = {
     errors: 0,
+    headerAnomalyCount: 0,
     mismatchCount: 0,
+    newHeaderAnomalyCount: 0,
     newMismatchCount: 0,
     processed: 0,
     skippedCached: 0
   };
 
   const dateMismatches: DateMismatch[] = [];
+  const videoHeaderAnomalies: VideoHeaderAnomaly[] = [];
 
   const bar = createProgressBar("Mismatches |{bar}| {percentage}% | {value}/{total} Artifacts | ETA: {eta}s");
   const initialProgress = 0;
@@ -895,8 +902,11 @@ export async function runMismatchPhase(options?: MismatchPhaseOptions): Promise<
     const environment = getEnvironmentName(baseDir, dir);
 
     const entry = checkedScans[artifactId];
-    if (entry?.mismatchCheckedDate !== undefined && entry.mismatchCheckedDate !== "") {
-      // Already checked - load cached mismatch data if present
+    const mismatchCached = entry?.mismatchCheckedDate !== undefined && entry.mismatchCheckedDate !== "";
+    const headerCached = entry?.avcAnomalyCheckedDate !== undefined;
+    const shouldCheckMismatch = !mismatchCached;
+
+    if (mismatchCached) {
       if (entry.mismatchDiffHours !== undefined) {
         dateMismatches.push({
           diffHours: entry.mismatchDiffHours,
@@ -908,6 +918,19 @@ export async function runMismatchPhase(options?: MismatchPhaseOptions): Promise<
         });
         stats.mismatchCount++;
       }
+    }
+
+    if (headerCached && entry.avcAnomalyDetected === true) {
+      videoHeaderAnomalies.push({
+        environment,
+        id: artifactId,
+        isNew: false
+      });
+      stats.headerAnomalyCount++;
+    }
+
+    const shouldSkipProcessing = mismatchCached && headerCached;
+    if (shouldSkipProcessing) {
       stats.skippedCached++;
       bar.increment();
       continue;
@@ -934,56 +957,125 @@ export async function runMismatchPhase(options?: MismatchPhaseOptions): Promise<
       stats.processed++;
 
       const vidMeta = await extractVideoMetadata(dir);
-      if (vidMeta?.creationTime !== undefined) {
-        const scanTime = new Date(scanDate).getTime();
-        const videoTime = new Date(vidMeta.creationTime).getTime();
-        const diffMs = Math.abs(scanTime - videoTime);
-        const secondsPerMinute = 60;
-        const minutesPerHour = 60;
-        const msPerSecond = 1000;
-        const hourMs = secondsPerMinute * minutesPerHour * msPerSecond;
-        const diffHours = diffMs / hourMs;
+      if (shouldCheckMismatch) {
+        if (vidMeta?.creationTime !== undefined) {
+          const scanTime = new Date(scanDate).getTime();
+          const videoTime = new Date(vidMeta.creationTime).getTime();
+          const diffMs = Math.abs(scanTime - videoTime);
+          const secondsPerMinute = 60;
+          const minutesPerHour = 60;
+          const msPerSecond = 1000;
+          const hourMs = secondsPerMinute * minutesPerHour * msPerSecond;
+          const diffHours = diffMs / hourMs;
 
-        const mismatchThresholdHours = 24;
-        const isMismatch = diffHours > mismatchThresholdHours;
-        if (isMismatch) {
-          const isNew = entry?.mismatchCheckedDate === undefined;
+          const mismatchThresholdHours = 24;
+          const isMismatch = diffHours > mismatchThresholdHours;
+          if (isMismatch) {
+            const isNew = entry?.mismatchCheckedDate === undefined;
 
-          dateMismatches.push({
-            diffHours,
-            environment,
-            id: artifactId,
-            isNew,
-            scanDate,
-            videoDate: vidMeta.creationTime
-          });
+            dateMismatches.push({
+              diffHours,
+              environment,
+              id: artifactId,
+              isNew,
+              scanDate,
+              videoDate: vidMeta.creationTime
+            });
 
-          stats.mismatchCount++;
-          if (isNew) {
-            stats.newMismatchCount++;
+            stats.mismatchCount++;
+            if (isNew) {
+              stats.newMismatchCount++;
+            }
           }
-        }
 
-        if (!isDryRun) {
+          if (!isDryRun) {
+            let checkEntry = checkedScans[artifactId];
+            if (checkEntry === undefined) {
+              checkEntry = {};
+              checkedScans[artifactId] = checkEntry;
+            }
+            checkEntry.mismatchCheckedDate = new Date().toISOString();
+            if (isMismatch) {
+              checkEntry.mismatchDiffHours = diffHours;
+              checkEntry.mismatchScanDate = scanDate;
+              checkEntry.mismatchVideoDate = vidMeta.creationTime;
+            }
+          }
+        } else if (!isDryRun) {
           let checkEntry = checkedScans[artifactId];
           if (checkEntry === undefined) {
             checkEntry = {};
             checkedScans[artifactId] = checkEntry;
           }
           checkEntry.mismatchCheckedDate = new Date().toISOString();
-          if (isMismatch) {
-            checkEntry.mismatchDiffHours = diffHours;
-            checkEntry.mismatchScanDate = scanDate;
-            checkEntry.mismatchVideoDate = vidMeta.creationTime;
+        }
+      }
+
+      // Detect stray avcC markers in video header
+      try {
+        const HEADER_SIZE = 8;
+        const MIN_PAYLOAD_SIZE = 1;
+        const SIZE_FIELD_LENGTH = 4;
+        const markerBuffer = Buffer.from("avcC", "ascii");
+        const fileBuffer = fs.readFileSync(videoPath);
+        let searchStart = 0;
+        let foundValid = false;
+        let foundInvalidBeforeValid = false;
+        const NOT_FOUND = -1;
+        while (searchStart < fileBuffer.length) {
+          const idx = fileBuffer.indexOf(markerBuffer, searchStart);
+          if (idx === NOT_FOUND) {
+            break;
+          }
+          searchStart = idx + markerBuffer.length;
+          const hasSizeField = idx >= SIZE_FIELD_LENGTH;
+          if (!hasSizeField) {
+            foundInvalidBeforeValid = true;
+            continue;
+          }
+          const size = fileBuffer.readUInt32BE(idx - SIZE_FIELD_LENGTH);
+          const payloadSize = size - HEADER_SIZE;
+          const payloadEnd = idx + markerBuffer.length + payloadSize;
+          const isValid = payloadSize >= MIN_PAYLOAD_SIZE && payloadEnd <= fileBuffer.length;
+          if (isValid && !foundValid) {
+            foundValid = true;
+          } else if (!isValid && !foundValid) {
+            foundInvalidBeforeValid = true;
           }
         }
-      } else if (!isDryRun) {
-        let checkEntry = checkedScans[artifactId];
-        if (checkEntry === undefined) {
-          checkEntry = {};
-          checkedScans[artifactId] = checkEntry;
+
+        const hasAnomaly = foundInvalidBeforeValid;
+        if (hasAnomaly) {
+          videoHeaderAnomalies.push({
+            environment,
+            id: artifactId,
+            isNew: entry?.avcAnomalyCheckedDate === undefined
+          });
+          stats.headerAnomalyCount++;
+          if (entry?.avcAnomalyCheckedDate === undefined) {
+            stats.newHeaderAnomalyCount++;
+          }
+          if (!isDryRun) {
+            let checkEntry = checkedScans[artifactId];
+            if (checkEntry === undefined) {
+              checkEntry = {};
+              checkedScans[artifactId] = checkEntry;
+            }
+            checkEntry.avcAnomalyCheckedDate = new Date().toISOString();
+            checkEntry.avcAnomalyDetected = true;
+          }
+        } else if (!isDryRun) {
+          let checkEntry = checkedScans[artifactId];
+          if (checkEntry === undefined) {
+            checkEntry = {};
+            checkedScans[artifactId] = checkEntry;
+          }
+          checkEntry.avcAnomalyCheckedDate = new Date().toISOString();
+          checkEntry.avcAnomalyDetected = false;
         }
-        checkEntry.mismatchCheckedDate = new Date().toISOString();
+      } catch (error) {
+        logger.warn(`Failed to check video header for ${artifactId}: ${String(error)}`);
+        stats.errors++;
       }
     } catch (e) {
       logger.warn(`Failed to check mismatch for artifact ${artifactId}: ${String(e)}`);
@@ -1000,13 +1092,14 @@ export async function runMismatchPhase(options?: MismatchPhaseOptions): Promise<
   }
 
   logger.info(
-    `Mismatch stage complete. Processed: ${stats.processed.toString()}, Mismatches: ${stats.mismatchCount.toString()}, New: ${stats.newMismatchCount.toString()}, Cached: ${stats.skippedCached.toString()}, Errors: ${stats.errors.toString()}.`
+    `Mismatch stage complete. Processed: ${stats.processed.toString()}, Mismatches: ${stats.mismatchCount.toString()}, New: ${stats.newMismatchCount.toString()}, Header anomalies: ${stats.headerAnomalyCount.toString()} (new: ${stats.newHeaderAnomalyCount.toString()}), Cached: ${stats.skippedCached.toString()}, Errors: ${stats.errors.toString()}.`
   );
 
   return {
     databases: { badScans, checkedScans },
     dateMismatches,
-    stats
+    stats,
+    videoHeaderAnomalies
   };
 }
 
@@ -1017,7 +1110,7 @@ export async function runMismatchOnly(options?: MismatchPhaseOptions): Promise<M
 
 export async function generateDiscardReport(input: DiscardReportInput): Promise<void> {
   const reportData = buildDiscardReport(input);
-  await generatePdfReport(reportData, "discard-report.pdf");
+  await generatePdfReport(reportData, "2 - Discard Report.pdf");
 }
 
 export async function main(options?: DiscardOptions): Promise<DiscardStats> {
@@ -1124,6 +1217,7 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
   }
 
   let dateMismatches: DateMismatch[] = [];
+  let videoHeaderAnomalies: VideoHeaderAnomaly[] = [];
   if (options?.skipMismatch !== true) {
     const mismatchResult = await runMismatchPhase({
       ...options,
@@ -1134,6 +1228,7 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
       saveResults: false
     });
     dateMismatches = mismatchResult.dateMismatches;
+    videoHeaderAnomalies = mismatchResult.videoHeaderAnomalies;
   }
 
   if (!isDryRun) {
@@ -1263,7 +1358,8 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
     finalBadScanCount,
     initialBadScanCount,
     minDuration,
-    newBadScans: [...newBadScansFromClean, ...newBadScansFromFilter, ...newBadScansFromDuplicates]
+    newBadScans: [...newBadScansFromClean, ...newBadScansFromFilter, ...newBadScansFromDuplicates],
+    videoHeaderAnomalies
   };
   await generateDiscardReport(reportInput);
 

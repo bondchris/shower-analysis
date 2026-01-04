@@ -36,6 +36,7 @@ function createBaseInput(overrides: Partial<DiscardReportInput> = {}): DiscardRe
     initialBadScanCount: 0,
     minDuration: 12,
     newBadScans: [],
+    videoHeaderAnomalies: [],
     ...overrides
   };
 }
@@ -90,7 +91,8 @@ describe("buildDiscardReport", () => {
         { environment: "production", id: "abc<script>", reason: "Missing video.mp4", stage: "clean" },
         { environment: "staging", id: "filter-1", reason: "Not a bathroom", stage: "filter" },
         { environment: "staging", id: "filter-2", reason: "Not a bathroom", stage: "filter" }
-      ]
+      ],
+      videoHeaderAnomalies: []
     };
 
     const report = buildDiscardReport(input);
@@ -104,14 +106,11 @@ describe("buildDiscardReport", () => {
       const rows = summarySection.data as string[][];
       expect(rows[0]?.[0]).toBe("Artifacts Processed");
       expect(rows[1]?.[0]).toBe("Valid");
-      expect(rows[2]?.[0]).toBe("    Cached");
-      expect(rows[3]?.[0]).toBe("    New");
-      expect(rows[4]?.[0]).toBe("Video < 12 s");
-      expect(rows[5]?.[0]).toBe("    Cached");
+      expect(rows[2]?.[0]).toBe("    New");
+      expect(rows[3]?.[0]).toBe("Video < 12 s");
+      expect(rows[4]?.[0]).toBe("    New");
+      expect(rows[5]?.[0]).toBe("Not a Bathroom");
       expect(rows[6]?.[0]).toBe("    New");
-      expect(rows[7]?.[0]).toBe("Not a Bathroom");
-      expect(rows[8]?.[0]).toBe("    Cached");
-      expect(rows[9]?.[0]).toBe("    New");
     }
 
     const distributionRow = report.sections.find((s) => s.type === "chart-row");
@@ -166,7 +165,8 @@ describe("buildDiscardReport", () => {
       finalBadScanCount: 1,
       initialBadScanCount: 1,
       minDuration: 12,
-      newBadScans: []
+      newBadScans: [],
+      videoHeaderAnomalies: []
     };
 
     const report = buildDiscardReport(input);
@@ -212,7 +212,7 @@ describe("buildDiscardReport", () => {
       const summarySection = report.sections.find((s) => s.title === "Processing Summary");
       const rows = summarySection?.data as string[][];
 
-      // Find Date Mismatch rows (should be at indices 13 and 14)
+      // Find Date Mismatch rows (should be at indices 11 and 12)
       const dateMismatchRow = rows.find((r) => r[0] === "Date Mismatch");
       const dateMismatchRowIndex = dateMismatchRow !== undefined ? rows.indexOf(dateMismatchRow) : -1;
       const dateMismatchNewRow = rows.find((r) => r[0] === "    New" && rows.indexOf(r) > dateMismatchRowIndex);
@@ -227,6 +227,69 @@ describe("buildDiscardReport", () => {
       expect(dateMismatchNewRow?.[1]).toBe("1"); // production new
       expect(dateMismatchNewRow?.[2]).toBe("1"); // staging new
       expect(dateMismatchNewRow?.[3]).toBe("2"); // total new
+    });
+  });
+
+  describe("video header anomalies", () => {
+    it("adds summary rows and detail sections when anomalies are present", () => {
+      const input = createBaseInput({
+        countsByEnv: {
+          production: {
+            duplicateCached: 0,
+            duplicateNew: 0,
+            notBathroomCached: 0,
+            notBathroomNew: 0,
+            processed: 4,
+            tooShortCached: 0,
+            tooShortNew: 0,
+            validCached: 2,
+            validNew: 2
+          },
+          staging: {
+            duplicateCached: 0,
+            duplicateNew: 0,
+            notBathroomCached: 0,
+            notBathroomNew: 0,
+            processed: 3,
+            tooShortCached: 0,
+            tooShortNew: 0,
+            validCached: 1,
+            validNew: 2
+          }
+        },
+        videoHeaderAnomalies: [
+          { environment: "production", id: "art-1", isNew: true },
+          { environment: "staging", id: "art-2", isNew: false }
+        ]
+      });
+
+      const report = buildDiscardReport(input);
+      const summarySection = report.sections.find((s) => s.title === "Processing Summary");
+      const rows = summarySection?.data as string[][];
+      const headerRow = rows.find((r) => r[0] === "Video Header Anomaly");
+      const headerRowIndex = headerRow !== undefined ? rows.indexOf(headerRow) : -1;
+      const headerNewRow = rows.find((r) => r[0] === "    New" && rows.indexOf(r) > headerRowIndex);
+      expect(headerRow?.[1]).toBe("1");
+      expect(headerRow?.[2]).toBe("1");
+      expect(headerRow?.[3]).toBe("2");
+      expect(headerNewRow?.[1]).toBe("1");
+      expect(headerNewRow?.[2]).toBe("0");
+      expect(headerNewRow?.[3]).toBe("1");
+
+      const anomalyHeader = report.sections.find((s) => s.title === "Video Header Anomalies" && s.type === "header");
+      expect(anomalyHeader).toBeDefined();
+      const envHeader = report.sections.find((s) => s.title === "Environment: production");
+      expect(envHeader).toBeDefined();
+      const artifactList = report.sections.find((s) => {
+        if (s.title !== "Artifacts") {
+          return false;
+        }
+        const data = s.data as string[] | undefined;
+        return Array.isArray(data) && data.some((val) => val.includes("art-1"));
+      });
+      expect(artifactList).toBeDefined();
+      const artifactData = Array.isArray(artifactList?.data) ? (artifactList.data as string[]) : [];
+      expect(artifactData.some((item) => item.includes("(new)"))).toBe(true);
     });
   });
 
