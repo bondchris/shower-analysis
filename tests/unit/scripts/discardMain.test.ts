@@ -29,6 +29,10 @@ vi.mock("../../../src/utils/video/hash", () => ({
   hashVideoInDirectory: vi.fn().mockResolvedValue(null)
 }));
 
+vi.mock("../../../src/utils/video/blackFrames", () => ({
+  detectBlackFrames: vi.fn().mockResolvedValue([])
+}));
+
 vi.mock("../../../src/utils/data/discardArtifact", () => ({
   discardArtifact: vi.fn().mockReturnValue("/mock/discarded/artifact")
 }));
@@ -217,6 +221,19 @@ describe("discard main orchestration", () => {
     expect(callArgs?.newBadScans).toEqual([]);
 
     cleanSpy.mockRestore();
+  });
+
+  it("skips missing entries when collecting new bad scans directly", async () => {
+    const { collectNewBadScans } = await import("../../../src/scripts/discard");
+
+    const badScans: BadScanDatabase = {};
+    const beforeIds = new Set<string>();
+    const afterIds = new Set<string>(["orphan"]);
+    badScans["orphan"] = undefined as unknown as (typeof badScans)[string];
+
+    const additions = collectNewBadScans(badScans, beforeIds, afterIds, "clean");
+
+    expect(additions).toEqual([]);
   });
 
   it("saves during filter phase when work is present and saveInterval triggers", async () => {
@@ -451,7 +468,12 @@ describe("discard main orchestration", () => {
     const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
     const mockFindDuplicates = findDuplicateArtifacts as ReturnType<typeof vi.fn>;
 
-    mockExistsSync.mockReturnValue(true);
+    mockExistsSync.mockImplementation((p: string) => {
+      if (typeof p === "string" && p.includes("discarded-artifacts")) {
+        return false;
+      }
+      return true;
+    });
     mockReadFileSync.mockImplementation((p: string) => {
       if (typeof p === "string" && p.endsWith("meta.json")) {
         return JSON.stringify({ scanDate: "2024-01-01T00:00:00Z" });
@@ -630,7 +652,12 @@ describe("runDuplicatesPhase", () => {
     const mockHash = hashVideoInDirectory as ReturnType<typeof vi.fn>;
     const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
 
-    mockExistsSync.mockReturnValue(true);
+    mockExistsSync.mockImplementation((p: string) => {
+      if (typeof p === "string" && p.includes("discarded-artifacts")) {
+        return false;
+      }
+      return true;
+    });
     mockHash.mockResolvedValue(null);
 
     const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
@@ -657,7 +684,12 @@ describe("runDuplicatesPhase", () => {
 
     mockHash.mockResolvedValue("abc123");
     mockFindDuplicates.mockReturnValue(["existingArtifact"]);
-    mockExistsSync.mockReturnValue(true);
+    mockExistsSync.mockImplementation((p: string) => {
+      if (typeof p === "string" && p.includes("discarded-artifacts")) {
+        return false;
+      }
+      return true;
+    });
     mockReadFileSync.mockReturnValue(JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" }));
 
     const { runDuplicatesPhase } = await import("../../../src/scripts/discard");
@@ -1230,7 +1262,7 @@ describe("runMismatchPhase - mismatch detection", () => {
       if (typeof p === "string" && p.endsWith("meta.json")) {
         return JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" });
       }
-      return validChunk;
+      return Buffer.concat([validChunk, validChunk]);
     });
     mockExtractMetadata.mockResolvedValue({ creationTime: "2024-08-01T10:00:00Z" });
 
@@ -1353,7 +1385,7 @@ describe("discard additional coverage", () => {
       dryRun: true
     });
 
-    expect(result.stats.skippedCached).toBe(1);
+    expect(result.stats.skippedCached).toBe(0);
     expect(result.stats.headerAnomalyCount).toBe(1);
     expect(result.stats.mismatchCount).toBe(1);
     expect(result.videoHeaderAnomalies[0]).toMatchObject({ id: "artifact-cached", isNew: false });
@@ -1518,11 +1550,296 @@ describe("discard additional coverage", () => {
     expect(result.stats.errors).toBe(1);
   });
 
+  it("retains cached mismatch entries without diff hours and skips processing when all caches are set", async () => {
+    const fs = await import("fs");
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    mockExistsSync.mockReturnValue(true);
+
+    const checkedScans: CheckedScanDatabase = {
+      "artifact-cached-partial": {
+        avcAnomalyCheckedDate: "2024-01-02T00:00:00Z",
+        avcAnomalyDetected: false,
+        blackFrameCheckedDate: "2024-01-03T00:00:00Z",
+        blackFrameDetected: false,
+        mismatchCheckedDate: "2024-01-01T00:00:00Z"
+      }
+    };
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-cached-partial"],
+      databases: { badScans: {}, checkedScans },
+      dryRun: true
+    });
+
+    expect(result.stats.skippedCached).toBe(1);
+    expect(result.dateMismatches).toEqual([]);
+    expect(result.blackFrameFindings).toEqual([]);
+    expect(result.videoHeaderAnomalies).toEqual([]);
+  });
+
+  it("marks mismatch check as completed when metadata creation time is missing in non-dry runs", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockImplementation((p: string | Buffer) => {
+      if (typeof p === "string" && p.endsWith("meta.json")) {
+        return JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" });
+      }
+      return Buffer.from("video");
+    });
+    mockExtractMetadata.mockResolvedValue({});
+
+    const checkedScans: CheckedScanDatabase = {};
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-no-creation"],
+      databases: { badScans: {}, checkedScans },
+      dryRun: false,
+      saveResults: false
+    });
+
+    expect(result.stats.processed).toBeGreaterThanOrEqual(1);
+    expect(checkedScans["artifact-no-creation"]?.mismatchCheckedDate).toBeDefined();
+  });
+
+  it("returns cached mismatch, header anomaly, and black frame findings without reprocessing", async () => {
+    const fs = await import("fs");
+    const { detectBlackFrames } = await import("../../../src/utils/video/blackFrames");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockDetectBlackFrames = detectBlackFrames as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockImplementation((p: string) => {
+      if (typeof p === "string" && p.includes("discarded-artifacts")) {
+        return false;
+      }
+      return true;
+    });
+
+    const cachedSegments = [{ duration: 1, end: 1, start: 0 }];
+    const checkedScans: CheckedScanDatabase = {
+      "artifact-cached": {
+        avcAnomalyCheckedDate: "2024-01-02T00:00:00Z",
+        avcAnomalyDetected: true,
+        blackFrameCheckedDate: "2024-01-03T00:00:00Z",
+        blackFrameDetected: true,
+        blackFrameSegments: cachedSegments,
+        mismatchCheckedDate: "2024-01-01T00:00:00Z",
+        mismatchDiffHours: 26,
+        mismatchScanDate: "2024-01-01T00:00:00Z",
+        mismatchVideoDate: "2024-01-02T00:00:00Z"
+      }
+    };
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-cached"],
+      dataDir: "/mock/data/artifacts",
+      databases: { badScans: {}, checkedScans },
+      dryRun: false,
+      saveResults: false
+    });
+
+    expect(result.stats.skippedCached).toBe(1);
+    expect(result.blackFrameFindings).toEqual([
+      { environment: "env", id: "artifact-cached", isNew: false, segments: cachedSegments }
+    ]);
+    expect(result.videoHeaderAnomalies).toEqual([{ environment: "env", id: "artifact-cached", isNew: false }]);
+    expect(result.dateMismatches[0]?.isNew).toBe(false);
+    expect(mockDetectBlackFrames).not.toHaveBeenCalled();
+  });
+
+  it("skips cached black frame findings when the cached flag is false", async () => {
+    const fs = await import("fs");
+    const { detectBlackFrames } = await import("../../../src/utils/video/blackFrames");
+    const { findArtifactDirectories } = await import("../../../src/utils/data/artifactIterator");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockDetectBlackFrames = detectBlackFrames as ReturnType<typeof vi.fn>;
+    const mockFindArtifacts = findArtifactDirectories as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockImplementation((p: string) => {
+      if (typeof p === "string" && p.includes("discarded-artifacts")) {
+        return false;
+      }
+      return true;
+    });
+    mockFindArtifacts.mockReturnValue([]);
+    mockDetectBlackFrames.mockClear();
+
+    const checkedScans: CheckedScanDatabase = {
+      "artifact-cached-black": {
+        blackFrameCheckedDate: "2024-01-03T00:00:00Z",
+        blackFrameDetected: false
+      }
+    };
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-cached-black"],
+      databases: { badScans: {}, checkedScans },
+      dryRun: true
+    });
+
+    expect(result.blackFrameFindings).toEqual([]);
+    expect(result.stats.blackFrameCount).toBe(0);
+    expect(mockDetectBlackFrames).not.toHaveBeenCalled();
+  });
+
+  it("captures new black frame findings and rebuilds missing checked-scan entries", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+    const { detectBlackFrames } = await import("../../../src/utils/video/blackFrames");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+    const mockDetectBlackFrames = detectBlackFrames as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockImplementation((p: string) => {
+      if (typeof p === "string" && p.includes("discarded-artifacts")) {
+        return false;
+      }
+      return true;
+    });
+    mockReadFileSync.mockImplementation((p: string | Buffer) => {
+      if (typeof p === "string" && p.endsWith("meta.json")) {
+        return JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" });
+      }
+      return Buffer.from("noop");
+    });
+    mockExtractMetadata.mockResolvedValue({ creationTime: "2024-08-01T11:00:00Z" });
+
+    const checkedScans: CheckedScanDatabase = {};
+    mockDetectBlackFrames.mockImplementation(() => {
+      delete checkedScans["artifact-new-black"];
+      return [{ duration: 1, end: 1, start: 0 }];
+    });
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-new-black"],
+      dataDir: "/mock/data/artifacts",
+      databases: { badScans: {}, checkedScans },
+      dryRun: false,
+      saveResults: false
+    });
+
+    expect(result.blackFrameFindings).toEqual([
+      { environment: "env", id: "artifact-new-black", isNew: true, segments: [{ duration: 1, end: 1, start: 0 }] }
+    ]);
+    expect(result.stats.blackFrameCount).toBe(1);
+    expect(result.stats.newBlackFrameCount).toBe(1);
+    expect(checkedScans["artifact-new-black"]?.blackFrameDetected).toBe(true);
+    expect(checkedScans["artifact-new-black"]?.blackFrameSegments).toEqual([{ duration: 1, end: 1, start: 0 }]);
+  });
+
+  it("handles detector failures and records header anomalies when avcC markers are malformed", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+    const { detectBlackFrames } = await import("../../../src/utils/video/blackFrames");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+    const mockDetectBlackFrames = detectBlackFrames as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockImplementation((p: string) => {
+      if (typeof p === "string" && p.includes("discarded-artifacts")) {
+        return false;
+      }
+      return true;
+    });
+    mockReadFileSync.mockImplementation((p: string | Buffer) => {
+      if (typeof p === "string" && p.endsWith("meta.json")) {
+        return JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" });
+      }
+      return Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x05]), Buffer.from("avcC"), Buffer.from([0x00])]);
+    });
+    mockExtractMetadata.mockResolvedValue({ creationTime: "2024-08-01T11:00:00Z" });
+
+    const checkedScans: CheckedScanDatabase = {};
+    mockDetectBlackFrames.mockImplementation(() => {
+      delete checkedScans["artifact-anomaly"];
+      throw new Error("detector failure");
+    });
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-anomaly"],
+      dataDir: "/mock/data/artifacts",
+      databases: { badScans: {}, checkedScans },
+      dryRun: false,
+      saveResults: false
+    });
+
+    expect(result.stats.errors).toBeGreaterThanOrEqual(1);
+    expect(result.stats.newHeaderAnomalyCount).toBeGreaterThanOrEqual(1);
+    expect(result.videoHeaderAnomalies).toEqual([{ environment: "env", id: "artifact-anomaly", isNew: true }]);
+    expect(checkedScans["artifact-anomaly"]?.avcAnomalyDetected).toBe(true);
+  });
+
+  it("marks headers as clean when detection fails but no avcC anomalies are present", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+    const { detectBlackFrames } = await import("../../../src/utils/video/blackFrames");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+    const mockDetectBlackFrames = detectBlackFrames as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockImplementation((p: string) => {
+      if (typeof p === "string" && p.includes("discarded-artifacts")) {
+        return false;
+      }
+      return true;
+    });
+    mockReadFileSync.mockImplementation((p: string | Buffer) => {
+      if (typeof p === "string" && p.endsWith("meta.json")) {
+        return JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" });
+      }
+      return Buffer.from("no-avcc-marker");
+    });
+    mockExtractMetadata.mockResolvedValue({ creationTime: "2024-08-01T11:00:00Z" });
+
+    const checkedScans: CheckedScanDatabase = {};
+    mockDetectBlackFrames.mockImplementation(() => {
+      delete checkedScans["artifact-clean-header"];
+      throw new Error("detector failure");
+    });
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-clean-header"],
+      dataDir: "/mock/data/artifacts",
+      databases: { badScans: {}, checkedScans },
+      dryRun: false,
+      saveResults: false
+    });
+
+    expect(result.stats.errors).toBeGreaterThanOrEqual(1);
+    expect(result.videoHeaderAnomalies).toHaveLength(0);
+    expect(checkedScans["artifact-clean-header"]?.avcAnomalyDetected).toBe(false);
+  });
+
   it("counts duplicate bad scans in the discard report data", async () => {
     const fs = await import("fs");
     const { findDuplicateArtifacts } = await import("../../../src/utils/data/videoHashes");
     const { hashVideoInDirectory } = await import("../../../src/utils/video/hash");
     const { buildDiscardReport } = await import("../../../src/templates/discardReport");
+    const { collectNewBadScans } = await import("../../../src/scripts/discard");
 
     const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
     const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
@@ -1569,5 +1886,228 @@ describe("discard additional coverage", () => {
     expect(result.duplicates.duplicateCount).toBe(1);
     expect(reportInput.newBadScans.some((entry) => entry.stage === "duplicates")).toBe(true);
     expect(reportInput.countsByEnv["env"]?.duplicateNew).toBe(1);
+
+    const additions = collectNewBadScans(
+      {
+        "artifact-dup": {
+          date: "2024-01-01T00:00:00Z",
+          environment: "env",
+          reason: "Duplicate video (hash dup-hash) matches existing"
+        }
+      },
+      new Set<string>(),
+      new Set<string>(["artifact-dup"]),
+      "duplicates"
+    );
+    expect(additions.some((a) => a.reason.toLowerCase().includes("duplicate video"))).toBe(true);
+  });
+});
+
+describe("runMismatchPhase - additional branch coverage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("fills missing cached mismatch dates with empty strings", async () => {
+    const fs = await import("fs");
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(false);
+
+    const checkedScans: CheckedScanDatabase = {
+      "artifact-cached-missing": {
+        mismatchCheckedDate: "2024-01-01T00:00:00Z",
+        mismatchDiffHours: 30
+      }
+    };
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-cached-missing"],
+      databases: { badScans: {}, checkedScans },
+      dryRun: true
+    });
+
+    expect(result.dateMismatches).toEqual([
+      expect.objectContaining({ id: "artifact-cached-missing", scanDate: "", videoDate: "" })
+    ]);
+    expect(result.stats.mismatchCount).toBe(1);
+  });
+
+  it("uses empty segments for cached black frame detections without saved segments", async () => {
+    const fs = await import("fs");
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(false);
+
+    const checkedScans: CheckedScanDatabase = {
+      "artifact-cached-black-empty": {
+        blackFrameCheckedDate: "2024-01-01T00:00:00Z",
+        blackFrameDetected: true
+      }
+    };
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-cached-black-empty"],
+      databases: { badScans: {}, checkedScans },
+      dryRun: true
+    });
+
+    expect(result.blackFrameFindings).toEqual([
+      expect.objectContaining({ id: "artifact-cached-black-empty", segments: [] })
+    ]);
+    expect(result.stats.blackFrameCount).toBe(1);
+  });
+
+  it("reuses existing checked scan entries when marking mismatch checks without creation time", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" }));
+    mockExtractMetadata.mockResolvedValue({});
+
+    const checkedScans: CheckedScanDatabase = {
+      "artifact-existing": { filteredDate: "2024-01-01" }
+    };
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-existing"],
+      databases: { badScans: {}, checkedScans },
+      dryRun: false,
+      saveResults: false
+    });
+
+    expect(result.stats.processed).toBe(1);
+    expect(checkedScans["artifact-existing"]?.filteredDate).toBe("2024-01-01");
+    expect(checkedScans["artifact-existing"]?.mismatchCheckedDate).toBeDefined();
+  });
+
+  it("treats black frame detections as not new when the checked date appears after the cache check", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+    const { detectBlackFrames } = await import("../../../src/utils/video/blackFrames");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+    const mockDetectBlackFrames = detectBlackFrames as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" }));
+    mockExtractMetadata.mockResolvedValue({ creationTime: "2024-08-01T10:00:00Z" });
+    mockDetectBlackFrames.mockResolvedValue([{ duration: 1, end: 1, start: 0 }]);
+
+    const checkedScans: CheckedScanDatabase = {};
+    let firstAccess = true;
+    const entry = {} as CheckedScanDatabase[string];
+    Object.defineProperty(entry, "blackFrameCheckedDate", {
+      configurable: true,
+      get: () => {
+        if (firstAccess) {
+          firstAccess = false;
+          return undefined;
+        }
+        return "2024-07-01T00:00:00Z";
+      }
+    });
+    entry.mismatchCheckedDate = "2024-01-01T00:00:00Z";
+    checkedScans["artifact-recheck-black"] = entry;
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-recheck-black"],
+      databases: { badScans: {}, checkedScans },
+      dryRun: true
+    });
+
+    expect(result.blackFrameFindings).toEqual([
+      expect.objectContaining({ id: "artifact-recheck-black", isNew: false })
+    ]);
+    expect(result.stats.newBlackFrameCount).toBe(0);
+  });
+
+  it("records header anomalies on malformed avcC sizes in dry-run mode", async () => {
+    const fs = await import("fs");
+    const { extractVideoMetadata } = await import("../../../src/utils/video/metadata");
+    const { detectBlackFrames } = await import("../../../src/utils/video/blackFrames");
+
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+    const mockReadFileSync = fs.readFileSync as ReturnType<typeof vi.fn>;
+    const mockExtractMetadata = extractVideoMetadata as ReturnType<typeof vi.fn>;
+    const mockDetectBlackFrames = detectBlackFrames as ReturnType<typeof vi.fn>;
+
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockImplementation((p: string | Buffer) => {
+      if (typeof p === "string" && p.endsWith("meta.json")) {
+        return JSON.stringify({ scanDate: "2024-08-01T10:00:00Z" });
+      }
+      return Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x05]), Buffer.from("avcC"), Buffer.from([0x00])]);
+    });
+    mockExtractMetadata.mockResolvedValue({ creationTime: "2024-08-01T10:00:00Z" });
+    mockDetectBlackFrames.mockResolvedValue([]);
+
+    const { runMismatchPhase } = await import("../../../src/scripts/discard");
+
+    const result = await runMismatchPhase({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-anomaly-dry"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true,
+      saveResults: false
+    });
+
+    expect(result.videoHeaderAnomalies).toEqual([{ environment: "env", id: "artifact-anomaly-dry", isNew: true }]);
+    expect(result.stats.headerAnomalyCount).toBe(1);
+    expect(result.stats.newHeaderAnomalyCount).toBe(1);
+  });
+});
+
+describe("countsByEnv - uncategorized reasons", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("handles new bad scans with reasons outside the primary categories", async () => {
+    const fs = await import("fs");
+    const mockExistsSync = fs.existsSync as ReturnType<typeof vi.fn>;
+
+    const mod = await import("../../../src/scripts/discard");
+    const { buildDiscardReport } = await import("../../../src/templates/discardReport");
+
+    mockExistsSync.mockImplementation((p: string | Buffer) => {
+      if (typeof p === "string" && p.endsWith("video.mp4")) {
+        return false;
+      }
+      return true;
+    });
+
+    await mod.main({
+      artifactDirs: ["/mock/data/artifacts/env/artifact-uncategorized"],
+      databases: { badScans: {}, checkedScans: {} },
+      dryRun: true,
+      skipDuplicates: true,
+      skipFilter: true,
+      skipMismatch: true
+    });
+
+    const reportInput = (buildDiscardReport as ReturnType<typeof vi.fn>).mock.calls.pop()?.[0] as DiscardReportInput;
+
+    expect(reportInput.countsByEnv["env"]).toBeDefined();
+    expect(reportInput.countsByEnv["env"]?.tooShortNew).toBe(0);
+    expect(reportInput.countsByEnv["env"]?.notBathroomNew).toBe(0);
+    expect(reportInput.countsByEnv["env"]?.duplicateNew).toBe(0);
+    expect(reportInput.newBadScans.some((entry) => entry.reason.toLowerCase().includes("missing video"))).toBe(true);
   });
 });

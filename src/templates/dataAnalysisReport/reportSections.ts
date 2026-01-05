@@ -46,7 +46,7 @@ export function buildReportSections(
     data: [
       {
         data: charts.bitrateValues,
-        title: "Bitrate"
+        title: "Bitrate (Mbps)"
       }
     ],
     type: "chart-row"

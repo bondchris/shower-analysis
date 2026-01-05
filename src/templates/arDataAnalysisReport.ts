@@ -1440,19 +1440,19 @@ function buildAvgDroppedFramePercentageOverTimeSection(metadataList: ArtifactAna
 }
 
 function loadPhoneTiltImageBase64(): string {
-  const imagePath = path.join(process.cwd(), "src", "templates", "assets", "images", "phone-tilt.png");
+  const imagePath = path.join(process.cwd(), "src", "templates", "assets", "images", "phone-orientation", "tilt.png");
   const imageBuffer = fs.readFileSync(imagePath);
   return `data:image/png;base64,${imageBuffer.toString("base64")}`;
 }
 
 function loadPhoneRollImageBase64(): string {
-  const imagePath = path.join(process.cwd(), "src", "templates", "assets", "images", "phone-roll.png");
+  const imagePath = path.join(process.cwd(), "src", "templates", "assets", "images", "phone-orientation", "roll.png");
   const imageBuffer = fs.readFileSync(imagePath);
   return `data:image/png;base64,${imageBuffer.toString("base64")}`;
 }
 
 function loadPhonePanImageBase64(): string {
-  const imagePath = path.join(process.cwd(), "src", "templates", "assets", "images", "phone-pan.png");
+  const imagePath = path.join(process.cwd(), "src", "templates", "assets", "images", "phone-orientation", "pan.png");
   const imageBuffer = fs.readFileSync(imagePath);
   return `data:image/png;base64,${imageBuffer.toString("base64")}`;
 }

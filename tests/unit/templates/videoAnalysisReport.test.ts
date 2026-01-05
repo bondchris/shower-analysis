@@ -26,6 +26,9 @@ describe("videoAnalysisReport", () => {
       gopSize: 42,
       gopVariance: 1,
       height: 1080,
+      laplacianMedian: 1.2,
+      laplacianSampleCount: 10,
+      laplacianStdDev: 0.5,
       maxGopDistance: 48,
       minGopDistance: 36,
       pixelFormat: "yuv420p",
@@ -48,6 +51,9 @@ describe("videoAnalysisReport", () => {
       gopSize: 30,
       gopVariance: 0.5,
       height: 2160,
+      laplacianMedian: 2.4,
+      laplacianSampleCount: 20,
+      laplacianStdDev: 0.8,
       maxGopDistance: 34,
       minGopDistance: 30,
       pixelFormat: "yuv420p",
@@ -76,65 +82,85 @@ describe("videoAnalysisReport", () => {
     expect(maxGopSection?.type).toBe("chart");
     const chartRows = report.sections.filter((s) => s.type === "chart-row");
     expect(chartRows).toHaveLength(5);
-    const firstRow = chartRows[0];
-    const secondRow = chartRows[1];
-    const thirdRow = chartRows[2];
-    const fourthRow = chartRows[3];
-    const fifthRow = chartRows[4];
-    if (firstRow && Array.isArray(firstRow.data)) {
-      const rowTitles = (firstRow.data as { title: string; data: ChartConfiguration }[]).map((c) => c.title);
+
+    const findRow = (title: string) =>
+      chartRows.find(
+        (section) =>
+          Array.isArray(section.data) &&
+          (section.data as { title: string; data: ChartConfiguration }[]).some((c) => c.title === title)
+      );
+
+    const laplacianRow = findRow("Median Blurriness");
+    expect(laplacianRow).toBeDefined();
+
+    const fpsResolutionRow = findRow("Framerate");
+    if (fpsResolutionRow && Array.isArray(fpsResolutionRow.data)) {
+      const rowTitles = (fpsResolutionRow.data as { title: string; data: ChartConfiguration }[]).map((c) => c.title);
       expect(rowTitles).toContain("Framerate");
       expect(rowTitles).toContain("Resolution");
     }
-    if (secondRow && Array.isArray(secondRow.data)) {
-      const rowTitles = (secondRow.data as { title: string; data: ChartConfiguration }[]).map((c) => c.title);
+
+    const bFramesRow = findRow("B-Frames");
+    if (bFramesRow && Array.isArray(bFramesRow.data)) {
+      const rowTitles = (bFramesRow.data as { title: string; data: ChartConfiguration }[]).map((c) => c.title);
       expect(rowTitles).toContain("B-Frames");
       expect(rowTitles).toContain("Color Space");
-    }
-    if (thirdRow && Array.isArray(thirdRow.data)) {
-      const rowTitles = (thirdRow.data as { title: string; data: ChartConfiguration }[]).map((c) => c.title);
       expect(rowTitles).toContain("Profile");
-      expect(rowTitles).toContain("Level");
+    }
 
-      const rowData = thirdRow.data as { title: string; data: ChartConfiguration }[];
+    const levelRow = findRow("Level");
+    if (levelRow && Array.isArray(levelRow.data)) {
+      const rowData = levelRow.data as { title: string; data: ChartConfiguration }[];
+      const rowTitles = rowData.map((c) => c.title);
+      expect(rowTitles).toContain("Level");
+      expect(rowTitles).toContain("Bitrate (Mbps)");
       const levelChart = rowData.find((c) => c.title === "Level");
+      const bitrateChart = rowData.find((c) => c.title === "Bitrate (Mbps)");
       if (levelChart && "labels" in levelChart.data) {
         expect(levelChart.data.labels).toEqual(["4.0", "4.2"]);
       }
+      if (bitrateChart && "labels" in bitrateChart.data) {
+        const bitrateChartData = bitrateChart.data as { labels?: string[] };
+        expect(bitrateChartData.labels).toEqual(["0.7", "6.0"]);
+      }
     }
-    if (fourthRow && Array.isArray(fourthRow.data)) {
-      const rowTitles = (fourthRow.data as { title: string; data: ChartConfiguration }[]).map((c) => c.title);
-      expect(rowTitles).toContain("Average GOP");
-      expect(rowTitles).toContain("Min GOP");
 
-      const rowData = fourthRow.data as { title: string; data: ChartConfiguration }[];
-      const avgGopChart = rowData.find((c) => c.title === "Average GOP");
-      const minGopChart = rowData.find((c) => c.title === "Min GOP");
-      if (avgGopChart && "labels" in avgGopChart.data) {
-        expect(avgGopChart.data.labels).toEqual(["30", "42"]);
-      }
-      if (minGopChart && "labels" in minGopChart.data) {
-        expect(minGopChart.data.labels).toEqual(["30", "36"]);
-      }
+    const minGopSection = report.sections.find((section) => section.title === "Min GOP");
+    expect(minGopSection?.type).toBe("chart");
+    const minGopChart = minGopSection?.data as ChartConfiguration | undefined;
+    if (minGopChart && "labels" in minGopChart) {
+      expect(minGopChart.labels).toEqual(["30", "36"]);
+      const minGopOptions = (minGopChart as { options?: { width?: number } }).options;
+      expect(minGopOptions?.width).toBe(computeLayoutConstants().FULL_CHART_WIDTH);
     }
-    if (fifthRow && Array.isArray(fifthRow.data)) {
-      const rowTitles = (fifthRow.data as { title: string; data: ChartConfiguration }[]).map((c) => c.title);
+
+    const averageGopSection = report.sections.find((section) => section.title === "Average GOP");
+    expect(averageGopSection?.type).toBe("chart");
+    const averageGopChart = averageGopSection?.data as ChartConfiguration | undefined;
+    if (averageGopChart && "labels" in averageGopChart) {
+      expect(averageGopChart.labels).toEqual(["30", "42"]);
+    }
+
+    const varianceRow = findRow("GOP Variance");
+    if (varianceRow && Array.isArray(varianceRow.data)) {
+      const rowData = varianceRow.data as { title: string; data: ChartConfiguration }[];
+      const rowTitles = rowData.map((c) => c.title);
       expect(rowTitles).toContain("GOP Variance");
-
-      const rowData = fifthRow.data as { title: string; data: ChartConfiguration }[];
       const varianceChart = rowData.find((c) => c.title === "GOP Variance");
       if (varianceChart && "labels" in varianceChart.data) {
         expect(varianceChart.data.labels).toEqual(["0.5", "1.0"]);
       }
     }
-    const bitrateSection = report.sections.find((section) => section.title === "Bitrate");
-    expect(bitrateSection).toBeDefined();
   });
 
   it("should render GOP Variance at two-thirds width", () => {
     const report = buildVideoAnalysisReport(mockMetadata, 90, 2);
-    const chartRows = report.sections.filter((section) => section.type === "chart-row");
-    const varianceRow = chartRows[chartRows.length - 1];
+    const varianceRow = report.sections.find(
+      (section) =>
+        section.type === "chart-row" &&
+        Array.isArray(section.data) &&
+        (section.data as { title: string; data: ChartConfiguration }[]).some((chart) => chart.title === "GOP Variance")
+    );
     if (!varianceRow || !Array.isArray(varianceRow.data)) {
       throw new Error("Variance chart row missing");
     }
@@ -164,6 +190,30 @@ describe("videoAnalysisReport", () => {
     expect(maxGopChart?.options?.width).toBe(expectedWidth);
   });
 
+  it("should render Bitrate at half width", () => {
+    const report = buildVideoAnalysisReport(mockMetadata, 90, 2);
+    const bitrateRow = report.sections.find(
+      (section) =>
+        section.type === "chart-row" &&
+        Array.isArray(section.data) &&
+        (section.data as { title: string; data: ChartConfiguration }[]).some(
+          (chart) => chart.title === "Bitrate (Mbps)"
+        )
+    );
+    if (!bitrateRow || !Array.isArray(bitrateRow.data)) {
+      throw new Error("Bitrate chart row missing");
+    }
+    const bitrateChartEntry = (bitrateRow.data as { title: string; data: ChartConfiguration }[]).find(
+      (chart) => chart.title === "Bitrate (Mbps)"
+    );
+    if (!bitrateChartEntry) {
+      throw new Error("Bitrate chart missing");
+    }
+    const bitrateChart = bitrateChartEntry.data as { options?: { width?: number } };
+    const expectedWidth = computeLayoutConstants().HALF_CHART_WIDTH;
+    expect(bitrateChart.options?.width).toBe(expectedWidth);
+  });
+
   it("should include tail notes for overflow buckets", () => {
     const overflowMetadata: ArtifactAnalysis[] = [
       {
@@ -189,7 +239,12 @@ describe("videoAnalysisReport", () => {
       "With a maximum value of 40"
     ]);
 
-    const varianceRow = report.sections.filter((section) => section.type === "chart-row").slice(-1)[0];
+    const varianceRow = report.sections.find(
+      (section) =>
+        section.type === "chart-row" &&
+        Array.isArray(section.data) &&
+        (section.data as { title: string; data: ChartConfiguration }[]).some((chart) => chart.title === "GOP Variance")
+    );
     if (!varianceRow || !Array.isArray(varianceRow.data)) {
       throw new Error("Variance chart row missing");
     }
@@ -234,17 +289,32 @@ describe("videoAnalysisReport", () => {
     const chartRows = report.sections.filter((s) => s.type === "chart-row");
     expect(chartRows).toHaveLength(5);
 
-    const firstRow = chartRows[0];
-    const secondRow = chartRows[1];
-    const thirdRow = chartRows[2];
-    const fourthRow = chartRows[3];
-    const fifthRow = chartRows[4];
-    if (firstRow && Array.isArray(firstRow.data)) {
-      const rowData = firstRow.data as { title: string; data: ChartConfiguration }[];
+    const findRow = (title: string) =>
+      chartRows.find(
+        (section) =>
+          Array.isArray(section.data) &&
+          (section.data as { title: string; data: ChartConfiguration }[]).some((c) => c.title === title)
+      );
+
+    const laplacianRow = findRow("Median Blurriness");
+    if (laplacianRow && Array.isArray(laplacianRow.data)) {
+      const rowData = laplacianRow.data as { title: string; data: ChartConfiguration }[];
+      const blurChart = rowData.find((c) => c.title === "Median Blurriness");
+      const shakeChart = rowData.find((c) => c.title === "Shakiness");
+      if (blurChart && "labels" in blurChart.data) {
+        expect(blurChart.data.labels).toHaveLength(0);
+      }
+      if (shakeChart && "labels" in shakeChart.data) {
+        expect(shakeChart.data.labels).toHaveLength(0);
+      }
+    }
+
+    const fpsRow = findRow("Framerate");
+    if (fpsRow && Array.isArray(fpsRow.data)) {
+      const rowData = fpsRow.data as { title: string; data: ChartConfiguration }[];
       const fpsChart = rowData.find((c) => c.title === "Framerate");
       const resChart = rowData.find((c) => c.title === "Resolution");
 
-      // FPS and Resolution charts should be empty because of the filters
       if (fpsChart && "labels" in fpsChart.data) {
         expect(fpsChart.data.labels).toHaveLength(0);
       }
@@ -253,8 +323,9 @@ describe("videoAnalysisReport", () => {
       }
     }
 
-    if (secondRow && Array.isArray(secondRow.data)) {
-      const rowData = secondRow.data as { title: string; data: ChartConfiguration }[];
+    const bFrameRow = findRow("B-Frames");
+    if (bFrameRow && Array.isArray(bFrameRow.data)) {
+      const rowData = bFrameRow.data as { title: string; data: ChartConfiguration }[];
       const bFrameChart = rowData.find((c) => c.title === "B-Frames");
       if (bFrameChart && "labels" in bFrameChart.data) {
         expect(bFrameChart.data.labels.length).toBeGreaterThanOrEqual(1);
@@ -263,48 +334,45 @@ describe("videoAnalysisReport", () => {
       if (colorChart && "labels" in colorChart.data) {
         expect(colorChart.data.labels.length).toBeGreaterThanOrEqual(1);
       }
-    }
-
-    if (thirdRow && Array.isArray(thirdRow.data)) {
-      const rowData = thirdRow.data as { title: string; data: ChartConfiguration }[];
       const profileChart = rowData.find((c) => c.title === "Profile");
-      const levelChart = rowData.find((c) => c.title === "Level");
       if (profileChart && "labels" in profileChart.data) {
         expect(profileChart.data.labels.length).toBeGreaterThanOrEqual(1);
       }
-      if (levelChart && "labels" in levelChart.data) {
-        expect(levelChart.data.labels).toHaveLength(0);
-      }
     }
 
-    if (fourthRow && Array.isArray(fourthRow.data)) {
-      const rowData = fourthRow.data as { title: string; data: ChartConfiguration }[];
-      const avgGopChart = rowData.find((c) => c.title === "Average GOP");
-      const minGopChart = rowData.find((c) => c.title === "Min GOP");
-      if (avgGopChart && "labels" in avgGopChart.data) {
-        expect(avgGopChart.data.labels).toHaveLength(0);
-      }
-      if (minGopChart && "labels" in minGopChart.data) {
-        expect(minGopChart.data.labels).toHaveLength(0);
-      }
-    }
-
-    if (fifthRow && Array.isArray(fifthRow.data)) {
-      const rowData = fifthRow.data as { title: string; data: ChartConfiguration }[];
-      const profileChart = rowData.find((c) => c.title === "Profile");
+    const levelRow = findRow("Level");
+    if (levelRow && Array.isArray(levelRow.data)) {
+      const rowData = levelRow.data as { title: string; data: ChartConfiguration }[];
       const levelChart = rowData.find((c) => c.title === "Level");
-      if (profileChart && "labels" in profileChart.data) {
-        expect(profileChart.data.labels.length).toBeGreaterThanOrEqual(1);
-      }
+      const bitrateChart = rowData.find((c) => c.title === "Bitrate (Mbps)");
       if (levelChart && "labels" in levelChart.data) {
         expect(levelChart.data.labels).toHaveLength(0);
       }
+      if (bitrateChart && "labels" in bitrateChart.data) {
+        const bitrateChartData = bitrateChart.data as { labels?: string[] };
+        expect(bitrateChartData.labels).toHaveLength(0);
+      }
     }
 
-    const bitrateSection = report.sections.find((section) => section.title === "Bitrate");
-    if (bitrateSection && "labels" in (bitrateSection.data as ChartConfiguration)) {
-      const bitrateChart = bitrateSection.data as ChartConfiguration & { labels: string[] };
-      expect(bitrateChart.labels).toHaveLength(0);
+    const averageGopSection = report.sections.find((section) => section.title === "Average GOP");
+    const averageGopChart = averageGopSection?.data as ChartConfiguration | undefined;
+    if (averageGopChart && "labels" in averageGopChart) {
+      expect(averageGopChart.labels).toHaveLength(0);
+    }
+
+    const minGopSection = report.sections.find((section) => section.title === "Min GOP");
+    const minGopChart = minGopSection?.data as ChartConfiguration | undefined;
+    if (minGopChart && "labels" in minGopChart) {
+      expect(minGopChart.labels).toHaveLength(0);
+    }
+
+    const varianceRow = findRow("GOP Variance");
+    if (varianceRow && Array.isArray(varianceRow.data)) {
+      const rowData = varianceRow.data as { title: string; data: ChartConfiguration }[];
+      const varianceChart = rowData.find((c) => c.title === "GOP Variance");
+      if (varianceChart && "labels" in varianceChart.data) {
+        expect(varianceChart.data.labels).toHaveLength(0);
+      }
     }
   });
 
@@ -335,8 +403,12 @@ describe("videoAnalysisReport", () => {
     ];
 
     const report = buildVideoAnalysisReport(overflowVarianceMetadata, 10, 1);
-    const chartRows = report.sections.filter((section) => section.type === "chart-row");
-    const varianceRow = chartRows[chartRows.length - 1];
+    const varianceRow = report.sections.find(
+      (section) =>
+        section.type === "chart-row" &&
+        Array.isArray(section.data) &&
+        (section.data as { title: string; data: ChartConfiguration }[]).some((chart) => chart.title === "GOP Variance")
+    );
     if (!varianceRow || !Array.isArray(varianceRow.data)) {
       throw new Error("Variance chart row missing");
     }

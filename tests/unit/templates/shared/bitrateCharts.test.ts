@@ -20,9 +20,11 @@ describe("buildBitrateCharts", () => {
     expect(bitrateValues.type).toBe("bar");
     const barChart = bitrateValues as BarChartConfig;
 
-    expect(barChart.labels).toEqual(["0.5 Mbps", "2.0 Mbps", "12.0 Mbps"]);
+    expect(barChart.labels).toEqual(["0.5", "2.0", "12.0"]);
     expect(barChart.data).toEqual([1, 1, 1]);
     expect(barChart.options.horizontal).toBeFalsy();
     expect(barChart.options.showCount).toBe(true);
+    expect(barChart.options.stacked).toBeFalsy();
+    expect(barChart.options.stackLabels).toBeUndefined();
   });
 });

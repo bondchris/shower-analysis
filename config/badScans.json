@@ -1769,6 +1769,12 @@
     "reason": "Duplicate video (hash e0e289680f4869eee4f89745c1c5d3276c4370b51f98fec6fe405a7478627ff5) matches 55943f6d-774e-41c3-8fa5-62dfba96fc96, 8801be06-d26e-440c-88e0-093872d0aeb1",
     "scanDate": "2024-08-19T17:11:19Z"
   },
+  "c6783d34-87eb-4cd0-9482-5992702e862c": {
+    "date": "2026-01-04T20:35:10.076Z",
+    "environment": "Lowe's Production",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2026-01-04T14:48:55.594672Z"
+  },
   "c6c3edb5-7809-4a64-a5ce-5957017b5612": {
     "date": "2025-12-29T06:03:11.590Z",
     "environment": "Bond Production",

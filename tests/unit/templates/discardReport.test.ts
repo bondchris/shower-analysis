@@ -12,6 +12,7 @@ function createBaseInput(overrides: Partial<DiscardReportInput> = {}): DiscardRe
     artifactsAfterClean: 0,
     badScanHistory: [],
     badScansByEnv: {},
+    blackFrameFindings: [],
     cleanStats: { failedDeletes: [], quarantinedCount: 0, removedCount: 0, skippedCleanCount: 0 },
     countsByEnv: {
       production: {
@@ -43,7 +44,7 @@ function createBaseInput(overrides: Partial<DiscardReportInput> = {}): DiscardRe
 
 describe("buildDiscardReport", () => {
   it("builds summary, distributions, and detail table when new bad scans exist", () => {
-    const input: DiscardReportInput = {
+    const input: DiscardReportInput = createBaseInput({
       artifactCount: 5,
       artifactsAfterClean: 4,
       badScanHistory: [
@@ -78,22 +79,19 @@ describe("buildDiscardReport", () => {
           validNew: 1
         }
       },
-      dateMismatches: [],
       discardedOnDiskCount: 123,
       dryRun: false,
       duplicateStats: { duplicateCount: 0, errors: 0, newDuplicateCount: 0, processed: 0, skippedCached: 0 },
-      duplicates: [],
       filterStats: { errors: 0, processed: 3, removed: 2, skipped: 0, skippedAmbiguous: 1, skippedCached: 0 },
       finalBadScanCount: 5,
       initialBadScanCount: 2,
-      minDuration: 12,
       newBadScans: [
         { environment: "production", id: "abc<script>", reason: "Missing video.mp4", stage: "clean" },
         { environment: "staging", id: "filter-1", reason: "Not a bathroom", stage: "filter" },
         { environment: "staging", id: "filter-2", reason: "Not a bathroom", stage: "filter" }
       ],
       videoHeaderAnomalies: []
-    };
+    });
 
     const report = buildDiscardReport(input);
     expect(report.title).toBe("Discard Report");
@@ -137,10 +135,9 @@ describe("buildDiscardReport", () => {
   });
 
   it("handles runs with no new bad scans", () => {
-    const input: DiscardReportInput = {
+    const input: DiscardReportInput = createBaseInput({
       artifactCount: 2,
       artifactsAfterClean: 2,
-      badScanHistory: [],
       badScansByEnv: { production: 1 },
       cleanStats: { failedDeletes: [], quarantinedCount: 0, removedCount: 0, skippedCleanCount: 2 },
       countsByEnv: {
@@ -156,18 +153,12 @@ describe("buildDiscardReport", () => {
           validNew: 0
         }
       },
-      dateMismatches: [],
       discardedOnDiskCount: 0,
       dryRun: true,
       duplicateStats: { duplicateCount: 0, errors: 0, newDuplicateCount: 0, processed: 0, skippedCached: 0 },
-      duplicates: [],
-      filterStats: { errors: 0, processed: 0, removed: 0, skipped: 0, skippedAmbiguous: 0, skippedCached: 0 },
       finalBadScanCount: 1,
-      initialBadScanCount: 1,
-      minDuration: 12,
-      newBadScans: [],
-      videoHeaderAnomalies: []
-    };
+      initialBadScanCount: 1
+    });
 
     const report = buildDiscardReport(input);
     expect(report.sections.some((s) => s.title === "Dry Run")).toBe(true);
@@ -177,6 +168,11 @@ describe("buildDiscardReport", () => {
   describe("date mismatch summary rows", () => {
     it("includes date mismatch counts in processing summary with new/total distinction", () => {
       const input = createBaseInput({
+        blackFrameFindings: [
+          { environment: "production", id: "bf-new", isNew: true, segments: [{ duration: 1, end: 1, start: 0 }] },
+          { environment: "production", id: "bf-old", isNew: false, segments: [] },
+          { environment: "staging", id: "bf-stg", isNew: true, segments: [{ duration: 0.5, end: 0.5, start: 0 }] }
+        ],
         countsByEnv: {
           production: {
             duplicateCached: 0,
@@ -227,6 +223,65 @@ describe("buildDiscardReport", () => {
       expect(dateMismatchNewRow?.[1]).toBe("1"); // production new
       expect(dateMismatchNewRow?.[2]).toBe("1"); // staging new
       expect(dateMismatchNewRow?.[3]).toBe("2"); // total new
+    });
+  });
+
+  describe("black frame summary rows", () => {
+    it("includes black frame counts by environment and marks new detections", () => {
+      const input = createBaseInput({
+        blackFrameFindings: [
+          { environment: "production", id: "bf-new", isNew: true, segments: [{ duration: 1, end: 1, start: 0 }] },
+          { environment: "production", id: "bf-old", isNew: false, segments: [] },
+          { environment: "staging", id: "bf-stg", isNew: true, segments: [{ duration: 0.5, end: 0.5, start: 0 }] }
+        ],
+        countsByEnv: {
+          production: {
+            duplicateCached: 0,
+            duplicateNew: 0,
+            notBathroomCached: 0,
+            notBathroomNew: 0,
+            processed: 3,
+            tooShortCached: 0,
+            tooShortNew: 0,
+            validCached: 3,
+            validNew: 0
+          },
+          staging: {
+            duplicateCached: 0,
+            duplicateNew: 0,
+            notBathroomCached: 0,
+            notBathroomNew: 0,
+            processed: 2,
+            tooShortCached: 0,
+            tooShortNew: 0,
+            validCached: 2,
+            validNew: 0
+          }
+        }
+      });
+
+      const report = buildDiscardReport(input);
+      const summarySection = report.sections.find((s) => s.title === "Processing Summary");
+      const rows = summarySection?.data as string[][];
+      const headers = (summarySection?.options as { headers?: string[] } | undefined)?.headers ?? [];
+      const productionIndex = headers.indexOf("production");
+      const stagingIndex = headers.indexOf("staging");
+      const totalIndex = headers.indexOf("Total");
+
+      const blackRow = rows.find((r) => r[0] === "Black Frame Detected");
+      const blackNewRow =
+        blackRow !== undefined && rows[rows.indexOf(blackRow) + 1] !== undefined
+          ? rows[rows.indexOf(blackRow) + 1]
+          : undefined;
+
+      expect(blackRow?.[productionIndex]).toBe("2");
+      expect(blackRow?.[stagingIndex]).toBe("1");
+      expect(blackRow?.[totalIndex]).toBe("3");
+      expect(blackNewRow?.[productionIndex]).toBe("1");
+      expect(blackNewRow?.[stagingIndex]).toBe("1");
+      expect(blackNewRow?.[totalIndex]).toBe("2");
+
+      expect(report.sections.some((section) => section.title === "Black Frame Segments")).toBe(true);
     });
   });
 

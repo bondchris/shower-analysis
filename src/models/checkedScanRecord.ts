@@ -13,6 +13,9 @@ export interface CheckedScanEntry {
   mismatchVideoDate?: string;
   avcAnomalyCheckedDate?: string;
   avcAnomalyDetected?: boolean;
+  blackFrameCheckedDate?: string;
+  blackFrameDetected?: boolean;
+  blackFrameSegments?: { start: number; end: number; duration: number }[];
 }
 
 export type CheckedScanDatabase = Record<string, CheckedScanEntry>;

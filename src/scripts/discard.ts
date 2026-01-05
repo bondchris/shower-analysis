@@ -7,6 +7,7 @@ import { BadScanDatabase } from "../models/badScanRecord";
 import { CheckedScanDatabase } from "../models/checkedScanRecord";
 import {
   BadScanHistoryEntry,
+  BlackFrameFinding,
   CleanDataStats,
   DateMismatch,
   DiscardReportInput,
@@ -36,6 +37,7 @@ import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
 import { generatePdfReport } from "../utils/reportGenerator";
 import { hashVideoInDirectory } from "../utils/video/hash";
+import { detectBlackFrames } from "../utils/video/blackFrames";
 import { extractVideoMetadata } from "../utils/video/metadata";
 
 export type {
@@ -129,6 +131,8 @@ export interface MismatchStats {
   skippedCached: number;
   headerAnomalyCount: number;
   newHeaderAnomalyCount: number;
+  blackFrameCount: number;
+  newBlackFrameCount: number;
   errors: number;
 }
 
@@ -146,6 +150,7 @@ export interface MismatchPhaseResult {
   databases: DiscardDatabases;
   dateMismatches: DateMismatch[];
   videoHeaderAnomalies: VideoHeaderAnomaly[];
+  blackFrameFindings: BlackFrameFinding[];
 }
 
 export interface DiscardOptions
@@ -182,7 +187,7 @@ function toBadScanIdSet(database: BadScanDatabase): Set<string> {
   return new Set(Object.keys(database));
 }
 
-function collectNewBadScans(
+export function collectNewBadScans(
   badScanDatabase: BadScanDatabase,
   beforeIds: Set<string>,
   afterIds: Set<string>,
@@ -873,9 +878,11 @@ export async function runMismatchPhase(options?: MismatchPhaseOptions): Promise<
   );
 
   const stats: MismatchStats = {
+    blackFrameCount: 0,
     errors: 0,
     headerAnomalyCount: 0,
     mismatchCount: 0,
+    newBlackFrameCount: 0,
     newHeaderAnomalyCount: 0,
     newMismatchCount: 0,
     processed: 0,
@@ -884,6 +891,7 @@ export async function runMismatchPhase(options?: MismatchPhaseOptions): Promise<
 
   const dateMismatches: DateMismatch[] = [];
   const videoHeaderAnomalies: VideoHeaderAnomaly[] = [];
+  const blackFrameFindings: BlackFrameFinding[] = [];
 
   const bar = createProgressBar("Mismatches |{bar}| {percentage}% | {value}/{total} Artifacts | ETA: {eta}s");
   const initialProgress = 0;
@@ -905,6 +913,7 @@ export async function runMismatchPhase(options?: MismatchPhaseOptions): Promise<
     const mismatchCached = entry?.mismatchCheckedDate !== undefined && entry.mismatchCheckedDate !== "";
     const headerCached = entry?.avcAnomalyCheckedDate !== undefined;
     const shouldCheckMismatch = !mismatchCached;
+    const blackFrameCached = entry?.blackFrameCheckedDate !== undefined;
 
     if (mismatchCached) {
       if (entry.mismatchDiffHours !== undefined) {
@@ -929,7 +938,18 @@ export async function runMismatchPhase(options?: MismatchPhaseOptions): Promise<
       stats.headerAnomalyCount++;
     }
 
-    const shouldSkipProcessing = mismatchCached && headerCached;
+    if (blackFrameCached && entry.blackFrameDetected === true) {
+      const cachedSegments = entry.blackFrameSegments ?? [];
+      blackFrameFindings.push({
+        environment,
+        id: artifactId,
+        isNew: false,
+        segments: cachedSegments
+      });
+      stats.blackFrameCount++;
+    }
+
+    const shouldSkipProcessing = mismatchCached && headerCached && blackFrameCached;
     if (shouldSkipProcessing) {
       stats.skippedCached++;
       bar.increment();
@@ -1008,6 +1028,41 @@ export async function runMismatchPhase(options?: MismatchPhaseOptions): Promise<
             checkedScans[artifactId] = checkEntry;
           }
           checkEntry.mismatchCheckedDate = new Date().toISOString();
+        }
+      }
+
+      if (!blackFrameCached) {
+        try {
+          const segments = await detectBlackFrames(videoPath);
+          const noSegmentsDetected = 0;
+          const hasBlackFrames = segments.length > noSegmentsDetected;
+          if (hasBlackFrames) {
+            const isNew = entry?.blackFrameCheckedDate === undefined;
+            blackFrameFindings.push({
+              environment,
+              id: artifactId,
+              isNew,
+              segments
+            });
+            stats.blackFrameCount++;
+            if (isNew) {
+              stats.newBlackFrameCount++;
+            }
+          }
+
+          if (!isDryRun) {
+            let checkEntry = checkedScans[artifactId];
+            if (checkEntry === undefined) {
+              checkEntry = {};
+              checkedScans[artifactId] = checkEntry;
+            }
+            checkEntry.blackFrameCheckedDate = new Date().toISOString();
+            checkEntry.blackFrameDetected = hasBlackFrames;
+            checkEntry.blackFrameSegments = hasBlackFrames ? segments : [];
+          }
+        } catch (error) {
+          logger.warn(`Failed to check black frames for ${artifactId}: ${String(error)}`);
+          stats.errors++;
         }
       }
 
@@ -1092,10 +1147,11 @@ export async function runMismatchPhase(options?: MismatchPhaseOptions): Promise<
   }
 
   logger.info(
-    `Mismatch stage complete. Processed: ${stats.processed.toString()}, Mismatches: ${stats.mismatchCount.toString()}, New: ${stats.newMismatchCount.toString()}, Header anomalies: ${stats.headerAnomalyCount.toString()} (new: ${stats.newHeaderAnomalyCount.toString()}), Cached: ${stats.skippedCached.toString()}, Errors: ${stats.errors.toString()}.`
+    `Mismatch stage complete. Processed: ${stats.processed.toString()}, Mismatches: ${stats.mismatchCount.toString()} (new: ${stats.newMismatchCount.toString()}), Header anomalies: ${stats.headerAnomalyCount.toString()} (new: ${stats.newHeaderAnomalyCount.toString()}), Black frames: ${stats.blackFrameCount.toString()} (new: ${stats.newBlackFrameCount.toString()}), Cached: ${stats.skippedCached.toString()}, Errors: ${stats.errors.toString()}.`
   );
 
   return {
+    blackFrameFindings,
     databases: { badScans, checkedScans },
     dateMismatches,
     stats,
@@ -1218,6 +1274,7 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
 
   let dateMismatches: DateMismatch[] = [];
   let videoHeaderAnomalies: VideoHeaderAnomaly[] = [];
+  let blackFrameFindings: BlackFrameFinding[] = [];
   if (options?.skipMismatch !== true) {
     const mismatchResult = await runMismatchPhase({
       ...options,
@@ -1229,6 +1286,7 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
     });
     dateMismatches = mismatchResult.dateMismatches;
     videoHeaderAnomalies = mismatchResult.videoHeaderAnomalies;
+    blackFrameFindings = mismatchResult.blackFrameFindings;
   }
 
   if (!isDryRun) {
@@ -1347,6 +1405,7 @@ export async function main(options?: DiscardOptions): Promise<DiscardStats> {
     artifactsAfterClean,
     badScanHistory,
     badScansByEnv,
+    blackFrameFindings,
     cleanStats,
     countsByEnv,
     dateMismatches,

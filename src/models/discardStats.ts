@@ -15,6 +15,19 @@ export interface VideoHeaderAnomaly {
   isNew?: boolean;
 }
 
+export interface BlackFrameSegment {
+  start: number;
+  end: number;
+  duration: number;
+}
+
+export interface BlackFrameFinding {
+  id: string;
+  environment: string;
+  segments: BlackFrameSegment[];
+  isNew?: boolean;
+}
+
 export interface CleanDataStats {
   removedCount: number;
   quarantinedCount: number;
@@ -90,6 +103,7 @@ export interface DiscardReportInput {
   countsByEnv: Record<string, EnvCounts>;
   dateMismatches: DateMismatch[];
   videoHeaderAnomalies: VideoHeaderAnomaly[];
+  blackFrameFindings: BlackFrameFinding[];
   discardedOnDiskCount?: number;
   filterStats: FilterStats;
   duplicateStats: DuplicateStats;

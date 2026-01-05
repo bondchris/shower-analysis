@@ -26,15 +26,24 @@ describe("extractVideoMetadata", () => {
   const mockCachePath = path.join(mockDir, "videoMetadata.json");
   const mockVideoPath = path.join(mockDir, "video.mp4");
   const mockExecFile = execFile as unknown as Mock;
+  const laplacianDefaults = {
+    laplacianMedian: 0,
+    laplacianSampleCount: 0,
+    laplacianStdDev: 0
+  };
   const gopDefaults = {
     avgGopDistance: 1,
     gopVariance: 0,
     maxGopDistance: 1,
-    minGopDistance: 1
+    minGopDistance: 1,
+    ...laplacianDefaults
   };
   const buildUniformGopStats = (value: number) => ({
     avgGopDistance: value,
     gopVariance: 0,
+    laplacianMedian: 0,
+    laplacianSampleCount: 0,
+    laplacianStdDev: 0,
     maxGopDistance: value,
     minGopDistance: value
   });
@@ -59,7 +68,13 @@ describe("extractVideoMetadata", () => {
   });
 
   it("should return cached metadata if it exists and is valid", async () => {
-    const cachedGop = { gopSize: 48, ...buildUniformGopStats(48) };
+    const cachedGop = {
+      gopSize: 48,
+      ...buildUniformGopStats(48),
+      laplacianMedian: 1.25,
+      laplacianSampleCount: 150,
+      laplacianStdDev: 0.5
+    };
     const cachedData: VideoMetadata = {
       bFrames: 2,
       bitDepth: 8,
@@ -349,6 +364,7 @@ describe("extractVideoMetadata", () => {
     const result = await extractVideoMetadata(mockDir);
 
     expect(result).toEqual({
+      ...laplacianDefaults,
       avgGopDistance: 2.5,
       bFrames: 0,
       bitDepth: 0,
@@ -371,6 +387,65 @@ describe("extractVideoMetadata", () => {
       refs: 0,
       width: 1280
     });
+  });
+
+  it("should capture laplacian statistics from ffprobe output", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockVideoPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const mockFfprobeData = {
+      format: { duration: 2 },
+      streams: [
+        {
+          codec_type: "video",
+          height: 480,
+          r_frame_rate: "30/1",
+          width: 640
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const gopPayload = JSON.stringify({
+      frames: [{ key_frame: 1, pkt_pts_time: "0" }]
+    });
+    const laplacianOutput = "1.0|\n2.0|\n3.0|";
+
+    mockExecFile.mockImplementation(
+      (
+        _cmd: string,
+        args: string[],
+        optionsOrCallback: unknown,
+        maybeCallback?: (err: Error | null, stdout: string, stderr?: string) => void
+      ) => {
+        const callback = getExecCallback(optionsOrCallback, maybeCallback);
+        const isLaplacianCall =
+          Array.isArray(args) && args.some((arg) => typeof arg === "string" && arg.includes("signalstats"));
+        if (isLaplacianCall) {
+          callback(null, laplacianOutput, "");
+          return;
+        }
+        callback(null, gopPayload, "");
+      }
+    );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result?.laplacianMedian).toBeCloseTo(2);
+    expect(result?.laplacianStdDev).toBeCloseTo(Math.sqrt(2 / 3));
+    expect(result?.laplacianSampleCount).toBe(3);
   });
 
   it("should return null if video file does not exist", async () => {
@@ -979,6 +1054,7 @@ describe("extractVideoMetadata", () => {
     const result = await extractVideoMetadata(mockDir);
 
     expect(result).toEqual({
+      ...laplacianDefaults,
       avgGopDistance: 2,
       bFrames: 0,
       bitDepth: 0,
@@ -1052,6 +1128,7 @@ describe("extractVideoMetadata", () => {
     const result = await extractVideoMetadata(mockDir);
 
     expect(result).toEqual({
+      ...laplacianDefaults,
       avgGopDistance: 5,
       bFrames: 0,
       bitDepth: 0,
@@ -1121,6 +1198,7 @@ describe("extractVideoMetadata", () => {
     const result = await extractVideoMetadata(mockDir);
 
     expect(result).toEqual({
+      ...laplacianDefaults,
       avgGopDistance: 1,
       bFrames: 0,
       bitDepth: 0,
@@ -1182,6 +1260,7 @@ describe("extractVideoMetadata", () => {
     const result = await extractVideoMetadata(mockDir);
 
     expect(result).toEqual({
+      ...laplacianDefaults,
       avgGopDistance: 1,
       bFrames: 0,
       bitDepth: 0,
@@ -1252,6 +1331,7 @@ describe("extractVideoMetadata", () => {
     const result = await extractVideoMetadata(mockDir);
 
     expect(result).toEqual({
+      ...laplacianDefaults,
       avgGopDistance: 1,
       bFrames: 0,
       bitDepth: 0,

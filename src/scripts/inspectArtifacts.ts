@@ -32,6 +32,7 @@ async function addVideoMetadata(dir: string, metadata: ArtifactAnalysis): Promis
     const missingBFrames = 0;
     const missingBitDepth = 0;
     const missingGop = 0;
+    const missingLaplacian = 0;
     metadata.width = videoMeta.width;
     metadata.height = videoMeta.height;
     metadata.fps = videoMeta.fps;
@@ -52,6 +53,9 @@ async function addVideoMetadata(dir: string, metadata: ArtifactAnalysis): Promis
     metadata.avgGopDistance = videoMeta.avgGopDistance ?? missingGop;
     metadata.minGopDistance = videoMeta.minGopDistance ?? missingGop;
     metadata.gopVariance = videoMeta.gopVariance ?? missingGop;
+    metadata.laplacianMedian = videoMeta.laplacianMedian ?? missingLaplacian;
+    metadata.laplacianStdDev = videoMeta.laplacianStdDev ?? missingLaplacian;
+    metadata.laplacianSampleCount = videoMeta.laplacianSampleCount ?? missingLaplacian;
   }
 }
 

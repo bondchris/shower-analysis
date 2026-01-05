@@ -26,7 +26,7 @@ function buildBitrateValueChart(bitrates: number[], layout: LayoutConstants): Ch
   }
 
   const sortedBitrates = [...bitrateCounts.keys()].sort((a, b) => a - b);
-  const bitrateLabels = sortedBitrates.map((value) => `${formatter.format(value)} Mbps`);
+  const bitrateLabels = sortedBitrates.map((value) => formatter.format(value));
   const bitrateData = sortedBitrates.map((value) => bitrateCounts.get(value) ?? initialCount);
 
   return getBarChartConfig(bitrateLabels, bitrateData, {

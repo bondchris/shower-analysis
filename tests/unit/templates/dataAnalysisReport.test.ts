@@ -494,8 +494,8 @@ describe("buildDataAnalysisReport", () => {
 
       // Verify getBarChartConfig was called with stacked data
       const objectsChartCall = (getBarChartConfig as ReturnType<typeof vi.fn>).mock.calls.find((call: unknown[]) => {
-        const options = call[2] as { stacked?: boolean };
-        return options.stacked === true;
+        const options = call[2] as { stackLabels?: string[]; stacked?: boolean };
+        return options.stacked === true && Array.isArray(options.stackLabels) && options.stackLabels.includes("High");
       });
 
       expect(objectsChartCall).toBeDefined();

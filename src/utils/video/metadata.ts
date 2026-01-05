@@ -27,6 +27,9 @@ export interface VideoMetadata {
   bitDepth?: number;
   entropyCoding?: string;
   creationTime?: string;
+  laplacianMedian?: number;
+  laplacianStdDev?: number;
+  laplacianSampleCount?: number;
 }
 
 /**
@@ -567,6 +570,94 @@ function detectEntropyCodingMode(stream: ffmpeg.FfprobeStream, videoPath: string
   return DEFAULT_ENTROPY_STRING;
 }
 
+async function calculateLaplacianStats(videoPath: string): Promise<{
+  frameCount: number;
+  median: number;
+  standardDeviation: number;
+} | null> {
+  const escapedPath = videoPath.replace(/'/g, "\\'");
+  const filterGraph = `movie='${escapedPath}',format=gray,convolution='0 1 0 1 -4 1 0 1 0',signalstats`;
+  const compactFormat = "compact=p=0:nk=1";
+  const outputField = "frame_tags=lavfi.signalstats.YAVG";
+  const ffprobeArgs = ["-v", "error", "-of", compactFormat, "-show_entries", outputField, "-f", "lavfi", filterGraph];
+  const BYTES_PER_KILOBYTE = 1024;
+  const BYTES_PER_MEGABYTE = BYTES_PER_KILOBYTE * BYTES_PER_KILOBYTE;
+  const DEFAULT_MAX_BUFFER_MB = 50;
+  const FFPROBE_MAX_BUFFER = DEFAULT_MAX_BUFFER_MB * BYTES_PER_MEGABYTE;
+
+  try {
+    const stdoutValue = await new Promise<string>((resolve, reject) => {
+      execFile("ffprobe", ffprobeArgs, { maxBuffer: FFPROBE_MAX_BUFFER }, (err: unknown, stdout: string | Buffer) => {
+        const unknownErrorMessage = "Unknown ffprobe error";
+        if (err !== null && err !== undefined) {
+          const errorMessage = typeof err === "string" ? err : unknownErrorMessage;
+          reject(err instanceof Error ? err : new Error(errorMessage));
+          return;
+        }
+        const parsedOutput =
+          typeof stdout === "string" || Buffer.isBuffer(stdout) ? stdout.toString() : JSON.stringify(stdout);
+        resolve(parsedOutput);
+      });
+    });
+
+    const lines = stdoutValue.split(/\r?\n/);
+    const values: number[] = [];
+    const EMPTY_STRING_LENGTH = 0;
+    const PIPE_TRAILER_LENGTH = 1;
+    const FIRST_INDEX = 0;
+    for (const rawLine of lines) {
+      const trimmed = rawLine.trim();
+      if (trimmed.length === EMPTY_STRING_LENGTH) {
+        continue;
+      }
+      const cleaned = trimmed.endsWith("|")
+        ? trimmed.slice(FIRST_INDEX, Math.max(FIRST_INDEX, trimmed.length - PIPE_TRAILER_LENGTH))
+        : trimmed;
+      const parsed = parseFloat(cleaned);
+      if (Number.isFinite(parsed)) {
+        values.push(parsed);
+      }
+    }
+
+    const NO_VALUES = 0;
+    if (values.length === NO_VALUES) {
+      return null;
+    }
+
+    const sorted = [...values].sort((a, b) => a - b);
+    const EVEN_DIVISOR = 2;
+    const EVEN_REMAINDER = 0;
+    const PREVIOUS_OFFSET = 1;
+    const DEFAULT_MEDIAN = 0;
+    const middleIndex = Math.floor(sorted.length / EVEN_DIVISOR);
+    let median: number = sorted[middleIndex] ?? sorted[FIRST_INDEX] ?? DEFAULT_MEDIAN;
+    const hasEvenLength = sorted.length % EVEN_DIVISOR === EVEN_REMAINDER;
+    if (hasEvenLength) {
+      const previousIndex = middleIndex - PREVIOUS_OFFSET;
+      const lowerValue: number = sorted[previousIndex] ?? median;
+      const upperValue: number = sorted[middleIndex] ?? lowerValue;
+      median = (lowerValue + upperValue) / EVEN_DIVISOR;
+    }
+    const INITIAL_SUM = 0;
+    const sum = values.reduce((acc, value) => acc + value, INITIAL_SUM);
+    const mean = sum / values.length;
+    const variance = values.reduce((acc, value) => {
+      const delta = value - mean;
+      const squaredDelta = delta * delta;
+      return acc + squaredDelta;
+    }, INITIAL_SUM);
+    const standardDeviation = Math.sqrt(variance / values.length);
+
+    return {
+      frameCount: values.length,
+      median,
+      standardDeviation
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Extracts metadata from a video file in the given directory.
  * Returns null if the video file does not exist or metadata cannot be parsed.
@@ -603,6 +694,12 @@ export async function extractVideoMetadata(dirPath: string): Promise<VideoMetada
       const hasBitDepth = typeof cachedData.bitDepth === "number" && !Number.isNaN(cachedData.bitDepth);
       const hasEntropyCoding =
         typeof cachedData.entropyCoding === "string" && cachedData.entropyCoding.length > EMPTY_STRING_LENGTH;
+      const hasLaplacianMedian =
+        typeof cachedData.laplacianMedian === "number" && !Number.isNaN(cachedData.laplacianMedian);
+      const hasLaplacianStdDev =
+        typeof cachedData.laplacianStdDev === "number" && !Number.isNaN(cachedData.laplacianStdDev);
+      const hasLaplacianSampleCount =
+        typeof cachedData.laplacianSampleCount === "number" && !Number.isNaN(cachedData.laplacianSampleCount);
       if (
         cachedData.creationTime !== undefined &&
         hasBitrate &&
@@ -621,7 +718,10 @@ export async function extractVideoMetadata(dirPath: string): Promise<VideoMetada
         hasColorSpace &&
         hasPixelFormat &&
         hasBitDepth &&
-        hasEntropyCoding
+        hasEntropyCoding &&
+        hasLaplacianMedian &&
+        hasLaplacianStdDev &&
+        hasLaplacianSampleCount
       ) {
         return cachedData;
       }
@@ -648,6 +748,8 @@ export async function extractVideoMetadata(dirPath: string): Promise<VideoMetada
   const DEFAULT_GOP = 0;
   const DEFAULT_ENTROPY = "";
   const UNKNOWN_ENTROPY = "Unknown";
+  const DEFAULT_LAPLACIAN = 0;
+  const DEFAULT_LAPLACIAN_COUNT = 0;
 
   if (fs.existsSync(videoPath)) {
     try {
@@ -669,6 +771,9 @@ export async function extractVideoMetadata(dirPath: string): Promise<VideoMetada
         gopSize: DEFAULT_GOP,
         gopVariance: DEFAULT_GOP,
         height: DEFAULT_DIMENSION,
+        laplacianMedian: DEFAULT_LAPLACIAN,
+        laplacianSampleCount: DEFAULT_LAPLACIAN_COUNT,
+        laplacianStdDev: DEFAULT_LAPLACIAN,
         level: DEFAULT_LEVEL,
         maxGopDistance: DEFAULT_GOP,
         minGopDistance: DEFAULT_GOP,
@@ -774,6 +879,13 @@ export async function extractVideoMetadata(dirPath: string): Promise<VideoMetada
       result.gopVariance = gopStats.variance;
       if (!isPositiveNumber(result.gopSize) && isPositiveNumber(gopStats.average)) {
         result.gopSize = gopStats.average;
+      }
+
+      const laplacianStats = await calculateLaplacianStats(videoPath);
+      if (laplacianStats !== null) {
+        result.laplacianMedian = laplacianStats.median;
+        result.laplacianStdDev = laplacianStats.standardDeviation;
+        result.laplacianSampleCount = laplacianStats.frameCount;
       }
 
       const finalEntropyLength = (result.entropyCoding ?? DEFAULT_ENTROPY).length;

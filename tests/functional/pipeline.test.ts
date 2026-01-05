@@ -164,6 +164,15 @@ describe("Functional Pipeline Test", () => {
     if (fs.existsSync(cssSrc)) {
       fs.copyFileSync(cssSrc, path.join(cssDestDir, "print.css"));
     }
+
+    const laplacianSrcDir = path.join(originalCwd, "src", "templates", "assets", "images", "laplacian");
+    const laplacianDestDir = path.join(tempDir, "src", "templates", "assets", "images", "laplacian");
+    if (fs.existsSync(laplacianSrcDir)) {
+      fs.mkdirSync(laplacianDestDir, { recursive: true });
+      for (const fileName of fs.readdirSync(laplacianSrcDir)) {
+        fs.copyFileSync(path.join(laplacianSrcDir, fileName), path.join(laplacianDestDir, fileName));
+      }
+    }
   });
 
   afterEach(() => {

@@ -1,6 +1,7 @@
 import React from "react";
 import {
   BadScanHistoryEntry,
+  BlackFrameFinding,
   DateMismatch,
   DiscardReportInput,
   DiscardedArtifact,
@@ -28,7 +29,8 @@ function buildSummarySection(input: DiscardReportInput): ReportSection {
   const envSet = new Set([
     ...Object.keys(input.countsByEnv),
     ...input.dateMismatches.map((m) => m.environment),
-    ...input.videoHeaderAnomalies.map((entry) => entry.environment)
+    ...input.videoHeaderAnomalies.map((entry) => entry.environment),
+    ...input.blackFrameFindings.map((entry) => entry.environment)
   ]);
   const envs = Array.from(envSet).sort();
   const headers = ["", ...envs, "Total"];
@@ -111,6 +113,19 @@ function buildSummarySection(input: DiscardReportInput): ReportSection {
   tableData.push(buildRow("Video Header Anomaly", (env) => headerAnomalyByEnv[env] ?? defaultCount));
   tableData.push(buildRow("    New", (env) => newHeaderAnomalyByEnv[env] ?? defaultCount));
 
+  // Black Frame rows (counts by environment from blackFrameFindings array)
+  const blackFrameByEnv: Record<string, number> = {};
+  const newBlackFrameByEnv: Record<string, number> = {};
+  input.blackFrameFindings.forEach((entry) => {
+    blackFrameByEnv[entry.environment] = (blackFrameByEnv[entry.environment] ?? defaultCount) + incrementCount;
+    if (entry.isNew === true) {
+      newBlackFrameByEnv[entry.environment] = (newBlackFrameByEnv[entry.environment] ?? defaultCount) + incrementCount;
+    }
+  });
+
+  tableData.push(buildRow("Black Frame Detected", (env) => blackFrameByEnv[env] ?? defaultCount));
+  tableData.push(buildRow("    New", (env) => newBlackFrameByEnv[env] ?? defaultCount));
+
   // Date Mismatch rows (counts by environment from dateMismatches array)
   const totalMismatchByEnv: Record<string, number> = {};
   const newMismatchByEnv: Record<string, number> = {};
@@ -136,8 +151,10 @@ function buildSummarySection(input: DiscardReportInput): ReportSection {
     "bg-red-50 text-red-800 print:print-color-adjust-exact", // 8: Duplicate Video - New
     "bg-yellow-100 font-semibold text-yellow-800 print:print-color-adjust-exact", // 9: Video Header Anomaly
     "bg-yellow-50 text-yellow-800 print:print-color-adjust-exact", // 10: Video Header Anomaly - New
-    "bg-yellow-100 font-semibold text-yellow-800 print:print-color-adjust-exact", // 11: Date Mismatch
-    "bg-yellow-50 text-yellow-800 print:print-color-adjust-exact" // 12: Date Mismatch - New
+    "bg-amber-100 font-semibold text-amber-800 print:print-color-adjust-exact", // 11: Black Frame Detected
+    "bg-amber-50 text-amber-800 print:print-color-adjust-exact", // 12: Black Frame Detected - New
+    "bg-yellow-100 font-semibold text-yellow-800 print:print-color-adjust-exact", // 13: Date Mismatch
+    "bg-yellow-50 text-yellow-800 print:print-color-adjust-exact" // 14: Date Mismatch - New
   ];
   const rowClasses: Record<number, string> = Object.fromEntries(
     rowClassArray.map((className, index) => [index, className])
@@ -717,6 +734,60 @@ function buildHeaderAnomalySections(anomalies: VideoHeaderAnomaly[], environment
   return sections;
 }
 
+function buildBlackFrameSections(findings: BlackFrameFinding[], environments: string[] = []): ReportSection[] {
+  const sections: ReportSection[] = [];
+  const noFindings = 0;
+
+  if (findings.length === noFindings) {
+    return sections;
+  }
+
+  sections.push({ title: "Black Frame Segments", type: "header" });
+  sections.push({
+    data: "Detected stretches of mostly-black frames using ffmpeg blackdetect.",
+    type: "text"
+  });
+
+  const envSet = new Set([...findings.map((entry) => entry.environment), ...environments]);
+  const sortedEnvs = Array.from(envSet).sort();
+  const decimalPlaces = 2;
+
+  sortedEnvs.forEach((env) => {
+    const envFindings = findings.filter((entry) => entry.environment === env);
+    if (envFindings.length === noFindings) {
+      return;
+    }
+
+    const items = envFindings
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((entry) => {
+        const id = `<span class="font-mono">${escapeHtml(entry.id)}</span>`;
+        const segments = entry.segments;
+        const segmentText =
+          segments
+            .slice()
+            .sort((a, b) => a.start - b.start)
+            .map(
+              (segment) =>
+                `${segment.start.toFixed(decimalPlaces)}-${segment.end.toFixed(decimalPlaces)}s (${segment.duration.toFixed(decimalPlaces)}s)`
+            )
+            .join(", ") || "No segments recorded";
+        const label = entry.isNew === true ? `${id} (new)` : id;
+        return `${label}: ${segmentText}`;
+      });
+
+    sections.push({ level: 3, title: `Environment: ${env}`, type: "header" });
+    sections.push({
+      data: items,
+      level: 4,
+      title: "Artifacts",
+      type: "list"
+    });
+  });
+
+  return sections;
+}
+
 function buildMismatchDetailSections(mismatches: DateMismatch[], environments: string[] = []): ReportSection[] {
   const sections: ReportSection[] = [];
   const noMismatches = 0;
@@ -821,6 +892,9 @@ export function buildDiscardReport(input: DiscardReportInput): ReportData {
 
   const headerAnomalySections = buildHeaderAnomalySections(input.videoHeaderAnomalies, Object.keys(input.countsByEnv));
   sections.push(...headerAnomalySections);
+
+  const blackFrameSections = buildBlackFrameSections(input.blackFrameFindings, Object.keys(input.countsByEnv));
+  sections.push(...blackFrameSections);
 
   const mismatchDetailSections = buildMismatchDetailSections(input.dateMismatches, Object.keys(input.countsByEnv));
   sections.push(...mismatchDetailSections);

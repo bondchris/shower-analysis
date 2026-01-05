@@ -95,6 +95,9 @@ export class ArtifactAnalysis {
   public avgGopDistance = NO_RESULTS;
   public minGopDistance = NO_RESULTS;
   public gopVariance = NO_RESULTS;
+  public laplacianMedian = NO_RESULTS;
+  public laplacianStdDev = NO_RESULTS;
+  public laplacianSampleCount = NO_RESULTS;
   public hasMultipleStories = false;
   public hasUnparentedEmbedded = false;
   public hasCurvedEmbedded = false;

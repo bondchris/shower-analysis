@@ -79,13 +79,14 @@ npm run discard
 - Removes non-bathroom videos via Gemini; successful checks are cached in `config/checkedScans.json` to avoid re-processing.
 - Hashes videos with BLAKE3 and detects duplicate videos across environments using `config/videoHashes.json`. Moves duplicates to `data/discarded-artifacts` and records them as bad scans.
 - Detects date mismatches between API scan dates and video creation metadata (> 24 hours difference).
+- Flags black frame stretches with ffmpeg `blackdetect` (>= 0.25s, 98%+ black pixels) and reports them without discarding the video.
 - Flags stray `avcC` bytes before the primary video header and reports affected artifacts as header anomalies.
 - Respects `DRY_RUN=1` and `BATHROOM_FILTER_CONCURRENCY` to control write behavior and parallelism.
 
 **Output**:
 
 - `reports/2 - Discard Report.pdf`: Clean/filter/duplicate counts, bad scan deltas, trend charts (short videos, non-bathrooms, duplicates),
-  date mismatch and header anomaly analysis, and new bad scans by environment.
+  date mismatch, header anomaly, and black frame analysis, and new bad scans by environment.
 
 ### Prep: Format Data
 
@@ -130,6 +131,7 @@ npm run inspect
   - Duration distribution with average reference line
   - Framerate distribution
   - Resolution distribution
+  - Laplacian sharpness: Example frames at Laplacian 0.4/2/3/844 plus median blurriness (median per-frame Laplacian) and shakiness (std dev of per-frame Laplacian)
   - Bitrate summary (exact Mbps values rounded to 0.1 Mbps, bar chart) and color space distribution
 - Encoding parameters: Profile, Level, B-frames per GOP distributions, GOP length consistency (max/avg/min/variance charts), and entropy coding summarized alongside codec/color details
 

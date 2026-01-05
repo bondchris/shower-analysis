@@ -1,3 +1,7 @@
+import * as fs from "fs";
+import * as path from "path";
+import React from "react";
+
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
 import { BarChartOptions } from "../models/chart/barChartOptions";
 import { ChartConfiguration } from "../models/chart/chartConfiguration";
@@ -20,6 +24,8 @@ interface VideoCharts {
   gopMin: ChartConfiguration;
   gopVariance: ChartConfiguration;
   resolution: ChartConfiguration;
+  laplacianMedian: ChartConfiguration;
+  laplacianStdDev: ChartConfiguration;
 }
 
 function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number): VideoCharts {
@@ -28,6 +34,73 @@ function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number
   const initialCount = 0;
   const incrementStep = 1;
   const defaultNumeric = 0;
+
+  const collectLaplacianValues = (selector: (meta: ArtifactAnalysis) => number | undefined): number[] => {
+    const minSamples = 1;
+    return metadataList
+      .filter(
+        (meta) =>
+          typeof meta.laplacianSampleCount === "number" &&
+          Number.isFinite(meta.laplacianSampleCount) &&
+          meta.laplacianSampleCount >= minSamples
+      )
+      .map(selector)
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  };
+
+  const buildRange = (values: number[], fallbackMax: number): { max: number; min: number } => {
+    const paddingRatio = 0.1;
+    const minRangeDelta = 0.1;
+    if (values.length === noResults) {
+      return { max: fallbackMax, min: defaultNumeric };
+    }
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+    if (maxValue === minValue) {
+      const basePadding = Math.max(Math.abs(maxValue), fallbackMax) * paddingRatio;
+      const padding = Math.max(basePadding, minRangeDelta);
+      const paddedMin = Math.max(defaultNumeric, minValue - padding);
+      return { max: maxValue + padding, min: paddedMin };
+    }
+    const rangePadding = (maxValue - minValue) * paddingRatio;
+    return { max: maxValue + rangePadding, min: Math.max(defaultNumeric, minValue - rangePadding) };
+  };
+
+  const buildLaplacianChart = (
+    values: number[],
+    chartId: string,
+    xLabel: string,
+    color: string
+  ): ChartConfiguration => {
+    const defaultRangeMax = 5;
+    const minRangeDelta = 0.1;
+    const laplacianResolution = 200;
+    const laplacianDiffThreshold = 0.01;
+    const range = buildRange(values, defaultRangeMax);
+    const effectiveMax = range.max > range.min ? range.max : range.min + minRangeDelta;
+    const { kde } = buildDynamicKde(values, range.min, effectiveMax, laplacianResolution, laplacianDiffThreshold);
+    return getLineChartConfig(
+      kde.labels,
+      [
+        {
+          borderColor: color,
+          borderWidth: 2,
+          data: kde.values,
+          fill: true,
+          label: "Density"
+        }
+      ],
+      {
+        chartId,
+        height: layout.HALF_CHART_HEIGHT,
+        smooth: true,
+        title: "",
+        width: layout.HALF_CHART_WIDTH,
+        xLabel,
+        yLabel: "Density"
+      }
+    );
+  };
 
   // Duration KDE Chart
   const durations = metadataList.map((m) => m.duration);
@@ -82,6 +155,24 @@ function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number
     durationChartOptions
   );
 
+  const laplacianMedianValues = collectLaplacianValues((meta) => meta.laplacianMedian);
+  const laplacianStdDevValues = collectLaplacianValues((meta) => meta.laplacianStdDev);
+
+  const laplacianColor = "rgba(75, 192, 192, 0.9)";
+  const laplacianMedian = buildLaplacianChart(
+    laplacianMedianValues,
+    "laplacian-median",
+    "Median Laplacian (per frame)",
+    laplacianColor
+  );
+
+  const laplacianStdDev = buildLaplacianChart(
+    laplacianStdDevValues,
+    "laplacian-stddev",
+    "Std Dev of Laplacian (per frame)",
+    laplacianColor
+  );
+
   // FPS Bar Chart
   const fpsMap: Record<string, number> = {};
   for (const m of metadataList) {
@@ -132,7 +223,7 @@ function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number
     height: layout.HALF_CHART_HEIGHT,
     showCount: true,
     title: "",
-    width: layout.HALF_CHART_WIDTH
+    width: layout.THIRD_CHART_WIDTH
   });
 
   const profileMap: Record<string, number> = {};
@@ -147,7 +238,7 @@ function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number
     height: layout.HALF_CHART_HEIGHT,
     showCount: true,
     title: "",
-    width: layout.HALF_CHART_WIDTH
+    width: layout.THIRD_CHART_WIDTH
   });
 
   const levelMap: Record<string, number> = {};
@@ -183,7 +274,7 @@ function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number
     height: layout.HALF_CHART_HEIGHT,
     showCount: true,
     title: "",
-    width: layout.HALF_CHART_WIDTH
+    width: layout.THIRD_CHART_WIDTH
   });
 
   const minValidGopDistance = 1;
@@ -336,14 +427,14 @@ function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number
     gopAverageValues,
     defaultGopDecimalPlaces,
     defaultUnitLabel,
-    layout.HALF_CHART_WIDTH,
+    layout.FULL_CHART_WIDTH,
     false
   );
   const gopMin = buildGopBarChart(
     gopMinValues,
     defaultGopDecimalPlaces,
     defaultUnitLabel,
-    layout.HALF_CHART_WIDTH,
+    layout.FULL_CHART_WIDTH,
     false
   );
   const gopVariance = buildGopBarChart(
@@ -358,7 +449,14 @@ function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number
     gopVarianceSideNotes
   );
 
-  const { bitrateValues } = buildBitrateCharts(metadataList, layout);
+  const { bitrateValues: sharedBitrateValues } = buildBitrateCharts(metadataList, layout);
+  const bitrateValues: ChartConfiguration =
+    sharedBitrateValues.type === "bar"
+      ? {
+          ...sharedBitrateValues,
+          options: { ...sharedBitrateValues.options, width: layout.HALF_CHART_WIDTH }
+        }
+      : sharedBitrateValues;
 
   return {
     bFrames,
@@ -370,9 +468,89 @@ function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number
     gopMax,
     gopMin,
     gopVariance,
+    laplacianMedian,
+    laplacianStdDev,
     level,
     profile,
     resolution
+  };
+}
+
+function loadLaplacianImageBase64(fileName: string): string {
+  const imagePath = path.join(process.cwd(), "src", "templates", "assets", "images", "laplacian", fileName);
+  const imageBuffer = fs.readFileSync(imagePath);
+  const base64Prefix = "data:image/png;base64,";
+  return `${base64Prefix}${imageBuffer.toString("base64")}`;
+}
+
+function buildLaplacianExamplesSection(): ReportSection {
+  const layout = computeLayoutConstants();
+  const examples = [
+    { fileName: "0.4.png", label: "0.4" },
+    { fileName: "2.png", label: "2" },
+    { fileName: "3.png", label: "3" },
+    { fileName: "844.png", label: "844" }
+  ];
+  const gapPixels = 12;
+  const minColumnWidth = 140;
+  const columnCount = examples.length.toString();
+  const gridTemplateColumns = `repeat(${columnCount}, minmax(${minColumnWidth.toString()}px, 1fr))`;
+  const imageHeight = 180;
+  const cardStyle = {
+    alignItems: "center",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px"
+  } as const;
+
+  const Component = (): React.ReactElement =>
+    React.createElement(
+      "div",
+      {
+        style: {
+          display: "grid",
+          gap: `${gapPixels.toString()}px`,
+          gridTemplateColumns,
+          margin: "0 auto",
+          maxWidth: `${layout.PAGE_CONTENT_WIDTH.toString()}px`,
+          width: "100%"
+        }
+      },
+      ...examples.map((example) =>
+        React.createElement(
+          "div",
+          { key: example.label, style: cardStyle },
+          React.createElement("img", {
+            alt: `Laplacian example ${example.label}`,
+            src: loadLaplacianImageBase64(example.fileName),
+            style: {
+              height: `${imageHeight.toString()}px`,
+              maxWidth: "100%",
+              objectFit: "contain",
+              width: "100%"
+            }
+          }),
+          React.createElement(
+            "div",
+            {
+              style: {
+                color: "#374151",
+                fontSize: "12px",
+                fontWeight: 600,
+                textAlign: "center"
+              }
+            },
+            `Laplacian ${example.label}`
+          )
+        )
+      )
+    );
+
+  return {
+    component: Component,
+    level: 3,
+    title: "Laplacian examples",
+    type: "react-component"
   };
 }
 
@@ -453,6 +631,7 @@ function buildVideoReportSections(
 ): ReportData {
   const subtitle = `Artifacts: ${videoCount.toString()}`;
   const sections: ReportSection[] = [];
+  const laplacianExamplesSection = buildLaplacianExamplesSection();
 
   const encodingSummarySections = buildEncodingSummarySections(metadataList);
   sections.push(...encodingSummarySections);
@@ -486,6 +665,10 @@ function buildVideoReportSections(
       {
         data: charts.colorSpace,
         title: "Color Space"
+      },
+      {
+        data: charts.profile,
+        title: "Profile"
       }
     ],
     type: "chart-row"
@@ -494,20 +677,20 @@ function buildVideoReportSections(
   sections.push({
     data: [
       {
-        data: charts.profile,
-        title: "Profile"
-      },
-      {
         data: charts.level,
         title: "Level"
+      },
+      {
+        data: charts.bitrateValues,
+        title: "Bitrate (Mbps)"
       }
     ],
     type: "chart-row"
   });
 
   sections.push({
-    data: charts.bitrateValues,
-    title: "Bitrate",
+    data: charts.gopMin,
+    title: "Min GOP",
     type: "chart"
   });
 
@@ -518,17 +701,9 @@ function buildVideoReportSections(
   });
 
   sections.push({
-    data: [
-      {
-        data: charts.gopAverage,
-        title: "Average GOP"
-      },
-      {
-        data: charts.gopMin,
-        title: "Min GOP"
-      }
-    ],
-    type: "chart-row"
+    data: charts.gopAverage,
+    title: "Average GOP",
+    type: "chart"
   });
 
   sections.push({
@@ -536,6 +711,22 @@ function buildVideoReportSections(
       {
         data: charts.gopVariance,
         title: "GOP Variance"
+      }
+    ],
+    type: "chart-row"
+  });
+
+  sections.push(laplacianExamplesSection);
+
+  sections.push({
+    data: [
+      {
+        data: charts.laplacianMedian,
+        title: "Median Blurriness"
+      },
+      {
+        data: charts.laplacianStdDev,
+        title: "Shakiness"
       }
     ],
     type: "chart-row"

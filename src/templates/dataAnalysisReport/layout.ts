@@ -29,7 +29,7 @@ export function computeLayoutConstants(): LayoutConstants {
 
   const FULL_WIDTH_RATIO = 0.9;
   const HALF_WIDTH_RATIO = 0.47;
-  const THIRD_WIDTH_RATIO = 0.23;
+  const THIRD_WIDTH_RATIO = 0.32;
   const ERRORS_WIDTH_RATIO = 0.82;
   const DURATION_HEIGHT_RATIO = 0.32;
   const HALF_HEIGHT_RATIO = 0.26;

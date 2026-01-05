@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-01-04
+
+### [v0.63.0] Laplacian Examples Layout Polish
+
+- Added uniform-height Laplacian example thumbnails in the video analysis report, placed above the blurriness and shakiness charts with simplified styling (no borders or shadows) for a consistent row.
+- Ensured functional pipeline tests copy the Laplacian assets into the temp workspace so report generation succeeds in isolation.
+- Bumped package version to 0.63.0 for release.
+
 ## 2026-01-03
 
 ### [v0.62.0] Stage-Prefixed Reports, Video Encoding Insights, and Header Anomaly Detection
@@ -13,8 +21,15 @@ All notable changes to this project will be documented in this file.
 - **Richer Video Metadata**: Video extraction now captures bitrate, codec/profile/level, B-frame/ref counts, GOP size
   plus min/avg/max/variance, color transfer/range/space, pixel format, bit depth, entropy coding mode, and
   creationTime, refreshing caches when any fields are missing.
+- **Laplacian Sharpness Metrics**: Per-frame Laplacian values are computed and cached to chart median blurriness and
+  shakiness (standard deviation of Laplacian) in the video analysis report. Added Laplacian example frames (0.4, 2, 3, 844) above the sharpness charts for quick visual reference.
 - **Encoding-Focused Video Report**: Video analysis adds bitrate histograms (Mbps), color space and encoding summary
   lines, profile/level and B-frame charts, and GOP charts (max/avg/min/variance) with side notes for long tails.
+  Average GOP now renders on its own full-width line for readability.
+  Bitrate shows units in the title instead of a legend, sits beside Level, and Min GOP now lives on its own full-width
+  chart line rather than sharing with GOP Variance.
+  Laplacian (blurriness/shakiness) charts now use the same teal palette as the other video charts for consistency.
+  Shakiness chart title is shortened (x-axis already calls out the Laplacian std dev).
 - **Header Anomaly Detection**: Discard mismatch stage scans active and discarded artifacts for stray avcC bytes ahead
   of the primary header, caches results, and surfaces counts and detail lists in the discard report with new summary
   rows.
