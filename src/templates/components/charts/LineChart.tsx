@@ -223,7 +223,14 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
           const fallback = "chart";
           const fillGradientId = `gradient-fill-${options.chartId ?? fallback}-${String(idx)}`;
           const strokeGradientId = `gradient-stroke-${options.chartId ?? fallback}-${String(idx)}`;
-          const hasGradient = typeof dataset.gradientFrom === "string" || typeof dataset.gradientTo === "string";
+          const gradientStops = dataset.gradientStops ?? [];
+          const emptyGradientStopLength = 0;
+          const percentMultiplier = 100;
+          const percentPrecision = 2;
+          const hasGradientStops = gradientStops.length > emptyGradientStopLength;
+          const hasTwoColorGradient =
+            typeof dataset.gradientFrom === "string" || typeof dataset.gradientTo === "string";
+          const hasGradient = hasGradientStops || hasTwoColorGradient;
           const gradientOpacity = 0.6;
           const fillOpacityStart = 0.6;
           const fillOpacityEnd = 0.1;
@@ -253,24 +260,59 @@ export const LineChart: React.FC<LineChartProps> = ({ config }) => {
             <React.Fragment key={idx}>
               {hasGradient && !useVerticalLines && (
                 <>
-                  {/* Gradient for fill area */}
-                  <LinearGradient
-                    from={dataset.gradientFrom ?? color}
-                    fromOpacity={gradientOpacity}
-                    id={fillGradientId}
-                    to={dataset.gradientTo ?? color}
-                    toOpacity={dataset.gradientDirection === "horizontal" ? fillOpacityStart : fillOpacityEnd}
-                    vertical={dataset.gradientDirection !== "horizontal"}
-                  />
-                  {/* Gradient for stroke (line) - always horizontal for temperature scale */}
-                  <LinearGradient
-                    from={dataset.gradientFrom ?? color}
-                    fromOpacity={strokeOpacity}
-                    id={strokeGradientId}
-                    to={dataset.gradientTo ?? color}
-                    toOpacity={strokeOpacity}
-                    vertical={false}
-                  />
+                  {hasGradientStops ? (
+                    <defs>
+                      {/* Gradient for fill area */}
+                      <linearGradient
+                        id={fillGradientId}
+                        x1="0%"
+                        x2={dataset.gradientDirection === "vertical" ? "0%" : "100%"}
+                        y1="0%"
+                        y2={dataset.gradientDirection === "vertical" ? "100%" : "0%"}
+                      >
+                        {gradientStops.map((stop, stopIdx) => (
+                          <stop
+                            key={stopIdx}
+                            offset={`${(stop.offset * percentMultiplier).toFixed(percentPrecision)}%`}
+                            stopColor={stop.color}
+                            stopOpacity={gradientOpacity}
+                          />
+                        ))}
+                      </linearGradient>
+                      {/* Gradient for stroke (line) - always horizontal for temperature scale */}
+                      <linearGradient id={strokeGradientId} x1="0%" x2="100%" y1="0%" y2="0%">
+                        {gradientStops.map((stop, stopIdx) => (
+                          <stop
+                            key={stopIdx}
+                            offset={`${(stop.offset * percentMultiplier).toFixed(percentPrecision)}%`}
+                            stopColor={stop.color}
+                            stopOpacity={strokeOpacity}
+                          />
+                        ))}
+                      </linearGradient>
+                    </defs>
+                  ) : (
+                    <>
+                      {/* Gradient for fill area */}
+                      <LinearGradient
+                        from={dataset.gradientFrom ?? color}
+                        fromOpacity={gradientOpacity}
+                        id={fillGradientId}
+                        to={dataset.gradientTo ?? color}
+                        toOpacity={dataset.gradientDirection === "horizontal" ? fillOpacityStart : fillOpacityEnd}
+                        vertical={dataset.gradientDirection !== "horizontal"}
+                      />
+                      {/* Gradient for stroke (line) - always horizontal for temperature scale */}
+                      <LinearGradient
+                        from={dataset.gradientFrom ?? color}
+                        fromOpacity={strokeOpacity}
+                        id={strokeGradientId}
+                        to={dataset.gradientTo ?? color}
+                        toOpacity={strokeOpacity}
+                        vertical={false}
+                      />
+                    </>
+                  )}
                 </>
               )}
               {useVerticalLines ? (

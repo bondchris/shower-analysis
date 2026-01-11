@@ -27,9 +27,23 @@ describe("extractVideoMetadata", () => {
   const mockVideoPath = path.join(mockDir, "video.mp4");
   const mockExecFile = execFile as unknown as Mock;
   const laplacianDefaults = {
+    blueMean: 0,
+    blueVariance: 0,
+    brightnessVariance: 0,
+    clippedPixelPercentage: 0,
+    colorSampleCount: 0,
+    greenMean: 0,
+    greenVariance: 0,
+    hueVariance: 0,
     laplacianMedian: 0,
     laplacianSampleCount: 0,
-    laplacianStdDev: 0
+    laplacianStdDev: 0,
+    meanBrightness: 0,
+    meanHue: 0,
+    meanSaturation: 0,
+    redMean: 0,
+    redVariance: 0,
+    saturationVariance: 0
   };
   const gopDefaults = {
     avgGopDistance: 1,
@@ -39,11 +53,9 @@ describe("extractVideoMetadata", () => {
     ...laplacianDefaults
   };
   const buildUniformGopStats = (value: number) => ({
+    ...laplacianDefaults,
     avgGopDistance: value,
     gopVariance: 0,
-    laplacianMedian: 0,
-    laplacianSampleCount: 0,
-    laplacianStdDev: 0,
     maxGopDistance: value,
     minGopDistance: value
   });
@@ -66,6 +78,47 @@ describe("extractVideoMetadata", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
+
+  const computeExpectedRgb = (kb: number, kr: number): { b: number; g: number; r: number } => {
+    const yAvg = 100;
+    const uAvg = 148;
+    const vAvg = 138;
+    const minChannelValue = 0;
+    const maxChannelValue = 255;
+    const chromaCenter = 128;
+    const lumaOffset = 0;
+    const lumaScale = 1;
+    const chromaScale = 1;
+    const channelScaleBase = 2;
+    const unityValue = 1;
+
+    const normalizedY = (yAvg - lumaOffset) * lumaScale;
+    const normalizedU = (uAvg - chromaCenter) * chromaScale;
+    const normalizedV = (vAvg - chromaCenter) * chromaScale;
+
+    const kg = unityValue - kr - kb;
+    const redScale = channelScaleBase * (unityValue - kr);
+    const blueScale = channelScaleBase * (unityValue - kb);
+    const greenBlueComponent = (kb / kg) * blueScale;
+    const greenRedComponent = (kr / kg) * redScale;
+
+    const redContribution = redScale * normalizedV;
+    const blueContribution = blueScale * normalizedU;
+    const greenBlueAdjustment = greenBlueComponent * normalizedU;
+    const greenRedAdjustment = greenRedComponent * normalizedV;
+    const greenAdjustment = greenBlueAdjustment + greenRedAdjustment;
+    const red = normalizedY + redContribution;
+    const blue = normalizedY + blueContribution;
+    const green = normalizedY - greenAdjustment;
+
+    const clamp = (value: number): number => Math.min(maxChannelValue, Math.max(minChannelValue, value));
+
+    return {
+      b: clamp(blue),
+      g: clamp(green),
+      r: clamp(red)
+    };
+  };
 
   it("should return cached metadata if it exists and is valid", async () => {
     const cachedGop = {
@@ -286,6 +339,8 @@ describe("extractVideoMetadata", () => {
     const result = await extractVideoMetadata(mockDir);
 
     expect(result).toEqual({
+      ...laplacianDefaults,
+      avgGopDistance: 45,
       bFrames: 3,
       bitDepth: 10,
       bitrate: 601000,
@@ -298,15 +353,260 @@ describe("extractVideoMetadata", () => {
       entropyCoding: "Unknown",
       fps: 30, // Math.round(29.97)
       gopSize: 45,
-      ...buildUniformGopStats(45),
+      gopVariance: 0,
       height: 2160,
       level: 40,
+      maxGopDistance: 45,
+      minGopDistance: 45,
       pixelFormat: "",
       profile: "High",
       refs: 2,
       width: 3840
     });
     expect(fs.writeFileSync).toHaveBeenCalled();
+  });
+
+  it("should compute color statistics from signalstats frames", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockVideoPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const mockFfprobeData = {
+      format: { duration: 2 },
+      streams: [
+        {
+          codec_type: "video",
+          color_range: "pc",
+          height: 480,
+          r_frame_rate: "30/1",
+          width: 640
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const emptyFrames = '{ "frames": [] }';
+    const colorStatsFrames = JSON.stringify({
+      frames: [
+        {
+          tags: {
+            "lavfi.signalstats.BRNG": "0.01",
+            "lavfi.signalstats.HUEAVG": "50",
+            "lavfi.signalstats.SATAVG": "20",
+            "lavfi.signalstats.UAVG": "128",
+            "lavfi.signalstats.VAVG": "128",
+            "lavfi.signalstats.YAVG": "100",
+            "lavfi.signalstats.YBITDEPTH": "8",
+            "lavfi.signalstats.YMAX": "200",
+            "lavfi.signalstats.YMIN": "0"
+          }
+        },
+        {
+          tags: {
+            "lavfi.signalstats.BRNG": "0.02",
+            "lavfi.signalstats.HUEAVG": "70",
+            "lavfi.signalstats.SATAVG": "30",
+            "lavfi.signalstats.UAVG": "128",
+            "lavfi.signalstats.VAVG": "128",
+            "lavfi.signalstats.YAVG": "200",
+            "lavfi.signalstats.YBITDEPTH": "8",
+            "lavfi.signalstats.YMAX": "255",
+            "lavfi.signalstats.YMIN": "0"
+          }
+        }
+      ]
+    });
+
+    mockExecFile.mockImplementationOnce(
+      (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+        const callback = getExecCallback(optionsOrCallback, maybeCallback);
+        callback(null, emptyFrames, "");
+      }
+    );
+    mockExecFile.mockImplementationOnce(
+      (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+        const callback = getExecCallback(optionsOrCallback, maybeCallback);
+        callback(null, emptyFrames, "");
+      }
+    );
+    mockExecFile.mockImplementationOnce(
+      (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+        const callback = getExecCallback(optionsOrCallback, maybeCallback);
+        callback(null, colorStatsFrames, "");
+      }
+    );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    if (!result) {
+      throw new Error("Expected video metadata");
+    }
+
+    expect(result.meanBrightness).toBe(150);
+    expect(result.brightnessVariance).toBe(2500);
+    expect(result.meanHue).toBe(60);
+    expect(result.hueVariance).toBe(100);
+    expect(result.meanSaturation).toBe(25);
+    expect(result.saturationVariance).toBe(25);
+    expect(result.clippedPixelPercentage).toBe(1.5);
+    expect(result.redMean).toBe(150);
+    expect(result.greenMean).toBe(150);
+    expect(result.blueMean).toBe(150);
+    expect(result.redVariance).toBe(2500);
+    expect(result.greenVariance).toBe(2500);
+    expect(result.blueVariance).toBe(2500);
+    expect(result.colorSampleCount).toBe(2);
+  });
+
+  it("applies BT.601 coefficients when color_space includes 601", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => p === mockVideoPath);
+
+    const mockFfprobeData = {
+      format: { duration: 1 },
+      streams: [
+        {
+          codec_type: "video",
+          color_range: "pc",
+          color_space: "BT601",
+          height: 100,
+          r_frame_rate: "30/1",
+          width: 100
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const emptyFrames = '{ "frames": [] }';
+    const colorStatsFrames = JSON.stringify({
+      frames: [
+        {
+          tags: {
+            "lavfi.signalstats.BRNG": "0",
+            "lavfi.signalstats.SATAVG": "10",
+            "lavfi.signalstats.UAVG": "148",
+            "lavfi.signalstats.VAVG": "138",
+            "lavfi.signalstats.YAVG": "100",
+            "lavfi.signalstats.YBITDEPTH": "8",
+            "lavfi.signalstats.YMAX": "200",
+            "lavfi.signalstats.YMIN": "1"
+          }
+        }
+      ]
+    });
+
+    mockExecFile
+      .mockImplementationOnce(
+        (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+          const callback = getExecCallback(optionsOrCallback, maybeCallback);
+          callback(null, emptyFrames, "");
+        }
+      )
+      .mockImplementationOnce(
+        (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+          const callback = getExecCallback(optionsOrCallback, maybeCallback);
+          callback(null, "1.0|", "");
+        }
+      )
+      .mockImplementationOnce(
+        (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+          const callback = getExecCallback(optionsOrCallback, maybeCallback);
+          callback(null, colorStatsFrames, "");
+        }
+      );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    const expected = computeExpectedRgb(0.114, 0.299);
+
+    expect(result?.redMean).toBeCloseTo(expected.r, 5);
+    expect(result?.greenMean).toBeCloseTo(expected.g, 5);
+    expect(result?.blueMean).toBeCloseTo(expected.b, 5);
+  });
+
+  it("applies BT.2020 coefficients when color_space includes 2020", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => p === mockVideoPath);
+
+    const mockFfprobeData = {
+      format: { duration: 1 },
+      streams: [
+        {
+          codec_type: "video",
+          color_range: "pc",
+          color_space: "BT2020nc",
+          height: 100,
+          r_frame_rate: "30/1",
+          width: 100
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const emptyFrames = '{ "frames": [] }';
+    const colorStatsFrames = JSON.stringify({
+      frames: [
+        {
+          tags: {
+            "lavfi.signalstats.BRNG": "0",
+            "lavfi.signalstats.SATAVG": "10",
+            "lavfi.signalstats.UAVG": "148",
+            "lavfi.signalstats.VAVG": "138",
+            "lavfi.signalstats.YAVG": "100",
+            "lavfi.signalstats.YBITDEPTH": "8",
+            "lavfi.signalstats.YMAX": "200",
+            "lavfi.signalstats.YMIN": "1"
+          }
+        }
+      ]
+    });
+
+    mockExecFile
+      .mockImplementationOnce(
+        (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+          const callback = getExecCallback(optionsOrCallback, maybeCallback);
+          callback(null, emptyFrames, "");
+        }
+      )
+      .mockImplementationOnce(
+        (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+          const callback = getExecCallback(optionsOrCallback, maybeCallback);
+          callback(null, "1.0|", "");
+        }
+      )
+      .mockImplementationOnce(
+        (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+          const callback = getExecCallback(optionsOrCallback, maybeCallback);
+          callback(null, colorStatsFrames, "");
+        }
+      );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    const expected = computeExpectedRgb(0.0593, 0.2627);
+
+    expect(result?.redMean).toBeCloseTo(expected.r, 5);
+    expect(result?.greenMean).toBeCloseTo(expected.g, 5);
+    expect(result?.blueMean).toBeCloseTo(expected.b, 5);
   });
 
   it("should derive GOP statistics from frame data when available", async () => {
@@ -446,6 +746,57 @@ describe("extractVideoMetadata", () => {
     expect(result?.laplacianMedian).toBeCloseTo(2);
     expect(result?.laplacianStdDev).toBeCloseTo(Math.sqrt(2 / 3));
     expect(result?.laplacianSampleCount).toBe(3);
+  });
+
+  it("skips blank laplacian lines and computes even median", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => p === mockVideoPath);
+
+    const mockFfprobeData = {
+      format: { duration: 1 },
+      streams: [
+        {
+          codec_type: "video",
+          height: 120,
+          r_frame_rate: "24/1",
+          width: 160
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const emptyFrames = '{ "frames": [] }';
+    const laplacianWithGaps = "\n1.0|\n   \n3.0|\n";
+
+    mockExecFile
+      .mockImplementationOnce(
+        (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+          const callback = getExecCallback(optionsOrCallback, maybeCallback);
+          callback(null, emptyFrames, "");
+        }
+      )
+      .mockImplementationOnce(
+        (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+          const callback = getExecCallback(optionsOrCallback, maybeCallback);
+          callback(null, laplacianWithGaps, "");
+        }
+      )
+      .mockImplementationOnce(
+        (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+          const callback = getExecCallback(optionsOrCallback, maybeCallback);
+          callback(null, emptyFrames, "");
+        }
+      );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result?.laplacianMedian).toBe(2);
+    expect(result?.laplacianStdDev).toBe(1);
+    expect(result?.laplacianSampleCount).toBe(2);
   });
 
   it("should return null if video file does not exist", async () => {
@@ -1467,6 +1818,61 @@ describe("extractVideoMetadata", () => {
     });
   });
 
+  it("returns unknown entropy when avcC ends immediately after SPS count", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockVideoPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const avcCWithNoPps = Buffer.from([0, 0, 0, 0, 0, 0]);
+    const mockFfprobeData = {
+      format: { duration: 2 },
+      streams: [
+        {
+          codec_type: "video",
+          extradata_base64: avcCWithNoPps.toString("base64"),
+          height: 200,
+          r_frame_rate: "30/1",
+          width: 300
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result).toEqual({
+      bFrames: 0,
+      bitDepth: 0,
+      bitrate: 0,
+      codecName: "",
+      colorRange: "",
+      colorSpace: "",
+      colorTransfer: "",
+      duration: 2,
+      entropyCoding: "Unknown",
+      fps: 30,
+      gopSize: 1,
+      ...gopDefaults,
+      height: 200,
+      level: 0,
+      pixelFormat: "",
+      profile: "",
+      refs: 0,
+      width: 300
+    });
+  });
+
   it("returns unknown entropy when PPS length extends beyond avcC buffer", async () => {
     (fs.existsSync as Mock).mockImplementation((p: string) => {
       if (p === mockCachePath) {
@@ -1630,6 +2036,82 @@ describe("extractVideoMetadata", () => {
       refs: 0,
       width: 720
     });
+  });
+
+  it("falls back to clipped frame ratio when BRNG tags are missing", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => p === mockVideoPath);
+
+    const mockFfprobeData = {
+      format: { duration: 1 },
+      streams: [
+        {
+          codec_type: "video",
+          color_range: "pc",
+          height: 480,
+          r_frame_rate: "30/1",
+          width: 640
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const emptyFrames = '{ "frames": [] }';
+    const colorStatsFrames = JSON.stringify({
+      frames: [
+        {
+          tags: {
+            "lavfi.signalstats.SATAVG": "15",
+            "lavfi.signalstats.UAVG": "140",
+            "lavfi.signalstats.VAVG": "150",
+            "lavfi.signalstats.YAVG": "90",
+            "lavfi.signalstats.YBITDEPTH": "8",
+            "lavfi.signalstats.YMAX": "200",
+            "lavfi.signalstats.YMIN": "0"
+          }
+        },
+        {
+          tags: {
+            "lavfi.signalstats.SATAVG": "20",
+            "lavfi.signalstats.UAVG": "130",
+            "lavfi.signalstats.VAVG": "135",
+            "lavfi.signalstats.YAVG": "100",
+            "lavfi.signalstats.YBITDEPTH": "8",
+            "lavfi.signalstats.YMAX": "200",
+            "lavfi.signalstats.YMIN": "10"
+          }
+        }
+      ]
+    });
+
+    mockExecFile
+      .mockImplementationOnce(
+        (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+          const callback = getExecCallback(optionsOrCallback, maybeCallback);
+          callback(null, emptyFrames, "");
+        }
+      )
+      .mockImplementationOnce(
+        (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+          const callback = getExecCallback(optionsOrCallback, maybeCallback);
+          callback(null, "1.0|", "");
+        }
+      )
+      .mockImplementationOnce(
+        (_cmd: string, _args: string[], optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+          const callback = getExecCallback(optionsOrCallback, maybeCallback);
+          callback(null, colorStatsFrames, "");
+        }
+      );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result?.clippedPixelPercentage).toBe(50);
+    expect(result?.colorSampleCount).toBe(2);
   });
 
   it("walks Annex B start codes that include multiple NAL units", async () => {

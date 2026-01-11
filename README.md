@@ -132,8 +132,10 @@ npm run inspect
   - Framerate distribution
   - Resolution distribution
   - Laplacian sharpness: Example frames at Laplacian 0.4/2/3/844 plus median blurriness (median per-frame Laplacian) and shakiness (std dev of per-frame Laplacian)
+  - Color distributions: Mean and variance for hue, saturation, and brightness, RGB channel mean/variance overlays, and clipped pixel percentages
+    - Saturation values use ffmpeg `SATAVG` (0-200 scale); gradients reflect these raw values rather than percentages.
   - Bitrate summary (exact Mbps values rounded to 0.1 Mbps, bar chart) and color space distribution
-- Encoding parameters: Profile, Level, B-frames per GOP distributions, GOP length consistency (max/avg/min/variance charts), and entropy coding summarized alongside codec/color details
+  - Encoding parameters: Profile, Level, B-frames per GOP distributions, GOP length consistency (max/avg/min/variance charts), and entropy coding summarized alongside codec/color details
 
 - `reports/3.2 - AR Data Analysis.pdf`: AR data and camera analysis:
   - Device model distribution (release-aware ordering), focal length, and aperture settings
@@ -144,6 +146,7 @@ npm run inspect
   - Phone tilt/roll/pan protractor charts with illustrations, average angle markers, and overflow percentages
   - Fast motion signals: maximum tilt/roll/pan speed KDEs, fast motion pies (> 5 °/s), and timing line charts showing when fast motion occurs during scans
   - Full 360° rotation detection plus partial rotation coverage curve derived from pan histograms
+  - Aggregated spherical coverage heatmap (6 ft radius; 2.5° resolution) and multi-view globe showing dwell time by direction across all scans
   - Lighting conditions: Average/Minimum/Maximum for Ambient Intensity, Color Temperature, ISO Speed, and Brightness Value
 
 - `reports/3.3 - Scan Analysis.pdf`: Room scan data analysis:

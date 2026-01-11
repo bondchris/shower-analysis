@@ -4,6 +4,7 @@ import { LightEstimate } from "./lightEstimate";
 
 export interface ArFrame {
   cameraResolution: CameraResolution;
+  cameraIntrinsics?: number[];
   cameraTransform: number[];
   lightEstimate?: LightEstimate;
   exifData: ExifData;

@@ -1,5 +1,7 @@
+// @vitest-environment jsdom
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
 import { buildArDataAnalysisReport } from "../../../src/templates/arDataAnalysisReport";
 import { ArtifactAnalysis } from "../../../src/models/artifactAnalysis";
 import { ChartConfiguration } from "../../../src/models/chart/chartConfiguration";
@@ -145,6 +147,100 @@ describe("arDataAnalysisReport", () => {
         expect(apertureChart.data.labels).toEqual(["f/1.8", "f/2.4", "invalid"]);
       }
     }
+  });
+
+  it("computes average coverage percent across artifacts instead of the union", () => {
+    const metadataWithCoverage: ArtifactAnalysis[] = mockMetadata.map((artifact) => {
+      return Object.assign(new ArtifactAnalysis(), artifact);
+    });
+
+    const rows = 2;
+    const cols = 2;
+    metadataWithCoverage[0] = Object.assign(new ArtifactAnalysis(), metadataWithCoverage[0], {
+      coverageSphere: {
+        cols,
+        frameCount: 1,
+        grid: [
+          [1, 0],
+          [0, 0]
+        ],
+        rows,
+        sampleCountPerFrame: 1,
+        sampledSeconds: 1
+      },
+      coverageSphereCalculationVersion: 2
+    });
+
+    metadataWithCoverage[1] = Object.assign(new ArtifactAnalysis(), metadataWithCoverage[1], {
+      coverageSphere: {
+        cols,
+        frameCount: 1,
+        grid: [
+          [1, 1],
+          [0, 0]
+        ],
+        rows,
+        sampleCountPerFrame: 1,
+        sampledSeconds: 1
+      },
+      coverageSphereCalculationVersion: 2
+    });
+
+    const report = buildArDataAnalysisReport(metadataWithCoverage, metadataWithCoverage.length);
+    const coverageSection = report.sections.find(
+      (section) => section.title === "Spherical Coverage" && section.type === "react-component"
+    );
+
+    expect(coverageSection).toBeDefined();
+    if (coverageSection?.type !== "react-component") {
+      return;
+    }
+
+    const Component = coverageSection.component;
+    if (Component === undefined) {
+      return;
+    }
+
+    render(createElement(Component));
+    expect(screen.getByText("Avg Coverage: 37.5% of sphere")).toBeInTheDocument();
+  });
+
+  it("treats null coverage rows as empty when computing average coverage", () => {
+    const metadataWithSparseCoverage: ArtifactAnalysis[] = mockMetadata.map((artifact) => {
+      return Object.assign(new ArtifactAnalysis(), artifact);
+    });
+
+    const rows = 2;
+    const cols = 2;
+    metadataWithSparseCoverage[0] = Object.assign(new ArtifactAnalysis(), metadataWithSparseCoverage[0], {
+      coverageSphere: {
+        cols,
+        frameCount: 1,
+        grid: [[1, 0], null as unknown as number[]],
+        rows,
+        sampleCountPerFrame: 1,
+        sampledSeconds: 1
+      },
+      coverageSphereCalculationVersion: 2
+    });
+
+    const report = buildArDataAnalysisReport(metadataWithSparseCoverage, metadataWithSparseCoverage.length);
+    const coverageSection = report.sections.find(
+      (section) => section.title === "Spherical Coverage" && section.type === "react-component"
+    );
+
+    expect(coverageSection).toBeDefined();
+    if (coverageSection?.type !== "react-component") {
+      return;
+    }
+
+    const Component = coverageSection.component;
+    if (Component === undefined) {
+      return;
+    }
+
+    render(createElement(Component));
+    expect(screen.getByText("Avg Coverage: 25.0% of sphere")).toBeInTheDocument();
   });
 
   it("should bucket unknown lens focal length and aperture when not set", () => {
@@ -404,14 +500,13 @@ describe("arDataAnalysisReport", () => {
     const chartRows = report.sections.filter((s) => s.type === "chart-row" && Array.isArray(s.data));
     const framerateRow = chartRows.find(
       (row) =>
-        Array.isArray(row.data) &&
-        (row.data as { title: string }[]).some((c) => c.title === "AR Data Capture Rate (FPS)")
+        Array.isArray(row.data) && (row.data as { title: string }[]).some((c) => c.title === "AR Data Capture Rate")
     );
 
     expect(framerateRow).toBeDefined();
     if (framerateRow && Array.isArray(framerateRow.data)) {
       const chartTitles = (framerateRow.data as { title: string }[]).map((c) => c.title);
-      expect(chartTitles).toContain("AR Data Capture Rate (FPS)");
+      expect(chartTitles).toContain("AR Data Capture Rate");
       expect(chartTitles).toContain("Artifacts with Dropped Frames");
     }
   });

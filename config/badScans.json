@@ -929,6 +929,12 @@
     "reason": "Duplicate video (hash c173e2eb9c5f0245a9c825e431dcc3ec6c671bfe995132dc434d52d8b245d58a) matches 1175eba1-07b3-4ec3-984e-26b89e126185, a709eb4f-217b-462a-9616-90ebe1aca6ce",
     "scanDate": "2024-08-06T08:43:45Z"
   },
+  "62ae33b7-ded3-42be-b50a-555bc11e9177": {
+    "date": "2026-01-07T04:02:48.407Z",
+    "environment": "Lowe's Production",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2026-01-06T19:29:16.036308Z"
+  },
   "62edadf1-31ec-444f-956c-86a5cc6ccd17": {
     "date": "2025-12-27T05:34:25.383Z",
     "environment": "Bond Production",
@@ -946,6 +952,12 @@
     "environment": "Bond Production",
     "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
     "scanDate": "2025-12-09T21:38:00.131863Z"
+  },
+  "65484520-8de6-4a55-80c8-f3c9751707b1": {
+    "date": "2026-01-11T02:48:17.414Z",
+    "environment": "Lowe's Production",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2026-01-10T16:51:29.622832Z"
   },
   "65b10226-4f94-4a9a-8e04-b38ece2b31f8": {
     "date": "2025-12-27T06:20:16.784Z",
@@ -982,6 +994,12 @@
     "environment": "Bond Production",
     "reason": "Duplicate video (hash 195995662f6e1401946726a0cb18b8862032fc439b3b8fa0b40335bf72c374e0) matches f4cdc594-5397-4624-ba87-3640a1bf553d",
     "scanDate": "2025-12-01T18:52:15.73127Z"
+  },
+  "68f2a565-ee14-4a3a-8975-2e6b20b27aba": {
+    "date": "2026-01-10T01:21:02.518Z",
+    "environment": "Lowe's Production",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2026-01-09T17:29:39.332711Z"
   },
   "69c3749a-f79d-493d-9a8a-de34139c015d": {
     "date": "2025-12-27T06:20:17.630Z",
@@ -1210,6 +1228,12 @@
     "environment": "Bond Production",
     "reason": "Duplicate video (hash f41865e9bdfa790fef597bebe2806e040388dbdbb840b8ae21c822bc351bc5e8) matches e1b1b155-5f6a-441d-ad72-3d0f48adaf36",
     "scanDate": "2024-08-30T11:13:38Z"
+  },
+  "7c14fe6a-7624-428e-aee1-74c0ee941fa6": {
+    "date": "2026-01-10T01:21:07.738Z",
+    "environment": "Lowe's Production",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2026-01-09T17:56:45.579744Z"
   },
   "7c3a601d-536e-45cf-b19f-faa66ded7201": {
     "date": "2025-12-29T06:03:11.538Z",

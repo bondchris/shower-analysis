@@ -7,6 +7,7 @@ import { ChartConfiguration } from "../models/chart/chartConfiguration";
 import { LineChartConfig } from "../models/chart/lineChartConfig";
 import { ProtractorChartConfig } from "../models/chart/protractorChartConfig";
 import { ReportData, ReportSection } from "../models/report";
+import { CoverageSphere, aggregateCoverageSpheres } from "../utils/arData/coverage";
 import { brightnessToHex } from "../utils/chart/brightnessToRgb";
 import {
   getBarChartConfig,
@@ -20,6 +21,8 @@ import { kelvinToHex } from "../utils/chart/kelvinToRgb";
 import { sortDeviceModels } from "../utils/deviceSorting";
 import { LineChart } from "./components/charts/LineChart";
 import { ProtractorChart } from "./components/charts/ProtractorChart";
+import { SphericalCoverageGlobe } from "./components/SphericalCoverageGlobe";
+import { SphericalCoverageHeatmap } from "./components/SphericalCoverageHeatmap";
 import { buildDynamicKde } from "./dataAnalysisReport/kdeBounds";
 import { computeLayoutConstants } from "./dataAnalysisReport/layout";
 
@@ -275,8 +278,15 @@ function buildArDataCharts(metadataList: ArtifactAnalysis[]): ArDataCharts {
   // AR Data Framerate KDE Chart
   // Shows the distribution of sampling framerates across scans
   const framerateVals = metadataList.map((m) => m.arDataFramerate).filter((v) => v > noResults);
-  const framerateInitialMin = 0;
-  const framerateInitialMax = 10;
+  const framerateDefaultMin = 0;
+  const framerateDefaultMax = 40;
+  const frameratePaddingRatio = 0.1;
+  const framerateMaxObserved = framerateVals.length > noResults ? Math.max(...framerateVals) : framerateDefaultMax;
+  const framerateMinObserved = framerateVals.length > noResults ? Math.min(...framerateVals) : framerateDefaultMin;
+  const framerateRange = framerateMaxObserved - framerateMinObserved;
+  const frameratePadding = framerateRange > noResults ? framerateRange * frameratePaddingRatio : frameratePaddingRatio;
+  const framerateInitialMin = Math.max(framerateDefaultMin, framerateMinObserved - frameratePadding);
+  const framerateInitialMax = Math.max(framerateDefaultMax, framerateMaxObserved + frameratePadding);
   const framerateKdeResolution = 200;
   const { kde: framerateKde } = buildDynamicKde(
     framerateVals,
@@ -1769,6 +1779,68 @@ function buildPhonePanSection(metadataList: ArtifactAnalysis[]): ReportSection |
   };
 }
 
+function buildSphericalCoverageSection(metadataList: ArtifactAnalysis[]): ReportSection | null {
+  const emptyCount = 0;
+  const hundredPercent = 100;
+  const coverageSpheres: CoverageSphere[] = [];
+  for (const artifact of metadataList) {
+    if (
+      artifact.coverageSphere !== undefined &&
+      artifact.coverageSphere.rows > emptyCount &&
+      artifact.coverageSphere.cols > emptyCount &&
+      artifact.coverageSphere.grid.length > emptyCount
+    ) {
+      coverageSpheres.push(artifact.coverageSphere);
+    }
+  }
+
+  const aggregation = aggregateCoverageSpheres(coverageSpheres);
+  if (aggregation === null) {
+    return null;
+  }
+
+  let coveragePercent = emptyCount;
+  if (coverageSpheres.length > emptyCount) {
+    const totalBins =
+      coverageSpheres[emptyCount] !== undefined
+        ? coverageSpheres[emptyCount].rows * coverageSpheres[emptyCount].cols
+        : aggregation.totalBins;
+    const coverageSum = coverageSpheres.reduce((sum, sphere) => {
+      const nonZero = sphere.grid.reduce((rowTotal, row) => {
+        if (!Array.isArray(row)) {
+          return rowTotal;
+        }
+        return rowTotal + row.filter((value) => value > emptyCount).length;
+      }, emptyCount);
+      return sum + (totalBins > emptyCount ? nonZero / totalBins : emptyCount);
+    }, emptyCount);
+    coveragePercent = (coverageSum / coverageSpheres.length) * hundredPercent;
+  }
+
+  const CoverageComponent = (): React.ReactElement =>
+    React.createElement(
+      "div",
+      { className: "flex flex-col gap-4" },
+      React.createElement(SphericalCoverageGlobe, {
+        coveragePercent,
+        grid: aggregation.grid,
+        maxSeconds: aggregation.maxBinSeconds,
+        nonZeroBins: aggregation.nonZeroBins,
+        totalSeconds: aggregation.totalSeconds
+      }),
+      React.createElement(SphericalCoverageHeatmap, {
+        grid: aggregation.grid,
+        maxSeconds: aggregation.maxBinSeconds
+      })
+    );
+
+  return {
+    component: CoverageComponent,
+    title: "Spherical Coverage",
+    type: "react-component"
+  };
+}
+
 function buildArDataReportSections(
   charts: ArDataCharts,
   videoCount: number,
@@ -1813,7 +1885,7 @@ function buildArDataReportSections(
     data: [
       {
         data: charts.arDataFramerate,
-        title: "AR Data Capture Rate (FPS)"
+        title: "AR Data Capture Rate"
       },
       {
         data: charts.droppedFrames,
@@ -1938,6 +2010,11 @@ function buildArDataReportSections(
     ],
     type: "chart-row"
   });
+
+  const sphericalCoverageSection = buildSphericalCoverageSection(metadataList);
+  if (sphericalCoverageSection !== null) {
+    sections.push(sphericalCoverageSection);
+  }
 
   sections.push({
     title: "Ambient Intensity",

@@ -118,41 +118,32 @@ export function calculateDynamicKdeBounds(
   const indexOffset = 1;
   const lastTickIndex = ticks.length - indexOffset;
   const firstTickValue = firstTickAboveZero ?? ticks[lastTickIndex] ?? maxKdeValue;
-  const threshold = firstTickValue / thresholdDivisor;
+  const minThresholdRatio = 0.01;
+  const thresholdCandidate = firstTickValue / thresholdDivisor;
+  const threshold = Math.min(thresholdCandidate, maxKdeValue * minThresholdRatio);
 
-  // Find where data starts: look for the first crossing from below threshold to above threshold
-  // This is where the line first crosses half a tick going up
+  // Find where data starts: first index at or above threshold
   let minIndex = zeroValue;
   let foundMinCrossing = false;
-  for (let i = zeroValue; i < initialKde.values.length - decrementStep; i++) {
-    const currentValue = initialKde.values[i];
-    const nextValue = initialKde.values[i + decrementStep];
-    if (currentValue !== undefined && nextValue !== undefined) {
-      // Check if we're crossing from below threshold to above threshold
-      if (currentValue < threshold && nextValue >= threshold) {
-        minIndex = i + decrementStep;
-        foundMinCrossing = true;
-        break;
-      }
+  for (let i = zeroValue; i < initialKde.values.length; i++) {
+    const value = initialKde.values[i];
+    if (value !== undefined && value >= threshold) {
+      minIndex = i;
+      foundMinCrossing = true;
+      break;
     }
   }
 
-  // Find where data ends: look for the last crossing from above threshold to below threshold
-  // This is where the line last crosses half a tick going down
+  // Find where data ends: last index at or above threshold
   const lastIndex = initialKde.values.length - decrementStep;
   let maxIndex = lastIndex;
   let foundMaxCrossing = false;
-  for (let i = lastIndex; i >= decrementStep; i--) {
-    const currentValue = initialKde.values[i];
-    const prevValue = initialKde.values[i - decrementStep];
-    if (currentValue !== undefined && prevValue !== undefined) {
-      // Check if we're crossing from above threshold to below threshold
-      // (prevValue is above, currentValue is below - going right to left, this is the last crossing down)
-      if (prevValue >= threshold && currentValue < threshold) {
-        maxIndex = i - decrementStep;
-        foundMaxCrossing = true;
-        break;
-      }
+  for (let i = lastIndex; i >= zeroValue; i--) {
+    const value = initialKde.values[i];
+    if (value !== undefined && value >= threshold) {
+      maxIndex = i;
+      foundMaxCrossing = true;
+      break;
     }
   }
 

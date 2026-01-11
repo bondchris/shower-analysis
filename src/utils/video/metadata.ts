@@ -30,6 +30,20 @@ export interface VideoMetadata {
   laplacianMedian?: number;
   laplacianStdDev?: number;
   laplacianSampleCount?: number;
+  meanHue?: number;
+  hueVariance?: number;
+  meanSaturation?: number;
+  saturationVariance?: number;
+  meanBrightness?: number;
+  brightnessVariance?: number;
+  redMean?: number;
+  greenMean?: number;
+  blueMean?: number;
+  redVariance?: number;
+  greenVariance?: number;
+  blueVariance?: number;
+  clippedPixelPercentage?: number;
+  colorSampleCount?: number;
 }
 
 /**
@@ -658,6 +672,291 @@ async function calculateLaplacianStats(videoPath: string): Promise<{
   }
 }
 
+interface ColorStatistics {
+  brightnessVariance: number;
+  clippedPixelPercentage: number;
+  greenMean: number;
+  greenVariance: number;
+  hueVariance: number;
+  meanBrightness: number;
+  meanHue: number;
+  meanSaturation: number;
+  redMean: number;
+  redVariance: number;
+  blueMean: number;
+  blueVariance: number;
+  saturationVariance: number;
+  sampleCount: number;
+}
+
+function calculateMeanAndVariance(values: number[]): { mean: number; variance: number } {
+  const initialSum = 0;
+  const validValues = values.filter((value) => typeof value === "number" && Number.isFinite(value));
+  if (validValues.length === initialSum) {
+    return { mean: initialSum, variance: initialSum };
+  }
+
+  const mean = validValues.reduce((sum, value) => sum + value, initialSum) / validValues.length;
+  const variance =
+    validValues.reduce((sum, value) => {
+      const delta = value - mean;
+      const squaredDelta = delta * delta;
+      return sum + squaredDelta;
+    }, initialSum) / validValues.length;
+
+  return { mean, variance };
+}
+
+function selectColorCoefficients(colorSpace?: string): { kb: number; kr: number } {
+  const space = (colorSpace ?? "").toLowerCase();
+  const defaultCoefficients = { kb: 0.0722, kr: 0.2126 }; // BT.709
+  if (space.includes("601")) {
+    return { kb: 0.114, kr: 0.299 };
+  }
+  if (space.includes("2020")) {
+    return { kb: 0.0593, kr: 0.2627 };
+  }
+  return defaultCoefficients;
+}
+
+function convertYuvToRgb(
+  yAvg: number,
+  uAvg: number,
+  vAvg: number,
+  colorRange?: string,
+  colorSpace?: string
+): { b: number; g: number; r: number } {
+  const minChannelValue = Number.parseInt("0", 10);
+  const maxChannelValue = Number.parseInt("255", 10);
+  const chromaCenter = Number.parseInt("128", 10);
+  const limitedLumaOffset = Number.parseInt("16", 10);
+  const fullRangeScale = Number.parseInt("1", 10);
+  const lumaDenominator = Number.parseInt("219", 10);
+  const chromaDenominator = Number.parseInt("224", 10);
+  const lumaScaleLimited = maxChannelValue / lumaDenominator;
+  const chromaScaleLimited = maxChannelValue / chromaDenominator;
+  const channelScaleBase = Number.parseInt("2", 10);
+  const unityValue = fullRangeScale;
+
+  const clamp = (value: number): number => {
+    return Math.min(maxChannelValue, Math.max(minChannelValue, value));
+  };
+  const fullRangeLabel = "pc";
+  const effectiveRange = (colorRange ?? fullRangeLabel).toLowerCase();
+  const useFullRange = effectiveRange === fullRangeLabel;
+  const lumaOffset = useFullRange ? minChannelValue : limitedLumaOffset;
+  const lumaScale = useFullRange ? fullRangeScale : lumaScaleLimited;
+  const chromaScale = useFullRange ? fullRangeScale : chromaScaleLimited;
+
+  const normalizedY = (yAvg - lumaOffset) * lumaScale;
+  const normalizedU = (uAvg - chromaCenter) * chromaScale;
+  const normalizedV = (vAvg - chromaCenter) * chromaScale;
+
+  const { kb, kr } = selectColorCoefficients(colorSpace);
+  const kg = unityValue - kr - kb;
+  const redScale = channelScaleBase * (unityValue - kr);
+  const blueScale = channelScaleBase * (unityValue - kb);
+  const greenBlueComponent = (kb / kg) * blueScale;
+  const greenRedComponent = (kr / kg) * redScale;
+
+  const redContribution = redScale * normalizedV;
+  const blueContribution = blueScale * normalizedU;
+  const greenBlueAdjustment = greenBlueComponent * normalizedU;
+  const greenRedAdjustment = greenRedComponent * normalizedV;
+  const greenAdjustment = greenBlueAdjustment + greenRedAdjustment;
+
+  const red = normalizedY + redContribution;
+  const blue = normalizedY + blueContribution;
+  const green = normalizedY - greenAdjustment;
+
+  return { b: clamp(blue), g: clamp(green), r: clamp(red) };
+}
+
+async function calculateColorStatistics(
+  videoPath: string,
+  options: { colorRange?: string; colorSpace?: string }
+): Promise<ColorStatistics | null> {
+  const escapedPath = videoPath.replace(/'/g, "\\'");
+  const filterGraph = `movie='${escapedPath}',signalstats=stat=brng`;
+  const tagPrefix = "lavfi.signalstats.";
+  const tagList = ["YAVG", "HUEAVG", "SATAVG", "UAVG", "VAVG", "BRNG", "YMIN", "YMAX", "YBITDEPTH"];
+  const tagEntries = tagList.map((tag) => `${tagPrefix}${tag}`).join(",");
+  const ffprobeArgs = [
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-show_entries",
+    `frame_tags=${tagEntries}`,
+    "-of",
+    "json",
+    filterGraph
+  ];
+  const bytesPerKilobyte = Number.parseInt("1024", 10);
+  const bytesPerMegabyte = bytesPerKilobyte * bytesPerKilobyte;
+  const maxBufferMegabytes = Number.parseInt("50", 10);
+  const maxBuffer = maxBufferMegabytes * bytesPerMegabyte;
+  const fullRangeOffset = Number.parseInt("0", 10);
+  const fullRangeLabel = "pc";
+  const effectiveRange = (options.colorRange ?? fullRangeLabel).toLowerCase();
+  const useFullRange = effectiveRange === fullRangeLabel;
+  const limitedLumaOffset = Number.parseInt("16", 10);
+  const fullRangeScale = Number.parseInt("1", 10);
+  const lumaReference = Number.parseInt("255", 10);
+  const lumaDenominator = Number.parseInt("219", 10);
+  const lumaScaleLimited = lumaReference / lumaDenominator;
+  const lumaOffset = useFullRange ? fullRangeOffset : limitedLumaOffset;
+  const lumaScale = useFullRange ? fullRangeScale : lumaScaleLimited;
+  const defaultBitDepth = Number.parseInt("8", 10);
+  const minSignalValue = Number.parseInt("0", 10);
+  const maxSignalOffset = Number.parseInt("1", 10);
+  const arrayOffset = Number.parseInt("1", 10);
+  const frameIncrement = Number.parseInt("1", 10);
+  const percentScale = Number.parseInt("100", 10);
+  const percentMin = Number.parseInt("0", 10);
+  const percentMax = Number.parseInt("100", 10);
+  const defaultStatistic = percentMin;
+  const signalValueBase = Number.parseInt("2", 10);
+
+  try {
+    const stdoutValue = await new Promise<string>((resolve, reject) => {
+      execFile("ffprobe", ffprobeArgs, { maxBuffer }, (err: unknown, stdout: string | Buffer) => {
+        const unknownErrorMessage = "Unknown ffprobe error";
+        if (err !== null && err !== undefined) {
+          const errorMessage = typeof err === "string" ? err : unknownErrorMessage;
+          reject(err instanceof Error ? err : new Error(errorMessage));
+          return;
+        }
+        const parsedOutput =
+          typeof stdout === "string" || Buffer.isBuffer(stdout) ? stdout.toString() : JSON.stringify(stdout);
+        resolve(parsedOutput);
+      });
+    });
+
+    const parsedJson: unknown = JSON.parse(stdoutValue);
+    const frames: { tags?: Record<string, string> }[] = Array.isArray((parsedJson as { frames?: unknown }).frames)
+      ? ((parsedJson as { frames?: { tags?: Record<string, string> }[] }).frames as { tags?: Record<string, string> }[])
+      : [];
+
+    const parseNumericTag = (tags: Record<string, string> | undefined, tagName: string): number | null => {
+      if (tags === undefined) {
+        return null;
+      }
+      const raw = tags[tagName];
+      if (raw === undefined) {
+        return null;
+      }
+      const parsed = parseFloat(raw);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const brightnessValues: number[] = [];
+    const hueValues: number[] = [];
+    const saturationValues: number[] = [];
+    const uValues: number[] = [];
+    const vValues: number[] = [];
+    const clippingFractions: number[] = [];
+    const bitDepths: number[] = [];
+    const rawYValues: number[] = [];
+    let clippedFrameCount = 0;
+
+    const saturationThreshold = 0.15;
+    const saturationNormalizationMax = 100;
+
+    for (const frame of frames) {
+      const tags = frame.tags;
+      const brightness = parseNumericTag(tags, `${tagPrefix}YAVG`);
+      const hue = parseNumericTag(tags, `${tagPrefix}HUEAVG`);
+      const saturation = parseNumericTag(tags, `${tagPrefix}SATAVG`);
+      const uAvg = parseNumericTag(tags, `${tagPrefix}UAVG`);
+      const vAvg = parseNumericTag(tags, `${tagPrefix}VAVG`);
+      const brng = parseNumericTag(tags, `${tagPrefix}BRNG`);
+      const yMin = parseNumericTag(tags, `${tagPrefix}YMIN`);
+      const yMax = parseNumericTag(tags, `${tagPrefix}YMAX`);
+      const yBitDepth = parseNumericTag(tags, `${tagPrefix}YBITDEPTH`);
+
+      if (yBitDepth !== null) {
+        bitDepths.push(yBitDepth);
+      }
+      if (brightness !== null) {
+        rawYValues.push(brightness);
+        const normalizedBrightness = (brightness - lumaOffset) * lumaScale;
+        brightnessValues.push(normalizedBrightness);
+      }
+      if (saturation !== null) {
+        saturationValues.push(saturation);
+        const normalizedSaturation = saturation / saturationNormalizationMax;
+        if (hue !== null && normalizedSaturation > saturationThreshold) {
+          hueValues.push(hue);
+        }
+      }
+      if (uAvg !== null && vAvg !== null && brightness !== null) {
+        uValues.push(uAvg);
+        vValues.push(vAvg);
+      }
+      if (brng !== null) {
+        clippingFractions.push(brng);
+      }
+      const effectiveBitDepth =
+        yBitDepth !== null && yBitDepth > minSignalValue
+          ? Math.round(yBitDepth)
+          : (bitDepths[bitDepths.length - arrayOffset] ?? defaultBitDepth);
+      const maxSignalValue = Math.pow(signalValueBase, effectiveBitDepth) - maxSignalOffset;
+      const hasMinClipping = yMin !== null && yMin <= minSignalValue;
+      const hasMaxClipping = yMax !== null && yMax >= maxSignalValue;
+      if (hasMinClipping || hasMaxClipping) {
+        clippedFrameCount += frameIncrement;
+      }
+    }
+
+    const sampleCount = brightnessValues.length;
+    const { mean: meanBrightness, variance: brightnessVariance } = calculateMeanAndVariance(brightnessValues);
+    const { mean: meanHue, variance: hueVariance } = calculateMeanAndVariance(hueValues);
+    const { mean: meanSaturation, variance: saturationVariance } = calculateMeanAndVariance(saturationValues);
+    const { mean: avgBrng } = calculateMeanAndVariance(clippingFractions);
+    let clippedPixelPercentage = defaultStatistic;
+    const hasClippingFractions = clippingFractions.length > minSignalValue;
+    if (hasClippingFractions) {
+      clippedPixelPercentage = avgBrng * percentScale;
+    } else if (sampleCount > minSignalValue) {
+      clippedPixelPercentage = (clippedFrameCount / sampleCount) * percentScale;
+    }
+    clippedPixelPercentage = Math.min(percentMax, Math.max(percentMin, clippedPixelPercentage));
+
+    const rgbMeans = rawYValues.map((brightness, index) => {
+      const uAvg = uValues[index] ?? uValues[uValues.length - arrayOffset] ?? brightness;
+      const vAvg = vValues[index] ?? vValues[vValues.length - arrayOffset] ?? brightness;
+      return convertYuvToRgb(brightness, uAvg, vAvg, options.colorRange, options.colorSpace);
+    });
+    const redMeans = rgbMeans.map((value) => value.r);
+    const greenMeans = rgbMeans.map((value) => value.g);
+    const blueMeans = rgbMeans.map((value) => value.b);
+
+    const { mean: redMean, variance: redVariance } = calculateMeanAndVariance(redMeans);
+    const { mean: greenMean, variance: greenVariance } = calculateMeanAndVariance(greenMeans);
+    const { mean: blueMean, variance: blueVariance } = calculateMeanAndVariance(blueMeans);
+
+    return {
+      blueMean,
+      blueVariance,
+      brightnessVariance,
+      clippedPixelPercentage,
+      greenMean,
+      greenVariance,
+      hueVariance,
+      meanBrightness,
+      meanHue,
+      meanSaturation,
+      redMean,
+      redVariance,
+      sampleCount,
+      saturationVariance
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Extracts metadata from a video file in the given directory.
  * Returns null if the video file does not exist or metadata cannot be parsed.
@@ -700,6 +999,21 @@ export async function extractVideoMetadata(dirPath: string): Promise<VideoMetada
         typeof cachedData.laplacianStdDev === "number" && !Number.isNaN(cachedData.laplacianStdDev);
       const hasLaplacianSampleCount =
         typeof cachedData.laplacianSampleCount === "number" && !Number.isNaN(cachedData.laplacianSampleCount);
+      const hasColorStats =
+        typeof cachedData.meanHue === "number" &&
+        typeof cachedData.hueVariance === "number" &&
+        typeof cachedData.meanSaturation === "number" &&
+        typeof cachedData.saturationVariance === "number" &&
+        typeof cachedData.meanBrightness === "number" &&
+        typeof cachedData.brightnessVariance === "number" &&
+        typeof cachedData.redMean === "number" &&
+        typeof cachedData.greenMean === "number" &&
+        typeof cachedData.blueMean === "number" &&
+        typeof cachedData.redVariance === "number" &&
+        typeof cachedData.greenVariance === "number" &&
+        typeof cachedData.blueVariance === "number" &&
+        typeof cachedData.clippedPixelPercentage === "number" &&
+        typeof cachedData.colorSampleCount === "number";
       if (
         cachedData.creationTime !== undefined &&
         hasBitrate &&
@@ -721,7 +1035,8 @@ export async function extractVideoMetadata(dirPath: string): Promise<VideoMetada
         hasEntropyCoding &&
         hasLaplacianMedian &&
         hasLaplacianStdDev &&
-        hasLaplacianSampleCount
+        hasLaplacianSampleCount &&
+        hasColorStats
       ) {
         return cachedData;
       }
@@ -887,6 +1202,45 @@ export async function extractVideoMetadata(dirPath: string): Promise<VideoMetada
         result.laplacianStdDev = laplacianStats.standardDeviation;
         result.laplacianSampleCount = laplacianStats.frameCount;
       }
+
+      const fallbackColorStats: ColorStatistics = {
+        blueMean: 0,
+        blueVariance: 0,
+        brightnessVariance: 0,
+        clippedPixelPercentage: 0,
+        greenMean: 0,
+        greenVariance: 0,
+        hueVariance: 0,
+        meanBrightness: 0,
+        meanHue: 0,
+        meanSaturation: 0,
+        redMean: 0,
+        redVariance: 0,
+        sampleCount: 0,
+        saturationVariance: 0
+      };
+      const colorStatsOptions: { colorRange?: string; colorSpace?: string } = {};
+      if (result.colorRange !== undefined) {
+        colorStatsOptions.colorRange = result.colorRange;
+      }
+      if (result.colorSpace !== undefined) {
+        colorStatsOptions.colorSpace = result.colorSpace;
+      }
+      const colorStats = (await calculateColorStatistics(videoPath, colorStatsOptions)) ?? fallbackColorStats;
+      result.meanHue = colorStats.meanHue;
+      result.hueVariance = colorStats.hueVariance;
+      result.meanSaturation = colorStats.meanSaturation;
+      result.saturationVariance = colorStats.saturationVariance;
+      result.meanBrightness = colorStats.meanBrightness;
+      result.brightnessVariance = colorStats.brightnessVariance;
+      result.redMean = colorStats.redMean;
+      result.greenMean = colorStats.greenMean;
+      result.blueMean = colorStats.blueMean;
+      result.redVariance = colorStats.redVariance;
+      result.greenVariance = colorStats.greenVariance;
+      result.blueVariance = colorStats.blueVariance;
+      result.clippedPixelPercentage = colorStats.clippedPixelPercentage;
+      result.colorSampleCount = colorStats.sampleCount;
 
       const finalEntropyLength = (result.entropyCoding ?? DEFAULT_ENTROPY).length;
       if (finalEntropyLength === DEFAULT_ENTROPY.length) {

@@ -533,4 +533,37 @@ describe("LineChart", () => {
     const { container } = render(<LineChart config={config} />);
     expect(container.querySelector("svg")).not.toBeNull();
   });
+
+  it("should render gradients when gradient stops are provided", () => {
+    const startOffset = 0;
+    const midOffset = 0.5;
+    const endOffset = 1;
+    const config: LineChartConfig = {
+      datasets: [
+        {
+          borderColor: "red",
+          data: [DATA_A, DATA_B, DATA_C],
+          fill: true,
+          gradientDirection: "horizontal",
+          gradientStops: [
+            { color: "red", offset: startOffset },
+            { color: "green", offset: midOffset },
+            { color: "blue", offset: endOffset }
+          ],
+          label: "Gradient"
+        }
+      ],
+      height: HEIGHT,
+      labels: ["10", "20", "30"],
+      options: { title: "Gradient Chart", yLabel: "Y" },
+      type: "line"
+    };
+
+    const { container } = render(<LineChart config={config} />);
+    const gradients = container.querySelectorAll("linearGradient");
+    const minimumGradientCount = 1;
+    expect(gradients.length).toBeGreaterThanOrEqual(minimumGradientCount);
+    expect(container.innerHTML).toContain("gradient-fill-");
+    expect(container.innerHTML).toContain("gradient-stroke-");
+  });
 });

@@ -7,6 +7,7 @@ export interface LineChartDataset {
   backgroundColor?: string;
   gradientFrom?: string;
   gradientTo?: string;
+  gradientStops?: { offset: number; color: string }[];
   gradientDirection?: "vertical" | "horizontal";
   verticalLines?: boolean;
 }

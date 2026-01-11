@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { ArData } from "../../models/arData/arData";
+import { CoverageSphere, computeSphericalCoverage } from "./coverage";
 import {
   distance3D,
   getHorizontalForward,
@@ -56,6 +57,8 @@ export interface ArDataMetadata {
   panCalculationVersion: number;
   maxPanSpeed: number;
   fastPanTimings: number[];
+  coverageSphere?: CoverageSphere;
+  coverageSphereCalculationVersion?: number;
 }
 
 const BINS_PER_DEGREE = 10;
@@ -76,6 +79,7 @@ const PAN_HISTOGRAM_BIN_COUNT = 3601;
 export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
   const metaCachePath = path.join(dirPath, "arDataMetadata.json");
   const JSON_INDENT = 2;
+  const coverageSphereCalculationVersion = 5;
 
   // 1. Check Cache
   if (fs.existsSync(metaCachePath)) {
@@ -123,7 +127,8 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
         cached.phonePanHistogram.length === PAN_HISTOGRAM_BIN_COUNT &&
         cached.panCalculationVersion === PAN_CALCULATION_VERSION &&
         typeof cached.maxPanSpeed === "number" &&
-        Array.isArray(cached.fastPanTimings)
+        Array.isArray(cached.fastPanTimings) &&
+        cached.coverageSphereCalculationVersion === coverageSphereCalculationVersion
       ) {
         return cached;
       }
@@ -154,6 +159,7 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
         avgColorTemperature: defaultNumeric,
         avgIso: defaultNumeric,
         avgSpeed: defaultNumeric,
+        coverageSphereCalculationVersion,
         deviceModel: NOT_SET,
         droppedArFrameCount: defaultNumeric,
         droppedArFramePercentage: defaultNumeric,
@@ -890,6 +896,11 @@ export function extractArDataMetadata(dirPath: string): ArDataMetadata | null {
           result.maxPanSpeed = maxPanAngularVelocity;
         }
         result.fastPanTimings = fastPanPercentages;
+      }
+
+      const coverageSphere = computeSphericalCoverage(_arData);
+      if (coverageSphere !== null) {
+        result.coverageSphere = coverageSphere;
       }
 
       // Persist to cache

@@ -1,3 +1,5 @@
+import { CoverageSphere } from "../utils/arData/coverage";
+
 const NOT_SET = "";
 const NO_RESULTS = 0;
 
@@ -62,6 +64,7 @@ export class ArtifactAnalysis {
   public panCalculationVersion = NO_RESULTS;
   public maxPanSpeed = NO_RESULTS;
   public fastPanTimings: number[] = [];
+  public coverageSphere: CoverageSphere | undefined = undefined;
   public roomAreaSqFt = NO_RESULTS;
   public hasNonRectWall = false;
   public toiletCount = NO_RESULTS;
@@ -98,6 +101,20 @@ export class ArtifactAnalysis {
   public laplacianMedian = NO_RESULTS;
   public laplacianStdDev = NO_RESULTS;
   public laplacianSampleCount = NO_RESULTS;
+  public meanHue = NO_RESULTS;
+  public hueVariance = NO_RESULTS;
+  public meanSaturation = NO_RESULTS;
+  public saturationVariance = NO_RESULTS;
+  public meanBrightness = NO_RESULTS;
+  public brightnessVariance = NO_RESULTS;
+  public redMean = NO_RESULTS;
+  public greenMean = NO_RESULTS;
+  public blueMean = NO_RESULTS;
+  public redVariance = NO_RESULTS;
+  public greenVariance = NO_RESULTS;
+  public blueVariance = NO_RESULTS;
+  public clippedPixelPercentage = NO_RESULTS;
+  public colorSampleCount = NO_RESULTS;
   public hasMultipleStories = false;
   public hasUnparentedEmbedded = false;
   public hasCurvedEmbedded = false;

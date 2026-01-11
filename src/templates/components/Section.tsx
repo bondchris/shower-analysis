@@ -163,20 +163,12 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
         const options = chart.data.options as { width?: number } | undefined;
         return options?.width ?? defaultWidth;
       };
-      const totalWidth = charts.reduce((sum: number, chart) => sum + getChartWidth(chart), defaultWidth);
-      const hasCustomWidths = totalWidth > defaultWidth;
 
       // Account for gap between charts (gap-1 = 0.25rem = 4px)
       // Using gap-1 instead of gap-5 to reduce space between charts
       const gapPixels = 4;
       const numGaps = charts.length >= minChartsForGap ? charts.length - gapCountOffset : defaultGapCount;
       const totalGap = gapPixels * numGaps;
-
-      // Calculate scale factor to make widths fit within available space minus gaps
-      // This ensures combined chart widths + gaps don't exceed container
-      const defaultScaleFactor = 1;
-      const scaleFactor =
-        hasCustomWidths && totalWidth > defaultWidth ? (totalWidth - totalGap) / totalWidth : defaultScaleFactor;
 
       const estimatePieChartMinWidth = (pieConfig: PieChartConfig): number => {
         const fallbackBaseWidth = 300;
@@ -222,9 +214,18 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
         return getChartWidth(chart);
       };
 
+      const chartWidths = charts.map((chart) => getEffectiveWidth(chart));
+      const totalWidth = chartWidths.reduce((sum: number, chartWidth: number) => sum + chartWidth, defaultWidth);
+      const hasCustomWidths = totalWidth > defaultWidth;
+
+      // Calculate scale factor to make widths fit within available space minus gaps
+      // This ensures combined chart widths + gaps don't exceed container
+      const defaultScaleFactor = 1;
+      const scaleFactor =
+        hasCustomWidths && totalWidth > defaultWidth ? (totalWidth - totalGap) / totalWidth : defaultScaleFactor;
+
       // Precompute adjusted widths so layout logic is consistent between padding and item sizing
-      const adjustedWidths = charts.map((chart) => {
-        const chartWidth = getEffectiveWidth(chart);
+      const adjustedWidths = chartWidths.map((chartWidth: number) => {
         if (!hasCustomWidths || chartWidth === defaultWidth) {
           return chartWidth;
         }
@@ -234,8 +235,14 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
       // Default layout for rows
       let rowJustifyClass = "justify-between";
       let rowGapClass = "gap-1";
-      const rowStyle: React.CSSProperties | undefined = undefined;
-      const useTwoColumnGrid = hasCustomWidths && chartCount === TWO_CHART_COUNT;
+      let rowStyle: React.CSSProperties | undefined = undefined;
+      const evenSplitWidth = chartCount > defaultWidth ? totalWidth / chartCount : defaultWidth;
+      const evenSplitBuffer = 4;
+      const widthsFitEvenSplit =
+        hasCustomWidths && chartWidths.length === chartCount
+          ? chartWidths.every((width) => width <= evenSplitWidth + evenSplitBuffer)
+          : false;
+      const useTwoColumnGrid = hasCustomWidths && chartCount === TWO_CHART_COUNT && widthsFitEvenSplit;
 
       // Center rows with a single chart
       if (hasCustomWidths && chartCount === SINGLE_CHART_COUNT) {
@@ -243,30 +250,43 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
         rowGapClass = "gap-0";
       }
 
-      // For two fixed-width charts, place centers at 1/3 and 2/3 of the row width
+      // For balanced widths, keep a grid layout; otherwise fall back to flex to avoid overflow
       if (useTwoColumnGrid) {
         rowJustifyClass = "justify-center";
         rowGapClass = "gap-0";
+        rowStyle = {
+          columnGap: `${String(gapPixels)}px`,
+          gridTemplateColumns: adjustedWidths.map((width) => `${String(width)}px`).join(" "),
+          justifyContent: "center"
+        };
       }
 
-      const rowClass = useTwoColumnGrid ? "grid grid-cols-2" : `flex ${rowJustifyClass} ${rowGapClass}`;
+      const rowClass = useTwoColumnGrid ? "grid" : `flex ${rowJustifyClass} ${rowGapClass}`;
 
       return (
         <div className={`mb-2 ${rowClass} break-inside-avoid [&_svg]:block`} style={rowStyle}>
           {charts.map((chart, i) => {
-            const chartWidth = getChartWidth(chart);
+            const chartWidth = chartWidths[i] ?? getChartWidth(chart);
             // Scale down the width to account for gaps
             const adjustedWidth = adjustedWidths[i] ?? chartWidth;
-            const chartOptions = chart.data.options as { sideNotes?: string[]; width?: number } | undefined;
-            const sideNotes = chartOptions?.sideNotes ?? [];
+            const chartOptions = (chart.data as { options?: unknown }).options;
+            const normalizedOptions = (chartOptions ?? {}) as Record<string, unknown>;
+            const sideNotes = (normalizedOptions as { sideNotes?: string[] }).sideNotes ?? [];
             const EMPTY_SIDE_NOTES_LENGTH = 0;
             const hasSideNotes = sideNotes.length > EMPTY_SIDE_NOTES_LENGTH;
             const flexStyle =
               !hasSideNotes && !useTwoColumnGrid && hasCustomWidths && adjustedWidth > defaultWidth
                 ? { flex: `0 0 ${String(adjustedWidth)}px` }
                 : undefined;
+            const widthOption = (normalizedOptions as { width?: number }).width;
             const chartWidthStyle =
-              chartOptions?.width !== undefined ? { width: `${String(chartOptions.width)}px` } : undefined;
+              widthOption !== undefined && adjustedWidth > defaultWidth
+                ? { width: `${String(adjustedWidth)}px` }
+                : undefined;
+            const chartConfig =
+              widthOption !== undefined && adjustedWidth !== widthOption
+                ? ({ ...chart.data, options: { ...normalizedOptions, width: adjustedWidth } } as ChartConfiguration)
+                : chart.data;
             const titleStyle =
               hasSideNotes && chartWidthStyle !== undefined
                 ? { ...chartWidthStyle, marginLeft: "auto", marginRight: "auto" }
@@ -289,12 +309,12 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
                         <h5 className="mb-2 mt-4 text-center text-sm font-semibold text-gray-700">{chart.title}</h5>
                       )}
                       <div className="[&>svg]:block">
-                        {chart.data.type === "line" && <LineChart config={chart.data} />}
-                        {chart.data.type === "histogram" && <Histogram config={chart.data} />}
-                        {chart.data.type === "bar" && <BarChart config={chart.data} />}
-                        {chart.data.type === "mixed" && <MixedChart config={chart.data} />}
-                        {chart.data.type === "pie" && <PieChart config={chart.data} />}
-                        {chart.data.type === "scatter" && <ScatterChart config={chart.data} />}
+                        {chartConfig.type === "line" && <LineChart config={chartConfig} />}
+                        {chartConfig.type === "histogram" && <Histogram config={chartConfig} />}
+                        {chartConfig.type === "bar" && <BarChart config={chartConfig} />}
+                        {chartConfig.type === "mixed" && <MixedChart config={chartConfig} />}
+                        {chartConfig.type === "pie" && <PieChart config={chartConfig} />}
+                        {chartConfig.type === "scatter" && <ScatterChart config={chartConfig} />}
                       </div>
                     </div>
                     <div className="flex-1 text-center text-[9px] text-gray-700 leading-snug space-y-1">
@@ -306,12 +326,12 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
                 ) : (
                   <div className="flex w-full justify-center overflow-visible">
                     <div className="[&>svg]:block" style={chartWidthStyle}>
-                      {chart.data.type === "line" && <LineChart config={chart.data} />}
-                      {chart.data.type === "histogram" && <Histogram config={chart.data} />}
-                      {chart.data.type === "bar" && <BarChart config={chart.data} />}
-                      {chart.data.type === "mixed" && <MixedChart config={chart.data} />}
-                      {chart.data.type === "pie" && <PieChart config={chart.data} />}
-                      {chart.data.type === "scatter" && <ScatterChart config={chart.data} />}
+                      {chartConfig.type === "line" && <LineChart config={chartConfig} />}
+                      {chartConfig.type === "histogram" && <Histogram config={chartConfig} />}
+                      {chartConfig.type === "bar" && <BarChart config={chartConfig} />}
+                      {chartConfig.type === "mixed" && <MixedChart config={chartConfig} />}
+                      {chartConfig.type === "pie" && <PieChart config={chartConfig} />}
+                      {chartConfig.type === "scatter" && <ScatterChart config={chartConfig} />}
                     </div>
                   </div>
                 )}

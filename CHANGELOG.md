@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-01-06
+
+### [v0.65.0] Spherical Coverage Visualizations and Color Signal Stats
+
+- Compute per-scan spherical coverage from AR camera intrinsics/transforms, cache the grids, and aggregate them into a
+  multi-view globe plus 6 ft radius heatmap with coverage stats in the AR Data Analysis report.
+- Extract hue/saturation/brightness and RGB mean/variance (plus clipped pixel percentages) via ffprobe signalstats, cache
+  the results, and feed the color distribution charts with data-driven gradients and stronger cache validation.
+- Improve chart rendering by supporting multi-stop gradients, refining KDE bound detection for narrow peaks, and
+  rebalancing chart row layout to avoid overflow with custom widths and side notes.
+- Refresh artifact status configs (checked/bad/sync failures), regenerate report PDFs, and document the new coverage and
+  color metrics ahead of release.
+
+## 2026-01-05
+
+### [v0.64.0] Color Stats Charts, Gradients, and Hue Sampling Threshold
+
+- Added color distribution charts (mean/variance for hue, saturation, brightness; RGB channel mean/variance overlays; clipped pixel percentages) to the video analysis report.
+- Line charts now support multi-stop gradients; mean hue uses the actual hue wheel, saturation/brightness are shaded by their values, and the RGB overlays keep their distinct fills.
+- Hue sampling ignores low-saturation frames (S > 0.15) so hue statistics reflect chromatic pixels instead of noise; updated tests and sample metadata accordingly.
+- RGB channel mean overlay is locked to a 0–255 x-axis with mean and variance on separate rows to preserve PDF layout.
+- Documentation clarifies that saturation uses ffmpeg SATAVG (0–200 scale) and highlights the new color metrics ahead of release.
+
 ## 2026-01-04
 
 ### [v0.63.0] Laplacian Examples Layout Polish
@@ -64,7 +87,7 @@ All notable changes to this project will be documented in this file.
 - **Extended AR Data Metrics**: Track min/max/avg for ambient intensity, color temperature, ISO,
   and brightness values. Previously only averages were captured; now minimum and maximum values are
   extracted and visualized in dedicated KDE charts.
-- **AR Data Capture Rate**: Calculate sampling framerate from AR data timestamps (FPS) showing how
+- **AR Data Capture Rate**: Calculate sampling framerate from AR data timestamps in FPS showing how
   frequently the device captured AR frames during scanning.
 - **Dropped Frames Detection**: Detect dropped AR frames by identifying intervals that exceed 1.5×
   the median interval. Visualized with a pie chart showing percentage of scans with dropped frames,
@@ -83,7 +106,7 @@ All notable changes to this project will be documented in this file.
 - **AR Data Report Expansion**: The `ardata-analysis.pdf` report now includes 20 chart sections:
   - Device Model, Focal Length & Aperture
   - Timezone (UTC Offset), Time of Day (Hour)
-  - AR Data Capture Rate (FPS), Artifacts with Dropped Frames pie chart, Artifacts with Dropped Frames Over Time trend, Average Dropped Frame Percentage Over Time
+  - AR Data Capture Rate, Artifacts with Dropped Frames pie chart, Artifacts with Dropped Frames Over Time trend, Average Dropped Frame Percentage Over Time
   - Ambient Intensity: Average, Minimum, Maximum KDE charts
   - Color Temperature: Average, Minimum, Maximum KDE charts with Kelvin-accurate colors
   - ISO Speed: Average, Minimum, Maximum KDE charts

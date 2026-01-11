@@ -56,6 +56,20 @@ async function addVideoMetadata(dir: string, metadata: ArtifactAnalysis): Promis
     metadata.laplacianMedian = videoMeta.laplacianMedian ?? missingLaplacian;
     metadata.laplacianStdDev = videoMeta.laplacianStdDev ?? missingLaplacian;
     metadata.laplacianSampleCount = videoMeta.laplacianSampleCount ?? missingLaplacian;
+    metadata.meanHue = videoMeta.meanHue ?? missingLaplacian;
+    metadata.hueVariance = videoMeta.hueVariance ?? missingLaplacian;
+    metadata.meanSaturation = videoMeta.meanSaturation ?? missingLaplacian;
+    metadata.saturationVariance = videoMeta.saturationVariance ?? missingLaplacian;
+    metadata.meanBrightness = videoMeta.meanBrightness ?? missingLaplacian;
+    metadata.brightnessVariance = videoMeta.brightnessVariance ?? missingLaplacian;
+    metadata.redMean = videoMeta.redMean ?? missingLaplacian;
+    metadata.greenMean = videoMeta.greenMean ?? missingLaplacian;
+    metadata.blueMean = videoMeta.blueMean ?? missingLaplacian;
+    metadata.redVariance = videoMeta.redVariance ?? missingLaplacian;
+    metadata.greenVariance = videoMeta.greenVariance ?? missingLaplacian;
+    metadata.blueVariance = videoMeta.blueVariance ?? missingLaplacian;
+    metadata.clippedPixelPercentage = videoMeta.clippedPixelPercentage ?? missingLaplacian;
+    metadata.colorSampleCount = videoMeta.colorSampleCount ?? missingLaplacian;
   }
 }
 
