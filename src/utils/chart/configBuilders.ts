@@ -8,6 +8,8 @@ import { MixedChartOptions } from "../../models/chart/mixedChartOptions";
 import { PieChartOptions } from "../../models/chart/pieChartOptions";
 import { ScatterChartDataset } from "../../models/chart/scatterChartDataset";
 import { ScatterChartOptions } from "../../models/chart/scatterChartOptions";
+import { ShapeOverlayChartOptions } from "../../models/chart/shapeOverlayChartOptions";
+import { SurfaceOutline } from "../../models/shapeOutline";
 import { calculateHistogramBinCenter, calculateHistogramBins } from "./histogram";
 
 export function getLineChartConfig(
@@ -265,5 +267,40 @@ export function getScatterChartConfig(
     height,
     options: configOptions,
     type: "scatter"
+  };
+}
+
+export function getShapeOverlayChartConfig(
+  shapes: SurfaceOutline[],
+  options: ShapeOverlayChartOptions = {}
+): ChartConfiguration {
+  const defaultHeight = 320;
+  const { height = defaultHeight, width, chartId, strokeColor, strokeOpacity, backgroundColor, sideNotes } = options;
+
+  const configOptions: ShapeOverlayChartOptions = {};
+  if (width !== undefined) {
+    configOptions.width = width;
+  }
+  if (chartId !== undefined) {
+    configOptions.chartId = chartId;
+  }
+  if (strokeColor !== undefined) {
+    configOptions.strokeColor = strokeColor;
+  }
+  if (strokeOpacity !== undefined) {
+    configOptions.strokeOpacity = strokeOpacity;
+  }
+  if (backgroundColor !== undefined) {
+    configOptions.backgroundColor = backgroundColor;
+  }
+  if (sideNotes !== undefined) {
+    configOptions.sideNotes = sideNotes;
+  }
+
+  return {
+    height,
+    options: configOptions,
+    shapes,
+    type: "shape-overlay"
   };
 }

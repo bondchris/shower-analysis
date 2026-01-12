@@ -57,6 +57,12 @@ function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number
   const rgbMeanRangeMax = 260;
   const rgbVarianceMax = 80;
   const clippedPercentRangeMax = 20;
+  const chartRowGapPx = 4;
+  const chartsPerThreeColumnRow = 3;
+  const gapCountOffset = 1;
+  const gapMultiplier = chartsPerThreeColumnRow - gapCountOffset;
+  const totalRowGapWidth = chartRowGapPx * gapMultiplier;
+  const bFrameRowChartWidth = Math.floor((layout.PAGE_CONTENT_WIDTH - totalRowGapWidth) / chartsPerThreeColumnRow);
 
   const collectLaplacianValues = (selector: (meta: ArtifactAnalysis) => number | undefined): number[] => {
     const minSamples = 1;
@@ -595,7 +601,7 @@ function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number
     height: layout.HALF_CHART_HEIGHT,
     showCount: true,
     title: "",
-    width: layout.THIRD_CHART_WIDTH
+    width: bFrameRowChartWidth
   });
 
   const profileMap: Record<string, number> = {};
@@ -610,7 +616,7 @@ function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number
     height: layout.HALF_CHART_HEIGHT,
     showCount: true,
     title: "",
-    width: layout.THIRD_CHART_WIDTH
+    width: bFrameRowChartWidth
   });
 
   const levelMap: Record<string, number> = {};
@@ -646,7 +652,7 @@ function buildVideoCharts(metadataList: ArtifactAnalysis[], avgDuration?: number
     height: layout.HALF_CHART_HEIGHT,
     showCount: true,
     title: "",
-    width: layout.THIRD_CHART_WIDTH
+    width: bFrameRowChartWidth
   });
 
   const minValidGopDistance = 1;

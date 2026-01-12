@@ -13,6 +13,8 @@ This project provides a suite of scripts to validate, sync, inspect, clean, and 
 
 It identifies data integrity issues, generates visual reports, classifies video content using AI, and maintains a clean local dataset.
 
+The Scan Analysis report pairs aspect ratio scatter plots with surface shape overlays (floors, walls, windows, doors, and openings) to visualize silhouette diversity at a common scale.
+
 ## Prerequisites
 
 - Node.js (v18+ recommended)
@@ -155,6 +157,7 @@ npm run inspect
   - Object attribute breakdowns (doors, chairs, sofas, tables, storage, vanity)
   - Dimension distributions for floors, walls, windows, doors, and openings
   - Aspect ratio scatter plots for structural elements
+  - Normalized shape overlays for floors, walls, windows, doors, and openings to highlight common silhouettes
 
 ## Configuration
 

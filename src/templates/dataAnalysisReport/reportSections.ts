@@ -253,9 +253,11 @@ export function buildReportSections(
     });
 
     chartSections.push({
-      data: charts.floorAspectRatio,
-      title: "Floor Aspect Ratio",
-      type: "chart"
+      data: [
+        { data: charts.floorAspectRatio, title: "Floor Aspect Ratio" },
+        { data: charts.floorShapes, title: "Floor Shapes" }
+      ],
+      type: "chart-row"
     });
   }
 
@@ -287,9 +289,11 @@ export function buildReportSections(
     });
 
     chartSections.push({
-      data: charts.wallAspectRatio,
-      title: "Wall Aspect Ratio",
-      type: "chart"
+      data: [
+        { data: charts.wallAspectRatio, title: "Wall Aspect Ratio" },
+        { data: charts.wallShapes, title: "Wall Shapes" }
+      ],
+      type: "chart-row"
     });
 
     const embeddedCharts: { data: ChartConfiguration; title: string }[] = [];
@@ -333,9 +337,11 @@ export function buildReportSections(
     });
 
     chartSections.push({
-      data: charts.windowAspectRatio,
-      title: "Window Aspect Ratio",
-      type: "chart"
+      data: [
+        { data: charts.windowAspectRatio, title: "Window Aspect Ratio" },
+        { data: charts.windowShapes, title: "Window Shapes" }
+      ],
+      type: "chart-row"
     });
   }
 
@@ -367,9 +373,11 @@ export function buildReportSections(
     });
 
     chartSections.push({
-      data: charts.doorAspectRatio,
-      title: "Door Aspect Ratio",
-      type: "chart"
+      data: [
+        { data: charts.doorAspectRatio, title: "Door Aspect Ratio" },
+        { data: charts.doorShapes, title: "Door Shapes" }
+      ],
+      type: "chart-row"
     });
   }
 
@@ -401,9 +409,11 @@ export function buildReportSections(
     });
 
     chartSections.push({
-      data: charts.openingAspectRatio,
-      title: "Opening Aspect Ratio",
-      type: "chart"
+      data: [
+        { data: charts.openingAspectRatio, title: "Opening Aspect Ratio" },
+        { data: charts.openingShapes, title: "Opening Shapes" }
+      ],
+      type: "chart-row"
     });
   }
 

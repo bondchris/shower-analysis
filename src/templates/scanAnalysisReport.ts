@@ -5,6 +5,7 @@ import { buildAreaCharts } from "./dataAnalysisReport/charts/areaCharts";
 import { buildAttributePieCharts } from "./dataAnalysisReport/charts/attributePieCharts";
 import { buildDimensionCharts } from "./dataAnalysisReport/charts/dimensionCharts";
 import { buildErrorFeatureObjectCharts } from "./dataAnalysisReport/charts/prevalenceCharts";
+import { buildSurfaceShapeCharts } from "./dataAnalysisReport/charts/shapeOverlayCharts";
 import { buildVanityAttributesCharts } from "./dataAnalysisReport/charts/vanityAttributesCharts";
 import { buildWallEmbeddedPieCharts } from "./dataAnalysisReport/charts/wallEmbeddedPieCharts";
 import { computeLayoutConstants } from "./dataAnalysisReport/layout";
@@ -59,6 +60,7 @@ function buildScanCharts(metadataList: ArtifactAnalysis[], artifactDirs?: string
     Object.assign(charts, buildAttributePieCharts(artifactDirs, layout));
     Object.assign(charts, buildWallEmbeddedPieCharts(artifactDirs, layout));
     Object.assign(charts, buildVanityAttributesCharts(artifactDirs, layout));
+    Object.assign(charts, buildSurfaceShapeCharts(artifactDirs, layout));
   }
 
   return charts;
@@ -222,12 +224,28 @@ function buildScanReportSections(
       });
     }
 
-    if (charts.floorAspectRatio !== undefined) {
-      sections.push({
-        data: charts.floorAspectRatio,
-        title: "Floor Aspect Ratio",
-        type: "chart"
-      });
+    if (charts.floorAspectRatio !== undefined || charts.floorShapes !== undefined) {
+      if (charts.floorAspectRatio !== undefined && charts.floorShapes !== undefined) {
+        sections.push({
+          data: [
+            { data: charts.floorAspectRatio, title: "Floor Aspect Ratio" },
+            { data: charts.floorShapes, title: "Floor Shapes" }
+          ],
+          type: "chart-row"
+        });
+      } else if (charts.floorAspectRatio !== undefined) {
+        sections.push({
+          data: charts.floorAspectRatio,
+          title: "Floor Aspect Ratio",
+          type: "chart"
+        });
+      } else if (charts.floorShapes !== undefined) {
+        sections.push({
+          data: charts.floorShapes,
+          title: "Floor Shapes",
+          type: "chart"
+        });
+      }
     }
   }
 
@@ -264,12 +282,28 @@ function buildScanReportSections(
       });
     }
 
-    if (charts.wallAspectRatio !== undefined) {
-      sections.push({
-        data: charts.wallAspectRatio,
-        title: "Wall Aspect Ratio",
-        type: "chart"
-      });
+    if (charts.wallAspectRatio !== undefined || charts.wallShapes !== undefined) {
+      if (charts.wallAspectRatio !== undefined && charts.wallShapes !== undefined) {
+        sections.push({
+          data: [
+            { data: charts.wallAspectRatio, title: "Wall Aspect Ratio" },
+            { data: charts.wallShapes, title: "Wall Shapes" }
+          ],
+          type: "chart-row"
+        });
+      } else if (charts.wallAspectRatio !== undefined) {
+        sections.push({
+          data: charts.wallAspectRatio,
+          title: "Wall Aspect Ratio",
+          type: "chart"
+        });
+      } else if (charts.wallShapes !== undefined) {
+        sections.push({
+          data: charts.wallShapes,
+          title: "Wall Shapes",
+          type: "chart"
+        });
+      }
     }
 
     const embeddedCharts: { data: ChartConfiguration; title: string }[] = [];
@@ -324,12 +358,28 @@ function buildScanReportSections(
       });
     }
 
-    if (charts.windowAspectRatio !== undefined) {
-      sections.push({
-        data: charts.windowAspectRatio,
-        title: "Window Aspect Ratio",
-        type: "chart"
-      });
+    if (charts.windowAspectRatio !== undefined || charts.windowShapes !== undefined) {
+      if (charts.windowAspectRatio !== undefined && charts.windowShapes !== undefined) {
+        sections.push({
+          data: [
+            { data: charts.windowAspectRatio, title: "Window Aspect Ratio" },
+            { data: charts.windowShapes, title: "Window Shapes" }
+          ],
+          type: "chart-row"
+        });
+      } else if (charts.windowAspectRatio !== undefined) {
+        sections.push({
+          data: charts.windowAspectRatio,
+          title: "Window Aspect Ratio",
+          type: "chart"
+        });
+      } else if (charts.windowShapes !== undefined) {
+        sections.push({
+          data: charts.windowShapes,
+          title: "Window Shapes",
+          type: "chart"
+        });
+      }
     }
   }
 
@@ -366,12 +416,28 @@ function buildScanReportSections(
       });
     }
 
-    if (charts.doorAspectRatio !== undefined) {
-      sections.push({
-        data: charts.doorAspectRatio,
-        title: "Door Aspect Ratio",
-        type: "chart"
-      });
+    if (charts.doorAspectRatio !== undefined || charts.doorShapes !== undefined) {
+      if (charts.doorAspectRatio !== undefined && charts.doorShapes !== undefined) {
+        sections.push({
+          data: [
+            { data: charts.doorAspectRatio, title: "Door Aspect Ratio" },
+            { data: charts.doorShapes, title: "Door Shapes" }
+          ],
+          type: "chart-row"
+        });
+      } else if (charts.doorAspectRatio !== undefined) {
+        sections.push({
+          data: charts.doorAspectRatio,
+          title: "Door Aspect Ratio",
+          type: "chart"
+        });
+      } else if (charts.doorShapes !== undefined) {
+        sections.push({
+          data: charts.doorShapes,
+          title: "Door Shapes",
+          type: "chart"
+        });
+      }
     }
   }
 
@@ -408,12 +474,28 @@ function buildScanReportSections(
       });
     }
 
-    if (charts.openingAspectRatio !== undefined) {
-      sections.push({
-        data: charts.openingAspectRatio,
-        title: "Opening Aspect Ratio",
-        type: "chart"
-      });
+    if (charts.openingAspectRatio !== undefined || charts.openingShapes !== undefined) {
+      if (charts.openingAspectRatio !== undefined && charts.openingShapes !== undefined) {
+        sections.push({
+          data: [
+            { data: charts.openingAspectRatio, title: "Opening Aspect Ratio" },
+            { data: charts.openingShapes, title: "Opening Shapes" }
+          ],
+          type: "chart-row"
+        });
+      } else if (charts.openingAspectRatio !== undefined) {
+        sections.push({
+          data: charts.openingAspectRatio,
+          title: "Opening Aspect Ratio",
+          type: "chart"
+        });
+      } else if (charts.openingShapes !== undefined) {
+        sections.push({
+          data: charts.openingShapes,
+          title: "Opening Shapes",
+          type: "chart"
+        });
+      }
     }
   }
 

@@ -10,6 +10,7 @@ import {
   NARROW_OPENING_WIDTH_FT,
   SHORT_DOOR_HEIGHT_FT
 } from "../room/constants";
+import { SurfaceOutline } from "../../models/shapeOutline";
 
 type ObjectConfidenceCounts = Record<string, [number, number, number]>; // [high, medium, low]
 
@@ -336,6 +337,14 @@ export const getOpeningWidths = (dirs: string[]) => collectFromMetadata(dirs, (m
 export const getFloorLengths = (dirs: string[]) => collectFromMetadata(dirs, (m) => m.floorLengths);
 export const getFloorWidths = (dirs: string[]) => collectFromMetadata(dirs, (m) => m.floorWidths);
 export const getFloorWidthHeightPairs = (dirs: string[]) => collectFromMetadata(dirs, (m) => m.floorWidthHeightPairs);
+export const getFloorOutlines = (dirs: string[]): SurfaceOutline[] =>
+  collectFromMetadata(dirs, (m) => m.floorOutlines);
+export const getWallOutlines = (dirs: string[]): SurfaceOutline[] => collectFromMetadata(dirs, (m) => m.wallOutlines);
+export const getWindowOutlines = (dirs: string[]): SurfaceOutline[] =>
+  collectFromMetadata(dirs, (m) => m.windowOutlines);
+export const getDoorOutlines = (dirs: string[]): SurfaceOutline[] => collectFromMetadata(dirs, (m) => m.doorOutlines);
+export const getOpeningOutlines = (dirs: string[]): SurfaceOutline[] =>
+  collectFromMetadata(dirs, (m) => m.openingOutlines);
 
 // Conversion functions
 

@@ -12,6 +12,7 @@ import { computeLayoutConstants } from "./dataAnalysisReport/layout";
 import { buildReportSections } from "./dataAnalysisReport/reportSections";
 import { CaptureCharts } from "./dataAnalysisReport/types";
 import { buildBitrateCharts } from "./shared/bitrateCharts";
+import { buildSurfaceShapeCharts } from "./dataAnalysisReport/charts/shapeOverlayCharts";
 
 export { CaptureCharts } from "./dataAnalysisReport/types";
 
@@ -35,6 +36,7 @@ export function buildDataAnalysisReport(
     Object.assign(charts, buildAttributePieCharts(artifactDirs, layout));
     Object.assign(charts, buildWallEmbeddedPieCharts(artifactDirs, layout));
     Object.assign(charts, buildVanityAttributesCharts(artifactDirs, layout));
+    Object.assign(charts, buildSurfaceShapeCharts(artifactDirs, layout));
   }
 
   const populatedCharts = charts as CaptureCharts;

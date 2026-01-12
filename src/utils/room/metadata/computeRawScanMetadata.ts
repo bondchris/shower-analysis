@@ -24,6 +24,7 @@ import {
   hasNonRectangularEmbedded,
   hasUnparentedEmbedded
 } from "./rawScanPredicates";
+import { extractSurfaceOutlines } from "./extractSurfaceOutlines";
 
 const MIN_NON_RECT_CORNERS = 4;
 const DEFAULT_STORY_INDEX = 0;
@@ -50,6 +51,7 @@ export function computeRawScanMetadata(rawScan: RawScan): RawScanMetadata {
   const dimensionAreaData = extractDimensionAreaData(rawScan);
   const attributeData = extractAttributeData(rawScan);
   const wallEmbeddedCounts = extractWallEmbeddedCounts(rawScan);
+  const surfaceOutlines = extractSurfaceOutlines(rawScan);
   const vanityType = getVanityType(rawScan);
 
   const result: RawScanMetadata = {
@@ -101,6 +103,8 @@ export function computeRawScanMetadata(rawScan: RawScan): RawScanMetadata {
     windowCount: rawScan.windows.length,
     // Dimension and area data
     ...dimensionAreaData,
+    // Surface outlines
+    ...surfaceOutlines,
     // Attribute counts
     ...attributeData,
     // Wall embedded counts

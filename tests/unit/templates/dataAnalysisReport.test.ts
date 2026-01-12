@@ -1298,6 +1298,27 @@ describe("buildDataAnalysisReport", () => {
       expect(sectionTitles).toContain("Door Areas");
       expect(sectionTitles).toContain("Opening Areas");
       expect(sectionTitles).toContain("Wall Areas");
+      const chartRows = report.sections.filter((section) => section.type === "chart-row");
+      const rowTitles = chartRows.flatMap((row) => {
+        if (!Array.isArray(row.data)) {
+          return [];
+        }
+        return row.data.map((chart) => (chart as { title?: string }).title);
+      });
+      expect(rowTitles).toEqual(
+        expect.arrayContaining([
+          "Window Aspect Ratio",
+          "Window Shapes",
+          "Door Aspect Ratio",
+          "Door Shapes",
+          "Opening Aspect Ratio",
+          "Opening Shapes",
+          "Wall Aspect Ratio",
+          "Wall Shapes",
+          "Floor Aspect Ratio",
+          "Floor Shapes"
+        ])
+      );
 
       // Verify line charts were created for area charts
       const lineChartCalls = (getLineChartConfig as ReturnType<typeof vi.fn>).mock.calls;
@@ -1706,9 +1727,11 @@ describe("buildDataAnalysisReport", () => {
         doorCount: 3,
         doorHeights: [],
         doorIsOpenCounts: { Closed: 2, Open: 1 },
+        doorOutlines: [],
         doorWidthHeightPairs: [],
         doorWidths: [],
         floorLengths: [],
+        floorOutlines: [],
         floorWidthHeightPairs: [],
         floorWidths: [],
         hasBed: false,
@@ -1750,6 +1773,7 @@ describe("buildDataAnalysisReport", () => {
         openingAreas: [],
         openingCount: 0,
         openingHeights: [],
+        openingOutlines: [],
         openingWidthHeightPairs: [],
         openingWidths: [],
         roomAreaSqFt: 100,
@@ -1765,6 +1789,7 @@ describe("buildDataAnalysisReport", () => {
         wallAreas: [],
         wallCount: 0,
         wallHeights: [],
+        wallOutlines: [],
         wallWidthHeightPairs: [],
         wallWidths: [],
         wallsWithDoors: 0,
@@ -1773,6 +1798,7 @@ describe("buildDataAnalysisReport", () => {
         windowAreas: [],
         windowCount: 0,
         windowHeights: [],
+        windowOutlines: [],
         windowWidthHeightPairs: [],
         windowWidths: []
       };
@@ -1808,9 +1834,11 @@ describe("buildDataAnalysisReport", () => {
         doorCount: 0,
         doorHeights: [],
         doorIsOpenCounts: {},
+        doorOutlines: [],
         doorWidthHeightPairs: [],
         doorWidths: [],
         floorLengths: [],
+        floorOutlines: [],
         floorWidthHeightPairs: [],
         floorWidths: [],
         hasBed: false,
@@ -1852,6 +1880,7 @@ describe("buildDataAnalysisReport", () => {
         openingAreas: [],
         openingCount: 0,
         openingHeights: [],
+        openingOutlines: [],
         openingWidthHeightPairs: [],
         openingWidths: [],
         roomAreaSqFt: 100,
@@ -1867,6 +1896,7 @@ describe("buildDataAnalysisReport", () => {
         wallAreas: [],
         wallCount: 0,
         wallHeights: [],
+        wallOutlines: [],
         wallWidthHeightPairs: [],
         wallWidths: [],
         wallsWithDoors: 0,
@@ -1875,6 +1905,7 @@ describe("buildDataAnalysisReport", () => {
         windowAreas: [],
         windowCount: 0,
         windowHeights: [],
+        windowOutlines: [],
         windowWidthHeightPairs: [],
         windowWidths: []
       };
@@ -1903,9 +1934,11 @@ describe("buildDataAnalysisReport", () => {
         doorCount: 0,
         doorHeights: [],
         doorIsOpenCounts: {},
+        doorOutlines: [],
         doorWidthHeightPairs: [],
         doorWidths: [],
         floorLengths: [],
+        floorOutlines: [],
         floorWidthHeightPairs: [],
         floorWidths: [],
         hasBed: false,
@@ -1947,6 +1980,7 @@ describe("buildDataAnalysisReport", () => {
         openingAreas: [],
         openingCount: 0,
         openingHeights: [],
+        openingOutlines: [],
         openingWidthHeightPairs: [],
         openingWidths: [],
         roomAreaSqFt: 100,
@@ -1962,6 +1996,7 @@ describe("buildDataAnalysisReport", () => {
         wallAreas: [],
         wallCount: 0,
         wallHeights: [],
+        wallOutlines: [],
         wallWidthHeightPairs: [],
         wallWidths: [],
         wallsWithDoors: 0,
@@ -1970,6 +2005,7 @@ describe("buildDataAnalysisReport", () => {
         windowAreas: [],
         windowCount: 0,
         windowHeights: [],
+        windowOutlines: [],
         windowWidthHeightPairs: [],
         windowWidths: []
       };

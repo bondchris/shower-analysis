@@ -2,7 +2,7 @@ import React from "react";
 import { ChartConfiguration } from "../../models/chart/chartConfiguration";
 import { PieChartConfig } from "../../models/chart/pieChartConfig";
 import { ReportSection } from "../../models/report";
-import { BarChart, Histogram, LineChart, MixedChart, PieChart, ScatterChart } from "./charts";
+import { BarChart, Histogram, LineChart, MixedChart, PieChart, ScatterChart, ShapeOverlayChart } from "./charts";
 import { Table } from "./Table";
 
 interface SectionProps {
@@ -102,7 +102,8 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
 
     case "chart": {
       const chartConfig = section.data as ChartConfiguration;
-      const shouldCenter = chartConfig.type === "scatter" || chartConfig.type === "pie";
+      const shouldCenter =
+        chartConfig.type === "scatter" || chartConfig.type === "pie" || chartConfig.type === "shape-overlay";
       const justifyClass = shouldCenter ? "justify-center" : "justify-start";
       const chartOptions = chartConfig.options as { sideNotes?: string[]; width?: number } | undefined;
       const sideNotes = chartOptions?.sideNotes ?? [];
@@ -119,6 +120,7 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
           {chartConfig.type === "mixed" && <MixedChart config={chartConfig} />}
           {chartConfig.type === "pie" && <PieChart config={chartConfig} />}
           {chartConfig.type === "scatter" && <ScatterChart config={chartConfig} />}
+          {chartConfig.type === "shape-overlay" && <ShapeOverlayChart config={chartConfig} />}
         </>
       );
 
@@ -261,7 +263,7 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
         };
       }
 
-      const rowClass = useTwoColumnGrid ? "grid" : `flex ${rowJustifyClass} ${rowGapClass}`;
+      const rowClass = useTwoColumnGrid ? "grid items-start" : `flex ${rowJustifyClass} ${rowGapClass} items-start`;
 
       return (
         <div className={`mb-2 ${rowClass} break-inside-avoid [&_svg]:block`} style={rowStyle}>
@@ -295,8 +297,22 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
               useTwoColumnGrid || !hasCustomWidths
                 ? "text-center min-w-0 overflow-visible"
                 : "flex-1 text-center min-w-0 overflow-visible";
+            // Offset to align shape overlay content with the scatter plot's y-axis start
+            const SCATTER_CHART_TOP_MARGIN = 75;
+            const SHAPE_OVERLAY_PADDING = 16;
+            const SHAPE_ALIGNMENT_TWEAK = 15;
+            const shapeContentTopOffset = SCATTER_CHART_TOP_MARGIN - SHAPE_OVERLAY_PADDING - SHAPE_ALIGNMENT_TWEAK;
+            const shouldOffsetShapeChart = chart.data.type === "shape-overlay";
+            const shapeOffsetStyle = shouldOffsetShapeChart
+              ? { marginTop: `${String(shapeContentTopOffset)}px` }
+              : undefined;
+            const chartContentStyle =
+              shapeOffsetStyle !== undefined || chartWidthStyle !== undefined
+                ? { ...(chartWidthStyle ?? {}), ...(shapeOffsetStyle ?? {}) }
+                : undefined;
+            const containerStyle = flexStyle;
             return (
-              <div key={i} className={containerClass} style={flexStyle}>
+              <div key={i} className={containerClass} style={containerStyle}>
                 {chart.title !== undefined && !hasSideNotes && (
                   <h5 className="mb-2 mt-4 text-center text-sm font-semibold text-gray-700" style={titleStyle}>
                     {chart.title}
@@ -308,13 +324,14 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
                       {chart.title !== undefined && (
                         <h5 className="mb-2 mt-4 text-center text-sm font-semibold text-gray-700">{chart.title}</h5>
                       )}
-                      <div className="[&>svg]:block">
+                      <div className="[&>svg]:block" style={chartContentStyle}>
                         {chartConfig.type === "line" && <LineChart config={chartConfig} />}
                         {chartConfig.type === "histogram" && <Histogram config={chartConfig} />}
                         {chartConfig.type === "bar" && <BarChart config={chartConfig} />}
                         {chartConfig.type === "mixed" && <MixedChart config={chartConfig} />}
                         {chartConfig.type === "pie" && <PieChart config={chartConfig} />}
                         {chartConfig.type === "scatter" && <ScatterChart config={chartConfig} />}
+                        {chartConfig.type === "shape-overlay" && <ShapeOverlayChart config={chartConfig} />}
                       </div>
                     </div>
                     <div className="flex-1 text-center text-[9px] text-gray-700 leading-snug space-y-1">
@@ -325,13 +342,14 @@ const SectionContent: React.FC<SectionProps> = ({ section }) => {
                   </div>
                 ) : (
                   <div className="flex w-full justify-center overflow-visible">
-                    <div className="[&>svg]:block" style={chartWidthStyle}>
+                    <div className="[&>svg]:block" style={chartContentStyle}>
                       {chartConfig.type === "line" && <LineChart config={chartConfig} />}
                       {chartConfig.type === "histogram" && <Histogram config={chartConfig} />}
                       {chartConfig.type === "bar" && <BarChart config={chartConfig} />}
                       {chartConfig.type === "mixed" && <MixedChart config={chartConfig} />}
                       {chartConfig.type === "pie" && <PieChart config={chartConfig} />}
                       {chartConfig.type === "scatter" && <ScatterChart config={chartConfig} />}
+                      {chartConfig.type === "shape-overlay" && <ShapeOverlayChart config={chartConfig} />}
                     </div>
                   </div>
                 )}

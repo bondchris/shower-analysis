@@ -9,10 +9,13 @@ import {
   getArtifactsWithSmallWalls,
   getDoorAreas,
   getDoorIsOpenCounts,
+  getDoorOutlines,
+  getFloorOutlines,
   getFloorWidthHeightPairs,
   getObjectAttributeCounts,
   getObjectConfidenceCounts,
   getOpeningAreas,
+  getOpeningOutlines,
   getSinkCounts,
   getTubLengths,
   getUnexpectedVersionArtifactDirs,
@@ -20,7 +23,9 @@ import {
   getVanityTypes,
   getWallAreas,
   getWallEmbeddedCounts,
-  getWindowAreas
+  getWallOutlines,
+  getWindowAreas,
+  getWindowOutlines
 } from "../../../../src/utils/data/rawScanExtractor";
 import { RawScanMetadata, extractRawScanMetadata } from "../../../../src/utils/room/metadata";
 
@@ -53,9 +58,11 @@ function createMockMetadata(overrides: Partial<RawScanMetadata> = {}): RawScanMe
     doorCount: 0,
     doorHeights: [],
     doorIsOpenCounts: {},
+    doorOutlines: [],
     doorWidthHeightPairs: [],
     doorWidths: [],
     floorLengths: [],
+    floorOutlines: [],
     floorWidthHeightPairs: [],
     floorWidths: [],
     hasBed: false,
@@ -97,6 +104,7 @@ function createMockMetadata(overrides: Partial<RawScanMetadata> = {}): RawScanMe
     openingAreas: [],
     openingCount: 0,
     openingHeights: [],
+    openingOutlines: [],
     openingWidthHeightPairs: [],
     openingWidths: [],
     roomAreaSqFt: 100,
@@ -112,6 +120,7 @@ function createMockMetadata(overrides: Partial<RawScanMetadata> = {}): RawScanMe
     wallAreas: [],
     wallCount: 0,
     wallHeights: [],
+    wallOutlines: [],
     wallWidthHeightPairs: [],
     wallWidths: [],
     wallsWithDoors: 0,
@@ -120,6 +129,7 @@ function createMockMetadata(overrides: Partial<RawScanMetadata> = {}): RawScanMe
     windowAreas: [],
     windowCount: 0,
     windowHeights: [],
+    windowOutlines: [],
     windowWidthHeightPairs: [],
     windowWidths: []
   };
@@ -505,18 +515,20 @@ describe("getWindowAreas", () => {
     vi.clearAllMocks();
   });
 
-  it("should extract window areas from raw scan files", () => {
-    const mockMetadata: RawScanMetadata = {
-      doorAreas: [],
-      doorCount: 0,
-      doorHeights: [],
-      doorIsOpenCounts: {},
-      doorWidthHeightPairs: [],
-      doorWidths: [],
-      floorLengths: [],
-      floorWidthHeightPairs: [],
-      floorWidths: [],
-      hasBed: false,
+    it("should extract window areas from raw scan files", () => {
+      const mockMetadata: RawScanMetadata = {
+        doorAreas: [],
+        doorCount: 0,
+        doorHeights: [],
+        doorIsOpenCounts: {},
+        doorOutlines: [],
+        doorWidthHeightPairs: [],
+        doorWidths: [],
+        floorLengths: [],
+        floorOutlines: [],
+        floorWidthHeightPairs: [],
+        floorWidths: [],
+        hasBed: false,
       hasChair: false,
       hasColinearWallErrors: false,
       hasCrookedWallErrors: false,
@@ -555,6 +567,7 @@ describe("getWindowAreas", () => {
       openingAreas: [],
       openingCount: 0,
       openingHeights: [],
+      openingOutlines: [],
       openingWidthHeightPairs: [],
       openingWidths: [],
       roomAreaSqFt: 100,
@@ -570,6 +583,7 @@ describe("getWindowAreas", () => {
       wallAreas: [],
       wallCount: 0,
       wallHeights: [],
+      wallOutlines: [],
       wallWidthHeightPairs: [],
       wallWidths: [],
       wallsWithDoors: 0,
@@ -578,6 +592,7 @@ describe("getWindowAreas", () => {
       windowAreas: [2, 0.4],
       windowCount: 2,
       windowHeights: [2, 0.8],
+      windowOutlines: [],
       windowWidthHeightPairs: [
         { height: 2, width: 1 },
         { height: 0.8, width: 0.5 }
@@ -852,6 +867,35 @@ describe("getDoorIsOpenCounts", () => {
     (extractRawScanMetadata as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const result = getDoorIsOpenCounts(["/test/dir1"]);
     expect(result).toEqual({});
+    });
+  });
+
+describe("outline getters", () => {
+  it("returns outlines from metadata", () => {
+    const outlines = [
+      [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 }
+      ]
+    ];
+
+    vi.mocked(extractRawScanMetadata).mockReturnValue(
+      createMockMetadata({
+        doorOutlines: outlines,
+        floorOutlines: outlines,
+        openingOutlines: outlines,
+        wallOutlines: outlines,
+        windowOutlines: outlines
+      })
+    );
+
+    const dirs = ["dir1"];
+    expect(getFloorOutlines(dirs)).toEqual(outlines);
+    expect(getWallOutlines(dirs)).toEqual(outlines);
+    expect(getWindowOutlines(dirs)).toEqual(outlines);
+    expect(getDoorOutlines(dirs)).toEqual(outlines);
+    expect(getOpeningOutlines(dirs)).toEqual(outlines);
   });
 });
 
@@ -1313,4 +1357,3 @@ describe("getFloorWidthHeightPairs", () => {
     expect(pairs[0]).toEqual({ height: 5, width: 3 });
   });
 });
-

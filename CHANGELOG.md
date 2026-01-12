@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-01-12
+
+### [v0.66.1] Shape Overlay Polish and Scan Report Coverage
+
+- Aligned surface shape overlays with their corresponding aspect ratio charts, removing frames and guide lines while keeping a clean white canvas for stacked silhouettes.
+- Tweaked chart row offsets so shape overlays sit flush with scatter plot axes and titles, matching visual rhythm across paired charts.
+- Expanded scan analysis report tests to cover aspect-ratio-only rows, shapes-only rows, and attribute chart chunking to maintain high coverage.
+
+## 2026-01-11
+
+### [v0.66.0] Surface Shape Overlay Charts
+
+- Added normalized shape overlay charts for floors, walls, windows, doors, and openings to the scan analysis reports so surface silhouettes are stacked at a common scale.
+- Cached surface outlines (from polygons or dimensions) inside `rawScanMetadata.json`, exposed outline getters, and wired them into the new chart builder.
+- Introduced a dedicated Shape Overlay chart component and shared utilities plus documentation updates for the new visualization.
+
 ## 2026-01-06
 
 ### [v0.65.0] Spherical Coverage Visualizations and Color Signal Stats

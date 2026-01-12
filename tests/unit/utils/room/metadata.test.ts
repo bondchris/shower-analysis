@@ -112,9 +112,11 @@ describe("extractRawScanMetadata", () => {
       doorCount: 0,
       doorHeights: [],
       doorIsOpenCounts: {},
+      doorOutlines: [],
       doorWidthHeightPairs: [],
       doorWidths: [],
       floorLengths: [],
+      floorOutlines: [],
       floorWidthHeightPairs: [],
       floorWidths: [],
       hasBed: false,
@@ -156,6 +158,7 @@ describe("extractRawScanMetadata", () => {
       openingAreas: [],
       openingCount: 0,
       openingHeights: [],
+      openingOutlines: [],
       openingWidthHeightPairs: [],
       openingWidths: [],
       roomAreaSqFt: 500,
@@ -171,6 +174,7 @@ describe("extractRawScanMetadata", () => {
       wallAreas: [],
       wallCount: 4,
       wallHeights: [],
+      wallOutlines: [],
       wallWidthHeightPairs: [],
       wallWidths: [],
       wallsWithDoors: 0,
@@ -179,6 +183,7 @@ describe("extractRawScanMetadata", () => {
       windowAreas: [],
       windowCount: 0,
       windowHeights: [],
+      windowOutlines: [],
       windowWidthHeightPairs: [],
       windowWidths: []
     };
@@ -280,6 +285,71 @@ describe("extractRawScanMetadata", () => {
 
     // Verify cache write
     expect(fs.writeFileSync).toHaveBeenCalledWith(mockCachePath, expect.any(String));
+  });
+
+  it("captures surface outlines from polygons and dimensions", () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockRawScanPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const rawScanWithOutlines: RawScanData = {
+      ...validRawScanData,
+      doors: [
+        {
+          category: { door: { isOpen: false } },
+          completedEdges: [],
+          confidence: { high: {} },
+          curve: null,
+          dimensions: [0.9, 2.1],
+          identifier: "door-outline",
+          parentIdentifier: "wall1",
+          polygonCorners: [],
+          story: 1,
+          transform: []
+        }
+      ],
+      openings: [
+        {
+          category: { opening: {} },
+          completedEdges: [],
+          confidence: { high: {} },
+          curve: null,
+          dimensions: [1.2, 1.0],
+          identifier: "opening-outline",
+          parentIdentifier: null,
+          polygonCorners: [],
+          story: 1,
+          transform: []
+        }
+      ],
+      windows: [
+        createWindow("window-outline", "wall1", {
+          dimensions: [1.1, 0.9],
+          polygonCorners: [
+            [-0.55, -0.45],
+            [0.55, -0.45],
+            [0.55, 0.45],
+            [-0.55, 0.45]
+          ]
+        })
+      ]
+    };
+
+    (fs.readFileSync as Mock).mockReturnValue(JSON.stringify(rawScanWithOutlines));
+
+    const result = extractRawScanMetadata(mockDir);
+
+    expect(result?.floorOutlines.length).toBeGreaterThan(0);
+    expect(result?.wallOutlines.length).toBeGreaterThan(0);
+    expect(result?.doorOutlines.length).toBeGreaterThan(0);
+    expect(result?.windowOutlines.length).toBeGreaterThan(0);
+    expect(result?.openingOutlines.length).toBeGreaterThan(0);
   });
 
   it("should return null if rawScan.json does not exist", () => {

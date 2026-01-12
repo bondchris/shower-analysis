@@ -36,6 +36,11 @@ export interface CaptureCharts {
   floorLength: ChartConfiguration;
   floorWidth: ChartConfiguration;
   floorAspectRatio: ChartConfiguration;
+  floorShapes: ChartConfiguration;
+  wallShapes: ChartConfiguration;
+  windowShapes: ChartConfiguration;
+  doorShapes: ChartConfiguration;
+  openingShapes: ChartConfiguration;
   doorIsOpen: ChartConfiguration;
   chairArmType: ChartConfiguration;
   chairBackType: ChartConfiguration;

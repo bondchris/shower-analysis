@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { RawScan } from "../../models/rawScan/rawScan";
+import { SurfaceOutline } from "../../models/shapeOutline";
 import { computeRawScanMetadata } from "./metadata/computeRawScanMetadata";
 import { isValidCachedMetadata } from "./metadata/rawScanMetadataSchema";
 
@@ -72,6 +73,11 @@ export interface RawScanMetadata {
   floorLengths: number[];
   floorWidths: number[];
   floorWidthHeightPairs: { height: number; width: number }[];
+  floorOutlines: SurfaceOutline[];
+  wallOutlines: SurfaceOutline[];
+  windowOutlines: SurfaceOutline[];
+  doorOutlines: SurfaceOutline[];
+  openingOutlines: SurfaceOutline[];
   tubLengths: number[];
   vanityLengths: number[];
   // Attribute counts

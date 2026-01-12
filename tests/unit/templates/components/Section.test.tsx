@@ -15,7 +15,8 @@ vi.mock("../../../../src/templates/components/charts", () => ({
   LineChart: () => <div data-testid="mock-linechart" />,
   MixedChart: () => <div data-testid="mock-mixedchart" />,
   PieChart: () => <div data-testid="mock-piechart" />,
-  ScatterChart: () => <div data-testid="mock-scatterchart" />
+  ScatterChart: () => <div data-testid="mock-scatterchart" />,
+  ShapeOverlayChart: () => <div data-testid="mock-shapeoverlaychart" />
 }));
 
 describe("Section Component", () => {
@@ -103,6 +104,17 @@ describe("Section Component", () => {
     expect(screen.getByTestId("mock-piechart")).toBeInTheDocument();
   });
 
+  it("renders a chart via mock (shape overlay)", () => {
+    const section: ReportSection = {
+      data: { height: 120, options: {}, shapes: [], type: "shape-overlay" },
+      title: "Shapes",
+      type: "chart"
+    };
+    render(<Section section={section} />);
+    expect(screen.getByText("Shapes")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-shapeoverlaychart")).toBeInTheDocument();
+  });
+
   it("renders side notes next to a chart inside a chart-row", () => {
     const section: ReportSection = {
       data: [
@@ -173,6 +185,10 @@ describe("Section Component", () => {
         {
           data: { datasets: [], labels: [], type: "scatter" },
           title: "Chart 5"
+        },
+        {
+          data: { height: 100, options: {}, shapes: [], type: "shape-overlay" },
+          title: "Chart 6"
         }
       ],
       type: "chart-row"
@@ -183,11 +199,13 @@ describe("Section Component", () => {
     expect(screen.getByText("Chart 3")).toBeInTheDocument();
     expect(screen.getByText("Chart 4")).toBeInTheDocument();
     expect(screen.getByText("Chart 5")).toBeInTheDocument();
+    expect(screen.getByText("Chart 6")).toBeInTheDocument();
     expect(screen.getByTestId("mock-barchart")).toBeInTheDocument();
     expect(screen.getByTestId("mock-linechart")).toBeInTheDocument();
     expect(screen.getByTestId("mock-histogram")).toBeInTheDocument();
     expect(screen.getByTestId("mock-mixedchart")).toBeInTheDocument();
     expect(screen.getByTestId("mock-scatterchart")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-shapeoverlaychart")).toBeInTheDocument();
   });
 
   it("falls back to chart widths when scaling chart rows", () => {

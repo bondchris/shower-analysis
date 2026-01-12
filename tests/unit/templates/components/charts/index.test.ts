@@ -5,7 +5,8 @@ import {
   Histogram,
   LineChart,
   MixedChart,
-  ProtractorChart
+  ProtractorChart,
+  ShapeOverlayChart
 } from "../../../../../src/templates/components/charts";
 
 describe("Charts Index", () => {
@@ -27,5 +28,9 @@ describe("Charts Index", () => {
 
   it("exports ProtractorChart", () => {
     expect(ProtractorChart).toBeDefined();
+  });
+
+  it("exports ShapeOverlayChart", () => {
+    expect(ShapeOverlayChart).toBeDefined();
   });
 });

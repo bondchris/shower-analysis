@@ -4,6 +4,7 @@ import { BarChartConfig } from "./barChartConfig";
 import { MixedChartConfig } from "./mixedChartConfig";
 import { PieChartConfig } from "./pieChartConfig";
 import { ScatterChartConfig } from "./scatterChartConfig";
+import { ShapeOverlayChartConfig } from "./shapeOverlayChartConfig";
 
 export type ChartConfiguration =
   | LineChartConfig
@@ -11,4 +12,5 @@ export type ChartConfiguration =
   | BarChartConfig
   | MixedChartConfig
   | PieChartConfig
-  | ScatterChartConfig;
+  | ScatterChartConfig
+  | ShapeOverlayChartConfig;
