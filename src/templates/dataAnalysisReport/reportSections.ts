@@ -200,6 +200,9 @@ export function buildReportSections(
     if (Object.prototype.hasOwnProperty.call(charts, "vanityType")) {
       vanityAttributeCharts.push({ data: charts.vanityType, title: "Vanity Type" });
     }
+    if (Object.prototype.hasOwnProperty.call(charts, "vanityPlacement")) {
+      vanityAttributeCharts.push({ data: charts.vanityPlacement, title: "Vanity Placement" });
+    }
 
     if (vanityAttributeCharts.length > INITIAL_COUNT) {
       chartSections.push({

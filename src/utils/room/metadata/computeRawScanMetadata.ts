@@ -14,7 +14,7 @@ import { checkToiletGaps } from "../analysis/checkToiletGaps";
 import { checkTubGaps } from "../analysis/checkTubGaps";
 import { checkWallGaps } from "../analysis/checkWallGaps";
 import { LOW_CEILING_THRESHOLD_FT } from "../constants";
-import { getVanityType } from "../vanity/vanityAnalysis";
+import { getVanityPlacement, getVanityType } from "../vanity/vanityAnalysis";
 import { extractAttributeData } from "./extractAttributeData";
 import { extractDimensionAreaData } from "./extractDimensionAreaData";
 import { extractWallEmbeddedCounts } from "./extractWallEmbeddedCounts";
@@ -53,6 +53,7 @@ export function computeRawScanMetadata(rawScan: RawScan): RawScanMetadata {
   const wallEmbeddedCounts = extractWallEmbeddedCounts(rawScan);
   const surfaceOutlines = extractSurfaceOutlines(rawScan);
   const vanityType = getVanityType(rawScan);
+  const vanityPlacement = getVanityPlacement(rawScan);
 
   const result: RawScanMetadata = {
     doorCount: rawScan.doors.length,
@@ -110,6 +111,7 @@ export function computeRawScanMetadata(rawScan: RawScan): RawScanMetadata {
     // Wall embedded counts
     ...wallEmbeddedCounts,
     // Vanity data
+    vanityPlacement,
     vanityType
   };
 

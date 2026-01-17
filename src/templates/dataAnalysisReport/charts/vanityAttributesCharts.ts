@@ -1,13 +1,13 @@
 import { getPieChartConfig } from "../../../utils/chart/configBuilders";
-import { getSinkCounts, getVanityTypes } from "../../../utils/data/rawScanExtractor";
+import { getSinkCounts, getVanityPlacements, getVanityTypes } from "../../../utils/data/rawScanExtractor";
 import { LayoutConstants } from "../layout";
 import { CaptureCharts } from "../types";
 
 export function buildVanityAttributesCharts(
   artifactDirs: string[],
   layout: LayoutConstants
-): Partial<Pick<CaptureCharts, "sinkCount" | "vanityType">> {
-  const charts: Partial<Pick<CaptureCharts, "sinkCount" | "vanityType">> = {};
+): Partial<Pick<CaptureCharts, "sinkCount" | "vanityType" | "vanityPlacement">> {
+  const charts: Partial<Pick<CaptureCharts, "sinkCount" | "vanityType" | "vanityPlacement">> = {};
 
   const distinctColors = [
     "#4E79A7", // Blue
@@ -85,6 +85,41 @@ export function buildVanityAttributesCharts(
 
     charts.vanityType = getPieChartConfig(vanityTypeLabels, vanityTypeData, {
       colors: vanityTypeColors,
+      height: layout.HALF_CHART_HEIGHT,
+      shrinkToLegend: true,
+      title: "",
+      width: layout.THIRD_CHART_WIDTH
+    });
+  }
+
+  // Vanity Placement Chart (regular vs corner)
+  const vanityPlacements = getVanityPlacements(artifactDirs);
+  const vanityPlacementOrder = ["regular", "corner"];
+  const vanityPlacementEntries = Object.entries(vanityPlacements).sort(([a], [b]) => {
+    const indexA = vanityPlacementOrder.indexOf(a);
+    const indexB = vanityPlacementOrder.indexOf(b);
+    if (indexA === notFoundIndex && indexB === notFoundIndex) {
+      return a.localeCompare(b);
+    }
+    if (indexA === notFoundIndex) {
+      return afterNotFoundIndex;
+    }
+    if (indexB === notFoundIndex) {
+      return beforeNotFoundIndex;
+    }
+    return indexA - indexB;
+  });
+  const vanityPlacementLabels = vanityPlacementEntries.map(([label]) => label);
+  const vanityPlacementData = vanityPlacementEntries.map(([, value]) => value);
+
+  if (vanityPlacementData.length > initialCount) {
+    const vanityPlacementColors = vanityPlacementLabels.map((_, index) => {
+      const colorIndex = index % distinctColors.length;
+      return distinctColors[colorIndex] ?? defaultFallbackColor;
+    });
+
+    charts.vanityPlacement = getPieChartConfig(vanityPlacementLabels, vanityPlacementData, {
+      colors: vanityPlacementColors,
       height: layout.HALF_CHART_HEIGHT,
       shrinkToLegend: true,
       title: "",

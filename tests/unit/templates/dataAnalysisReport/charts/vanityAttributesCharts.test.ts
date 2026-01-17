@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildVanityAttributesCharts } from "../../../../../src/templates/dataAnalysisReport/charts/vanityAttributesCharts";
 import { getPieChartConfig } from "../../../../../src/utils/chart/configBuilders";
-import { getSinkCounts, getVanityTypes } from "../../../../../src/utils/data/rawScanExtractor";
+import { getSinkCounts, getVanityPlacements, getVanityTypes } from "../../../../../src/utils/data/rawScanExtractor";
 import { LayoutConstants, computeLayoutConstants } from "../../../../../src/templates/dataAnalysisReport/layout";
 
 vi.mock("../../../../../src/utils/chart/configBuilders", () => ({
@@ -10,6 +10,7 @@ vi.mock("../../../../../src/utils/chart/configBuilders", () => ({
 
 vi.mock("../../../../../src/utils/data/rawScanExtractor", () => ({
   getSinkCounts: vi.fn(),
+  getVanityPlacements: vi.fn(),
   getVanityTypes: vi.fn()
 }));
 
@@ -28,6 +29,7 @@ describe("buildVanityAttributesCharts", () => {
       "2": 3
     });
     (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     const result = buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -39,6 +41,7 @@ describe("buildVanityAttributesCharts", () => {
     const artifactDirs = ["/test/dir1"];
     (getSinkCounts as ReturnType<typeof vi.fn>).mockReturnValue({});
     (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     const result = buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -52,6 +55,7 @@ describe("buildVanityAttributesCharts", () => {
       normal: 10,
       "sink only": 5
     });
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     const result = buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -63,13 +67,14 @@ describe("buildVanityAttributesCharts", () => {
     const artifactDirs = ["/test/dir1"];
     (getSinkCounts as ReturnType<typeof vi.fn>).mockReturnValue({});
     (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     const result = buildVanityAttributesCharts(artifactDirs, layout);
 
     expect(result.vanityType).toBeUndefined();
   });
 
-  it("should build both charts when both have data", () => {
+  it("should build all three charts when all have data", () => {
     const artifactDirs = ["/test/dir1"];
     (getSinkCounts as ReturnType<typeof vi.fn>).mockReturnValue({
       "1": 5
@@ -77,12 +82,17 @@ describe("buildVanityAttributesCharts", () => {
     (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({
       normal: 10
     });
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({
+      corner: 2,
+      regular: 8
+    });
 
     const result = buildVanityAttributesCharts(artifactDirs, layout);
 
     expect(result.sinkCount).toBeDefined();
     expect(result.vanityType).toBeDefined();
-    expect(getPieChartConfig).toHaveBeenCalledTimes(2);
+    expect(result.vanityPlacement).toBeDefined();
+    expect(getPieChartConfig).toHaveBeenCalledTimes(3);
   });
 
   it("should sort sinkCount entries numerically", () => {
@@ -93,6 +103,7 @@ describe("buildVanityAttributesCharts", () => {
       "2": 2
     });
     (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -116,6 +127,7 @@ describe("buildVanityAttributesCharts", () => {
       "sink only": 4,
       "storage only": 3
     });
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -138,6 +150,7 @@ describe("buildVanityAttributesCharts", () => {
       normal: 10,
       unknown: 5
     });
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -159,6 +172,7 @@ describe("buildVanityAttributesCharts", () => {
       unknown1: 5,
       unknown2: 10
     });
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -180,6 +194,7 @@ describe("buildVanityAttributesCharts", () => {
       normal: 10,
       unknown: 5
     });
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -202,6 +217,7 @@ describe("buildVanityAttributesCharts", () => {
       two: 2
     });
     (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -216,6 +232,7 @@ describe("buildVanityAttributesCharts", () => {
       abc: 2
     });
     (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -229,6 +246,7 @@ describe("buildVanityAttributesCharts", () => {
       nonNumeric: 3
     });
     (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -245,6 +263,7 @@ describe("buildVanityAttributesCharts", () => {
       abc: 1
     });
     (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -260,6 +279,7 @@ describe("buildVanityAttributesCharts", () => {
       "sink only": 5,
       unknown: 3
     });
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -283,6 +303,7 @@ describe("buildVanityAttributesCharts", () => {
       mystery: 2,
       normal: 4
     });
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -304,6 +325,7 @@ describe("buildVanityAttributesCharts", () => {
       normal: 4,
       "sink only": 2
     });
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -327,6 +349,7 @@ describe("buildVanityAttributesCharts", () => {
     }
     (getSinkCounts as ReturnType<typeof vi.fn>).mockReturnValue(manySinkCounts);
     (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -348,11 +371,13 @@ describe("buildVanityAttributesCharts", () => {
     const artifactDirs: string[] = [];
     (getSinkCounts as ReturnType<typeof vi.fn>).mockReturnValue({});
     (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     const result = buildVanityAttributesCharts(artifactDirs, layout);
 
     expect(result.sinkCount).toBeUndefined();
     expect(result.vanityType).toBeUndefined();
+    expect(result.vanityPlacement).toBeUndefined();
   });
 
   it("should pass correct chart options to getPieChartConfig", () => {
@@ -361,6 +386,7 @@ describe("buildVanityAttributesCharts", () => {
       "1": 5
     });
     (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({});
 
     buildVanityAttributesCharts(artifactDirs, layout);
 
@@ -380,6 +406,93 @@ describe("buildVanityAttributesCharts", () => {
       expect(options.shrinkToLegend).toBe(true);
       expect(options.title).toBe("");
       expect(options.colors).toBeDefined();
+    }
+  });
+
+  it("should sort vanityPlacement entries where both are not in predefined order", () => {
+    const artifactDirs = ["/test/dir1"];
+    (getSinkCounts as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({
+      unknown1: 5,
+      unknown2: 10
+    });
+
+    buildVanityAttributesCharts(artifactDirs, layout);
+
+    const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+    const placementCall = pieChartCalls.find((call) => call[0] !== undefined);
+    expect(placementCall).toBeDefined();
+    if (placementCall !== undefined) {
+      const labels = placementCall[0] as string[];
+      expect(labels).toContain("unknown1");
+      expect(labels).toContain("unknown2");
+    }
+  });
+
+  it("should sort vanityPlacement entries where first is not in predefined order", () => {
+    const artifactDirs = ["/test/dir1"];
+    (getSinkCounts as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({
+      regular: 10,
+      unknown: 5
+    });
+
+    buildVanityAttributesCharts(artifactDirs, layout);
+
+    const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+    const placementCall = pieChartCalls.find((call) => call[0] !== undefined);
+    expect(placementCall).toBeDefined();
+    if (placementCall !== undefined) {
+      const labels = placementCall[0] as string[];
+      expect(labels[0]).toBe("regular");
+      expect(labels[labels.length - 1]).toBe("unknown");
+    }
+  });
+
+  it("should sort vanityPlacement entries where second is not in predefined order", () => {
+    const artifactDirs = ["/test/dir1"];
+    (getSinkCounts as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    // Use "unknown" first alphabetically to ensure sort comparison triggers indexB === notFoundIndex branch
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({
+      regular: 10,
+      unknown: 3
+    });
+
+    buildVanityAttributesCharts(artifactDirs, layout);
+
+    const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+    const placementCall = pieChartCalls.find((call) => call[0] !== undefined);
+    expect(placementCall).toBeDefined();
+    if (placementCall !== undefined) {
+      const labels = placementCall[0] as string[];
+      expect(labels[0]).toBe("regular");
+      expect(labels[labels.length - 1]).toBe("unknown");
+    }
+  });
+
+  it("should sort vanityPlacement with unknown coming before known alphabetically", () => {
+    const artifactDirs = ["/test/dir1"];
+    (getSinkCounts as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (getVanityTypes as ReturnType<typeof vi.fn>).mockReturnValue({});
+    // "aaa" comes before "corner" and "regular" alphabetically, ensuring the sort must reorder
+    (getVanityPlacements as ReturnType<typeof vi.fn>).mockReturnValue({
+      aaa: 3,
+      corner: 5
+    });
+
+    buildVanityAttributesCharts(artifactDirs, layout);
+
+    const pieChartCalls = (getPieChartConfig as ReturnType<typeof vi.fn>).mock.calls;
+    const placementCall = pieChartCalls.find((call) => call[0] !== undefined);
+    expect(placementCall).toBeDefined();
+    if (placementCall !== undefined) {
+      const labels = placementCall[0] as string[];
+      // "corner" should come first (in predefined order), then "aaa" (unknown)
+      expect(labels[0]).toBe("corner");
+      expect(labels[1]).toBe("aaa");
     }
   });
 });

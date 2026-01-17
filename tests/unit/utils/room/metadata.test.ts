@@ -170,6 +170,7 @@ describe("extractRawScanMetadata", () => {
       tubCount: 0,
       tubLengths: [],
       vanityLengths: [],
+      vanityPlacement: null,
       vanityType: null,
       wallAreas: [],
       wallCount: 4,

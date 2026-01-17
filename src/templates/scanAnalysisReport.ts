@@ -166,6 +166,9 @@ function buildScanReportSections(
     if (charts.vanityType !== undefined) {
       vanityAttributeCharts.push({ data: charts.vanityType, title: "Vanity Type" });
     }
+    if (charts.vanityPlacement !== undefined) {
+      vanityAttributeCharts.push({ data: charts.vanityPlacement, title: "Vanity Placement" });
+    }
 
     if (vanityAttributeCharts.length > initialCount) {
       sections.push({

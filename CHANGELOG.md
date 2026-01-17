@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-01-17
+
+### [v0.67.0] Vanity Placement Detection
+
+- Added corner vanity detection to distinguish regular (flush against wall) vanities from corner vanities (positioned diagonally).
+- Corner detection analyzes vanity bounding box edges against nearby wall orientations; if no edge is parallel to any wall within 15°, the vanity is classified as a corner placement.
+- New "Vanity Placement" pie chart shows regular vs corner distribution alongside the existing Number of Sinks and Vanity Type charts.
+- Extended metadata schema with `vanityPlacement` field and added `getVanityPlacement` extractor for aggregation.
+
 ## 2026-01-12
 
 ### [v0.66.1] Shape Overlay Polish and Scan Report Coverage

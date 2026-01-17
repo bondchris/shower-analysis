@@ -57,4 +57,5 @@ export interface CaptureCharts {
   vanityLength: ChartConfiguration;
   sinkCount: ChartConfiguration;
   vanityType: ChartConfiguration;
+  vanityPlacement: ChartConfiguration;
 }

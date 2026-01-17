@@ -89,6 +89,7 @@ export interface RawScanMetadata {
   wallsWithOpenings: number;
   // Vanity data
   vanityType: string | null;
+  vanityPlacement: "regular" | "corner" | null;
 }
 
 /**

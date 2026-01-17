@@ -81,7 +81,8 @@ export const REQUIRED_RAW_SCAN_METADATA_FIELDS: (keyof RawScanMetadata)[] = [
   "wallsWithWindows",
   "wallsWithDoors",
   "wallsWithOpenings",
-  "vanityType"
+  "vanityType",
+  "vanityPlacement"
 ];
 
 /**

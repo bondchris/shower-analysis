@@ -367,6 +367,12 @@ export const getSinkCounts = (dirs: string[]) => countByKey(dirs, (m) => m.sinkC
 export const getVanityTypes = (dirs: string[]) => countByKey(dirs, (m) => m.vanityType ?? null);
 
 /**
+ * Extracts vanity placement classifications from metadata files.
+ * Returns a record mapping vanity placement ("regular" or "corner") to number of scans.
+ */
+export const getVanityPlacements = (dirs: string[]) => countByKey(dirs, (m) => m.vanityPlacement ?? null);
+
+/**
  * Extracts door isOpen values from raw scan files.
  * Returns a record mapping isOpen values (as strings) to their counts.
  */
