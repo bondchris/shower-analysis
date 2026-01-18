@@ -88,6 +88,7 @@ npm run discard
 - Detects date mismatches between API scan dates and video creation metadata (> 24 hours difference).
 - Flags black frame stretches with ffmpeg `blackdetect` (>= 0.25s, 98%+ black pixels) and reports them without discarding the video.
 - Flags stray `avcC` bytes before the primary video header and reports affected artifacts as header anomalies.
+- The discard pipeline is modularized into phases (clean, filter, duplicates, mismatch) that share a normalized config for consistent defaults, dry-run handling, concurrency, and persistence paths.
 - Respects `DRY_RUN=1` and `BATHROOM_FILTER_CONCURRENCY` to control write behavior and parallelism.
 
 **Output**:

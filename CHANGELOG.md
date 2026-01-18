@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## 2026-01-18
 
+### [v0.68.2] Discard Pipeline Modular Config (Maintenance)
+
+- Split discard pipeline into dedicated phase modules (clean, filter, duplicates, mismatch) with a shared normalized config for consistent defaults, environment overrides, and persistence.
+- Centralized config builder for DRY handling of dataDir, dryRun/save flags, concurrency, file paths, and injected services (fs/ffprobe/logger/Gemini).
+- Kept public phase exports intact for reuse while reducing duplicate env checks and ensuring video hash persistence flows through the normalized config.
+
 ### [v0.68.1] Validation Report Modularization (Maintenance)
 
 - Refactored validation report generation into reusable chart and section helpers, improving testability and reuse across reports.

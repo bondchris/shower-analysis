@@ -1462,6 +1462,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "0d9c3349-5269-45c1-8d63-d79686966a45": {
+    "cleanedDate": "2026-01-18T06:05:21.634Z",
+    "filteredDate": "2026-01-18T06:05:37.647Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-18T06:05:39.130Z",
+    "blackFrameCheckedDate": "2026-01-18T06:05:39.921Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-18T06:05:39.925Z",
+    "avcAnomalyDetected": false
+  },
   "0da09bb3-5a46-4d75-9bee-cfba997852f3": {
     "filteredDate": "2025-12-08T07:44:03.526Z",
     "filteredModel": "gemini-3-pro-preview",

@@ -110,8 +110,7 @@ export async function processArtifact(
   };
 
   const JSON_INDENT = 2;
-
-  const ZERO = 0;
+  const MIN_URL_LENGTH = 1;
   const sanitizeId = (id: string) => id.replace(/[^a-z0-9_-]/gi, "_");
 
   // Hardened check for badScans
@@ -128,11 +127,11 @@ export async function processArtifact(
 
   const hasAllFiles =
     typeof video === "string" &&
-    video.length > ZERO &&
+    video.length >= MIN_URL_LENGTH &&
     typeof rawScan === "string" &&
-    rawScan.length > ZERO &&
+    rawScan.length >= MIN_URL_LENGTH &&
     typeof arData === "string" &&
-    arData.length > ZERO;
+    arData.length >= MIN_URL_LENGTH;
 
   if (hasAllFiles) {
     // Sanitize ID for path safety
@@ -176,7 +175,7 @@ export async function processArtifact(
     ];
 
     // Download optional files if present
-    if (typeof pointCloud === "string" && pointCloud.length > ZERO) {
+    if (typeof pointCloud === "string" && pointCloud.length >= MIN_URL_LENGTH) {
       downloadPromises.push(
         downloadFile(pointCloud, path.join(artifactDir, "pointCloud.ply"), "pointCloud").then((err) => {
           if (err !== null) {
@@ -188,7 +187,7 @@ export async function processArtifact(
       );
     }
 
-    if (typeof initialLayout === "string" && initialLayout.length > ZERO) {
+    if (typeof initialLayout === "string" && initialLayout.length >= MIN_URL_LENGTH) {
       downloadPromises.push(
         downloadFile(initialLayout, path.join(artifactDir, "initialLayout.png"), "initialLayout").then((err) => {
           if (err !== null) {

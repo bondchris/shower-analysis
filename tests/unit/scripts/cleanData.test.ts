@@ -38,7 +38,7 @@ type BadScansMap = Record<string, BadScanEntry>;
 type CheckedScansMap = Record<string, CheckedScanEntry>;
 
 // Type helper for ffprobe mock
-type FfprobeCallback = (err: unknown, data?: { format?: { duration?: number | string } }) => void;
+type FfprobeCallback = (err: Error | null, data?: { format?: { duration?: number | string } }) => void;
 
 describe("discard clean phase", () => {
   // Ffmpeg mock
