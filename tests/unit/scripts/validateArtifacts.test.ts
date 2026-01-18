@@ -280,6 +280,55 @@ describe("validateArtifacts script", () => {
         { id: "test-id", missingFields: ["video", "rawScan", "arData"] }
       ]);
     });
+
+    it("treats null id as missing and records the issue", () => {
+      const artifact = createArtifact({ id: null } as unknown as Partial<ArtifactResponse>);
+
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.artifactsWithIssues).toBe(1);
+      expect(stats.missingCounts).toHaveProperty("id", 1);
+      expect(stats.propertyCounts["id"]).toBeUndefined();
+    });
+
+    it("handles empty strings as present fields", () => {
+      const artifact = createArtifact({
+        arData: "",
+        rawScan: "",
+        video: ""
+      } as unknown as Partial<ArtifactResponse>);
+
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.artifactsWithIssues).toBe(0);
+      expect(stats.cleanScansByDate).toHaveProperty("2025-12-14", 1);
+      expect(stats.propertyCounts["video"]).toBe(1);
+      expect(stats.propertyCounts["rawScan"]).toBe(1);
+      expect(stats.propertyCounts["arData"]).toBe(1);
+    });
+
+    it("ignores date-based aggregates when scanDate is an empty string", () => {
+      const artifact = createArtifact({
+        scanDate: ""
+      } as unknown as Partial<ArtifactResponse>);
+
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.processed).toBe(1);
+      expect(Object.keys(stats.totalScansByDate).length).toBe(0);
+      expect(Object.keys(stats.cleanScansByDate).length).toBe(0);
+    });
+
+    it("counts invalid rawScan JSON as a processed artifact without throwing", () => {
+      const artifact = createArtifact({
+        rawScan: "not-valid-json"
+      } as unknown as Partial<ArtifactResponse>);
+
+      applyArtifactToStats(stats, artifact);
+
+      expect(stats.processed).toBe(1);
+      expect(stats.cleanScansByDate).toHaveProperty("2025-12-14", 1);
+    });
   });
 
   describe("validateEnvironment", () => {

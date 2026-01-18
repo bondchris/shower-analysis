@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EnvStats } from "../../../src/models/envStats";
-import { buildValidationReport } from "../../../src/templates/validationReport";
+import {
+  buildChartSections,
+  buildIdListSections,
+  buildSummaryTableSection,
+  buildValidationReport,
+  generateValidationCharts
+} from "../../../src/templates/validationReport";
 import { getBarChartConfig, getLineChartConfig, getMixedChartConfig } from "../../../src/utils/chart/configBuilders";
 import { logger } from "../../../src/utils/logger";
 import * as dateRangeModule from "../../../src/utils/chart/dateRange";
@@ -660,5 +666,132 @@ describe("buildValidationReport", () => {
     );
 
     lineChartMock.mockImplementation(originalLineImplementation);
+  });
+
+  describe("extracted helpers", () => {
+    it("buildSummaryTableSection sorts by total artifacts and returns headers", () => {
+      const stats: EnvStats[] = [
+        {
+          artifactsWithIssues: 1,
+          artifactsWithWarnings: 0,
+          cleanScansByDate: {},
+          errorsByDate: {},
+          invalidScanDateDetails: [],
+          missingCounts: {},
+          missingProjectIdIds: [],
+          missingRequiredArtifacts: [],
+          name: "EnvSmall",
+          pageErrors: {},
+          processed: 10,
+          propertyCounts: {},
+          propertyCountsByDate: {},
+          totalArtifacts: 10,
+          totalScansByDate: {},
+          warningCounts: {},
+          warningsByDate: {}
+        },
+        {
+          artifactsWithIssues: 0,
+          artifactsWithWarnings: 0,
+          cleanScansByDate: {},
+          errorsByDate: {},
+          invalidScanDateDetails: [],
+          missingCounts: {},
+          missingProjectIdIds: [],
+          missingRequiredArtifacts: [],
+          name: "EnvLarge",
+          pageErrors: {},
+          processed: 100,
+          propertyCounts: {},
+          propertyCountsByDate: {},
+          totalArtifacts: 100,
+          totalScansByDate: {},
+          warningCounts: {},
+          warningsByDate: {}
+        }
+      ];
+
+      const { section, sortedStats } = buildSummaryTableSection(stats);
+      const sectionOptions = section.options as { headers?: string[] } | undefined;
+      const headers = sectionOptions?.headers ?? [];
+      const processedRow = (section.data as string[][]).find((row) => row[0] === "Processed Artifacts");
+
+      expect(sortedStats[0]?.name).toBe("EnvLarge");
+      expect(headers).toEqual(["", "EnvLarge", "EnvSmall", "Total"]);
+      expect(processedRow?.[1]).toContain("100");
+    });
+
+    it("buildIdListSections outputs lists in consistent order", () => {
+      const stats: EnvStats[] = [
+        {
+          artifactsWithIssues: 0,
+          artifactsWithWarnings: 0,
+          cleanScansByDate: {},
+          errorsByDate: {},
+          invalidScanDateDetails: [{ id: "bad-date", scanDate: "0001-01-01T00:00:00Z" }],
+          missingCounts: {},
+          missingProjectIdIds: ["missing-project"],
+          missingRequiredArtifacts: [{ id: "missing-artifacts", missingFields: ["video", "rawScan"] }],
+          name: "EnvWithIssues",
+          pageErrors: {},
+          processed: 0,
+          propertyCounts: {},
+          propertyCountsByDate: {},
+          totalArtifacts: 0,
+          totalScansByDate: {},
+          warningCounts: {},
+          warningsByDate: {}
+        }
+      ];
+
+      const { sortedStats } = buildSummaryTableSection(stats);
+      const sections = buildIdListSections(sortedStats);
+      const titles = sections.map((section) => section.title ?? "").filter((title) => title !== "");
+
+      expect(titles).toEqual([
+        "Invalid scanDate",
+        "Invalid scanDate - EnvWithIssues",
+        "Missing projectId",
+        "Missing projectId - EnvWithIssues",
+        "Missing Required Properties",
+        "Missing Required Properties - EnvWithIssues"
+      ]);
+    });
+
+    it("generateValidationCharts returns chart configs when data exists", () => {
+      const stats: EnvStats[] = [
+        {
+          artifactsWithIssues: 0,
+          artifactsWithWarnings: 0,
+          cleanScansByDate: { "2023-01-01": 1 },
+          errorsByDate: {},
+          invalidScanDateDetails: [],
+          missingCounts: {},
+          missingProjectIdIds: [],
+          missingRequiredArtifacts: [],
+          name: "Env",
+          pageErrors: {},
+          processed: 1,
+          propertyCounts: { video: 1 },
+          propertyCountsByDate: { "2023-01-01": { video: 1 } },
+          totalArtifacts: 1,
+          totalScansByDate: { "2023-01-01": 1 },
+          warningCounts: {},
+          warningsByDate: {}
+        }
+      ];
+
+      const charts = generateValidationCharts(stats);
+      const sections = buildChartSections(charts);
+      const titles = sections.map((section) => section.title);
+
+      expect(charts.propertyPresence).toEqual({ type: "bar" });
+      expect(titles).toContain("Property Presence");
+    });
+
+    it("buildChartSections filters out undefined chart entries", () => {
+      const sections = buildChartSections({});
+      expect(sections).toHaveLength(0);
+    });
   });
 });

@@ -6,6 +6,11 @@ import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
 import { generatePdfReport } from "../utils/reportGenerator";
 
+interface EnvironmentConfig {
+  domain: string;
+  name: string;
+}
+
 const getValidDateKey = (scanDate: unknown): string | null => {
   const DATE_PART_INDEX = 0;
 
@@ -131,33 +136,105 @@ export function applyArtifactToStats(stats: EnvStats, item: ArtifactResponse): v
   }
 }
 
-export async function validateEnvironment(env: { domain: string; name: string }): Promise<EnvStats> {
-  const PAGE_START = 1;
-  const NO_PAGES_LEFT = 0;
-  const CONCURRENCY_LIMIT = 5;
-  const NO_ITEMS = 0;
+const createInitialStats = (envName: string): EnvStats => ({
+  artifactsWithIssues: 0,
+  artifactsWithWarnings: 0,
+  cleanScansByDate: {},
+  errorsByDate: {},
+  invalidScanDateDetails: [],
+  missingCounts: {},
+  missingProjectIdIds: [],
+  missingRequiredArtifacts: [],
+  name: envName,
+  pageErrors: {},
+  processed: 0,
+  propertyCounts: {},
+  propertyCountsByDate: {},
+  totalArtifacts: 0,
+  totalScansByDate: {},
+  warningCounts: {},
+  warningsByDate: {}
+});
 
-  logger.info(`Starting validation for: ${env.name} (${env.domain})`);
-  const stats: EnvStats = {
-    artifactsWithIssues: 0,
-    artifactsWithWarnings: 0,
-    cleanScansByDate: {},
-    errorsByDate: {},
-    invalidScanDateDetails: [],
-    missingCounts: {},
-    missingProjectIdIds: [],
-    missingRequiredArtifacts: [],
-    name: env.name,
-    pageErrors: {},
-    processed: 0,
-    propertyCounts: {},
-    propertyCountsByDate: {},
-    totalArtifacts: 0,
-    totalScansByDate: {},
-    warningCounts: {},
-    warningsByDate: {}
+const applyPageArtifacts = (stats: EnvStats, data: ArtifactResponse[]): void => {
+  for (const item of data) {
+    applyArtifactToStats(stats, item);
+  }
+};
+
+const buildRemainingPages = (lastPage: number): number[] => {
+  const PAGE_START = 1;
+  const NEXT_PAGE_OFFSET = 1;
+  const NO_PAGES = 0;
+  const pagesRemaining = lastPage - PAGE_START;
+  const startPage = PAGE_START + NEXT_PAGE_OFFSET;
+  return Array.from({ length: pagesRemaining > NO_PAGES ? pagesRemaining : NO_PAGES }, (_, i) => i + startPage);
+};
+
+const processPage = async (service: SpatialService, stats: EnvStats, pageNum: number): Promise<void> => {
+  try {
+    const res = await service.fetchScanArtifacts(pageNum);
+    applyPageArtifacts(stats, res.data);
+  } catch (e: unknown) {
+    logger.error(`Error fetching page ${pageNum.toString()}: ${e instanceof Error ? e.message : String(e)}`);
+    stats.pageErrors[pageNum] = e instanceof Error ? e.message : String(e);
+  }
+};
+
+const processRemainingPages = async (
+  service: SpatialService,
+  stats: EnvStats,
+  pages: number[],
+  concurrencyLimit: number
+): Promise<void> => {
+  const NO_PAGES_LEFT = 0;
+  const NO_ITEMS = 0;
+  const activePromises = new Set<Promise<void>>();
+  const totalToProcess = pages.length;
+
+  const bar = createProgressBar("Validation |{bar}| {percentage}% | {value}/{total} Pages | ETA: {eta}s");
+  const INITIAL_PROGRESS = 0;
+  bar.start(totalToProcess, INITIAL_PROGRESS);
+
+  const scheduleNext = () => {
+    const pageNum = pages.shift();
+    if (pageNum === undefined) {
+      return;
+    }
+    const promise = processPage(service, stats, pageNum)
+      .catch(() => {
+        /* error already recorded */
+      })
+      .finally(() => {
+        bar.increment();
+        activePromises.delete(promise);
+      });
+    activePromises.add(promise);
   };
 
+  while (activePromises.size < concurrencyLimit && pages.length > NO_PAGES_LEFT) {
+    scheduleNext();
+  }
+
+  while (pages.length > NO_PAGES_LEFT) {
+    if (activePromises.size === NO_ITEMS) {
+      scheduleNext();
+      continue;
+    }
+    await Promise.race(activePromises);
+    scheduleNext();
+  }
+
+  await Promise.all(activePromises);
+  bar.stop();
+};
+
+export async function validateEnvironment(env: EnvironmentConfig): Promise<EnvStats> {
+  const PAGE_START = 1;
+  const CONCURRENCY_LIMIT = 5;
+
+  logger.info(`Starting validation for: ${env.name} (${env.domain})`);
+  const stats = createInitialStats(env.name);
   const service = new SpatialService(env.domain, env.name);
 
   try {
@@ -168,69 +245,10 @@ export async function validateEnvironment(env: { domain: string; name: string })
 
     logger.info(`Total artifacts to process: ${stats.totalArtifacts.toString()} (Pages: ${lastPage.toString()})`);
 
-    // Process initial page artifacts immediately
-    for (const item of initialRes.data) {
-      applyArtifactToStats(stats, item);
-    }
+    applyPageArtifacts(stats, initialRes.data);
 
-    // Determine remaining pages to fetch
-    const NEXT_PAGE_OFFSET = 1;
-    const startPage = PAGE_START + NEXT_PAGE_OFFSET;
-    const NO_PAGES = 0;
-    const pagesRemaining = lastPage - PAGE_START;
-    const pages = Array.from(
-      { length: pagesRemaining > NO_PAGES ? pagesRemaining : NO_PAGES },
-      (_, i) => i + startPage
-    );
-
-    const activePromises = new Set<Promise<void>>();
-    const totalToProcess = pages.length;
-
-    const bar = createProgressBar("Validation |{bar}| {percentage}% | {value}/{total} Pages | ETA: {eta}s");
-    const INITIAL_PROGRESS = 0;
-    bar.start(totalToProcess, INITIAL_PROGRESS);
-
-    const processPage = async (pageNum: number) => {
-      try {
-        const res = await service.fetchScanArtifacts(pageNum);
-
-        for (const item of res.data) {
-          applyArtifactToStats(stats, item);
-        }
-      } catch (e: unknown) {
-        logger.error(`Error fetching page ${pageNum.toString()}: ${e instanceof Error ? e.message : String(e)}`);
-        stats.pageErrors[pageNum] = e instanceof Error ? e.message : String(e);
-      } finally {
-        bar.increment();
-      }
-    };
-
-    while (pages.length > NO_PAGES_LEFT) {
-      while (activePromises.size < CONCURRENCY_LIMIT && pages.length > NO_PAGES_LEFT) {
-        const pageNum = pages.shift();
-        if (pageNum !== undefined) {
-          const promise = processPage(pageNum);
-          activePromises.add(promise);
-          // Remove from set when done
-          promise
-            .finally(() => {
-              activePromises.delete(promise);
-            })
-            .catch(() => {
-              /* no-op */
-            });
-        }
-      }
-
-      if (activePromises.size > NO_ITEMS && pages.length > NO_PAGES_LEFT) {
-        await Promise.race(activePromises);
-      }
-    }
-
-    // Wait for remaining
-    await Promise.all(activePromises);
-    bar.stop();
-
+    const pages = buildRemainingPages(lastPage);
+    await processRemainingPages(service, stats, pages, CONCURRENCY_LIMIT);
     logger.info(`${env.name} complete.`);
   } catch (error: unknown) {
     logger.error(`Failed to fetch from ${env.name}: ${error instanceof Error ? error.message : String(error)}`);
@@ -253,7 +271,7 @@ export async function generateReport(allStats: EnvStats[]) {
 export async function main() {
   const allStats: EnvStats[] = [];
   for (const env of ENVIRONMENTS) {
-    const stats = await validateEnvironment(env as { domain: string; name: string });
+    const stats = await validateEnvironment(env);
     allStats.push(stats);
   }
   await generateReport(allStats);

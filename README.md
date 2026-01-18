@@ -39,6 +39,8 @@ Reports are prefixed with their pipeline stage for quick context: `0 - Validatio
 ### 0. Validate Artifacts
 
 Check for the existence of critical properties (`rawScan`, `arData`, `video`) and generate an error trend report.
+The validation report builder now uses reusable chart/table helpers with dedicated unit tests to keep the
+summary tables, charts, and issue lists consistent across releases.
 
 ```bash
 npm run validate

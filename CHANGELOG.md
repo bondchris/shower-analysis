@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-01-18
+
+### [v0.68.1] Validation Report Modularization (Maintenance)
+
+- Refactored validation report generation into reusable chart and section helpers, improving testability and reuse across reports.
+- Hardened validation script by splitting pagination, page processing, and aggregation, plus added edge-case tests for artifact stats.
+- Updated unit tests to cover new helpers and validation edge cases, keeping the pipeline ready for release.
+
 ## 2026-01-17
 
 ### [v0.68.0] Ceiling Analysis and Wall Shape Classification
