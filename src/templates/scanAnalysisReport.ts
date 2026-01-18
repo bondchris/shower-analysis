@@ -11,7 +11,14 @@ import { buildWallEmbeddedPieCharts } from "./dataAnalysisReport/charts/wallEmbe
 import { computeLayoutConstants } from "./dataAnalysisReport/layout";
 import { buildDynamicKde } from "./dataAnalysisReport/kdeBounds";
 import { CaptureCharts } from "./dataAnalysisReport/types";
-import { getLineChartConfig } from "../utils/chart/configBuilders";
+import { getLineChartConfig, getShapeOverlayChartConfig } from "../utils/chart/configBuilders";
+import { filterValidOutlines, sampleOutlines } from "../utils/chart/shapeOverlay";
+import {
+  convertLengthsToFeet,
+  getCeilingHeightDifferences,
+  getNotchedWallOutlines,
+  getSlantedWallOutlines
+} from "../utils/data/rawScanExtractor";
 
 function buildAreaKdeChart(metadataList: ArtifactAnalysis[]): ChartConfiguration {
   const layout = computeLayoutConstants();
@@ -46,6 +53,96 @@ function buildAreaKdeChart(metadataList: ArtifactAnalysis[]): ChartConfiguration
   );
 }
 
+function buildCeilingHeightDifferenceChart(artifactDirs: string[]): ChartConfiguration {
+  const layout = computeLayoutConstants();
+  const ceilingHeightDifferencesM = getCeilingHeightDifferences(artifactDirs);
+  const ceilingHeightDifferencesFt = convertLengthsToFeet(ceilingHeightDifferencesM);
+
+  const ceilingHeightDifferenceInitialMin = 0;
+  const ceilingHeightDifferenceInitialMax = 10;
+  const ceilingHeightDifferenceKdeResolution = 200;
+  const { kde: ceilingHeightDifferenceKde } = buildDynamicKde(
+    ceilingHeightDifferencesFt,
+    ceilingHeightDifferenceInitialMin,
+    ceilingHeightDifferenceInitialMax,
+    ceilingHeightDifferenceKdeResolution
+  );
+
+  return getLineChartConfig(
+    ceilingHeightDifferenceKde.labels,
+    [
+      {
+        borderColor: "#6366f1",
+        borderWidth: 2,
+        data: ceilingHeightDifferenceKde.values,
+        fill: true,
+        label: "Density"
+      }
+    ],
+    {
+      chartId: "ceilingHeightDifference",
+      height: layout.HALF_CHART_HEIGHT,
+      smooth: true,
+      title: "",
+      width: layout.FULL_CHART_WIDTH,
+      xLabel: "ft",
+      yLabel: "Count"
+    }
+  );
+}
+
+function buildSlantedWallShapesChart(artifactDirs: string[]): ChartConfiguration | undefined {
+  const layout = computeLayoutConstants();
+  const slantedWallOutlines = getSlantedWallOutlines(artifactDirs);
+
+  const minOutlines = 0;
+  const validOutlines = filterValidOutlines(slantedWallOutlines);
+  if (validOutlines.length === minOutlines) {
+    return undefined;
+  }
+
+  const aspectRatioSizeDivisor = 2.3;
+  const chartSize = Math.round(layout.FULL_CHART_WIDTH / aspectRatioSizeDivisor);
+  const strokeOpacity = 0.22;
+  const maxOutlines = 400;
+
+  const sampledOutlines = sampleOutlines(validOutlines, maxOutlines);
+
+  return getShapeOverlayChartConfig(sampledOutlines, {
+    chartId: "slantedWallShapes",
+    height: chartSize,
+    strokeColor: "#ef4444",
+    strokeOpacity,
+    width: chartSize
+  });
+}
+
+function buildNotchedWallShapesChart(artifactDirs: string[]): ChartConfiguration | undefined {
+  const layout = computeLayoutConstants();
+  const notchedWallOutlines = getNotchedWallOutlines(artifactDirs);
+
+  const minOutlines = 0;
+  const validOutlines = filterValidOutlines(notchedWallOutlines);
+  if (validOutlines.length === minOutlines) {
+    return undefined;
+  }
+
+  const aspectRatioSizeDivisor = 2.3;
+  const chartSize = Math.round(layout.FULL_CHART_WIDTH / aspectRatioSizeDivisor);
+  const strokeOpacity = 0.22;
+  const maxOutlines = 400;
+
+  const sampledOutlines = sampleOutlines(validOutlines, maxOutlines);
+
+  return getShapeOverlayChartConfig(sampledOutlines, {
+    chartId: "notchedWallShapes",
+    height: chartSize,
+    strokeColor: "#ef4444",
+    strokeOpacity,
+    width: chartSize
+  });
+}
+
 function buildScanCharts(metadataList: ArtifactAnalysis[], artifactDirs?: string[]): Partial<CaptureCharts> {
   const layout = computeLayoutConstants();
   const charts: Partial<CaptureCharts> = {};
@@ -61,6 +158,15 @@ function buildScanCharts(metadataList: ArtifactAnalysis[], artifactDirs?: string
     Object.assign(charts, buildWallEmbeddedPieCharts(artifactDirs, layout));
     Object.assign(charts, buildVanityAttributesCharts(artifactDirs, layout));
     Object.assign(charts, buildSurfaceShapeCharts(artifactDirs, layout));
+    charts.ceilingHeightDifference = buildCeilingHeightDifferenceChart(artifactDirs);
+    const slantedWallShapes = buildSlantedWallShapesChart(artifactDirs);
+    if (slantedWallShapes !== undefined) {
+      charts.slantedWallShapes = slantedWallShapes;
+    }
+    const notchedWallShapes = buildNotchedWallShapesChart(artifactDirs);
+    if (notchedWallShapes !== undefined) {
+      charts.notchedWallShapes = notchedWallShapes;
+    }
   }
 
   return charts;
@@ -496,6 +602,48 @@ function buildScanReportSections(
         sections.push({
           data: charts.openingShapes,
           title: "Opening Shapes",
+          type: "chart"
+        });
+      }
+    }
+  }
+
+  // Ceiling Analysis Subsection
+  if (artifactDirs !== undefined) {
+    sections.push({
+      data: "",
+      level: 3,
+      title: "Ceiling Analysis",
+      type: "header"
+    });
+
+    if (charts.ceilingHeightDifference !== undefined) {
+      sections.push({
+        data: charts.ceilingHeightDifference,
+        title: "Maximum Difference in Ceiling Height",
+        type: "chart"
+      });
+    }
+
+    if (charts.slantedWallShapes !== undefined || charts.notchedWallShapes !== undefined) {
+      if (charts.slantedWallShapes !== undefined && charts.notchedWallShapes !== undefined) {
+        sections.push({
+          data: [
+            { data: charts.slantedWallShapes, title: "Slanted Wall Shapes" },
+            { data: charts.notchedWallShapes, title: "Notched Wall Shapes" }
+          ],
+          type: "chart-row"
+        });
+      } else if (charts.slantedWallShapes !== undefined) {
+        sections.push({
+          data: charts.slantedWallShapes,
+          title: "Slanted Wall Shapes",
+          type: "chart"
+        });
+      } else if (charts.notchedWallShapes !== undefined) {
+        sections.push({
+          data: charts.notchedWallShapes,
+          title: "Notched Wall Shapes",
           type: "chart"
         });
       }

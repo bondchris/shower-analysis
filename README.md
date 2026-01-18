@@ -13,7 +13,10 @@ This project provides a suite of scripts to validate, sync, inspect, clean, and 
 
 It identifies data integrity issues, generates visual reports, classifies video content using AI, and maintains a clean local dataset.
 
-The Scan Analysis report pairs aspect ratio scatter plots with surface shape overlays (floors, walls, windows, doors, and openings) to visualize silhouette diversity at a common scale.
+The Scan Analysis report pairs aspect ratio scatter plots with surface shape overlays (floors, walls, windows,
+doors, and openings) to visualize silhouette diversity at a common scale. It also includes ceiling analysis
+with height difference distributions and classified wall shapes (slanted vs notched) to identify
+architectural variations.
 
 ## Prerequisites
 

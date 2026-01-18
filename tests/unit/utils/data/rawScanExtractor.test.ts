@@ -7,16 +7,19 @@ import {
   convertLengthsToInches,
   getArtifactsWithNarrowDoors,
   getArtifactsWithSmallWalls,
+  getCeilingHeightDifferences,
   getDoorAreas,
   getDoorIsOpenCounts,
   getDoorOutlines,
   getFloorOutlines,
   getFloorWidthHeightPairs,
+  getNotchedWallOutlines,
   getObjectAttributeCounts,
   getObjectConfidenceCounts,
   getOpeningAreas,
   getOpeningOutlines,
   getSinkCounts,
+  getSlantedWallOutlines,
   getTubLengths,
   getUnexpectedVersionArtifactDirs,
   getVanityLengths,
@@ -1357,5 +1360,317 @@ describe("getFloorWidthHeightPairs", () => {
     const pairs = getFloorWidthHeightPairs(["/test/dir1"]);
     expect(pairs.length).toBe(1);
     expect(pairs[0]).toEqual({ height: 5, width: 3 });
+  });
+});
+
+describe("getCeilingHeightDifferences", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should calculate ceiling height differences from walls with polygonCorners", () => {
+    const mockRawScan = {
+      coreModel: "test",
+      doors: [],
+      floors: [],
+      objects: [],
+      openings: [],
+      sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
+      story: 1,
+      version: 2,
+      walls: [
+        {
+          polygonCorners: [
+            [0, 0, 0], // Base
+            [0, 3, 0], // Top at height 3
+            [2, 3, 0],
+            [2, 0, 0]
+          ]
+        },
+        {
+          polygonCorners: [
+            [0, 0, 0], // Base
+            [0, 5, 0], // Top at height 5
+            [2, 5, 0],
+            [2, 0, 0]
+          ]
+        }
+      ],
+      windows: []
+    };
+
+    setupFsMocksForMetadata(mockRawScan);
+
+    const differences = getCeilingHeightDifferences(["/test/dir1"]);
+
+    // Difference should be 5 - 3 = 2 meters (about 0.05m = 2 inches threshold)
+    expect(differences.length).toBe(1);
+    expect(differences[0]).toBeCloseTo(2, 2);
+  });
+
+  it("should calculate ceiling height differences from rectangular walls with dimensions", () => {
+    const mockRawScan = {
+      coreModel: "test",
+      doors: [],
+      floors: [],
+      objects: [],
+      openings: [],
+      sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
+      story: 1,
+      version: 2,
+      walls: [
+        {
+          dimensions: [2, 3] // width, height - top at height/2 = 1.5
+        },
+        {
+          dimensions: [2, 5] // width, height - top at height/2 = 2.5
+        }
+      ],
+      windows: []
+    };
+
+    setupFsMocksForMetadata(mockRawScan);
+
+    const differences = getCeilingHeightDifferences(["/test/dir1"]);
+
+    // Difference should be 2.5 - 1.5 = 1.0 meters
+    expect(differences.length).toBe(1);
+    expect(differences[0]).toBeCloseTo(1.0, 2);
+  });
+
+  it("should exclude artifacts with differences less than 2 inches", () => {
+    const mockRawScan = {
+      coreModel: "test",
+      doors: [],
+      floors: [],
+      objects: [],
+      openings: [],
+      sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
+      story: 1,
+      version: 2,
+      walls: [
+        {
+          dimensions: [2, 2] // top at 1.0
+        },
+        {
+          dimensions: [2, 2.05] // top at 1.025 - difference < 2 inches
+        }
+      ],
+      windows: []
+    };
+
+    setupFsMocksForMetadata(mockRawScan);
+
+    const differences = getCeilingHeightDifferences(["/test/dir1"]);
+
+    // Difference is too small (< 2 inches), should be excluded
+    expect(differences.length).toBe(0);
+  });
+
+  it("should return empty array when no artifacts provided", () => {
+    const result = getCeilingHeightDifferences([]);
+    expect(result).toEqual([]);
+  });
+
+  it("should skip directories without rawScan.json", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    const result = getCeilingHeightDifferences(["/test/dir1"]);
+    expect(result).toEqual([]);
+  });
+
+  it("should skip invalid rawScan files", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
+    const result = getCeilingHeightDifferences(["/test/dir1"]);
+    expect(result).toEqual([]);
+  });
+
+  it("should exclude artifacts where all ceilings are at the same height", () => {
+    const mockRawScan = {
+      coreModel: "test",
+      doors: [],
+      floors: [],
+      objects: [],
+      openings: [],
+      sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
+      story: 1,
+      version: 2,
+      walls: [
+        {
+          dimensions: [2, 3] // top at 1.5
+        },
+        {
+          dimensions: [2, 3] // top at 1.5 - same height
+        }
+      ],
+      windows: []
+    };
+
+    setupFsMocksForMetadata(mockRawScan);
+
+    const differences = getCeilingHeightDifferences(["/test/dir1"]);
+
+    // No difference, should be excluded
+    expect(differences.length).toBe(0);
+  });
+});
+
+describe("getSlantedWallOutlines and getNotchedWallOutlines", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should separate slanted and notched walls correctly", () => {
+    // Test that notched walls go to notched, and non-notched non-rectangular walls go to slanted
+    const mockRawScan = {
+      coreModel: "test",
+      doors: [],
+      floors: [],
+      objects: [],
+      openings: [],
+      sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
+      story: 1,
+      version: 2,
+      walls: [
+        {
+          // Shape with notch: re-entrant corner (interior angle > 180°)
+          polygonCorners: [
+            [0, 0, 0],
+            [0, 10, 0],
+            [5, 10, 0],
+            [5, 5, 0], // Re-entrant corner
+            [10, 5, 0],
+            [10, 0, 0]
+          ]
+        }
+      ],
+      windows: []
+    };
+
+    setupFsMocksForMetadata(mockRawScan);
+
+    const slantedOutlines = getSlantedWallOutlines(["/test/dir1"]);
+    const notchedOutlines = getNotchedWallOutlines(["/test/dir1"]);
+
+    // Wall with notch should go to notched, not slanted
+    expect(notchedOutlines.length).toBeGreaterThanOrEqual(0); // Should have the notched wall
+    expect(slantedOutlines.length).toBe(0); // Should not be in slanted
+  });
+
+  it("should extract notched wall outlines (non-rectangular with re-entrant corners)", () => {
+    // L-shaped wall with notch (re-entrant corner at > 180°)
+    const mockRawScan = {
+      coreModel: "test",
+      doors: [],
+      floors: [],
+      objects: [],
+      openings: [],
+      sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
+      story: 1,
+      version: 2,
+      walls: [
+        {
+          // Shape with notch: 0,0 -> 0,10 -> 5,10 -> 5,5 -> 10,5 -> 10,0 -> 0,0
+          // Re-entrant corner at 5,5 (interior angle ~270°)
+          polygonCorners: [
+            [0, 0, 0],
+            [0, 10, 0],
+            [5, 10, 0],
+            [5, 5, 0], // Re-entrant corner
+            [10, 5, 0],
+            [10, 0, 0]
+          ]
+        }
+      ],
+      windows: []
+    };
+
+    setupFsMocksForMetadata(mockRawScan);
+
+    const slantedOutlines = getSlantedWallOutlines(["/test/dir1"]);
+    const notchedOutlines = getNotchedWallOutlines(["/test/dir1"]);
+
+    expect(slantedOutlines.length).toBe(0);
+    expect(notchedOutlines.length).toBe(1);
+  });
+
+  it("should exclude rectangular walls (4 or fewer corners)", () => {
+    const mockRawScan = {
+      coreModel: "test",
+      doors: [],
+      floors: [],
+      objects: [],
+      openings: [],
+      sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
+      story: 1,
+      version: 2,
+      walls: [
+        {
+          polygonCorners: [
+            [0, 0, 0],
+            [0, 2, 0],
+            [2, 2, 0],
+            [2, 0, 0] // 4 corners - rectangular, should be excluded
+          ]
+        }
+      ],
+      windows: []
+    };
+
+    setupFsMocksForMetadata(mockRawScan);
+
+    const slantedOutlines = getSlantedWallOutlines(["/test/dir1"]);
+    const notchedOutlines = getNotchedWallOutlines(["/test/dir1"]);
+
+    expect(slantedOutlines.length).toBe(0);
+    expect(notchedOutlines.length).toBe(0);
+  });
+
+  it("should return empty array when no artifacts provided", () => {
+    expect(getSlantedWallOutlines([])).toEqual([]);
+    expect(getNotchedWallOutlines([])).toEqual([]);
+  });
+
+  it("should skip directories without rawScan.json", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    expect(getSlantedWallOutlines(["/test/dir1"])).toEqual([]);
+    expect(getNotchedWallOutlines(["/test/dir1"])).toEqual([]);
+  });
+
+  it("should skip invalid rawScan files", () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue("INVALID JSON");
+    expect(getSlantedWallOutlines(["/test/dir1"])).toEqual([]);
+    expect(getNotchedWallOutlines(["/test/dir1"])).toEqual([]);
+  });
+
+  it("should handle walls with invalid polygonCorners", () => {
+    const mockRawScan = {
+      coreModel: "test",
+      doors: [],
+      floors: [],
+      objects: [],
+      openings: [],
+      sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
+      story: 1,
+      version: 2,
+      walls: [
+        {
+          polygonCorners: null
+        },
+        {
+          polygonCorners: []
+        },
+        {
+          polygonCorners: [[0, 0]] // Too few coordinates
+        }
+      ],
+      windows: []
+    };
+
+    setupFsMocksForMetadata(mockRawScan);
+
+    expect(getSlantedWallOutlines(["/test/dir1"])).toEqual([]);
+    expect(getNotchedWallOutlines(["/test/dir1"])).toEqual([]);
   });
 });

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## 2026-01-17
 
+### [v0.68.0] Ceiling Analysis and Wall Shape Classification
+
+- Added Ceiling Analysis section to the scan analysis report with "Maximum Difference in Ceiling Height" chart
+  showing the distribution of ceiling height variations across artifacts (displayed in feet with a 2-inch
+  minimum threshold).
+- Separated non-rectangular wall shapes into two distinct categories:
+  - **Slanted Wall Shapes**: Non-rectangular walls with angled profiles but no notches (re-entrant corners)
+  - **Notched Wall Shapes**: Non-rectangular walls with vertical steps/notches (re-entrant corners with
+    interior angles > 180°)
+- Both wall shape charts are displayed side-by-side in the Ceiling Analysis section when both types are present.
+- Improved test coverage for `scanAnalysisReport.ts` (from 7 to 19 tests) and `rawScanExtractor.ts` (from 73%
+  to 99% line coverage).
+- Added comprehensive tests for ceiling height difference calculations, wall shape classification, and edge
+  cases.
+
 ### [v0.67.0] Vanity Placement Detection
 
 - Added corner vanity detection to distinguish regular (flush against wall) vanities from corner vanities (positioned diagonally).

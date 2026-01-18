@@ -58,4 +58,7 @@ export interface CaptureCharts {
   sinkCount: ChartConfiguration;
   vanityType: ChartConfiguration;
   vanityPlacement: ChartConfiguration;
+  ceilingHeightDifference: ChartConfiguration;
+  slantedWallShapes: ChartConfiguration;
+  notchedWallShapes: ChartConfiguration;
 }

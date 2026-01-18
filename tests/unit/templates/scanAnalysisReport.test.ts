@@ -13,7 +13,12 @@ const mocks = vi.hoisted(() => ({
   buildVanityAttributesCharts: vi.fn(),
   buildWallEmbeddedPieCharts: vi.fn(),
   computeLayoutConstants: vi.fn(),
-  getLineChartConfig: vi.fn()
+  filterValidOutlines: vi.fn(),
+  getLineChartConfig: vi.fn(),
+  getNotchedWallOutlines: vi.fn(),
+  getShapeOverlayChartConfig: vi.fn(),
+  getSlantedWallOutlines: vi.fn(),
+  sampleOutlines: vi.fn()
 }));
 
 vi.mock("../../../src/templates/dataAnalysisReport/charts/areaCharts", () => ({
@@ -53,7 +58,20 @@ vi.mock("../../../src/templates/dataAnalysisReport/layout", () => ({
 }));
 
 vi.mock("../../../src/utils/chart/configBuilders", () => ({
-  getLineChartConfig: mocks.getLineChartConfig
+  getLineChartConfig: mocks.getLineChartConfig,
+  getShapeOverlayChartConfig: mocks.getShapeOverlayChartConfig
+}));
+
+vi.mock("../../../src/utils/chart/shapeOverlay", () => ({
+  filterValidOutlines: mocks.filterValidOutlines,
+  sampleOutlines: mocks.sampleOutlines
+}));
+
+vi.mock("../../../src/utils/data/rawScanExtractor", () => ({
+  convertLengthsToFeet: vi.fn((arr: number[]) => arr.map((v: number) => v * 3.28084)),
+  getCeilingHeightDifferences: vi.fn((): number[] => []),
+  getNotchedWallOutlines: mocks.getNotchedWallOutlines,
+  getSlantedWallOutlines: mocks.getSlantedWallOutlines
 }));
 
 /**
@@ -98,6 +116,15 @@ describe("scanAnalysisReport", () => {
         return { datasets, labels, options } as unknown as ChartConfiguration;
       }
     );
+
+    mocks.getShapeOverlayChartConfig.mockImplementation((outlines: unknown[], options: Record<string, unknown>) => {
+      return { options, outlines } as unknown as ChartConfiguration;
+    });
+
+    mocks.filterValidOutlines.mockImplementation((outlines: unknown[]) => outlines);
+    mocks.sampleOutlines.mockImplementation((outlines: unknown[]) => outlines);
+    mocks.getSlantedWallOutlines.mockReturnValue([]);
+    mocks.getNotchedWallOutlines.mockReturnValue([]);
 
     mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
     mocks.buildDimensionCharts.mockReturnValue({});
@@ -335,5 +362,329 @@ describe("scanAnalysisReport", () => {
 
     // 6 charts with rows of 3 each should produce exactly 2 rows
     expect(attributeRows.length).toBe(2);
+  });
+
+  it("includes ceiling height difference chart when artifactDirs provided", () => {
+    const artifactDirs = ["/test/dir1"];
+    mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
+    mocks.buildDimensionCharts.mockReturnValue({});
+    mocks.buildAreaCharts.mockReturnValue({});
+    mocks.buildAttributePieCharts.mockReturnValue({});
+    mocks.buildVanityAttributesCharts.mockReturnValue({});
+    mocks.buildWallEmbeddedPieCharts.mockReturnValue({});
+    mocks.buildSurfaceShapeCharts.mockReturnValue({});
+
+    const report = buildScanAnalysisReport(mockMetadata, 1, artifactDirs);
+
+    const ceilingSection = report.sections.find((s) => s.title === "Maximum Difference in Ceiling Height");
+    expect(ceilingSection).toBeDefined();
+    expect(ceilingSection?.type).toBe("chart");
+  });
+
+  it("includes slanted and notched wall shapes in chart-row when both exist", () => {
+    const artifactDirs = ["/test/dir1"];
+    const slantedOutlines = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 }
+    ];
+    const notchedOutlines = [
+      { x: 0, y: 0 },
+      { x: 1, y: 1 }
+    ];
+
+    mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
+    mocks.buildDimensionCharts.mockReturnValue({});
+    mocks.buildAreaCharts.mockReturnValue({});
+    mocks.buildAttributePieCharts.mockReturnValue({});
+    mocks.buildVanityAttributesCharts.mockReturnValue({});
+    mocks.buildWallEmbeddedPieCharts.mockReturnValue({});
+    mocks.buildSurfaceShapeCharts.mockReturnValue({});
+    mocks.getSlantedWallOutlines.mockReturnValue(slantedOutlines);
+    mocks.getNotchedWallOutlines.mockReturnValue(notchedOutlines);
+    mocks.filterValidOutlines.mockImplementation((outlines: unknown[]) => outlines);
+
+    const report = buildScanAnalysisReport(mockMetadata, 1, artifactDirs);
+
+    const ceilingAnalysisSection = report.sections.find((s) => s.title === "Ceiling Analysis");
+    expect(ceilingAnalysisSection).toBeDefined();
+
+    const wallShapesRow = report.sections.find(
+      (s) =>
+        s.type === "chart-row" &&
+        Array.isArray(s.data) &&
+        s.data.some((item) => (item as { title?: string }).title === "Slanted Wall Shapes") &&
+        s.data.some((item) => (item as { title?: string }).title === "Notched Wall Shapes")
+    );
+    expect(wallShapesRow).toBeDefined();
+  });
+
+  it("includes slanted wall shapes chart when only slanted exists", () => {
+    const artifactDirs = ["/test/dir1"];
+    const slantedOutlines = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 }
+    ];
+
+    mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
+    mocks.buildDimensionCharts.mockReturnValue({});
+    mocks.buildAreaCharts.mockReturnValue({});
+    mocks.buildAttributePieCharts.mockReturnValue({});
+    mocks.buildVanityAttributesCharts.mockReturnValue({});
+    mocks.buildWallEmbeddedPieCharts.mockReturnValue({});
+    mocks.buildSurfaceShapeCharts.mockReturnValue({});
+    mocks.getSlantedWallOutlines.mockReturnValue(slantedOutlines);
+    mocks.getNotchedWallOutlines.mockReturnValue([]);
+    mocks.filterValidOutlines.mockImplementation((outlines: unknown[]) => outlines);
+
+    const report = buildScanAnalysisReport(mockMetadata, 1, artifactDirs);
+
+    const slantedSection = report.sections.find((s) => s.title === "Slanted Wall Shapes");
+    expect(slantedSection).toBeDefined();
+    expect(slantedSection?.type).toBe("chart");
+  });
+
+  it("includes notched wall shapes chart when only notched exists", () => {
+    const artifactDirs = ["/test/dir1"];
+    const notchedOutlines = [
+      { x: 0, y: 0 },
+      { x: 1, y: 1 }
+    ];
+
+    mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
+    mocks.buildDimensionCharts.mockReturnValue({});
+    mocks.buildAreaCharts.mockReturnValue({});
+    mocks.buildAttributePieCharts.mockReturnValue({});
+    mocks.buildVanityAttributesCharts.mockReturnValue({});
+    mocks.buildWallEmbeddedPieCharts.mockReturnValue({});
+    mocks.buildSurfaceShapeCharts.mockReturnValue({});
+    mocks.getSlantedWallOutlines.mockReturnValue([]);
+    mocks.getNotchedWallOutlines.mockReturnValue(notchedOutlines);
+    mocks.filterValidOutlines.mockImplementation((outlines: unknown[]) => outlines);
+
+    const report = buildScanAnalysisReport(mockMetadata, 1, artifactDirs);
+
+    const notchedSection = report.sections.find((s) => s.title === "Notched Wall Shapes");
+    expect(notchedSection).toBeDefined();
+    expect(notchedSection?.type).toBe("chart");
+  });
+
+  it("includes vanity placement chart when provided", () => {
+    const artifactDirs = ["/test/dir1"];
+    mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
+    mocks.buildDimensionCharts.mockReturnValue({});
+    mocks.buildAreaCharts.mockReturnValue({});
+    mocks.buildAttributePieCharts.mockReturnValue({});
+    mocks.buildVanityAttributesCharts.mockReturnValue({
+      vanityPlacement: chartStub
+    });
+    mocks.buildWallEmbeddedPieCharts.mockReturnValue({});
+    mocks.buildSurfaceShapeCharts.mockReturnValue({});
+
+    const report = buildScanAnalysisReport(mockMetadata, 1, artifactDirs);
+
+    const vanityRow = report.sections.find(
+      (s) =>
+        s.type === "chart-row" &&
+        Array.isArray(s.data) &&
+        s.data.some((item) => (item as { title?: string }).title === "Vanity Placement")
+    );
+    expect(vanityRow).toBeDefined();
+  });
+
+  it("includes individual dimension charts when provided", () => {
+    const artifactDirs = ["/test/dir1"];
+    mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
+    mocks.buildDimensionCharts.mockReturnValue({
+      doorArea: chartStub,
+      doorHeight: chartStub,
+      doorWidth: chartStub,
+      floorLength: chartStub,
+      floorWidth: chartStub,
+      openingArea: chartStub,
+      openingHeight: chartStub,
+      openingWidth: chartStub,
+      wallArea: chartStub,
+      wallHeight: chartStub,
+      wallWidth: chartStub,
+      windowArea: chartStub,
+      windowHeight: chartStub,
+      windowWidth: chartStub
+    });
+    mocks.buildAreaCharts.mockReturnValue({});
+    mocks.buildAttributePieCharts.mockReturnValue({});
+    mocks.buildVanityAttributesCharts.mockReturnValue({});
+    mocks.buildWallEmbeddedPieCharts.mockReturnValue({});
+    mocks.buildSurfaceShapeCharts.mockReturnValue({});
+
+    const report = buildScanAnalysisReport(mockMetadata, 1, artifactDirs);
+
+    const sectionTitles = report.sections.map((s) => s.title);
+    expect(sectionTitles).toContain("Floor Lengths");
+    expect(sectionTitles).toContain("Floor Widths");
+    expect(sectionTitles).toContain("Wall Heights");
+    expect(sectionTitles).toContain("Wall Widths");
+    expect(sectionTitles).toContain("Wall Areas");
+    expect(sectionTitles).toContain("Window Heights");
+    expect(sectionTitles).toContain("Window Widths");
+    expect(sectionTitles).toContain("Window Areas");
+    expect(sectionTitles).toContain("Door Heights");
+    expect(sectionTitles).toContain("Door Widths");
+    expect(sectionTitles).toContain("Door Areas");
+    expect(sectionTitles).toContain("Opening Heights");
+    expect(sectionTitles).toContain("Opening Widths");
+    expect(sectionTitles).toContain("Opening Areas");
+  });
+
+  it("includes all attribute chart types when provided", () => {
+    const artifactDirs = ["/test/dir1"];
+    mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
+    mocks.buildDimensionCharts.mockReturnValue({});
+    mocks.buildAreaCharts.mockReturnValue({});
+    mocks.buildAttributePieCharts.mockReturnValue({
+      chairArmType: chartStub,
+      chairBackType: chartStub,
+      chairLegType: chartStub,
+      chairType: chartStub,
+      doorIsOpen: chartStub,
+      sofaType: chartStub,
+      storageType: chartStub,
+      tableShapeType: chartStub,
+      tableType: chartStub
+    });
+    mocks.buildVanityAttributesCharts.mockReturnValue({});
+    mocks.buildWallEmbeddedPieCharts.mockReturnValue({});
+    mocks.buildSurfaceShapeCharts.mockReturnValue({});
+
+    const report = buildScanAnalysisReport(mockMetadata, 1, artifactDirs);
+
+    const chartRows = report.sections.filter((section) => section.type === "chart-row");
+    const rowTitles = chartRows.flatMap((row) => {
+      if (!Array.isArray(row.data)) {
+        return [];
+      }
+      return row.data.map((chart) => (chart as { title?: string }).title);
+    });
+
+    expect(rowTitles).toContain("Door Open/Closed");
+    expect(rowTitles).toContain("Chair Arm Type");
+    expect(rowTitles).toContain("Chair Back Type");
+    expect(rowTitles).toContain("Chair Base Type");
+    expect(rowTitles).toContain("Chair Type");
+    expect(rowTitles).toContain("Sofa Type");
+    expect(rowTitles).toContain("Storage Type");
+    expect(rowTitles).toContain("Table Shape Type");
+    expect(rowTitles).toContain("Table Type");
+  });
+
+  it("excludes vanity attribute charts row when no vanity charts are provided", () => {
+    const artifactDirs = ["/test/dir1"];
+    mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
+    mocks.buildDimensionCharts.mockReturnValue({});
+    mocks.buildAreaCharts.mockReturnValue({});
+    mocks.buildAttributePieCharts.mockReturnValue({});
+    mocks.buildVanityAttributesCharts.mockReturnValue({});
+    mocks.buildWallEmbeddedPieCharts.mockReturnValue({});
+    mocks.buildSurfaceShapeCharts.mockReturnValue({});
+
+    const report = buildScanAnalysisReport(mockMetadata, 1, artifactDirs);
+
+    const vanityRow = report.sections.find(
+      (s) =>
+        s.type === "chart-row" &&
+        Array.isArray(s.data) &&
+        s.data.some((item) => (item as { title?: string }).title === "Number of Sinks")
+    );
+    expect(vanityRow).toBeUndefined();
+  });
+
+  it("excludes embedded charts row when no embedded charts are provided", () => {
+    const artifactDirs = ["/test/dir1"];
+    mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
+    mocks.buildDimensionCharts.mockReturnValue({});
+    mocks.buildAreaCharts.mockReturnValue({});
+    mocks.buildAttributePieCharts.mockReturnValue({});
+    mocks.buildVanityAttributesCharts.mockReturnValue({});
+    mocks.buildWallEmbeddedPieCharts.mockReturnValue({});
+    mocks.buildSurfaceShapeCharts.mockReturnValue({});
+
+    const report = buildScanAnalysisReport(mockMetadata, 1, artifactDirs);
+
+    const embeddedRow = report.sections.find(
+      (s) =>
+        s.type === "chart-row" &&
+        Array.isArray(s.data) &&
+        s.data.some((item) => (item as { title?: string }).title === "Walls with Windows")
+    );
+    expect(embeddedRow).toBeUndefined();
+  });
+
+  it("excludes attribute charts rows when no attribute charts are provided", () => {
+    const artifactDirs = ["/test/dir1"];
+    mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
+    mocks.buildDimensionCharts.mockReturnValue({});
+    mocks.buildAreaCharts.mockReturnValue({});
+    mocks.buildAttributePieCharts.mockReturnValue({});
+    mocks.buildVanityAttributesCharts.mockReturnValue({});
+    mocks.buildWallEmbeddedPieCharts.mockReturnValue({});
+    mocks.buildSurfaceShapeCharts.mockReturnValue({});
+
+    const report = buildScanAnalysisReport(mockMetadata, 1, artifactDirs);
+
+    const attributeRows = report.sections.filter(
+      (section) =>
+        section.type === "chart-row" &&
+        Array.isArray(section.data) &&
+        (section.data as unknown[]).some((item) => {
+          const title = (item as { title?: string }).title;
+          return title === "Door Open/Closed" || title === "Chair Arm Type" || title === "Sofa Type";
+        })
+    );
+    expect(attributeRows.length).toBe(0);
+  });
+
+  it("handles vanity charts with only sinkCount", () => {
+    const artifactDirs = ["/test/dir1"];
+    mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
+    mocks.buildDimensionCharts.mockReturnValue({});
+    mocks.buildAreaCharts.mockReturnValue({});
+    mocks.buildAttributePieCharts.mockReturnValue({});
+    mocks.buildVanityAttributesCharts.mockReturnValue({
+      sinkCount: chartStub
+    });
+    mocks.buildWallEmbeddedPieCharts.mockReturnValue({});
+    mocks.buildSurfaceShapeCharts.mockReturnValue({});
+
+    const report = buildScanAnalysisReport(mockMetadata, 1, artifactDirs);
+
+    const vanityRow = report.sections.find(
+      (s) =>
+        s.type === "chart-row" &&
+        Array.isArray(s.data) &&
+        s.data.some((item) => (item as { title?: string }).title === "Number of Sinks")
+    );
+    expect(vanityRow).toBeDefined();
+  });
+
+  it("handles embedded charts with only wallsWithWindows", () => {
+    const artifactDirs = ["/test/dir1"];
+    mocks.buildErrorFeatureObjectCharts.mockReturnValue({});
+    mocks.buildDimensionCharts.mockReturnValue({});
+    mocks.buildAreaCharts.mockReturnValue({});
+    mocks.buildAttributePieCharts.mockReturnValue({});
+    mocks.buildVanityAttributesCharts.mockReturnValue({});
+    mocks.buildWallEmbeddedPieCharts.mockReturnValue({
+      wallsWithWindows: chartStub
+    });
+    mocks.buildSurfaceShapeCharts.mockReturnValue({});
+
+    const report = buildScanAnalysisReport(mockMetadata, 1, artifactDirs);
+
+    const embeddedRow = report.sections.find(
+      (s) =>
+        s.type === "chart-row" &&
+        Array.isArray(s.data) &&
+        s.data.some((item) => (item as { title?: string }).title === "Walls with Windows")
+    );
+    expect(embeddedRow).toBeDefined();
   });
 });
