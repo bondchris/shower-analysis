@@ -2168,4 +2168,110 @@ describe("extractVideoMetadata", () => {
       width: 1920
     });
   });
+
+  it("parses gop_size when it is a string", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockVideoPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const mockFfprobeData = {
+      format: { duration: 5 },
+      streams: [
+        {
+          codec_type: "video",
+          gop_size: "24",
+          height: 720,
+          r_frame_rate: "30/1",
+          width: 1280
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result?.gopSize).toBe(24);
+  });
+
+  it("ignores bits_per_raw_sample when it is a non-numeric string", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockVideoPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const mockFfprobeData = {
+      format: { duration: 5 },
+      streams: [
+        {
+          bits_per_raw_sample: "N/A",
+          codec_type: "video",
+          height: 720,
+          r_frame_rate: "30/1",
+          width: 1280
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result?.bitDepth).toBe(0);
+  });
+
+  it("uses default fps for GOP analysis when r_frame_rate is missing", async () => {
+    (fs.existsSync as Mock).mockImplementation((p: string) => {
+      if (p === mockCachePath) {
+        return false;
+      }
+      if (p === mockVideoPath) {
+        return true;
+      }
+      return false;
+    });
+
+    const mockFfprobeData = {
+      format: { duration: 5 },
+      streams: [
+        {
+          codec_type: "video",
+          gop_size: 15,
+          height: 720,
+          width: 1280
+        }
+      ]
+    };
+
+    (ffmpeg.ffprobe as unknown as Mock).mockImplementation(
+      (_file: string, cb: (err: Error | null, data: unknown) => void) => {
+        cb(null, mockFfprobeData);
+      }
+    );
+
+    const result = await extractVideoMetadata(mockDir);
+
+    expect(result?.fps).toBe(0);
+    expect(result?.gopSize).toBe(15);
+    expect(result?.avgGopDistance).toBe(15);
+  });
 });

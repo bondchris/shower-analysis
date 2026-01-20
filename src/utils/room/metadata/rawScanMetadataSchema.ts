@@ -1,4 +1,4 @@
-import { RawScanMetadata } from "../metadata";
+import { RawScanMetadata } from "../../../models/rawScan/rawScanMetadata";
 
 /**
  * Required fields for RawScanMetadata interface.

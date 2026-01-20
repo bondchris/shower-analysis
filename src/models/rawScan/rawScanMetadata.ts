@@ -1,0 +1,87 @@
+import { SurfaceOutline } from "../shapeOutline";
+
+/**
+ * Comprehensive metadata extracted from a rawScan.json file.
+ * Contains room dimensions, feature counts, error flags, and attribute data.
+ */
+export interface RawScanMetadata {
+  roomAreaSqFt: number;
+  wallCount: number;
+  hasNonRectWall: boolean;
+  hasCurvedWall: boolean;
+  toiletCount: number;
+  tubCount: number;
+  sinkCount: number;
+  storageCount: number;
+  doorCount: number;
+  windowCount: number;
+  openingCount: number;
+  hasWasherDryer: boolean;
+  hasStove: boolean;
+  hasTable: boolean;
+  hasChair: boolean;
+  hasBed: boolean;
+  hasSofa: boolean;
+  hasDishwasher: boolean;
+  hasOven: boolean;
+  hasRefrigerator: boolean;
+  hasStairs: boolean;
+  hasFireplace: boolean;
+  hasTelevision: boolean;
+  hasExternalOpening: boolean;
+  hasSoffit: boolean;
+  hasLowCeiling: boolean;
+  hasToiletGapErrors: boolean;
+  hasTubGapErrors: boolean;
+  hasUnparentedEmbedded: boolean;
+  hasCurvedEmbedded: boolean;
+  hasNonRectangularEmbedded: boolean;
+  hasWallGapErrors: boolean;
+  hasColinearWallErrors: boolean;
+  hasNibWalls: boolean;
+  hasObjectIntersectionErrors: boolean;
+  hasWallObjectIntersectionErrors: boolean;
+  hasWallWallIntersectionErrors: boolean;
+  hasEmbeddedObjectIntersectionErrors: boolean;
+  hasCrookedWallErrors: boolean;
+  hasDoorBlockingError: boolean;
+  hasDoorFloorContactError: boolean;
+  hasFloorsWithParentId: boolean;
+  hasNonEmptyCompletedEdges: boolean;
+  sectionLabels: string[];
+  stories: number[];
+  hasMultipleStories: boolean;
+  wallHeights: number[];
+  wallWidths: number[];
+  wallAreas: number[];
+  wallWidthHeightPairs: { height: number; width: number }[];
+  windowHeights: number[];
+  windowWidths: number[];
+  windowAreas: number[];
+  windowWidthHeightPairs: { height: number; width: number }[];
+  doorHeights: number[];
+  doorWidths: number[];
+  doorAreas: number[];
+  doorWidthHeightPairs: { height: number; width: number }[];
+  openingHeights: number[];
+  openingWidths: number[];
+  openingAreas: number[];
+  openingWidthHeightPairs: { height: number; width: number }[];
+  floorLengths: number[];
+  floorWidths: number[];
+  floorWidthHeightPairs: { height: number; width: number }[];
+  floorOutlines: SurfaceOutline[];
+  wallOutlines: SurfaceOutline[];
+  windowOutlines: SurfaceOutline[];
+  doorOutlines: SurfaceOutline[];
+  openingOutlines: SurfaceOutline[];
+  tubLengths: number[];
+  vanityLengths: number[];
+  doorIsOpenCounts: Record<string, number>;
+  objectAttributeCounts: Record<string, Record<string, number>>;
+  wallsWithWindows: number;
+  wallsWithDoors: number;
+  wallsWithOpenings: number;
+  vanityType: string | null;
+  vanityPlacement: "regular" | "corner" | null;
+}

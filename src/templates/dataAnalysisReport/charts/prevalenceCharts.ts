@@ -16,9 +16,9 @@ import {
   getArtifactsWithNarrowOpenings,
   getArtifactsWithShortDoors,
   getArtifactsWithSmallWalls,
-  getObjectConfidenceCounts,
   getUnexpectedVersionArtifactDirs
-} from "../../../utils/data/rawScanExtractor";
+} from "../../../utils/data/rawScanDimensionFilters";
+import { getObjectConfidenceCounts } from "../../../utils/data/rawScanObjectConfidence";
 import { LayoutConstants } from "../layout";
 import { CaptureCharts } from "../types";
 

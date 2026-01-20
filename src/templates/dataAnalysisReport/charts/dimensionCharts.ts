@@ -12,7 +12,7 @@ import {
   getWallWidths,
   getWindowHeights,
   getWindowWidths
-} from "../../../utils/data/rawScanExtractor";
+} from "../../../utils/data/rawScanMetadataCollectors";
 import { LayoutConstants } from "../layout";
 import { buildDynamicKde } from "../kdeBounds";
 import { CaptureCharts } from "../types";

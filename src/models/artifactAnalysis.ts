@@ -1,4 +1,4 @@
-import { CoverageSphere } from "../utils/arData/coverage";
+import { CoverageSphere } from "./arData/coverageSphere";
 
 const NOT_SET = "";
 const NO_RESULTS = 0;

@@ -1,7 +1,8 @@
 import fs from "fs";
 import path from "path";
 import { Mock, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ArDataMetadata, extractArDataMetadata } from "../../../../src/utils/arData/metadata";
+import { ArDataMetadata } from "../../../../src/models/arData/arDataMetadata";
+import { extractArDataMetadata } from "../../../../src/utils/arData/metadata";
 
 // Mock module
 vi.mock("fs");

@@ -1,5 +1,5 @@
 import { getPieChartConfig } from "../../../utils/chart/configBuilders";
-import { getDoorIsOpenCounts, getObjectAttributeCounts } from "../../../utils/data/rawScanExtractor";
+import { getDoorIsOpenCounts, getObjectAttributeCounts } from "../../../utils/data/rawScanAggregators";
 import { startCase } from "lodash";
 import {
   CabinetIcon,

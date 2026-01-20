@@ -2,95 +2,9 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { RawScan } from "../../models/rawScan/rawScan";
-import { SurfaceOutline } from "../../models/shapeOutline";
+import { RawScanMetadata } from "../../models/rawScan/rawScanMetadata";
 import { computeRawScanMetadata } from "./metadata/computeRawScanMetadata";
 import { isValidCachedMetadata } from "./metadata/rawScanMetadataSchema";
-
-export interface RawScanMetadata {
-  roomAreaSqFt: number;
-  wallCount: number;
-  hasNonRectWall: boolean;
-  hasCurvedWall: boolean;
-  toiletCount: number;
-  tubCount: number;
-  sinkCount: number;
-  storageCount: number;
-  doorCount: number;
-  windowCount: number;
-  openingCount: number;
-  hasWasherDryer: boolean;
-  hasStove: boolean;
-  hasTable: boolean;
-  hasChair: boolean;
-  hasBed: boolean;
-  hasSofa: boolean;
-  hasDishwasher: boolean;
-  hasOven: boolean;
-  hasRefrigerator: boolean;
-  hasStairs: boolean;
-  hasFireplace: boolean;
-  hasTelevision: boolean;
-  hasExternalOpening: boolean;
-  hasSoffit: boolean;
-  hasLowCeiling: boolean;
-  hasToiletGapErrors: boolean;
-  hasTubGapErrors: boolean;
-  hasUnparentedEmbedded: boolean;
-  hasCurvedEmbedded: boolean;
-  hasNonRectangularEmbedded: boolean;
-  hasWallGapErrors: boolean;
-  hasColinearWallErrors: boolean;
-  hasNibWalls: boolean;
-  hasObjectIntersectionErrors: boolean;
-  hasWallObjectIntersectionErrors: boolean;
-  hasWallWallIntersectionErrors: boolean;
-  hasEmbeddedObjectIntersectionErrors: boolean;
-  hasCrookedWallErrors: boolean;
-  hasDoorBlockingError: boolean;
-  hasDoorFloorContactError: boolean;
-  hasFloorsWithParentId: boolean;
-  hasNonEmptyCompletedEdges: boolean;
-  sectionLabels: string[];
-  stories: number[];
-  hasMultipleStories: boolean;
-  // Dimension and area data (in meters/square meters)
-  wallHeights: number[];
-  wallWidths: number[];
-  wallAreas: number[];
-  wallWidthHeightPairs: { height: number; width: number }[];
-  windowHeights: number[];
-  windowWidths: number[];
-  windowAreas: number[];
-  windowWidthHeightPairs: { height: number; width: number }[];
-  doorHeights: number[];
-  doorWidths: number[];
-  doorAreas: number[];
-  doorWidthHeightPairs: { height: number; width: number }[];
-  openingHeights: number[];
-  openingWidths: number[];
-  openingAreas: number[];
-  openingWidthHeightPairs: { height: number; width: number }[];
-  floorLengths: number[];
-  floorWidths: number[];
-  floorWidthHeightPairs: { height: number; width: number }[];
-  floorOutlines: SurfaceOutline[];
-  wallOutlines: SurfaceOutline[];
-  windowOutlines: SurfaceOutline[];
-  doorOutlines: SurfaceOutline[];
-  openingOutlines: SurfaceOutline[];
-  tubLengths: number[];
-  vanityLengths: number[];
-  // Attribute counts
-  doorIsOpenCounts: Record<string, number>;
-  objectAttributeCounts: Record<string, Record<string, number>>;
-  // Wall embedded counts
-  wallsWithWindows: number;
-  wallsWithDoors: number;
-  wallsWithOpenings: number;
-  // Vanity data
-  vanityType: string | null;
-  vanityPlacement: "regular" | "corner" | null;
-}
 
 /**
  * Extracts metadata from a rawScan.json file in the given directory.

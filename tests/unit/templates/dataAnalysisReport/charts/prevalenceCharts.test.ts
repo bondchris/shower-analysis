@@ -7,9 +7,9 @@ import {
   getArtifactsWithNarrowOpenings,
   getArtifactsWithShortDoors,
   getArtifactsWithSmallWalls,
-  getObjectConfidenceCounts,
   getUnexpectedVersionArtifactDirs
-} from "../../../../../src/utils/data/rawScanExtractor";
+} from "../../../../../src/utils/data/rawScanDimensionFilters";
+import { getObjectConfidenceCounts } from "../../../../../src/utils/data/rawScanObjectConfidence";
 import { LayoutConstants, computeLayoutConstants } from "../../../../../src/templates/dataAnalysisReport/layout";
 
 vi.mock("../../../../../src/utils/chart/configBuilders", () => ({
@@ -30,13 +30,16 @@ vi.mock("../../../../../src/utils/room/constants", () => ({
   TOUCHING_THRESHOLD_METERS: 0.0254
 }));
 
-vi.mock("../../../../../src/utils/data/rawScanExtractor", () => ({
+vi.mock("../../../../../src/utils/data/rawScanDimensionFilters", () => ({
   getArtifactsWithNarrowDoors: vi.fn(),
   getArtifactsWithNarrowOpenings: vi.fn(),
   getArtifactsWithShortDoors: vi.fn(),
   getArtifactsWithSmallWalls: vi.fn(),
-  getObjectConfidenceCounts: vi.fn(),
   getUnexpectedVersionArtifactDirs: vi.fn()
+}));
+
+vi.mock("../../../../../src/utils/data/rawScanObjectConfidence", () => ({
+  getObjectConfidenceCounts: vi.fn()
 }));
 
 describe("buildErrorFeatureObjectCharts", () => {

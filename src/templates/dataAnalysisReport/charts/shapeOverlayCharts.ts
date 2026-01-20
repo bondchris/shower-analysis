@@ -7,7 +7,7 @@ import {
   getOpeningOutlines,
   getWallOutlines,
   getWindowOutlines
-} from "../../../utils/data/rawScanExtractor";
+} from "../../../utils/data/rawScanMetadataCollectors";
 import { LayoutConstants } from "../layout";
 import { CaptureCharts } from "../types";
 

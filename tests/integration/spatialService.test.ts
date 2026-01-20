@@ -134,8 +134,9 @@ describe("SpatialService Integration", () => {
       await service.fetchScanArtifacts(1);
 
       const metaPath = path.join(getCachePath(), "meta.json");
-      const meta = JSON.parse(fs.readFileSync(metaPath, "utf8")) as { total: number };
+      const meta = JSON.parse(fs.readFileSync(metaPath, "utf8")) as { date: string; total: number };
       expect(meta.total).toBe(60);
+      expect(() => new Date(meta.date).toISOString()).not.toThrow();
     });
   });
 

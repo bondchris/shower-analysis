@@ -1,55 +1,17 @@
 // @vitest-environment jsdom
+import { setupChartVisxMocks } from "./testUtils";
 import { render } from "@testing-library/react";
-import React from "react";
-import { describe, expect, it, vi } from "vitest";
-import { BarChart, Histogram, LineChart, MixedChart } from "../../../../../src/templates/components/charts";
+import { describe, expect, it } from "vitest";
+import { BarChart } from "../../../../../src/templates/components/charts/BarChart";
+import { Histogram } from "../../../../../src/templates/components/charts/Histogram";
+import { LineChart } from "../../../../../src/templates/components/charts/LineChart";
+import { MixedChart } from "../../../../../src/templates/components/charts/MixedChart";
 import { BarChartConfig } from "../../../../../src/models/chart/barChartConfig";
 import { HistogramConfig } from "../../../../../src/models/chart/histogramConfig";
 import { LineChartConfig } from "../../../../../src/models/chart/lineChartConfig";
 import { MixedChartConfig } from "../../../../../src/models/chart/mixedChartConfig";
 
-// Mock Visx components to avoid complex SVG rendering issues in simple smoke tests
-// We just want to ensure our wrapper components render without crashing
-vi.mock("@visx/group", () => ({ Group: ({ children }: { children: React.ReactNode }) => <g>{children}</g> }));
-vi.mock("@visx/shape", () => ({
-  AreaClosed: () => <path data-testid="mixed-area" />,
-  Bar: () => <rect />,
-  Line: () => <line data-testid="separator-line" />,
-  LinePath: () => <path />
-}));
-vi.mock("@visx/text", () => ({ Text: () => <text /> }));
-
-interface AxisBottomProps {
-  tickLabelProps?: (val: string, index: number, ticks: unknown[]) => void;
-}
-
-interface AxisLeftProps {
-  tickFormat?: (val: number) => string;
-  tickLabelProps?: (val: string, index: number, ticks: unknown[]) => void;
-}
-
-const TEST_VAL_10 = 10;
-const TEST_INDEX_0 = 0;
-
-vi.mock("@visx/axis", () => ({
-  AxisBottom: (props: AxisBottomProps) => {
-    if (props.tickLabelProps !== undefined) {
-      props.tickLabelProps("test", TEST_INDEX_0, []);
-    }
-    return <g />;
-  },
-  AxisLeft: (props: AxisLeftProps) => {
-    if (props.tickFormat !== undefined) {
-      props.tickFormat(TEST_VAL_10);
-    }
-    if (props.tickLabelProps !== undefined) {
-      props.tickLabelProps("test", TEST_INDEX_0, []);
-    }
-    return <g />;
-  },
-  AxisRight: () => <g />
-}));
-vi.mock("@visx/grid", () => ({ GridColumns: () => <g />, GridRows: () => <g /> }));
+setupChartVisxMocks();
 
 describe("Chart Components", () => {
   const HEIGHT = 300;
@@ -184,6 +146,7 @@ describe("Chart Components", () => {
     };
     const { container } = render(<Histogram config={hiddenConfig} />);
     expect(container).toBeInTheDocument();
+    expect(container.querySelector("svg")).not.toBeNull();
   });
 
   it("Histogram renders with single string color", () => {

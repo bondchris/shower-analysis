@@ -2,7 +2,7 @@ import convert from "convert-units";
 import { sumBy } from "lodash";
 
 import { RawScan } from "../../../models/rawScan/rawScan";
-import { RawScanMetadata } from "../metadata";
+import { RawScanMetadata } from "../../../models/rawScan/rawScanMetadata";
 import { checkColinearWalls } from "../analysis/checkColinearWalls";
 import { checkCrookedWalls } from "../analysis/checkCrookedWalls";
 import { checkDoorBlocking } from "../analysis/checkDoorBlocking";

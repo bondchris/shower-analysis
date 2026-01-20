@@ -180,7 +180,7 @@ describe("videoAnalysisReport", () => {
     expect(averageGopSection?.type).toBe("chart");
     const averageGopChart = averageGopSection?.data as ChartConfiguration | undefined;
     if (averageGopChart && "labels" in averageGopChart) {
-      expect(averageGopChart.labels).toEqual(["30 frames", "42 frames"]);
+      expect(averageGopChart.labels).toEqual(["30", "42"]);
     }
 
     const varianceRow = findRow("GOP Variance");
@@ -190,7 +190,7 @@ describe("videoAnalysisReport", () => {
       expect(rowTitles).toContain("GOP Variance");
       const varianceChart = rowData.find((c) => c.title === "GOP Variance");
       if (varianceChart && "labels" in varianceChart.data) {
-        expect(varianceChart.data.labels).toEqual(["0.5 frames^2", "1.0 frames^2"]);
+        expect(varianceChart.data.labels).toEqual(["0.5", "1.0"]);
       }
     }
   });
@@ -514,7 +514,7 @@ describe("videoAnalysisReport", () => {
     if (labels === undefined) {
       throw new Error("Variance chart missing labels");
     }
-    expect(labels).toEqual(["1.1 frames^2+"]);
+    expect(labels).toEqual(["1.1+"]);
   });
 
   it("should bucket Max GOP values above the overflow threshold", () => {

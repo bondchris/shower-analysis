@@ -222,6 +222,12 @@ This generates coverage reports in multiple formats:
 
 Coverage thresholds are set at 99% for lines, functions, branches, and statements.
 
+### Test performance tips
+
+- Chart unit tests share lightweight Visx mocks via `tests/unit/templates/components/charts/testUtils.tsx` to cover tick handlers without heavy SVG rendering.
+- Raw scan metadata tests reuse factories/helpers in `tests/unit/utils/data/rawScanTestUtils.ts` to avoid recreating large fixtures.
+- The functional pipeline test keeps sync-failure persistence in memory; avoid overriding that mock so runs stay fast and isolated.
+
 ### Full Pipeline
 
 Run the complete data processing pipeline:
@@ -236,15 +242,25 @@ This executes: validate → sync → discard → format-data → inspect
 
 - `src/`: Source TypeScript files.
   - `scripts/`: Execution scripts (`validate`, `sync`, `discard`, `inspect`, `format`).
-  - `models/`: Data interfaces and core domain logic (`rawScan`, `arData`, `point`, etc.).
+  - `models/`: Data interfaces and core domain logic (`rawScan`, `arData`, `chart`, etc.).
   - `services/`: External integrations (`SpatialService`, `GeminiService`).
   - `templates/`: React-based PDF report templates and chart components.
+    - `arDataAnalysisReport/`: Modular chart builders (device, framerate, lighting, movement, orientation, timing) and section builders (phone orientation, spherical coverage, time series).
+    - `videoAnalysisReport/`: Modular chart builders (color, duration, encoding, GOP, laplacian) and section builders (encoding summary, laplacian examples).
+    - `scanAnalysisReport/`: Chart builders and section builders (ceiling, floor, object, summary, surface).
+    - `dataAnalysisReport/`: Shared chart utilities for scan analysis reports (KDE bounds, layout, prevalence, dimensions).
+    - `syncReport/`: Chart builders (artifact size, error history, video size) and section builders (disk usage, failures, summary).
+    - `discardReport/`: Charts, sections, and utility modules for discard reports.
+    - `validationReport/`: Charts and section builders for validation reports.
   - `utils/`: Shared utilities organized by domain:
+    - `arData/`: AR data processing (`coverage`, `metadata/`).
+      - `metadata/`: Modular AR metadata extraction (angular metrics, framerate, motion, sensors, EXIF, cache validation).
     - `chart/`: Chart generation utilities (config builders, KDE, histograms, scatter).
-    - `data/`: Data management utilities (`badScans`, `checkedScans`, `syncFailures`).
+    - `data/`: Data management utilities (`badScans`, `checkedScans`, `syncFailures`, raw scan aggregators, iterators, metadata collectors).
     - `math/`: Mathematical utilities (`vector`, `polygon`, `segment`, `transform`, `constants`).
     - `room/`: Room validation and analysis functions (wall gaps, intersections, etc.).
     - `sync/`: Synchronization helpers.
+    - `video/`: Video analysis utilities (black frames, entropy coding, ffprobe utils, GOP analysis, metadata, signal stats).
     - `logger.ts`: Centralized logging.
     - `reportGenerator.ts`: PDF generation using Playwright.
 - `tests/`: Test files.

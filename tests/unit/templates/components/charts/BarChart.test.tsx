@@ -1,99 +1,58 @@
 // @vitest-environment jsdom
+import { setupChartVisxMocks } from "./testUtils";
 import { render, screen } from "@testing-library/react";
-import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { BarChart } from "../../../../../src/templates/components/charts/BarChart";
 import { BarChartConfig } from "../../../../../src/models/chart/barChartConfig";
 
-// Mock Visx components to isolate logic
-vi.mock("@visx/group", () => ({ Group: ({ children }: { children: React.ReactNode }) => <g>{children}</g> }));
-vi.mock("@visx/shape", () => ({
-  Bar: () => <rect data-testid="visx-bar" />,
-  Line: () => <line data-testid="separator-line" />
-}));
-vi.mock("@visx/grid", () => ({ GridColumns: () => <g />, GridRows: () => <g /> }));
+setupChartVisxMocks();
 
-// Enhanced Mock for Axis to test tickFormat
-interface AxisProps {
-  tickComponent?: (props: { formattedValue: string; x?: number; dy?: string; y?: number }) => React.ReactNode;
-  tickFormat?: (v: string) => string;
-}
+const HEIGHT = 300;
+const DEFAULT_LABELS = ["A", "B", "C"];
 
-vi.mock("@visx/axis", () => ({
-  AxisBottom: (props: AxisProps) => {
-    if (props.tickComponent !== undefined) {
-      // Exercise multi-line tick rendering path
-      const maybeNode = props.tickComponent({ formattedValue: "Line1\nLine2", x: 0, y: 0 });
-      expect(maybeNode).not.toBeUndefined();
-    }
-    return <g data-testid="axis-bottom" />;
-  },
-  AxisLeft: (props: AxisProps) => {
-    if (props.tickFormat !== undefined) {
-      // Exercise the tickFormat function for coverage
-      props.tickFormat("test-label");
-      props.tickFormat("---"); // Separator label test
-      props.tickFormat("A long label that should probably be truncated because it is very long");
-    }
-    return <g data-testid="axis-left" />;
-  }
-}));
+const makeConfig = (overrides: Partial<BarChartConfig> = {}): BarChartConfig => ({
+  data: [10, 20, 30],
+  height: HEIGHT,
+  labels: DEFAULT_LABELS,
+  options: {},
+  type: "bar",
+  ...overrides
+});
 
 describe("BarChart Component", () => {
-  const HEIGHT = 300;
-  const BAR_VAL_10 = 10;
-  const BAR_VAL_20 = 20;
-  const BAR_VAL_30 = 30;
-  const BAR_VAL_42 = 42;
-  const ONE_ITEM = 1;
-  const NO_VAL = 0;
-  const DATA = [BAR_VAL_10, BAR_VAL_20, BAR_VAL_30];
-  const LABELS = ["A", "B", "C"];
-
-  const baseConfig: BarChartConfig = {
-    data: DATA,
-    height: HEIGHT,
-    labels: LABELS,
-    options: {},
-    type: "bar"
-  };
-
   it("should render vertically by default", () => {
-    const { getAllByTestId } = render(<BarChart config={baseConfig} />);
-    expect(getAllByTestId("visx-bar")).toHaveLength(DATA.length);
+    const { getAllByTestId } = render(<BarChart config={makeConfig()} />);
+    expect(getAllByTestId("visx-bar")).toHaveLength(3);
   });
 
   it("should handle undefined labels in vertical mode (skip rendering)", () => {
-    const config: BarChartConfig = {
-      ...baseConfig,
-      data: [BAR_VAL_10, BAR_VAL_20], // 2 items
+    const config: BarChartConfig = makeConfig({
+      data: [10, 20],
       labels: ["A"] // 1 label (2nd is undefined)
-    };
+    });
     const { getAllByTestId } = render(<BarChart config={config} />);
     // Should only render 1 bar, skipping the undefined one
-    expect(getAllByTestId("visx-bar")).toHaveLength(ONE_ITEM);
+    expect(getAllByTestId("visx-bar")).toHaveLength(1);
   });
 
   it("should handle undefined labels in horizontal mode (skip rendering)", () => {
-    const config: BarChartConfig = {
-      ...baseConfig,
-      data: [BAR_VAL_10, BAR_VAL_20],
+    const config: BarChartConfig = makeConfig({
+      data: [10, 20],
       labels: ["A"],
       options: { horizontal: true }
-    };
+    });
     const { getAllByTestId } = render(<BarChart config={config} />);
-    expect(getAllByTestId("visx-bar")).toHaveLength(ONE_ITEM);
+    expect(getAllByTestId("visx-bar")).toHaveLength(1);
   });
 
   it("should display counts only when showCount is true and percentages are disabled", () => {
-    const config: BarChartConfig = {
-      ...baseConfig,
-      data: [BAR_VAL_42],
+    const config: BarChartConfig = makeConfig({
+      data: [42],
       labels: ["Item"],
       options: { horizontal: true, showCount: true }
-    };
+    });
     render(<BarChart config={config} />);
-    expect(screen.getByText(String(BAR_VAL_42))).toBeInTheDocument();
+    expect(screen.getByText("42")).toBeInTheDocument();
     // Should NOT show percentages
     expect(screen.queryByText(/%/)).not.toBeInTheDocument();
   });
@@ -101,21 +60,19 @@ describe("BarChart Component", () => {
   it("should exercise AxisLeft tickFormat via mock", () => {
     // This test relies on the mock implementation above calling the prop.
     // We trigger it by rendering a horizontal chart.
-    const config: BarChartConfig = {
-      ...baseConfig,
+    const config: BarChartConfig = makeConfig({
       options: { horizontal: true, separatorLabel: "---" }
-    };
+    });
     render(<BarChart config={config} />);
     // The coverage report should show line 191 etc. as covered because the mock called the function.
   });
 
   it("should render separator line", () => {
-    const config: BarChartConfig = {
-      ...baseConfig,
-      data: [BAR_VAL_10, NO_VAL, BAR_VAL_10],
+    const config: BarChartConfig = makeConfig({
+      data: [10, 0, 10],
       labels: ["A", "---", "B"],
       options: { horizontal: true, separatorLabel: "---" }
-    };
+    });
     const { getByTestId } = render(<BarChart config={config} />);
     expect(getByTestId("separator-line")).toBeInTheDocument();
   });
@@ -138,8 +95,7 @@ describe("BarChart Component", () => {
     const segmentsPerBar = 3;
     const barsCount = 3;
     const totalBars = barsCount * segmentsPerBar;
-    const config: BarChartConfig = {
-      ...baseConfig,
+    const config: BarChartConfig = makeConfig({
       data: stackedData,
       labels: ["Object1", "Object2", "Object3"],
       options: {
@@ -147,7 +103,7 @@ describe("BarChart Component", () => {
         stackColors: ["#10b981", "#f59e0b", "#ef4444"],
         stacked: true
       }
-    };
+    });
     const { getAllByTestId } = render(<BarChart config={config} />);
     // Should render 3 bars * 3 segments each = 9 bars total
     expect(getAllByTestId("visx-bar")).toHaveLength(totalBars);
@@ -167,8 +123,7 @@ describe("BarChart Component", () => {
       [highConfidence, mediumConfidence, lowConfidence],
       [highConfidence2, mediumConfidence2, lowConfidence2]
     ];
-    const config: BarChartConfig = {
-      ...baseConfig,
+    const config: BarChartConfig = makeConfig({
       data: stackedData,
       labels: ["Object1", "Object2"],
       options: {
@@ -176,7 +131,7 @@ describe("BarChart Component", () => {
         stackColors: ["#10b981", "#f59e0b", "#ef4444"],
         stacked: true
       }
-    };
+    });
     const { getAllByTestId } = render(<BarChart config={config} />);
     // Should render 2 bars * 3 segments each = 6 bars total
     expect(getAllByTestId("visx-bar")).toHaveLength(totalBars);
@@ -188,12 +143,11 @@ describe("BarChart Component", () => {
     const value3 = 30;
     const barsCount = 3;
     const singleValueData: number[][] = [[value1], [value2], [value3]];
-    const config: BarChartConfig = {
-      ...baseConfig,
+    const config: BarChartConfig = makeConfig({
       data: singleValueData,
       labels: ["A", "B", "C"],
       options: { horizontal: true }
-    };
+    });
     const { getAllByTestId } = render(<BarChart config={config} />);
     // Should render as regular bars (not stacked)
     expect(getAllByTestId("visx-bar")).toHaveLength(barsCount);
@@ -213,8 +167,7 @@ describe("BarChart Component", () => {
       [highConfidence, mediumConfidence, lowConfidence],
       [highConfidence2, mediumConfidence2, lowConfidence2]
     ];
-    const config: BarChartConfig = {
-      ...baseConfig,
+    const config: BarChartConfig = makeConfig({
       data: stackedData,
       labels: ["Object1", "Object2"],
       options: {
@@ -222,7 +175,7 @@ describe("BarChart Component", () => {
         stacked: true
         // stackColors not provided, should use defaults
       }
-    };
+    });
     const { getAllByTestId } = render(<BarChart config={config} />);
     // Should still render stacked bars with default colors
     expect(getAllByTestId("visx-bar")).toHaveLength(totalBars);
@@ -231,9 +184,8 @@ describe("BarChart Component", () => {
   it("should handle separator label not found in labels array (line 239 branch)", () => {
     // When separatorLabel is defined but the label at that index is undefined,
     // the separator line rendering returns null at line 239
-    const config: BarChartConfig = {
-      ...baseConfig,
-      data: [BAR_VAL_10, BAR_VAL_20],
+    const config: BarChartConfig = makeConfig({
+      data: [10, 20],
       labels: ["A", "B"],
       options: {
         horizontal: true,
@@ -242,13 +194,13 @@ describe("BarChart Component", () => {
         // is hit when the label exists but is falsy. Let's trigger with empty string.
         separatorLabel: ""
       }
-    };
+    });
     const { container } = render(<BarChart config={config} />);
     // Should render without crashing - separator line logic handles undefined label
     expect(container.querySelector("svg")).not.toBeNull();
   });
 
-  it("should render vertical stacked bars with legend (lines 486-487)", () => {
+  it("should render vertical stacked bars with legend labels visible", () => {
     const highConfidence = 5;
     const mediumConfidence = 3;
     const lowConfidence = 2;
@@ -262,8 +214,7 @@ describe("BarChart Component", () => {
       [highConfidence, mediumConfidence, lowConfidence],
       [highConfidence2, mediumConfidence2, lowConfidence2]
     ];
-    const config: BarChartConfig = {
-      ...baseConfig,
+    const config: BarChartConfig = makeConfig({
       data: stackedData,
       labels: ["Object1", "Object2"],
       options: {
@@ -272,18 +223,17 @@ describe("BarChart Component", () => {
         stackLabels: ["High", "Medium", "Low"],
         stacked: true
       }
-    };
-    const { getAllByTestId } = render(<BarChart config={config} />);
-    // Should render 2 bars * 3 segments each = 6 bars total
+    });
+    const { getAllByTestId, container } = render(<BarChart config={config} />);
     expect(getAllByTestId("visx-bar")).toHaveLength(totalBars);
+    expect(container.querySelector("svg")).not.toBeNull();
   });
 
   it("should handle stacked bars with more segments than colors (fallback color)", () => {
     // Test the fallback when colors[idx % colors.length] is undefined
-    const stackedData: number[][] = [[BAR_VAL_10, BAR_VAL_20, BAR_VAL_30, BAR_VAL_42]];
+    const stackedData: number[][] = [[10, 20, 30, 42]];
     const segmentsCount = 4;
-    const config: BarChartConfig = {
-      ...baseConfig,
+    const config: BarChartConfig = makeConfig({
       data: stackedData,
       labels: ["Object1"],
       options: {
@@ -293,17 +243,16 @@ describe("BarChart Component", () => {
         stackLabels: ["A", "B", "C", "D"],
         stacked: true
       }
-    };
+    });
     const { getAllByTestId } = render(<BarChart config={config} />);
     expect(getAllByTestId("visx-bar")).toHaveLength(segmentsCount);
   });
 
   it("should use artifact counts for percentage calculation in horizontal stacked bars", () => {
-    const stackedData: number[][] = [[BAR_VAL_10, BAR_VAL_20]];
+    const stackedData: number[][] = [[10, 20]];
     const artifactCount = 50;
     const totalForPct = 100;
-    const config: BarChartConfig = {
-      ...baseConfig,
+    const config: BarChartConfig = makeConfig({
       data: stackedData,
       labels: ["Object1"],
       options: {
@@ -313,7 +262,13 @@ describe("BarChart Component", () => {
         stacked: true,
         totalForPercentages: totalForPct
       }
-    };
+    });
+    const { container } = render(<BarChart config={config} />);
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("should render fallback text for empty dataset without throwing", () => {
+    const config = makeConfig({ data: [], labels: [], options: { horizontal: true } });
     const { container } = render(<BarChart config={config} />);
     expect(container.querySelector("svg")).not.toBeNull();
   });

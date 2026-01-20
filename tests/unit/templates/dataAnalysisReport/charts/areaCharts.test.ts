@@ -12,10 +12,10 @@ import {
   getOpeningWidthHeightPairs,
   getWallWidthHeightPairs,
   getWindowWidthHeightPairs
-} from "../../../../../src/utils/data/rawScanExtractor";
+} from "../../../../../src/utils/data/rawScanMetadataCollectors";
 import { getScatterChartConfig } from "../../../../../src/utils/chart/configBuilders";
 
-vi.mock("../../../../../src/utils/data/rawScanExtractor", () => ({
+vi.mock("../../../../../src/utils/data/rawScanMetadataCollectors", () => ({
   convertAreasToSquareFeet: vi.fn().mockReturnValue([]),
   convertLengthsToFeet: vi.fn().mockReturnValue([]),
   convertLengthsToInches: vi.fn().mockReturnValue([]),

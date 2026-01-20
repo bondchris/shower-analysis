@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildAttributePieCharts } from "../../../../../src/templates/dataAnalysisReport/charts/attributePieCharts";
 import { getPieChartConfig } from "../../../../../src/utils/chart/configBuilders";
-import { getDoorIsOpenCounts, getObjectAttributeCounts } from "../../../../../src/utils/data/rawScanExtractor";
+import { getDoorIsOpenCounts, getObjectAttributeCounts } from "../../../../../src/utils/data/rawScanAggregators";
 import { LayoutConstants, computeLayoutConstants } from "../../../../../src/templates/dataAnalysisReport/layout";
 
 let startCaseMock: ((label: string) => string) | null = null;
@@ -24,7 +24,7 @@ vi.mock("../../../../../src/utils/chart/configBuilders", () => ({
   getPieChartConfig: vi.fn().mockReturnValue({ type: "pie" })
 }));
 
-vi.mock("../../../../../src/utils/data/rawScanExtractor", () => ({
+vi.mock("../../../../../src/utils/data/rawScanAggregators", () => ({
   getDoorIsOpenCounts: vi.fn(),
   getObjectAttributeCounts: vi.fn()
 }));

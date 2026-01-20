@@ -2,7 +2,13 @@ import React from "react";
 import { ChartConfiguration } from "../../models/chart/chartConfiguration";
 import { PieChartConfig } from "../../models/chart/pieChartConfig";
 import { ReportSection } from "../../models/report";
-import { BarChart, Histogram, LineChart, MixedChart, PieChart, ScatterChart, ShapeOverlayChart } from "./charts";
+import { BarChart } from "./charts/BarChart";
+import { Histogram } from "./charts/Histogram";
+import { LineChart } from "./charts/LineChart";
+import { MixedChart } from "./charts/MixedChart";
+import { PieChart } from "./charts/PieChart";
+import { ScatterChart } from "./charts/ScatterChart";
+import { ShapeOverlayChart } from "./charts/ShapeOverlayChart";
 import { Table } from "./Table";
 
 interface SectionProps {

@@ -1,5 +1,5 @@
 import { getPieChartConfig } from "../../../utils/chart/configBuilders";
-import { getWallEmbeddedCounts } from "../../../utils/data/rawScanExtractor";
+import { getWallEmbeddedCounts } from "../../../utils/data/rawScanAggregators";
 import { LayoutConstants } from "../layout";
 import { CaptureCharts } from "../types";
 

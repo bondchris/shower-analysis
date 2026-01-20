@@ -1,5 +1,5 @@
 import { getPieChartConfig } from "../../../utils/chart/configBuilders";
-import { getSinkCounts, getVanityPlacements, getVanityTypes } from "../../../utils/data/rawScanExtractor";
+import { getSinkCounts, getVanityPlacements, getVanityTypes } from "../../../utils/data/rawScanAggregators";
 import { LayoutConstants } from "../layout";
 import { CaptureCharts } from "../types";
 

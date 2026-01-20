@@ -4,6 +4,7 @@ import ffmpeg from "fluent-ffmpeg";
 import * as path from "path";
 import { Mocked, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import axios from "axios";
+import { SyncFailureDatabase, saveSyncFailures } from "../../src/utils/data/syncFailures";
 
 // -- Mocks --
 
@@ -127,6 +128,15 @@ vi.mock("../../src/utils/data/badScans", () => ({
 }));
 import { saveBadScans } from "../../src/utils/data/badScans";
 
+// 8. Mock Sync Failures persistence to keep writes in-memory for speed/isolation
+let inMemorySyncFailures: SyncFailureDatabase = {};
+vi.mock("../../src/utils/data/syncFailures", () => ({
+  getSyncFailures: vi.fn(() => ({ ...inMemorySyncFailures })),
+  saveSyncFailures: vi.fn((db: SyncFailureDatabase) => {
+    inMemorySyncFailures = { ...db };
+  })
+}));
+
 // Import scripts
 import { main as validateMain } from "../../src/scripts/validateArtifacts";
 import { main as syncMain } from "../../src/scripts/syncArtifacts";
@@ -148,6 +158,12 @@ describe("Functional Pipeline Test", () => {
     fs.mkdirSync(path.join(tempDir, "reports"), { recursive: true });
     // Cache dir logic in SpatialService will create this, but we can pre-create to be safe or let it handle it
     fs.mkdirSync(path.join(tempDir, "data", "api_cache"), { recursive: true });
+    const configDir = path.join(tempDir, "config");
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(path.join(configDir, "badScans.json"), "{}");
+    fs.writeFileSync(path.join(configDir, "checkedScans.json"), "{}");
+    fs.writeFileSync(path.join(configDir, "syncFailures.json"), "{}");
+    fs.writeFileSync(path.join(configDir, "videoHashes.json"), "{}");
 
     // Spy process.cwd
     vi.spyOn(process, "cwd").mockReturnValue(tempDir);
@@ -321,6 +337,18 @@ describe("Functional Pipeline Test", () => {
 
     // Verify Sync Report exists
     expect(fs.existsSync(path.join(tempDir, "reports", "1 - Sync Report.pdf"))).toBe(true);
+
+    // Verify sync failures were recorded for the download error case
+    const syncFailureCalls = vi.mocked(saveSyncFailures).mock.calls;
+    if (syncFailureCalls.length === 0) {
+      throw new Error("saveSyncFailures was not called");
+    }
+    const lastSyncCall = syncFailureCalls[syncFailureCalls.length - 1];
+    const savedSyncDb = lastSyncCall?.[0];
+    const isSyncDb = (value: unknown): value is SyncFailureDatabase => value !== null && typeof value === "object";
+    if (!isSyncDb(savedSyncDb)) {
+      throw new Error("syncFailures payload missing");
+    }
 
     // Verify Failure was handled
     // "scan-bad-date" was mocked to throw "Simulated Download Failure".

@@ -1,5 +1,6 @@
 import { TRANSFORM_SIZE } from "../../utils/math/constants";
 import { ArFrame } from "./arFrame";
+import { INTRINSICS_SIZE } from "./cameraIntrinsics";
 
 export interface ArDataContent {
   data: Record<string, ArFrame>;
@@ -28,7 +29,6 @@ export class ArData {
   public data: Record<string, ArFrame>;
 
   constructor(json: unknown) {
-    const intrinsicsSize = 9;
     if (typeof json !== "object" || json === null) {
       throw new Error("Invalid ArData: must be an object");
     }
@@ -73,9 +73,9 @@ export class ArData {
 
       const intrinsics = (unsafeFrame as { cameraIntrinsics?: unknown }).cameraIntrinsics;
       if (intrinsics !== undefined) {
-        if (!Array.isArray(intrinsics) || intrinsics.length !== intrinsicsSize) {
+        if (!Array.isArray(intrinsics) || intrinsics.length !== INTRINSICS_SIZE) {
           throw new Error(
-            `Invalid ArData: frame "${key}" has invalid cameraIntrinsics (must be ${intrinsicsSize.toString()}-element array)`
+            `Invalid ArData: frame "${key}" has invalid cameraIntrinsics (must be ${INTRINSICS_SIZE.toString()}-element array)`
           );
         }
         const hasNonNumericIntrinsics = intrinsics.some((value) => typeof value !== "number" || Number.isNaN(value));

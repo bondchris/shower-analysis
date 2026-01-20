@@ -9,13 +9,25 @@ vi.mock("../../../../src/templates/components/Table", () => ({
   Table: ({ data }: { data: unknown }) => <div data-testid="mock-table">{JSON.stringify(data)}</div>
 }));
 
-vi.mock("../../../../src/templates/components/charts", () => ({
-  BarChart: () => <div data-testid="mock-barchart" />,
-  Histogram: () => <div data-testid="mock-histogram" />,
-  LineChart: () => <div data-testid="mock-linechart" />,
-  MixedChart: () => <div data-testid="mock-mixedchart" />,
-  PieChart: () => <div data-testid="mock-piechart" />,
-  ScatterChart: () => <div data-testid="mock-scatterchart" />,
+vi.mock("../../../../src/templates/components/charts/BarChart", () => ({
+  BarChart: () => <div data-testid="mock-barchart" />
+}));
+vi.mock("../../../../src/templates/components/charts/Histogram", () => ({
+  Histogram: () => <div data-testid="mock-histogram" />
+}));
+vi.mock("../../../../src/templates/components/charts/LineChart", () => ({
+  LineChart: () => <div data-testid="mock-linechart" />
+}));
+vi.mock("../../../../src/templates/components/charts/MixedChart", () => ({
+  MixedChart: () => <div data-testid="mock-mixedchart" />
+}));
+vi.mock("../../../../src/templates/components/charts/PieChart", () => ({
+  PieChart: () => <div data-testid="mock-piechart" />
+}));
+vi.mock("../../../../src/templates/components/charts/ScatterChart", () => ({
+  ScatterChart: () => <div data-testid="mock-scatterchart" />
+}));
+vi.mock("../../../../src/templates/components/charts/ShapeOverlayChart", () => ({
   ShapeOverlayChart: () => <div data-testid="mock-shapeoverlaychart" />
 }));
 

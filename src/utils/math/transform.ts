@@ -8,6 +8,29 @@ export interface Position3D {
   z: number;
 }
 
+/**
+ * A 4x4 transformation matrix stored as a 16-element tuple in column-major order.
+ * Used to represent camera pose (rotation and translation) in 3D space.
+ */
+export type Matrix16 = [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number
+];
+
 export const getPosition = (transform: number[]): Point => {
   const X_IDX = 12;
   const Z_IDX = 14;
@@ -38,6 +61,38 @@ export const getPosition3D = (transform: number[]): Position3D => {
     x: transform[X_IDX] ?? DEFAULT_VALUE,
     y: transform[Y_IDX] ?? DEFAULT_VALUE,
     z: transform[Z_IDX] ?? DEFAULT_VALUE
+  };
+};
+
+/**
+ * Calculates the dot product of two 3D vectors.
+ * Returns a scalar value representing the projection of one vector onto another.
+ */
+export const dotProduct3D = (a: Position3D, b: Position3D): number => {
+  const productX = a.x * b.x;
+  const productY = a.y * b.y;
+  const productZ = a.z * b.z;
+  return productX + productY + productZ;
+};
+
+/**
+ * Returns a normalized (unit) 3D vector.
+ * Returns zero vector if magnitude is below threshold.
+ */
+export const normalize3D = (vector: Position3D): Position3D => {
+  const defaultComponent = 0;
+  const minLength = 1e-6;
+  const unitMagnitude = 1;
+  const lengthSquared = dotProduct3D(vector, vector);
+  const length = Math.sqrt(lengthSquared);
+  if (length < minLength) {
+    return { x: defaultComponent, y: defaultComponent, z: defaultComponent };
+  }
+  const invLength = unitMagnitude / length;
+  return {
+    x: vector.x * invLength,
+    y: vector.y * invLength,
+    z: vector.z * invLength
   };
 };
 

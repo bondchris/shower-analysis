@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { ArData } from "../../../../src/models/arData/arData";
+import { CoverageSphere } from "../../../../src/models/arData/coverageSphere";
 import * as coverageUtils from "../../../../src/utils/arData/coverage";
 
 const { aggregateCoverageSpheres, buildSampleRays, computeSphericalCoverage } = coverageUtils;
-type CoverageSphere = coverageUtils.CoverageSphere;
 
 const buildArData = (cameraIntrinsics?: number[], includeThirdFrame = false) => {
   const baseTransform = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];

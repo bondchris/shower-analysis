@@ -5,7 +5,8 @@ import { RawScanData } from "../../../../src/models/rawScan/rawScan";
 import { FloorData } from "../../../../src/models/rawScan/floor";
 import { ObjectItem } from "../../../../src/models/rawScan/objectItem";
 import { WallData } from "../../../../src/models/rawScan/wall";
-import { RawScanMetadata, extractRawScanMetadata } from "../../../../src/utils/room/metadata";
+import { RawScanMetadata } from "../../../../src/models/rawScan/rawScanMetadata";
+import { extractRawScanMetadata } from "../../../../src/utils/room/metadata";
 import { createWindow } from "./testHelpers";
 
 // Mock modules

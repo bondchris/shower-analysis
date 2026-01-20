@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-01-19
+
+### [v0.68.3] Report and Utility Modularization (Maintenance)
+
+- Modularized all report templates into focused chart builders and section builders:
+  - AR Data Analysis: Split into chart builders (device, framerate, lighting, movement, orientation, timing) and sections (phone orientation, spherical coverage, time series).
+  - Video Analysis: Split into chart builders (color, duration, encoding, GOP, laplacian) and sections (encoding summary, laplacian examples).
+  - Sync Report: Split into charts (artifact size, error history, video size) and sections (disk usage, failures, summary).
+  - Discard Report: Split into charts, sections, and utils modules.
+  - Scan Analysis: Split into charts and sections (ceiling, floor, object, summary, surface).
+- Refactored AR data metadata extraction into smaller, focused modules (angular metrics, cache validation, EXIF extraction, framerate metrics, motion metrics, sensor metrics).
+- Extracted raw scan data utilities into dedicated modules (aggregators, dimension filters, iterators, metadata collectors, object confidence, wall analysis).
+- Extracted video analysis utilities into focused modules (entropy coding, ffprobe utils, GOP analysis, signal stats).
+- Created dedicated model files for AR data types (arDataMetadata, cameraIntrinsics, coverageSphere) and chart types (arDataCharts, videoCharts, rawScanMetadata).
+- Removed obsolete chart index barrel file and consolidated imports.
+- Updated test coverage to match new module structure.
+
 ## 2026-01-18
 
 ### [v0.68.2] Discard Pipeline Modular Config (Maintenance)

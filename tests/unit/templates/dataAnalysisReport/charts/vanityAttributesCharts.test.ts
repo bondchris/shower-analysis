@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildVanityAttributesCharts } from "../../../../../src/templates/dataAnalysisReport/charts/vanityAttributesCharts";
 import { getPieChartConfig } from "../../../../../src/utils/chart/configBuilders";
-import { getSinkCounts, getVanityPlacements, getVanityTypes } from "../../../../../src/utils/data/rawScanExtractor";
+import { getSinkCounts, getVanityPlacements, getVanityTypes } from "../../../../../src/utils/data/rawScanAggregators";
 import { LayoutConstants, computeLayoutConstants } from "../../../../../src/templates/dataAnalysisReport/layout";
 
 vi.mock("../../../../../src/utils/chart/configBuilders", () => ({
   getPieChartConfig: vi.fn().mockReturnValue({ type: "pie" })
 }));
 
-vi.mock("../../../../../src/utils/data/rawScanExtractor", () => ({
+vi.mock("../../../../../src/utils/data/rawScanAggregators", () => ({
   getSinkCounts: vi.fn(),
   getVanityPlacements: vi.fn(),
   getVanityTypes: vi.fn()

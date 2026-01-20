@@ -67,8 +67,11 @@ vi.mock("../../../src/utils/chart/shapeOverlay", () => ({
   sampleOutlines: mocks.sampleOutlines
 }));
 
-vi.mock("../../../src/utils/data/rawScanExtractor", () => ({
-  convertLengthsToFeet: vi.fn((arr: number[]) => arr.map((v: number) => v * 3.28084)),
+vi.mock("../../../src/utils/data/rawScanMetadataCollectors", () => ({
+  convertLengthsToFeet: vi.fn((arr: number[]) => arr.map((v: number) => v * 3.28084))
+}));
+
+vi.mock("../../../src/utils/data/rawScanWallAnalysis", () => ({
   getCeilingHeightDifferences: vi.fn((): number[] => []),
   getNotchedWallOutlines: mocks.getNotchedWallOutlines,
   getSlantedWallOutlines: mocks.getSlantedWallOutlines

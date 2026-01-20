@@ -2,35 +2,57 @@ import * as fs from "fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  getDoorIsOpenCounts,
+  getObjectAttributeCounts,
+  getSinkCounts,
+  getVanityTypes,
+  getWallEmbeddedCounts
+} from "../../../../src/utils/data/rawScanAggregators";
+import {
+  getArtifactsWithNarrowDoors,
+  getArtifactsWithSmallWalls,
+  getUnexpectedVersionArtifactDirs
+} from "../../../../src/utils/data/rawScanDimensionFilters";
+import {
   convertAreasToSquareFeet,
   convertLengthsToFeet,
   convertLengthsToInches,
-  getArtifactsWithNarrowDoors,
-  getArtifactsWithSmallWalls,
-  getCeilingHeightDifferences,
   getDoorAreas,
-  getDoorIsOpenCounts,
   getDoorOutlines,
   getFloorOutlines,
   getFloorWidthHeightPairs,
-  getNotchedWallOutlines,
-  getObjectAttributeCounts,
-  getObjectConfidenceCounts,
   getOpeningAreas,
   getOpeningOutlines,
-  getSinkCounts,
-  getSlantedWallOutlines,
   getTubLengths,
-  getUnexpectedVersionArtifactDirs,
   getVanityLengths,
-  getVanityTypes,
   getWallAreas,
-  getWallEmbeddedCounts,
   getWallOutlines,
   getWindowAreas,
   getWindowOutlines
-} from "../../../../src/utils/data/rawScanExtractor";
-import { RawScanMetadata, extractRawScanMetadata } from "../../../../src/utils/room/metadata";
+} from "../../../../src/utils/data/rawScanMetadataCollectors";
+import { getObjectConfidenceCounts } from "../../../../src/utils/data/rawScanObjectConfidence";
+import {
+  getCeilingHeightDifferences,
+  getNotchedWallOutlines,
+  getSlantedWallOutlines
+} from "../../../../src/utils/data/rawScanWallAnalysis";
+import { RawScanMetadata } from "../../../../src/models/rawScan/rawScanMetadata";
+import { extractRawScanMetadata } from "../../../../src/utils/room/metadata";
+import { createMockMetadata, mockRawScanClass, setupFsMocksForMetadata } from "./rawScanTestUtils";
+
+const buildRawScan = (overrides: Partial<Record<string, unknown>> = {}) => ({
+  coreModel: "test",
+  doors: [],
+  floors: [],
+  objects: [],
+  openings: [],
+  sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
+  story: 1,
+  version: 2,
+  walls: [],
+  windows: [],
+  ...overrides
+});
 
 // Mock fs module
 vi.mock("fs", () => ({
@@ -45,122 +67,7 @@ vi.mock("../../../../src/utils/room/metadata", () => ({
 }));
 
 // Simplify RawScan to a passthrough container for test fixtures
-vi.mock("../../../../src/models/rawScan/rawScan", () => ({
-  RawScan: function (this: Record<string, unknown>, data: unknown) {
-    Object.assign(this, data as Record<string, unknown>);
-  }
-}));
-
-/**
- * Creates a minimal mock RawScanMetadata with default values.
- * Override specific fields as needed for each test.
- */
-function createMockMetadata(overrides: Partial<RawScanMetadata> = {}): RawScanMetadata {
-  const defaults: RawScanMetadata = {
-    doorAreas: [],
-    doorCount: 0,
-    doorHeights: [],
-    doorIsOpenCounts: {},
-    doorOutlines: [],
-    doorWidthHeightPairs: [],
-    doorWidths: [],
-    floorLengths: [],
-    floorOutlines: [],
-    floorWidthHeightPairs: [],
-    floorWidths: [],
-    hasBed: false,
-    hasChair: false,
-    hasColinearWallErrors: false,
-    hasCrookedWallErrors: false,
-    hasCurvedEmbedded: false,
-    hasCurvedWall: false,
-    hasDishwasher: false,
-    hasDoorBlockingError: false,
-    hasDoorFloorContactError: false,
-    hasEmbeddedObjectIntersectionErrors: false,
-    hasExternalOpening: false,
-    hasFireplace: false,
-    hasFloorsWithParentId: false,
-    hasLowCeiling: false,
-    hasMultipleStories: false,
-    hasNibWalls: false,
-    hasNonEmptyCompletedEdges: false,
-    hasNonRectWall: false,
-    hasNonRectangularEmbedded: false,
-    hasObjectIntersectionErrors: false,
-    hasOven: false,
-    hasRefrigerator: false,
-    hasSofa: false,
-    hasSoffit: false,
-    hasStairs: false,
-    hasStove: false,
-    hasTable: false,
-    hasTelevision: false,
-    hasToiletGapErrors: false,
-    hasTubGapErrors: false,
-    hasUnparentedEmbedded: false,
-    hasWallGapErrors: false,
-    hasWallObjectIntersectionErrors: false,
-    hasWallWallIntersectionErrors: false,
-    hasWasherDryer: false,
-    objectAttributeCounts: {},
-    openingAreas: [],
-    openingCount: 0,
-    openingHeights: [],
-    openingOutlines: [],
-    openingWidthHeightPairs: [],
-    openingWidths: [],
-    roomAreaSqFt: 100,
-    sectionLabels: [],
-    sinkCount: 0,
-    storageCount: 0,
-    stories: [1],
-    toiletCount: 0,
-    tubCount: 0,
-    tubLengths: [],
-    vanityLengths: [],
-    vanityPlacement: null,
-    vanityType: null,
-    wallAreas: [],
-    wallCount: 0,
-    wallHeights: [],
-    wallOutlines: [],
-    wallWidthHeightPairs: [],
-    wallWidths: [],
-    wallsWithDoors: 0,
-    wallsWithOpenings: 0,
-    wallsWithWindows: 0,
-    windowAreas: [],
-    windowCount: 0,
-    windowHeights: [],
-    windowOutlines: [],
-    windowWidthHeightPairs: [],
-    windowWidths: []
-  };
-  return { ...defaults, ...overrides };
-}
-
-/**
- * Helper function to set up fs mocks for extractRawScanMetadata.
- * Ensures cache doesn't exist (forces extraction from rawScan.json) and provides rawScan.json content.
- */
-function setupFsMocksForMetadata(rawScanContent: unknown): void {
-  (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
-    if (filePath.includes("rawScanMetadata.json")) {
-      return false;
-    }
-    return filePath.includes("rawScan.json");
-  });
-  (fs.readFileSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
-    if (filePath.includes("rawScan.json")) {
-      return JSON.stringify(rawScanContent);
-    }
-    return "";
-  });
-  (fs.writeFileSync as ReturnType<typeof vi.fn>).mockImplementation(() => {
-    // no-op
-  });
-}
+mockRawScanClass();
 
 describe("rawScanExtractor", () => {
   beforeEach(() => {
@@ -178,31 +85,8 @@ describe("rawScanExtractor", () => {
     });
 
     it("should return directories with unexpected versions", () => {
-      const mockRawScanVersion1 = {
-        coreModel: "test",
-        doors: [],
-        floors: [],
-        objects: [],
-        openings: [],
-        sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
-        story: 1,
-        version: 1,
-        walls: [],
-        windows: []
-      };
-
-      const mockRawScanVersion2 = {
-        coreModel: "test",
-        doors: [],
-        floors: [],
-        objects: [],
-        openings: [],
-        sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
-        story: 1,
-        version: 2,
-        walls: [],
-        windows: []
-      };
+      const mockRawScanVersion1 = buildRawScan({ version: 1 });
+      const mockRawScanVersion2 = buildRawScan({ version: 2 });
 
       (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) => {
         return filePath.endsWith("rawScan.json");
@@ -344,18 +228,7 @@ describe("rawScanExtractor", () => {
         filePath.endsWith("rawScan.json")
       );
       (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
-        JSON.stringify({
-          coreModel: "test",
-          doors: [{ dimensions: [0.5, 2] }],
-          floors: [],
-          objects: [],
-          openings: [],
-          sections: [{ center: [0, 0, 0], label: "test-section", story: 1 }],
-          story: 1,
-          version: 2,
-          walls: [],
-          windows: []
-        })
+        JSON.stringify(buildRawScan({ doors: [{ dimensions: [0.5, 2] }] }))
       );
 
       const result = getArtifactsWithNarrowDoors(["/test/dir1"]);
