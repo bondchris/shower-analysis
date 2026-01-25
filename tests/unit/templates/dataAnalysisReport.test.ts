@@ -185,7 +185,7 @@ describe("buildDataAnalysisReport", () => {
     expect(report.subtitle).toBe("Artifacts: 1");
 
     // Video Analysis (H2), Duration, Frame/Res Row, Bitrate Row, Page Break, AR Data Analysis (H2), Device, Focal/Aperture Row, Ambient, Temp, ISO, Brightness,
-    // Scan Data Analysis (H2), Summary Analysis (H3), Section Types, Capture Errors, Feature Prevalence,
+    // Room Data Analysis (H2), Summary Analysis (H3), Section Types, Capture Errors, Feature Prevalence,
     // Object Analysis (H3), Object Distribution, Floor Analysis (H3), Floor Area
     // 21 (window/door/opening area charts only added when artifactDirs provided)
     const EXPECTED_SECTION_COUNT = 21;
@@ -195,7 +195,7 @@ describe("buildDataAnalysisReport", () => {
     const sectionTitles = report.sections.map((s) => s.title);
     expect(sectionTitles).toContain("Video Analysis");
     expect(sectionTitles).toContain("AR Data Analysis");
-    expect(sectionTitles).toContain("Scan Data Analysis");
+    expect(sectionTitles).toContain("Room Data Analysis");
     expect(sectionTitles).toContain("Summary Analysis");
     expect(sectionTitles).toContain("Object Analysis");
     expect(sectionTitles).toContain("Floor Analysis");

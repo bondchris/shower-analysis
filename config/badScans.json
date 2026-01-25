@@ -35,6 +35,12 @@
     "reason": "Duplicate video (hash 19ab7c4da408b7929282e7ceda54c2dc49e107bbb107455c86d1fd995d8e4195) matches 9dc87653-e9f2-4b78-9842-97d4bebdc129, ba16f9ce-ef36-450e-a1c4-7bb3b1da0ab2",
     "scanDate": "2024-09-09T12:07:18Z"
   },
+  "05e421e8-4be5-4da2-a970-afb1ec715420": {
+    "date": "2026-01-24T06:07:05.746Z",
+    "environment": "Lowe's Production",
+    "reason": "Invalid video (ffmpeg probe failed)",
+    "scanDate": "2026-01-24T05:37:44.472133Z"
+  },
   "062584a3-8628-4252-b2a2-ecf959cb03fc": {
     "date": "2026-01-17T04:34:46.469Z",
     "environment": "Bond Production",
@@ -88,6 +94,12 @@
     "environment": "Bond Production",
     "reason": "Duplicate video (hash 7a6c841b2c371e0e91d0b2950afe6176d63146d8e6493b8477857f18de1a356f) matches 00c7951a-daee-4736-ab38-c7134894471a, 2471ca27-d463-406c-a0ae-86c78fc0781e, 264bcd9e-6b51-43fb-9735-ae3132bcadaa, 2c814f19-24b9-42e5-b5f3-66c34e4eb127, 59959cc3-e562-41e4-9cf8-020410074546, 7aecb955-c24a-45e6-b1e4-19baa363d18c, cee60559-753b-4917-9c34-6ed10ce66ffd, d1372df7-bdc2-4dbc-9c37-7c1cef9b8b26, e029e0a6-0af3-4de5-b586-52c208d34abc, fda8f2a3-94df-40ef-bf43-c52a41a720c1, ff2a8442-4c34-4477-b30b-dd423bb73a88",
     "scanDate": "2025-04-29T07:42:13.542Z"
+  },
+  "0f5bf802-5fda-493b-8f3a-8ac6d89d72fd": {
+    "date": "2026-01-22T02:03:24.944Z",
+    "environment": "Lowe's Staging",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2026-01-21T17:59:20.05718Z"
   },
   "100ddee4-8a5b-445b-bfe5-85b87e3cfb2b": {
     "date": "2025-12-27T05:33:05.817Z",
@@ -1541,6 +1553,12 @@
     "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
     "scanDate": "2024-11-14T13:14:38Z"
   },
+  "9cb04e38-cc93-4d63-88aa-cc21f4c29d3f": {
+    "date": "2026-01-24T04:51:26.499Z",
+    "environment": "Lowe's Production",
+    "reason": "Invalid video (ffmpeg probe failed)",
+    "scanDate": "2026-01-22T18:46:13.13987Z"
+  },
   "9cec9ab7-bbb2-452b-a166-0e0079b42384": {
     "date": "2025-12-29T06:03:11.564Z",
     "environment": "Bond Production",
@@ -1570,6 +1588,12 @@
     "environment": "Bond Production",
     "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
     "scanDate": "2025-10-24T19:38:07.450344Z"
+  },
+  "a2244338-ddd1-4cc4-aa72-d26bdb50632b": {
+    "date": "2026-01-22T02:03:59.024Z",
+    "environment": "Lowe's Staging",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2026-01-21T01:27:25.027714Z"
   },
   "a2275da4-9fb8-4a92-9448-c153a4cd0ce9": {
     "date": "2025-12-27T05:32:37.463Z",
@@ -1691,6 +1715,12 @@
     "reason": "Duplicate video (hash 9fa3add1b1c4c8b9bc76a841e96875bea159f2e6124e79e85094ea3921758107) matches 42e4d8c8-387d-4e76-8067-5be21fe36b58, df1b919d-c5dc-48a4-8240-b1afb8cb6d06",
     "scanDate": "2024-07-30T16:35:27Z"
   },
+  "b69e97ed-b815-49ba-992e-143827804559": {
+    "date": "2026-01-24T04:54:47.573Z",
+    "environment": "Lowe's Staging",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2026-01-23T04:05:45.66006Z"
+  },
   "b8f44f7d-fcdd-418d-9cdf-2c3cc2ef6fe0": {
     "date": "2025-12-27T06:20:17.629Z",
     "environment": "Bond Demo",
@@ -1726,6 +1756,12 @@
     "environment": "Bond Production",
     "reason": "Video too short (8.93s)",
     "scanDate": "2025-06-23T22:44:27.509Z"
+  },
+  "bc686ad2-ff47-404b-a894-7bc265e613fd": {
+    "date": "2026-01-24T04:51:59.418Z",
+    "environment": "Bond Production",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2026-01-23T00:59:29.15573Z"
   },
   "bd1f60d3-2216-48ea-947c-5f96b4e94a50": {
     "date": "2025-12-27T06:20:16.505Z",
@@ -2135,6 +2171,12 @@
     "reason": "Duplicate video (hash 6a063aabe36535b6ef30f9367aa25998643a464024c6af27ec3a0a93820170a9) matches c1449e8b-25ae-48b2-82df-769a906564d2",
     "scanDate": "2024-11-01T12:39:33Z"
   },
+  "e66aa91a-473a-41e5-bd41-6e4986c5dc8a": {
+    "date": "2026-01-24T04:54:58.076Z",
+    "environment": "Lowe's Staging",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2026-01-23T13:08:39.625155Z"
+  },
   "e7c5859e-e723-4a3f-a8ee-53cff43a2234": {
     "date": "2025-12-27T06:20:16.725Z",
     "environment": "Bond Production",
@@ -2164,6 +2206,12 @@
     "environment": "Bond Production",
     "reason": "Duplicate video (hash 62ee336074ece649fd8bbe94f9ed5a799b2638a9ce4c0b63c85695e7ee6fb7e6) matches eb7baf6a-0259-4bce-a0e5-15de213e0c60",
     "scanDate": "2024-09-20T14:03:57Z"
+  },
+  "e9b0aeac-3137-4dc1-bf3a-793183811e5a": {
+    "date": "2026-01-21T05:53:50.162Z",
+    "environment": "Lowe's Staging",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2026-01-20T22:06:57.352141Z"
   },
   "eb10a3e2-d5e8-44d5-8f68-e5e3e2e1d90f": {
     "date": "2025-12-27T06:20:16.812Z",
@@ -2212,6 +2260,12 @@
     "environment": "Bond Production",
     "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
     "scanDate": "2025-06-23T23:47:14.474Z"
+  },
+  "ef865978-d71c-4eca-9779-5f12ae968ff7": {
+    "date": "2026-01-22T02:04:16.552Z",
+    "environment": "Lowe's Staging",
+    "reason": "Not a bathroom (Gemini gemini-3-pro-preview)",
+    "scanDate": "2026-01-21T08:20:12.519977Z"
   },
   "effd537a-9d04-409e-9e84-598f20f66c1f": {
     "date": "2025-12-27T05:32:55.244Z",
@@ -2314,6 +2368,12 @@
     "environment": "Bond Production",
     "reason": "Duplicate video (hash e0dd73ee96de62e278ee8565cb14e1bae6b68aa1f91c7f1321ea0889cce1fba0) matches 1b175c6b-9fc5-484f-871c-4a615d88725f, 88ad4c8d-6917-46a9-8f9e-bc037a3257a8",
     "scanDate": "2024-07-25T12:44:43Z"
+  },
+  "fbe1e7e4-79c3-416f-9ece-536b7eb46712": {
+    "date": "2026-01-24T04:51:28.930Z",
+    "environment": "Lowe's Staging",
+    "reason": "Invalid video (ffmpeg probe failed)",
+    "scanDate": "2026-01-23T12:57:58.349944Z"
   },
   "fc75f57a-e379-4e8c-9ef5-abbe91a56d50": {
     "date": "2025-12-27T06:20:16.794Z",

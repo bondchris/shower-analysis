@@ -1,6 +1,7 @@
 import { Point } from "../../../../src/models/point";
 import {
   add,
+  angle,
   angleBetween,
   crossProduct,
   distanceSquared,
@@ -9,6 +10,7 @@ import {
   magnitude,
   magnitudeSquared,
   normalize,
+  rotate,
   scale,
   subtract
 } from "../../../../src/utils/math/vector";
@@ -159,6 +161,60 @@ describe("vector utils", () => {
 
     it("should return 0 if one vector is zero", () => {
       expect(angleBetween(new Point(1, 0), new Point(0, 0))).toBe(0);
+    });
+  });
+
+  describe("angle", () => {
+    it("should return 0 for vector pointing along positive X axis", () => {
+      expect(angle(new Point(1, 0))).toBe(0);
+    });
+
+    it("should return PI/2 for vector pointing along positive Y axis", () => {
+      expect(angle(new Point(0, 1))).toBeCloseTo(Math.PI / 2);
+    });
+
+    it("should return PI for vector pointing along negative X axis", () => {
+      expect(angle(new Point(-1, 0))).toBeCloseTo(Math.PI);
+    });
+
+    it("should return -PI/2 for vector pointing along negative Y axis", () => {
+      expect(angle(new Point(0, -1))).toBeCloseTo(-Math.PI / 2);
+    });
+
+    it("should return PI/4 for 45 degree vector", () => {
+      expect(angle(new Point(1, 1))).toBeCloseTo(Math.PI / 4);
+    });
+  });
+
+  describe("rotate", () => {
+    it("should rotate vector by 90 degrees counter-clockwise", () => {
+      const rotated = rotate(new Point(1, 0), Math.PI / 2);
+      expect(rotated.x).toBeCloseTo(0);
+      expect(rotated.y).toBeCloseTo(1);
+    });
+
+    it("should rotate vector by 180 degrees", () => {
+      const rotated = rotate(new Point(1, 0), Math.PI);
+      expect(rotated.x).toBeCloseTo(-1);
+      expect(rotated.y).toBeCloseTo(0);
+    });
+
+    it("should rotate vector by -90 degrees (clockwise)", () => {
+      const rotated = rotate(new Point(1, 0), -Math.PI / 2);
+      expect(rotated.x).toBeCloseTo(0);
+      expect(rotated.y).toBeCloseTo(-1);
+    });
+
+    it("should return same vector when rotating by 0", () => {
+      const rotated = rotate(new Point(3, 4), 0);
+      expect(rotated.x).toBeCloseTo(3);
+      expect(rotated.y).toBeCloseTo(4);
+    });
+
+    it("should preserve vector magnitude after rotation", () => {
+      const original = new Point(3, 4);
+      const rotated = rotate(original, Math.PI / 3);
+      expect(magnitude(rotated)).toBeCloseTo(magnitude(original));
     });
   });
 });

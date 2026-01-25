@@ -13,7 +13,7 @@ This project provides a suite of scripts to validate, sync, inspect, clean, and 
 
 It identifies data integrity issues, generates visual reports, classifies video content using AI, and maintains a clean local dataset.
 
-The Scan Analysis report pairs aspect ratio scatter plots with surface shape overlays (floors, walls, windows,
+The Room Analysis report pairs aspect ratio scatter plots with surface shape overlays (floors, walls, windows,
 doors, and openings) to visualize silhouette diversity at a common scale. It also includes ceiling analysis
 with height difference distributions and classified wall shapes (slanted vs notched) to identify
 architectural variations.
@@ -133,7 +133,13 @@ Deep analysis of metadata, lighting, room features, and camera settings.
 npm run inspect
 ```
 
-**Output** (three separate reports):
+**Features**:
+
+- Generates a `layout.png` for each artifact showing a top-down room layout with floors, walls, objects, doors, and windows.
+- Layout images are automatically rotated so the longest wall is vertical for consistent orientation.
+- Layout generation is cached—existing images are skipped to avoid redundant processing.
+
+**Output** (four separate reports plus per-artifact layouts):
 
 - `reports/3.1 - Video Analysis.pdf`: Video metadata analysis:
   - Duration distribution with average reference line
@@ -157,13 +163,18 @@ npm run inspect
   - Aggregated spherical coverage heatmap (6 ft radius; 2.5° resolution) and multi-view globe showing dwell time by direction across all scans
   - Lighting conditions: Average/Minimum/Maximum for Ambient Intensity, Color Temperature, ISO Speed, and Brightness Value
 
-- `reports/3.3 - Scan Analysis.pdf`: Room scan data analysis:
+- `reports/3.3 - Room Analysis.pdf`: Room scan data analysis:
   - Section types and feature prevalence
   - Capture errors and object distribution with confidence levels
   - Object attribute breakdowns (doors, chairs, sofas, tables, storage, vanity)
   - Dimension distributions for floors, walls, windows, doors, and openings
   - Aspect ratio scatter plots for structural elements
   - Normalized shape overlays for floors, walls, windows, doors, and openings to highlight common silhouettes
+
+- `reports/3.4 - Scan Analysis.pdf`: Scan-behavior analysis combining rawScan.json and arData.json:
+  - One "Time with X in View" chart per object category (toilet, bathtub, sink, storage, etc.) that has
+    data. Each chart shows a KDE of per-scan seconds the user spent with any object of that type in the
+    camera view cone (60° half-angle), with an average reference line.
 
 ## Configuration
 
@@ -247,8 +258,8 @@ This executes: validate → sync → discard → format-data → inspect
   - `templates/`: React-based PDF report templates and chart components.
     - `arDataAnalysisReport/`: Modular chart builders (device, framerate, lighting, movement, orientation, timing) and section builders (phone orientation, spherical coverage, time series).
     - `videoAnalysisReport/`: Modular chart builders (color, duration, encoding, GOP, laplacian) and section builders (encoding summary, laplacian examples).
-    - `scanAnalysisReport/`: Chart builders and section builders (ceiling, floor, object, summary, surface).
-    - `dataAnalysisReport/`: Shared chart utilities for scan analysis reports (KDE bounds, layout, prevalence, dimensions).
+    - `roomAnalysisReport/`: Chart builders and section builders (ceiling, floor, object, summary, surface).
+    - `dataAnalysisReport/`: Shared chart utilities for room analysis reports (KDE bounds, layout, prevalence, dimensions).
     - `syncReport/`: Chart builders (artifact size, error history, video size) and section builders (disk usage, failures, summary).
     - `discardReport/`: Charts, sections, and utility modules for discard reports.
     - `validationReport/`: Charts and section builders for validation reports.
@@ -258,7 +269,8 @@ This executes: validate → sync → discard → format-data → inspect
     - `chart/`: Chart generation utilities (config builders, KDE, histograms, scatter).
     - `data/`: Data management utilities (`badScans`, `checkedScans`, `syncFailures`, raw scan aggregators, iterators, metadata collectors).
     - `math/`: Mathematical utilities (`vector`, `polygon`, `segment`, `transform`, `constants`).
-    - `room/`: Room validation and analysis functions (wall gaps, intersections, etc.).
+    - `room/`: Room validation and analysis functions (wall gaps, intersections, layout visualization, etc.).
+      - `layout/`: Room layout PNG generation (`extractLayoutElements`, `generateRoomLayoutPng`, `RoomLayoutSvg`).
     - `sync/`: Synchronization helpers.
     - `video/`: Video analysis utilities (black frames, entropy coding, ffprobe utils, GOP analysis, metadata, signal stats).
     - `logger.ts`: Centralized logging.

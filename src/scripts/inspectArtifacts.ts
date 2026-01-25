@@ -2,6 +2,7 @@ import * as path from "path";
 
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
 import { buildArDataAnalysisReport } from "../templates/arDataAnalysisReport";
+import { buildRoomAnalysisReport } from "../templates/roomAnalysisReport";
 import { buildScanAnalysisReport } from "../templates/scanAnalysisReport";
 import { buildVideoAnalysisReport } from "../templates/videoAnalysisReport";
 import { extractArDataMetadata } from "../utils/arData/metadata";
@@ -9,7 +10,7 @@ import { findArtifactDirectories } from "../utils/data/artifactIterator";
 import { logger } from "../utils/logger";
 import { createProgressBar } from "../utils/progress";
 import { generatePdfReport } from "../utils/reportGenerator";
-import { extractRawScanMetadata } from "../utils/room/metadata";
+import { extractRawScanMetadata, generateLayoutForArtifact } from "../utils/room/metadata";
 import { extractVideoMetadata } from "../utils/video/metadata";
 
 /**
@@ -17,10 +18,11 @@ import { extractVideoMetadata } from "../utils/video/metadata";
  * - Extracts metadata (resolution, duration, room features).
  * - Runs all room utility checks (intersections, gaps, etc.).
  * - Generates charts (histograms, bar charts) for data distribution.
- * - Outputs three separate reports:
+ * - Outputs four separate reports:
  *   - `reports/3.1 - Video Analysis.pdf` - Video duration, framerate, resolution
  *   - `reports/3.2 - AR Data Analysis.pdf` - Device models, camera settings, lighting
- *   - `reports/3.3 - Scan Analysis.pdf` - Room dimensions, features, objects, errors
+ *   - `reports/3.3 - Room Analysis.pdf` - Room dimensions, features, objects, errors
+ *   - `reports/3.4 - Scan Analysis.pdf` - How users scan the room (rawScan + arData)
  */
 
 // 1. Video Metadata
@@ -94,6 +96,7 @@ export async function analyzeArtifact(dir: string): Promise<ArtifactAnalysis> {
   await addVideoMetadata(dir, metadata);
   addRawScanMetadata(dir, metadata);
   addArDataMetadata(dir, metadata);
+  await generateLayoutForArtifact(dir);
   return metadata;
 }
 
@@ -105,7 +108,8 @@ export async function createInspectionReports(
 ): Promise<void> {
   const videoReportFile = "3.1 - Video Analysis.pdf";
   const arDataReportFile = "3.2 - AR Data Analysis.pdf";
-  const scanReportFile = "3.3 - Scan Analysis.pdf";
+  const roomReportFile = "3.3 - Room Analysis.pdf";
+  const scanReportFile = "3.4 - Scan Analysis.pdf";
 
   logger.info("Generating 3.1 - Video Analysis PDF...");
   const videoReportData = buildVideoAnalysisReport(metadataList, avgDuration, videoCount);
@@ -117,7 +121,12 @@ export async function createInspectionReports(
   await generatePdfReport(arDataReportData, arDataReportFile);
   logger.info(`Report generated at: ${arDataReportFile}`);
 
-  logger.info("Generating 3.3 - Scan Analysis PDF...");
+  logger.info("Generating 3.3 - Room Analysis PDF...");
+  const roomReportData = buildRoomAnalysisReport(metadataList, videoCount, artifactDirs);
+  await generatePdfReport(roomReportData, roomReportFile);
+  logger.info(`Report generated at: ${roomReportFile}`);
+
+  logger.info("Generating 3.4 - Scan Analysis PDF...");
   const scanReportData = buildScanAnalysisReport(metadataList, videoCount, artifactDirs);
   await generatePdfReport(scanReportData, scanReportFile);
   logger.info(`Report generated at: ${scanReportFile}`);

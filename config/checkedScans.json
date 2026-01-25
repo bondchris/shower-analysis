@@ -41,6 +41,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "003f6c50-f245-4272-b932-1aa4ff18bbcc": {
+    "cleanedDate": "2026-01-22T02:03:11.857Z",
+    "filteredDate": "2026-01-22T02:03:33.500Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:25.148Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:25.862Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:25.864Z",
+    "avcAnomalyDetected": false
+  },
   "0073a04e-af28-496b-90b9-43b49c7963af": {
     "filteredDate": "2025-12-08T07:42:05.438Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -609,6 +620,14 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "05e421e8-4be5-4da2-a970-afb1ec715420": {
+    "mismatchCheckedDate": "2026-01-24T06:07:06.534Z",
+    "blackFrameCheckedDate": "2026-01-24T06:07:06.643Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T06:07:06.648Z",
+    "avcAnomalyDetected": false
+  },
   "05f38f5c-b87a-4442-8e03-589298d5c6c7": {
     "filteredDate": "2025-12-08T07:42:51.244Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -619,6 +638,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:40:09.381Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "060ca04a-d7a5-4a09-a2cd-dfc5628fbe69": {
+    "cleanedDate": "2026-01-22T02:03:11.972Z",
+    "filteredDate": "2026-01-22T02:03:30.899Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:27.802Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:28.375Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:28.378Z",
+    "avcAnomalyDetected": false
   },
   "060fa132-527c-4eb2-bf87-13e4e2d81adb": {
     "filteredDate": "2025-12-08T08:57:01.567Z",
@@ -826,6 +856,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "07d79cc8-aefa-4679-be39-0b4d29837e82": {
+    "cleanedDate": "2026-01-24T04:51:25.134Z",
+    "filteredDate": "2026-01-24T04:52:22.405Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:18.161Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:19.072Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:19.076Z",
+    "avcAnomalyDetected": false
+  },
   "0804f6e2-5c57-4690-a1da-1cd7133309a3": {
     "filteredDate": "2025-12-08T07:43:18.705Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -1004,6 +1045,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:38:35.512Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "09399380-4bd6-4708-9057-e534b4e60a94": {
+    "cleanedDate": "2026-01-21T05:52:41.223Z",
+    "filteredDate": "2026-01-21T05:52:56.457Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:02.273Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:02.862Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:02.864Z",
+    "avcAnomalyDetected": false
   },
   "09556df6-ff45-4820-aeb5-1e79765ed54f": {
     "filteredDate": "2025-12-08T07:43:17.813Z",
@@ -1277,6 +1329,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:52:41.346Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "0b4ef243-83c6-4053-bd89-e81445f82da4": {
+    "cleanedDate": "2026-01-24T04:51:25.184Z",
+    "filteredDate": "2026-01-24T04:52:26.530Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:19.560Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:20.276Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:20.279Z",
+    "avcAnomalyDetected": false
   },
   "0b5a00d9-fbaa-4e37-9b33-e7f9f97e6912": {
     "cleanedDate": "2025-12-19T20:18:01.165Z",
@@ -1792,6 +1855,15 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "0f5bf802-5fda-493b-8f3a-8ac6d89d72fd": {
+    "cleanedDate": "2026-01-22T02:03:12.028Z",
+    "mismatchCheckedDate": "2026-01-22T02:04:41.733Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:41.978Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:41.979Z",
+    "avcAnomalyDetected": false
+  },
   "0f5d9df7-46cf-4b59-862f-de86dc8bc145": {
     "cleanedDate": "2025-12-15T18:39:53.950Z",
     "filteredDate": "2025-12-15T18:40:10.345Z",
@@ -1824,6 +1896,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:40:30.162Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "0f91aa26-e0ab-41c4-8c4d-979db9eae94b": {
+    "cleanedDate": "2026-01-24T04:51:24.334Z",
+    "filteredDate": "2026-01-24T04:51:45.095Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:55:54.463Z",
+    "blackFrameCheckedDate": "2026-01-24T04:55:55.008Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:55:55.010Z",
+    "avcAnomalyDetected": false
   },
   "0fc5b40d-da04-490c-a5ab-318dcc81c92f": {
     "filteredDate": "2025-12-08T07:44:23.818Z",
@@ -2354,6 +2437,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "141dbd94-7592-4916-885a-c02606566406": {
+    "cleanedDate": "2026-01-24T04:51:25.234Z",
+    "filteredDate": "2026-01-24T04:52:24.317Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:20.663Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:21.230Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:21.232Z",
+    "avcAnomalyDetected": false
+  },
   "1436195a-cb92-4d37-bc29-63047dcc9d1d": {
     "cleanedDate": "2025-12-30T06:14:52.386Z",
     "filteredDate": "2025-12-30T06:15:54.522Z",
@@ -2384,6 +2478,17 @@
     "blackFrameCheckedDate": "2026-01-04T08:08:52.423Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "144e25a0-23fc-489a-9eeb-02be8bbbc7db": {
+    "cleanedDate": "2026-01-24T04:51:25.285Z",
+    "filteredDate": "2026-01-24T04:52:23.998Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:21.536Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:22.112Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:22.114Z",
+    "avcAnomalyDetected": false
   },
   "1465852e-2feb-41f3-83f2-9f22879b0198": {
     "cleanedDate": "2025-12-15T18:39:54.055Z",
@@ -2559,6 +2664,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "158ceaeb-ff30-4c1d-8816-8b588ae327ab": {
+    "cleanedDate": "2026-01-24T17:51:38.752Z",
+    "filteredDate": "2026-01-24T17:51:55.911Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T17:52:08.912Z",
+    "blackFrameCheckedDate": "2026-01-24T17:52:09.556Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T17:52:09.558Z",
+    "avcAnomalyDetected": false
+  },
   "158f9688-b7f0-4cfe-a1c8-e8b573902def": {
     "filteredDate": "2025-12-08T07:46:19.726Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -2569,6 +2685,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:40:50.396Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "15aecea9-80f1-4d3a-94ca-6cbf092b468b": {
+    "cleanedDate": "2026-01-24T04:51:25.336Z",
+    "filteredDate": "2026-01-24T04:52:28.686Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:22.363Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:22.559Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:22.559Z",
+    "avcAnomalyDetected": false
   },
   "15c3b839-d88e-486c-84b3-a02be6960682": {
     "filteredDate": "2025-12-08T08:57:19.161Z",
@@ -2834,6 +2961,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": [],
     "avcAnomalyCheckedDate": "2026-01-17T04:40:29.511Z",
+    "avcAnomalyDetected": false
+  },
+  "185c97f5-b707-4d96-b3d6-171184392970": {
+    "cleanedDate": "2026-01-24T17:51:38.837Z",
+    "filteredDate": "2026-01-24T17:51:52.834Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T17:52:09.882Z",
+    "blackFrameCheckedDate": "2026-01-24T17:52:10.255Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T17:52:10.257Z",
     "avcAnomalyDetected": false
   },
   "185e54d1-05c1-4b07-803b-c65d056cfc76": {
@@ -3802,6 +3940,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "1f298d04-8bad-41ff-a0ab-10afe25ac638": {
+    "cleanedDate": "2026-01-24T04:51:25.385Z",
+    "filteredDate": "2026-01-24T04:52:32.438Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:22.870Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:23.388Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:23.390Z",
+    "avcAnomalyDetected": false
+  },
   "1f33561d-d4b8-481b-91ac-9c744ca115f7": {
     "cleanedDate": "2026-01-10T01:20:25.655Z",
     "filteredDate": "2026-01-10T01:20:44.435Z",
@@ -3876,6 +4025,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:41:26.699Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "1fd18414-33e8-4e75-9648-fa17d484f373": {
+    "cleanedDate": "2026-01-24T04:51:24.385Z",
+    "filteredDate": "2026-01-24T04:51:45.935Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:56:00.388Z",
+    "blackFrameCheckedDate": "2026-01-24T04:56:00.881Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:56:00.884Z",
+    "avcAnomalyDetected": false
   },
   "1ff6a846-a87c-4a3a-99bc-8a08d6e11b18": {
     "filteredDate": "2025-12-08T07:49:48.300Z",
@@ -4342,6 +4502,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:41:41.639Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "23ae8d32-a411-4389-800d-dcd6d1e3ab06": {
+    "cleanedDate": "2026-01-22T02:03:12.082Z",
+    "filteredDate": "2026-01-22T02:03:38.291Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:28.672Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:28.964Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:28.965Z",
+    "avcAnomalyDetected": false
   },
   "23c5d24e-819c-4b7f-b348-6ede9532d210": {
     "cleanedDate": "2026-01-17T04:34:47.469Z",
@@ -5141,6 +5312,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "2a7fde78-7211-48bd-b739-5fa8cdb84af0": {
+    "cleanedDate": "2026-01-24T04:51:27.549Z",
+    "filteredDate": "2026-01-24T04:54:14.834Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:00.133Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:00.664Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:00.666Z",
+    "avcAnomalyDetected": false
+  },
   "2a831f99-0d7f-42ad-b385-ed6e5b47b1da": {
     "filteredDate": "2025-12-08T07:53:11.247Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -5204,6 +5386,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:58:25.593Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "2c0ca4e3-c1af-4e75-a2d4-637e70fb640d": {
+    "cleanedDate": "2026-01-24T04:51:25.435Z",
+    "filteredDate": "2026-01-24T04:52:34.838Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:23.731Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:24.241Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:24.243Z",
+    "avcAnomalyDetected": false
   },
   "2c273ee7-a3e0-4599-b454-0d37c8ad981f": {
     "filteredDate": "2025-12-08T07:53:26.060Z",
@@ -5767,6 +5960,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "311e11f1-89d8-4a6d-93f7-bd566b278ead": {
+    "cleanedDate": "2026-01-24T04:51:25.485Z",
+    "filteredDate": "2026-01-24T04:52:36.497Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:24.606Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:25.258Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:25.261Z",
+    "avcAnomalyDetected": false
+  },
   "316aba9c-d90a-4ba6-ba92-030cde54b6db": {
     "cleanedDate": "2025-12-17T22:18:57.707Z",
     "filteredDate": "2025-12-17T22:20:04.020Z",
@@ -6224,6 +6428,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "34de0e4a-41bc-4d2c-884e-1424302ace65": {
+    "cleanedDate": "2026-01-22T02:03:12.137Z",
+    "filteredDate": "2026-01-22T02:03:53.178Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:29.518Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:30.943Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:30.948Z",
+    "avcAnomalyDetected": false
+  },
   "35197019-c132-4aae-bdc9-b29bcb46d6ac": {
     "filteredDate": "2025-12-08T07:56:01.612Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -6301,6 +6516,17 @@
     "avcAnomalyCheckedDate": "2026-01-17T04:40:33.808Z",
     "avcAnomalyDetected": false
   },
+  "35abb142-1216-4cf3-90cf-80e07ddf2d87": {
+    "cleanedDate": "2026-01-24T17:51:38.922Z",
+    "filteredDate": "2026-01-24T17:51:55.083Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T17:52:10.569Z",
+    "blackFrameCheckedDate": "2026-01-24T17:52:10.947Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T17:52:10.949Z",
+    "avcAnomalyDetected": false
+  },
   "35e1ab0e-8c78-499e-9b11-0222acc2d04a": {
     "cleanedDate": "2025-12-19T13:50:22.902Z",
     "filteredDate": "2025-12-19T13:50:58.830Z",
@@ -6322,6 +6548,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:42:24.097Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "35fcd763-947f-4101-97a9-99acbf1a76de": {
+    "cleanedDate": "2026-01-24T17:51:39.004Z",
+    "filteredDate": "2026-01-24T17:51:54.052Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T17:52:11.307Z",
+    "blackFrameCheckedDate": "2026-01-24T17:52:11.844Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T17:52:11.846Z",
+    "avcAnomalyDetected": false
   },
   "361cd20e-bb26-4cc4-9abe-c379193527d1": {
     "filteredDate": "2025-12-08T07:56:14.683Z",
@@ -6421,6 +6658,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:42:24.953Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "36eddd4f-56c3-47af-9f1e-35c8eff8433d": {
+    "cleanedDate": "2026-01-24T04:51:25.535Z",
+    "filteredDate": "2026-01-24T04:52:36.872Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:25.560Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:26.041Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:26.042Z",
+    "avcAnomalyDetected": false
   },
   "37089599-c188-4505-94e1-eaf8e57169f5": {
     "cleanedDate": "2026-01-19T20:29:12.977Z",
@@ -7435,6 +7683,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "3ee677ce-0f77-4502-885e-11de081ec949": {
+    "cleanedDate": "2026-01-24T04:51:25.600Z",
+    "filteredDate": "2026-01-24T04:52:37.555Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:26.304Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:26.640Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:26.641Z",
+    "avcAnomalyDetected": false
+  },
   "3eee3090-a1d3-43d7-a073-65187368f9c5": {
     "cleanedDate": "2026-01-17T04:34:50.498Z",
     "filteredDate": "2026-01-17T04:37:19.899Z",
@@ -7456,6 +7715,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:42:51.976Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "3ef98e00-0c0b-49c9-8461-4525dae887d6": {
+    "cleanedDate": "2026-01-24T04:51:27.599Z",
+    "filteredDate": "2026-01-24T04:54:20.355Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:00.992Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:01.556Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:01.558Z",
+    "avcAnomalyDetected": false
   },
   "3f1fee00-5965-4ad3-a0ef-4bc5978c4314": {
     "filteredDate": "2025-12-08T07:58:54.618Z",
@@ -8256,6 +8526,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "456e70fe-b8e2-4213-9a40-c170d93c502e": {
+    "cleanedDate": "2026-01-24T04:51:25.653Z",
+    "filteredDate": "2026-01-24T04:52:42.704Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:26.920Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:27.582Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:27.583Z",
+    "avcAnomalyDetected": false
+  },
   "4578e5d5-6a2d-40e1-b9ec-a00a47e83363": {
     "filteredDate": "2025-12-08T08:58:06.847Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -8372,6 +8653,17 @@
     "blackFrameCheckedDate": "2026-01-04T08:00:00.482Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "46e39b64-70c5-4667-9f97-f3152a8fa860": {
+    "cleanedDate": "2026-01-24T04:51:27.648Z",
+    "filteredDate": "2026-01-24T04:54:20.162Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:01.891Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:02.847Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:02.849Z",
+    "avcAnomalyDetected": false
   },
   "4708e98d-9e94-4595-a181-c8fc2d87537a": {
     "filteredDate": "2025-12-08T08:00:56.279Z",
@@ -8501,6 +8793,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:54:45.961Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "48447700-1a33-4164-bd2d-b60dfa244461": {
+    "cleanedDate": "2026-01-24T04:51:27.698Z",
+    "filteredDate": "2026-01-24T04:54:22.072Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:03.165Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:03.781Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:03.783Z",
+    "avcAnomalyDetected": false
   },
   "485962b9-5908-4ebd-ae42-a54da89d2022": {
     "filteredDate": "2025-12-08T08:01:30.685Z",
@@ -8674,6 +8977,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "49a4d65e-e186-479b-8459-46aa2611d675": {
+    "cleanedDate": "2026-01-24T04:51:25.704Z",
+    "filteredDate": "2026-01-24T04:52:47.590Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:27.922Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:28.467Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:28.469Z",
+    "avcAnomalyDetected": false
+  },
   "49a9c03b-3321-4a66-98f4-e89c323b0393": {
     "filteredDate": "2025-12-08T08:01:35.749Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -8727,6 +9041,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": [],
     "avcAnomalyCheckedDate": "2026-01-10T01:21:41.898Z",
+    "avcAnomalyDetected": false
+  },
+  "4a31692b-ae56-46c4-b58e-bd80bc9968b3": {
+    "cleanedDate": "2026-01-24T04:51:25.753Z",
+    "filteredDate": "2026-01-24T04:52:44.902Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:28.740Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:29.012Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:29.014Z",
     "avcAnomalyDetected": false
   },
   "4a5a2ac0-55e9-4a08-b617-1afefb508e97": {
@@ -9390,6 +9715,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "4f5642a0-bec4-4851-ab0b-aa00f9fd3c6e": {
+    "cleanedDate": "2026-01-22T02:03:12.191Z",
+    "filteredDate": "2026-01-22T02:03:42.047Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:31.280Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:31.682Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:31.683Z",
+    "avcAnomalyDetected": false
+  },
   "4f5f0a12-0844-45be-b150-fb4ea794f11e": {
     "cleanedDate": "2026-01-12T01:52:49.103Z",
     "filteredDate": "2026-01-12T01:53:03.010Z",
@@ -9445,6 +9781,28 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "4feed9aa-54e7-4793-be66-e1922afcead3": {
+    "cleanedDate": "2026-01-24T04:51:25.804Z",
+    "filteredDate": "2026-01-24T04:52:47.803Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:29.318Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:29.801Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:29.803Z",
+    "avcAnomalyDetected": false
+  },
+  "502a6ab4-461e-4422-ba08-b120df625306": {
+    "cleanedDate": "2026-01-22T02:03:12.245Z",
+    "filteredDate": "2026-01-22T02:03:49.954Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:32.049Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:32.739Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:32.741Z",
+    "avcAnomalyDetected": false
+  },
   "502dcd09-b631-4fc6-9de1-77591844d5bd": {
     "filteredDate": "2025-12-09T18:03:05.526Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -9463,6 +9821,17 @@
     "blackFrameCheckedDate": "2026-01-04T08:00:41.151Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "5063c07f-dfe2-4dbb-aeef-bd62065fb0a9": {
+    "cleanedDate": "2026-01-22T02:03:12.303Z",
+    "filteredDate": "2026-01-22T02:03:50.569Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:33.025Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:33.419Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:33.421Z",
+    "avcAnomalyDetected": false
   },
   "50a0001b-70d9-4b3e-aee3-343b4b65d3e1": {
     "cleanedDate": "2026-01-17T04:34:47.938Z",
@@ -9507,6 +9876,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:43:43.731Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "50e6ab81-29e2-4402-8a55-6d05beda8e9f": {
+    "cleanedDate": "2026-01-21T05:52:42.362Z",
+    "filteredDate": "2026-01-21T05:53:42.296Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:21.929Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:23.000Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:23.002Z",
+    "avcAnomalyDetected": false
   },
   "5146243b-f010-4e3c-9ed0-41f301e8ce4b": {
     "filteredDate": "2025-12-08T08:03:40.141Z",
@@ -9669,6 +10049,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:43:46.303Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "524ebdbf-a483-47a2-b7b4-c89d7921a3d0": {
+    "cleanedDate": "2026-01-24T04:51:27.747Z",
+    "filteredDate": "2026-01-24T04:54:21.394Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:04.063Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:04.529Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:04.531Z",
+    "avcAnomalyDetected": false
   },
   "525e4f3d-5354-48e9-a68d-11b56e82d24c": {
     "cleanedDate": "2026-01-12T01:38:19.181Z",
@@ -9909,6 +10300,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:53:05.281Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "53ead99e-865d-4109-9b06-3a24836a6a11": {
+    "cleanedDate": "2026-01-24T04:51:25.852Z",
+    "filteredDate": "2026-01-24T04:52:48.793Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:30.046Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:30.236Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:30.236Z",
+    "avcAnomalyDetected": false
   },
   "53f27f81-268c-4aa5-a8a7-1769f34207b3": {
     "filteredDate": "2025-12-08T08:06:44.373Z",
@@ -10446,6 +10848,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "57c81937-47da-4243-b06d-29b7943131eb": {
+    "cleanedDate": "2026-01-24T04:51:25.904Z",
+    "filteredDate": "2026-01-24T04:52:57.382Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:30.548Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:31.109Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:31.111Z",
+    "avcAnomalyDetected": false
+  },
   "57e0e02e-a25e-4b3c-a7f8-019e6f7ab963": {
     "filteredDate": "2025-12-08T08:08:04.380Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -10534,6 +10947,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "587445e9-f9ce-487b-9859-832c76044c0e": {
+    "cleanedDate": "2026-01-24T04:51:25.953Z",
+    "filteredDate": "2026-01-24T04:52:55.335Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:31.462Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:31.841Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:31.843Z",
+    "avcAnomalyDetected": false
+  },
   "588b896a-3b06-4ace-ab4d-e84fa2abef4b": {
     "cleanedDate": "2025-12-27T04:45:36.938Z",
     "mismatchCheckedDate": "2025-12-29T19:29:46.172Z",
@@ -10553,6 +10977,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:44:09.854Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "58c70f9f-7aee-4912-b95e-1175f5c1e462": {
+    "cleanedDate": "2026-01-22T02:03:12.359Z",
+    "filteredDate": "2026-01-22T02:03:56.488Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:33.813Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:34.579Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:34.582Z",
+    "avcAnomalyDetected": false
   },
   "58cee928-94e7-4442-9f81-00c8b3bb62cf": {
     "filteredDate": "2025-12-08T08:06:40.576Z",
@@ -11029,6 +11464,17 @@
     "avcAnomalyCheckedDate": "2026-01-19T20:30:32.317Z",
     "avcAnomalyDetected": false
   },
+  "5c0d8adb-102a-48ae-bc21-dc67af7fe6e7": {
+    "cleanedDate": "2026-01-24T04:51:26.002Z",
+    "filteredDate": "2026-01-24T04:52:58.228Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:32.172Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:32.610Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:32.611Z",
+    "avcAnomalyDetected": false
+  },
   "5c4ed464-9833-4e71-bc8e-2acd5e393f04": {
     "filteredDate": "2025-12-08T08:08:08.163Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -11095,6 +11541,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "5c9159c7-c843-4099-b89a-f869bd638282": {
+    "cleanedDate": "2026-01-24T04:51:24.436Z",
+    "filteredDate": "2026-01-24T04:51:43.088Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:56:03.816Z",
+    "blackFrameCheckedDate": "2026-01-24T04:56:04.235Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:56:04.236Z",
+    "avcAnomalyDetected": false
+  },
   "5c98b156-852b-46c7-bb4b-a2340204092e": {
     "filteredDate": "2025-12-08T07:39:44.630Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -11105,6 +11562,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:39:00.670Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "5ca23004-53ab-41b6-8457-fd2925bb4a6a": {
+    "cleanedDate": "2026-01-24T04:51:26.053Z",
+    "filteredDate": "2026-01-24T04:53:02.685Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:33.026Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:34.032Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:34.036Z",
+    "avcAnomalyDetected": false
   },
   "5cb4f8b1-4ccf-4ab5-b16f-7ab7a82b9290": {
     "filteredDate": "2025-12-08T08:08:16.820Z",
@@ -11647,6 +12115,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "619839fc-83d5-4200-a941-88923b17563e": {
+    "cleanedDate": "2026-01-24T04:51:26.104Z",
+    "filteredDate": "2026-01-24T04:53:04.414Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:34.588Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:35.574Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:35.577Z",
+    "avcAnomalyDetected": false
+  },
   "61a7d33f-898a-4615-89da-1d23942ebb70": {
     "filteredDate": "2025-12-08T08:09:51.637Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -11837,6 +12316,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": [],
     "avcAnomalyCheckedDate": "2026-01-17T04:40:02.165Z",
+    "avcAnomalyDetected": false
+  },
+  "64264d1d-2608-4868-8ca6-0baceec603ea": {
+    "cleanedDate": "2026-01-24T17:51:39.067Z",
+    "filteredDate": "2026-01-24T17:51:52.513Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T17:52:12.288Z",
+    "blackFrameCheckedDate": "2026-01-24T17:52:12.620Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T17:52:12.621Z",
     "avcAnomalyDetected": false
   },
   "645bdac7-c077-433d-8e1d-93dac003756a": {
@@ -12098,6 +12588,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:44:49.327Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "6608ac2d-8dc7-484e-ae26-df054d3e53ff": {
+    "cleanedDate": "2026-01-24T04:51:24.489Z",
+    "filteredDate": "2026-01-24T04:51:48.959Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:56:11.462Z",
+    "blackFrameCheckedDate": "2026-01-24T04:56:12.138Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:56:12.140Z",
+    "avcAnomalyDetected": false
   },
   "6617f37f-c15b-45d9-a120-2fcb808ecc6f": {
     "filteredDate": "2025-12-08T08:11:05.591Z",
@@ -12480,6 +12981,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "68f582aa-c3e1-46f1-aa17-97fc55fbfe1a": {
+    "cleanedDate": "2026-01-24T04:51:27.799Z",
+    "filteredDate": "2026-01-24T04:54:27.206Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:04.850Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:05.378Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:05.380Z",
+    "avcAnomalyDetected": false
+  },
   "690df28e-3828-4a5b-b4da-8ab83e416a92": {
     "filteredDate": "2025-12-08T08:59:07.741Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -12524,6 +13036,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "69bd43ba-135c-4691-b325-78c271bc57ee": {
+    "cleanedDate": "2026-01-24T04:51:27.849Z",
+    "filteredDate": "2026-01-24T04:54:28.140Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:05.695Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:06.116Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:06.117Z",
+    "avcAnomalyDetected": false
+  },
   "69c3749a-f79d-493d-9a8a-de34139c015d": {
     "filteredDate": "2025-12-12T06:50:19.043Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -12560,6 +13083,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "69fa784e-81c5-4e59-983d-a05c5227c569": {
+    "cleanedDate": "2026-01-21T05:52:41.289Z",
+    "filteredDate": "2026-01-21T05:52:59.441Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:03.158Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:03.525Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:03.526Z",
+    "avcAnomalyDetected": false
+  },
   "6a639516-0eeb-4b69-9d4c-d8d957311b91": {
     "filteredDate": "2025-12-12T06:51:39.694Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -12579,6 +13113,17 @@
     "blackFrameCheckedDate": "2026-01-04T08:02:05.534Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "6a78a32b-6ebe-479f-af3c-886f305f0b53": {
+    "cleanedDate": "2026-01-24T04:51:26.152Z",
+    "filteredDate": "2026-01-24T04:53:06.067Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:35.868Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:36.231Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:36.232Z",
+    "avcAnomalyDetected": false
   },
   "6a7fc0e9-1395-4184-b52b-8a94d134e60e": {
     "filteredDate": "2025-12-08T08:15:02.007Z",
@@ -12648,6 +13193,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:56:11.812Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "6b31e431-9c83-47bc-866d-1910f9e78079": {
+    "cleanedDate": "2026-01-24T04:51:24.538Z",
+    "filteredDate": "2026-01-24T04:51:52.423Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:56:17.614Z",
+    "blackFrameCheckedDate": "2026-01-24T04:56:18.147Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:56:18.148Z",
+    "avcAnomalyDetected": false
   },
   "6b39f5be-fba4-4ed2-867a-a00264824cf8": {
     "filteredDate": "2025-12-08T07:40:11.237Z",
@@ -13028,6 +13584,17 @@
     "avcAnomalyCheckedDate": "2026-01-19T18:03:57.618Z",
     "avcAnomalyDetected": false
   },
+  "6dcbdb1c-b691-4e36-b6f7-aa259287018a": {
+    "cleanedDate": "2026-01-24T04:51:26.203Z",
+    "filteredDate": "2026-01-24T04:53:09.656Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:36.612Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:37.468Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:37.471Z",
+    "avcAnomalyDetected": false
+  },
   "6dd156db-5f22-4933-b20a-e2b1d14cdc1e": {
     "filteredDate": "2025-12-08T08:12:50.620Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -13224,6 +13791,17 @@
     "avcAnomalyCheckedDate": "2026-01-10T01:21:45.109Z",
     "avcAnomalyDetected": false
   },
+  "6f60ad60-0219-48cf-b132-178a2c3b78b9": {
+    "cleanedDate": "2026-01-24T04:51:24.588Z",
+    "filteredDate": "2026-01-24T04:51:56.285Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:56:23.429Z",
+    "blackFrameCheckedDate": "2026-01-24T04:56:23.915Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:56:23.917Z",
+    "avcAnomalyDetected": false
+  },
   "6f6614a0-25e0-4d3d-bd2a-fd2b2baa572a": {
     "filteredDate": "2025-12-08T08:15:52.255Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -13308,6 +13886,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": [],
     "avcAnomalyCheckedDate": "2026-01-09T16:05:05.479Z",
+    "avcAnomalyDetected": false
+  },
+  "6fe8c32d-a3a3-46e4-9855-046404d969c3": {
+    "cleanedDate": "2026-01-24T04:51:26.252Z",
+    "filteredDate": "2026-01-24T04:53:21.942Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:38.070Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:39.988Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:39.995Z",
     "avcAnomalyDetected": false
   },
   "6fee9abf-1f7c-4e72-9c4d-d064f27b2561": {
@@ -13476,6 +14065,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:56:12.509Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "722ffce9-e7ad-4ab8-a8b2-419bd85abca5": {
+    "cleanedDate": "2026-01-21T05:52:41.355Z",
+    "filteredDate": "2026-01-21T05:53:01.748Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:03.866Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:04.272Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:04.274Z",
+    "avcAnomalyDetected": false
   },
   "72414cb6-e1ac-4b7e-b75d-56c82f0bdc9e": {
     "filteredDate": "2025-12-08T08:15:01.105Z",
@@ -13650,6 +14250,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:55:03.556Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "73c652b9-6508-405a-b5b4-4bc352c13261": {
+    "cleanedDate": "2026-01-24T04:51:27.896Z",
+    "filteredDate": "2026-01-24T04:54:31.729Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:06.375Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:06.649Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:06.651Z",
+    "avcAnomalyDetected": false
   },
   "73d2c460-74cd-48e1-b503-e3df58037f0b": {
     "filteredDate": "2025-12-08T08:19:43.857Z",
@@ -13894,6 +14505,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "75bd3ef8-00bf-4a8c-b3c9-d164e9ef56e7": {
+    "cleanedDate": "2026-01-24T04:51:26.303Z",
+    "filteredDate": "2026-01-24T04:53:22.606Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:40.485Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:41.857Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:41.862Z",
+    "avcAnomalyDetected": false
+  },
   "75c01d71-ad73-49d2-b6e7-be2b7eba1554": {
     "cleanedDate": "2025-12-19T13:50:23.046Z",
     "filteredDate": "2025-12-19T13:51:14.594Z",
@@ -13993,6 +14615,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "763f79d8-6954-4746-852f-c23034529ecb": {
+    "cleanedDate": "2026-01-24T04:51:27.945Z",
+    "filteredDate": "2026-01-24T04:54:38.513Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:06.989Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:07.605Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:07.607Z",
+    "avcAnomalyDetected": false
+  },
   "76547076-81cd-4b11-a834-27da28e7941b": {
     "filteredDate": "2025-12-08T07:40:10.361Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -14036,6 +14669,28 @@
     "blackFrameCheckedDate": "2026-01-04T07:45:44.876Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "76b47b2a-f92b-4e2e-9756-96038dfafe1e": {
+    "cleanedDate": "2026-01-22T02:03:12.417Z",
+    "filteredDate": "2026-01-22T02:03:53.684Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:34.911Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:35.409Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:35.411Z",
+    "avcAnomalyDetected": false
+  },
+  "76c73cf5-cb16-49f9-9b54-526045ac1b0a": {
+    "cleanedDate": "2026-01-21T05:52:41.419Z",
+    "filteredDate": "2026-01-21T05:53:06.378Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:04.713Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:05.615Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:05.618Z",
+    "avcAnomalyDetected": false
   },
   "76e66d41-1714-40b3-bee8-58a5adb178de": {
     "filteredDate": "2025-12-08T08:16:31.349Z",
@@ -14199,6 +14854,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:55:04.796Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "78535808-4484-4295-af66-f1a09e8bfb08": {
+    "cleanedDate": "2026-01-21T05:52:41.486Z",
+    "filteredDate": "2026-01-21T05:53:09.198Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:06.017Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:06.999Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:07.002Z",
+    "avcAnomalyDetected": false
   },
   "785e3e42-9095-4fd6-900c-3db5391100f5": {
     "filteredDate": "2025-12-08T08:16:43.929Z",
@@ -14526,6 +15192,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "7ae0e785-3897-436a-82ea-6b321031b9e4": {
+    "cleanedDate": "2026-01-24T04:51:26.353Z",
+    "filteredDate": "2026-01-24T04:53:16.214Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:42.214Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:42.772Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:42.773Z",
+    "avcAnomalyDetected": false
+  },
   "7aecb955-c24a-45e6-b1e4-19baa363d18c": {
     "filteredDate": "2025-12-08T08:17:35.191Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -14780,6 +15457,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "7c96b67d-3399-49a2-bb7d-d4ba0555896b": {
+    "cleanedDate": "2026-01-24T04:51:27.995Z",
+    "filteredDate": "2026-01-24T04:54:33.385Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:07.956Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:08.491Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:08.493Z",
+    "avcAnomalyDetected": false
+  },
   "7c9a4577-9822-4e29-a982-570447ef35fd": {
     "cleanedDate": "2025-12-27T04:45:38.092Z",
     "mismatchCheckedDate": "2025-12-29T19:29:46.195Z",
@@ -15018,6 +15706,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "7ecb42c3-bbf3-4444-9171-4b9da05036f2": {
+    "cleanedDate": "2026-01-24T04:51:28.044Z",
+    "filteredDate": "2026-01-24T04:54:39.178Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:08.941Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:10.201Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:10.205Z",
+    "avcAnomalyDetected": false
+  },
   "7ed4d1a6-338b-4383-89f2-ed656b5a277f": {
     "filteredDate": "2025-12-08T07:40:15.764Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -15149,6 +15848,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:46:14.300Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "803e424f-ac62-4123-96c9-416ffc5e2e98": {
+    "cleanedDate": "2026-01-24T04:51:24.637Z",
+    "filteredDate": "2026-01-24T04:51:57.432Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:56:29.362Z",
+    "blackFrameCheckedDate": "2026-01-24T04:56:29.742Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:56:29.744Z",
+    "avcAnomalyDetected": false
   },
   "804b2386-1961-45b4-b2f0-8c91b17495e6": {
     "filteredDate": "2025-12-08T08:20:01.640Z",
@@ -15769,6 +16479,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "84aa90f2-ebf9-42c0-bf71-8ec0be694adb": {
+    "cleanedDate": "2026-01-21T05:52:41.547Z",
+    "filteredDate": "2026-01-21T05:53:13.647Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:07.488Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:08.518Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:08.521Z",
+    "avcAnomalyDetected": false
+  },
   "84c8c26a-ce4b-408b-ad05-c58223606e46": {
     "filteredDate": "2025-12-08T08:22:08.205Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -15779,6 +16500,17 @@
     "blackFrameCheckedDate": "2026-01-04T08:03:48.278Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "84e21b1a-53eb-48b1-889a-b70b2a0955a8": {
+    "cleanedDate": "2026-01-21T05:52:41.609Z",
+    "filteredDate": "2026-01-21T05:53:16.634Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:09.295Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:10.890Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:10.898Z",
+    "avcAnomalyDetected": false
   },
   "84ef1dc1-5d40-421d-aac7-7410161f6b8a": {
     "filteredDate": "2025-12-12T06:50:28.803Z",
@@ -15837,6 +16569,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:46:23.603Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "856635d4-d5ed-4c61-a458-f4d123aafd0a": {
+    "cleanedDate": "2026-01-22T02:03:12.476Z",
+    "filteredDate": "2026-01-22T02:04:03.698Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:35.731Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:36.196Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:36.199Z",
+    "avcAnomalyDetected": false
   },
   "857db236-be67-4a05-9f14-0a3a87f5bab3": {
     "filteredDate": "2025-12-08T08:21:45.933Z",
@@ -15958,6 +16701,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:46:27.568Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "86a69ba5-6a55-452e-8e08-c947465283ee": {
+    "cleanedDate": "2026-01-24T04:51:28.092Z",
+    "filteredDate": "2026-01-24T04:54:41.304Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:10.484Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:10.959Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:10.960Z",
+    "avcAnomalyDetected": false
   },
   "86c5a497-5533-4852-92e7-687da2fe7c0a": {
     "filteredDate": "2025-12-08T07:40:35.737Z",
@@ -16372,6 +17126,28 @@
     "blackFrameCheckedDate": "2026-01-04T07:46:32.090Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "8b13787c-0a23-454a-a8f4-4e5a04141150": {
+    "cleanedDate": "2026-01-24T04:51:24.235Z",
+    "filteredDate": "2026-01-24T04:51:45.157Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:55:43.161Z",
+    "blackFrameCheckedDate": "2026-01-24T04:55:44.125Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:55:44.129Z",
+    "avcAnomalyDetected": false
+  },
+  "8b277634-c88b-4796-b41a-d41a44246425": {
+    "cleanedDate": "2026-01-24T04:51:26.401Z",
+    "filteredDate": "2026-01-24T04:53:22.009Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:43.075Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:43.568Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:43.570Z",
+    "avcAnomalyDetected": false
   },
   "8b3408b2-a583-4dbd-95a4-422d59948e3b": {
     "filteredDate": "2025-12-08T08:22:58.240Z",
@@ -16913,6 +17689,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "8f29c943-0524-4379-9bf1-e34f559b83b2": {
+    "cleanedDate": "2026-01-22T02:03:11.916Z",
+    "filteredDate": "2026-01-22T02:03:37.667Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:26.306Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:27.463Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:27.468Z",
+    "avcAnomalyDetected": false
+  },
   "8f3e4d0b-b362-4980-9031-510bf1c9c0af": {
     "filteredDate": "2025-12-08T08:23:58.314Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -17127,6 +17914,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:39:14.925Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "9097eae5-e9fb-4217-9176-2f8bff7893fe": {
+    "cleanedDate": "2026-01-24T04:51:28.142Z",
+    "filteredDate": "2026-01-24T04:54:40.897Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:11.241Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:11.659Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:11.660Z",
+    "avcAnomalyDetected": false
   },
   "909f4af3-246e-4dd5-8192-db73a3f96248": {
     "filteredDate": "2025-12-08T08:24:49.665Z",
@@ -17656,6 +18454,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "9436865f-f361-46a2-b0db-0a5266a2d8b8": {
+    "cleanedDate": "2026-01-21T05:52:41.674Z",
+    "filteredDate": "2026-01-21T05:53:21.798Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:11.340Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:11.914Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:11.917Z",
+    "avcAnomalyDetected": false
+  },
   "94415482-4ef2-48e5-ba28-f9740d3ddf94": {
     "filteredDate": "2025-12-08T08:25:37.970Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -17732,6 +18541,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:39:17.178Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "9495107e-364e-424b-b3ca-bba0f0228fc2": {
+    "cleanedDate": "2026-01-24T04:51:28.190Z",
+    "filteredDate": "2026-01-24T04:54:43.739Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:11.969Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:12.383Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:12.385Z",
+    "avcAnomalyDetected": false
   },
   "9498e07c-a394-4927-a232-ef3718cfd87f": {
     "filteredDate": "2025-12-08T08:25:58.096Z",
@@ -17842,6 +18662,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:55:17.328Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "95649152-c131-449c-8ba8-2f045b76c01c": {
+    "cleanedDate": "2026-01-24T17:51:39.131Z",
+    "filteredDate": "2026-01-24T17:52:06.535Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T17:52:12.993Z",
+    "blackFrameCheckedDate": "2026-01-24T17:52:13.590Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T17:52:13.592Z",
+    "avcAnomalyDetected": false
   },
   "95a7fa7c-e8d6-43dd-bd93-987b1b3fd643": {
     "filteredDate": "2025-12-08T08:28:42.430Z",
@@ -18071,6 +18902,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:47:22.421Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "97633cb8-9390-47a0-92c9-a3718c6e520a": {
+    "cleanedDate": "2026-01-21T05:52:41.741Z",
+    "mismatchCheckedDate": "2026-01-21T05:54:12.301Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:13.296Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:13.299Z",
+    "avcAnomalyDetected": false,
+    "filteredDate": "2026-01-22T02:03:28.632Z",
+    "filteredModel": "gemini-3-pro-preview"
   },
   "977028ef-e9a9-434e-bb55-9926a89e74a0": {
     "filteredDate": "2025-12-08T07:40:40.453Z",
@@ -18324,6 +19166,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:39:19.794Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "997d2cc6-3101-4f81-bebd-43e3ec0dc395": {
+    "cleanedDate": "2026-01-24T04:51:26.450Z",
+    "filteredDate": "2026-01-24T04:53:22.695Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:43.928Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:44.613Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:44.616Z",
+    "avcAnomalyDetected": false
   },
   "998753d8-7bcd-4331-80b9-994ecf5220ff": {
     "filteredDate": "2025-12-08T08:27:26.598Z",
@@ -18654,6 +19507,14 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "9cb04e38-cc93-4d63-88aa-cc21f4c29d3f": {
+    "mismatchCheckedDate": "2026-01-24T04:58:31.707Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:31.762Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:31.821Z",
+    "avcAnomalyDetected": false
+  },
   "9cdabbb6-5326-45bf-83fe-2439a2f15cb1": {
     "filteredDate": "2025-12-12T06:50:48.808Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -18753,6 +19614,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "9d4f802d-8a29-4ae8-bee8-7830953a4bb7": {
+    "cleanedDate": "2026-01-24T04:51:26.556Z",
+    "filteredDate": "2026-01-24T04:53:28.939Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:44.909Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:45.338Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:45.340Z",
+    "avcAnomalyDetected": false
+  },
   "9d52ba68-0f27-4b4f-a327-5b63a12d4579": {
     "cleanedDate": "2026-01-17T04:34:46.992Z",
     "filteredDate": "2026-01-17T04:35:19.749Z",
@@ -18762,6 +19634,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": [],
     "avcAnomalyCheckedDate": "2026-01-17T04:39:26.777Z",
+    "avcAnomalyDetected": false
+  },
+  "9d6ce327-cb45-4cf6-a1ea-dac93413a851": {
+    "cleanedDate": "2026-01-24T04:51:26.611Z",
+    "filteredDate": "2026-01-24T04:53:36.432Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:45.742Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:46.419Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:46.422Z",
     "avcAnomalyDetected": false
   },
   "9d8f35a2-5d19-4fbf-aa9d-b414d5bffe98": {
@@ -19016,6 +19899,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:47:39.584Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "9ea0d3b1-adc8-41c2-aa9a-b4c8db3511fd": {
+    "cleanedDate": "2026-01-24T04:51:24.687Z",
+    "filteredDate": "2026-01-24T04:52:00.765Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:56:33.957Z",
+    "blackFrameCheckedDate": "2026-01-24T04:56:34.558Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:56:34.560Z",
+    "avcAnomalyDetected": false
   },
   "9ec3a15f-ccc2-4422-8156-991470d2d7a5": {
     "cleanedDate": "2025-12-19T13:50:23.733Z",
@@ -19354,6 +20248,15 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "a2244338-ddd1-4cc4-aa72-d26bdb50632b": {
+    "cleanedDate": "2026-01-21T05:52:42.436Z",
+    "mismatchCheckedDate": "2026-01-21T05:54:23.324Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:23.836Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:23.837Z",
+    "avcAnomalyDetected": false
+  },
   "a2275da4-9fb8-4a92-9448-c153a4cd0ce9": {
     "mismatchCheckedDate": "2025-12-29T19:29:46.205Z",
     "avcAnomalyCheckedDate": "2026-01-04T08:05:07.053Z",
@@ -19569,6 +20472,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "a3f24452-bb05-4165-be92-051206ee5c2d": {
+    "cleanedDate": "2026-01-21T05:52:41.817Z",
+    "filteredDate": "2026-01-21T05:53:22.744Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:13.789Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:14.388Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:14.389Z",
+    "avcAnomalyDetected": false
+  },
   "a3f8faad-b1eb-42bf-a759-5adc16c1a2a5": {
     "filteredDate": "2025-12-08T08:29:44.454Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -19736,6 +20650,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:48:03.043Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "a4cdfadc-c263-4ecd-a28f-c649878c7287": {
+    "cleanedDate": "2026-01-22T02:03:12.543Z",
+    "filteredDate": "2026-01-22T02:04:05.265Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:36.539Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:37.064Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:37.066Z",
+    "avcAnomalyDetected": false
   },
   "a4d19f90-4ce3-424e-8b7a-c18fe15f2e8f": {
     "filteredDate": "2025-12-08T09:00:16.265Z",
@@ -20067,6 +20992,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "a75b0512-ca18-459a-b47b-8e16bc971a4a": {
+    "cleanedDate": "2026-01-21T05:52:41.895Z",
+    "filteredDate": "2026-01-21T05:53:23.441Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:14.811Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:16.021Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:16.024Z",
+    "avcAnomalyDetected": false
+  },
   "a75df3ac-0b68-45d8-8572-397ccf6074af": {
     "cleanedDate": "2025-12-17T14:03:50.176Z",
     "filteredDate": "2025-12-17T14:04:05.295Z",
@@ -20140,6 +21076,17 @@
     "blackFrameCheckedDate": "2026-01-04T08:05:13.180Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "a820e822-be51-40a0-868d-768fb686539b": {
+    "cleanedDate": "2026-01-21T05:52:41.960Z",
+    "filteredDate": "2026-01-21T05:53:26.029Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:16.540Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:17.181Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:17.186Z",
+    "avcAnomalyDetected": false
   },
   "a822e1ac-4139-45a0-8829-d594f7f7f725": {
     "filteredDate": "2025-12-08T08:31:01.658Z",
@@ -20405,6 +21352,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "aa114b1a-fdf7-469e-ae9a-31b279dcf4e4": {
+    "cleanedDate": "2026-01-21T05:52:42.026Z",
+    "filteredDate": "2026-01-21T05:53:29.914Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:17.589Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:18.199Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:18.201Z",
+    "avcAnomalyDetected": false
+  },
   "aa169113-bcb8-4d4a-b489-ce0ba55aebc7": {
     "filteredDate": "2025-12-08T08:32:41.068Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -20580,6 +21538,28 @@
     "blackFrameCheckedDate": "2026-01-04T07:48:23.356Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "aba51315-5977-4200-8cb8-c5890375128d": {
+    "cleanedDate": "2026-01-21T05:52:42.087Z",
+    "filteredDate": "2026-01-21T05:53:36.081Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:18.598Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:18.912Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:18.913Z",
+    "avcAnomalyDetected": false
+  },
+  "abb7e27e-a9ca-4128-9734-1a574b1f80e6": {
+    "cleanedDate": "2026-01-22T02:03:12.601Z",
+    "filteredDate": "2026-01-22T02:04:05.092Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:37.381Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:37.838Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:37.840Z",
+    "avcAnomalyDetected": false
   },
   "abdd39af-f5d6-4091-9ba8-a8817c212ed7": {
     "cleanedDate": "2025-12-29T19:15:33.173Z",
@@ -21450,6 +22430,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "b35c32db-16ee-440d-ab74-39d146e42f32": {
+    "cleanedDate": "2026-01-24T04:51:28.240Z",
+    "filteredDate": "2026-01-24T04:54:51.934Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:12.708Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:13.233Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:13.236Z",
+    "avcAnomalyDetected": false
+  },
   "b365fdc4-01cc-4b97-88f3-5f863334afb6": {
     "filteredDate": "2025-12-08T08:34:55.070Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -21670,6 +22661,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "b5f170ce-f55f-476f-8557-d3fcd0950cb5": {
+    "cleanedDate": "2026-01-21T05:52:41.154Z",
+    "filteredDate": "2026-01-21T05:53:05.059Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:01.375Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:01.871Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:01.873Z",
+    "avcAnomalyDetected": false
+  },
   "b5f97c8d-665b-47af-bd72-98dc058fc8e5": {
     "filteredDate": "2025-12-08T08:37:47.217Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -21758,6 +22760,15 @@
     "avcAnomalyCheckedDate": "2026-01-19T18:04:03.929Z",
     "avcAnomalyDetected": false
   },
+  "b69e97ed-b815-49ba-992e-143827804559": {
+    "cleanedDate": "2026-01-24T04:51:28.288Z",
+    "mismatchCheckedDate": "2026-01-24T04:58:32.127Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:32.485Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:32.486Z",
+    "avcAnomalyDetected": false
+  },
   "b6a5e576-7a18-467c-be5f-d987b8d41799": {
     "cleanedDate": "2026-01-19T22:11:08.756Z",
     "filteredDate": "2026-01-19T22:11:40.920Z",
@@ -21844,6 +22855,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": [],
     "avcAnomalyCheckedDate": "2026-01-17T04:39:39.759Z",
+    "avcAnomalyDetected": false
+  },
+  "b7c4263d-c84a-4324-8805-e3f3f6f3b61f": {
+    "cleanedDate": "2026-01-24T04:51:26.661Z",
+    "filteredDate": "2026-01-24T04:53:33.662Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:46.696Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:47.018Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:47.019Z",
     "avcAnomalyDetected": false
   },
   "b810f3f7-3890-4e93-b411-c82cecc31d53": {
@@ -22223,6 +23245,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "bb0b3b20-71ef-4ea0-a3b1-86cfc8b70355": {
+    "cleanedDate": "2026-01-24T04:51:28.336Z",
+    "filteredDate": "2026-01-24T04:54:51.588Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:13.518Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:13.899Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:13.901Z",
+    "avcAnomalyDetected": false
+  },
   "bb15f637-4499-429b-bb7e-0cddc928abbf": {
     "filteredDate": "2025-12-08T09:00:39.408Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -22350,6 +23383,15 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "bc686ad2-ff47-404b-a894-7bc265e613fd": {
+    "cleanedDate": "2026-01-24T04:51:24.737Z",
+    "mismatchCheckedDate": "2026-01-24T04:58:30.963Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:31.630Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:31.632Z",
+    "avcAnomalyDetected": false
+  },
   "bc6df667-842d-4de6-a2a9-1b41b3cda323": {
     "filteredDate": "2025-12-08T08:37:13.587Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -22360,6 +23402,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:49:02.886Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "bc6e7174-736c-4d0b-bb9f-2ca19139a1be": {
+    "cleanedDate": "2026-01-21T05:52:42.152Z",
+    "filteredDate": "2026-01-21T05:53:35.867Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:19.218Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:19.518Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:19.520Z",
+    "avcAnomalyDetected": false
   },
   "bc7ef5d6-2c00-423f-afec-0a95134f812c": {
     "filteredDate": "2025-12-13T01:25:11.627Z",
@@ -22756,6 +23809,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "c0c2b701-e276-4bdf-800a-03fc25909776": {
+    "cleanedDate": "2026-01-24T04:51:26.711Z",
+    "filteredDate": "2026-01-24T04:53:35.632Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:47.343Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:47.897Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:47.899Z",
+    "avcAnomalyDetected": false
+  },
   "c0c5e7d8-c3fe-4946-9869-46d640bd50e5": {
     "filteredDate": "2025-12-08T09:00:48.989Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -22778,6 +23842,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "c0ecaf74-c8dc-4488-81f8-c22511170c10": {
+    "cleanedDate": "2026-01-24T04:51:26.760Z",
+    "filteredDate": "2026-01-24T04:53:34.598Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:48.213Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:48.667Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:48.669Z",
+    "avcAnomalyDetected": false
+  },
   "c11a5a72-74f9-42f3-8813-51056c2a539f": {
     "filteredDate": "2025-12-08T08:39:33.596Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -22799,6 +23874,17 @@
     "blackFrameCheckedDate": "2026-01-04T08:06:45.007Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "c1713033-2b65-4cf8-b787-052dbc2565ea": {
+    "cleanedDate": "2026-01-22T02:03:12.655Z",
+    "filteredDate": "2026-01-22T02:04:13.546Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:38.168Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:38.935Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:38.937Z",
+    "avcAnomalyDetected": false
   },
   "c1751964-4c3a-4f7a-80a6-d8fa506bf403": {
     "cleanedDate": "2025-12-27T04:45:39.048Z",
@@ -23048,6 +24134,17 @@
     "blackFrameCheckedDate": "2026-01-04T08:06:47.391Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "c3d63175-ddc5-45e5-9f24-e1fa275cf153": {
+    "cleanedDate": "2026-01-24T04:51:24.786Z",
+    "filteredDate": "2026-01-24T04:52:01.910Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:56:38.686Z",
+    "blackFrameCheckedDate": "2026-01-24T04:56:39.090Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:56:39.091Z",
+    "avcAnomalyDetected": false
   },
   "c3e42e03-5346-47ff-99d3-e2961d4dcd77": {
     "filteredDate": "2025-12-08T08:39:00.721Z",
@@ -23419,6 +24516,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "c6ddda7d-4c00-402b-854d-3a0af11a1057": {
+    "cleanedDate": "2026-01-22T02:03:12.725Z",
+    "filteredDate": "2026-01-22T02:04:14.198Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:39.271Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:39.815Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:39.817Z",
+    "avcAnomalyDetected": false
+  },
   "c6f0f975-38ed-492a-a0c4-69093e4144ec": {
     "cleanedDate": "2026-01-17T04:34:52.056Z",
     "filteredDate": "2026-01-17T04:38:14.719Z",
@@ -23488,6 +24596,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "c7668c56-61cf-4ad0-baaf-09221b5fa92b": {
+    "cleanedDate": "2026-01-24T04:51:26.809Z",
+    "filteredDate": "2026-01-24T04:53:40.302Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:48.926Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:49.267Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:49.268Z",
+    "avcAnomalyDetected": false
+  },
   "c77e4d2d-b180-44f2-80c6-b401e1e5e5f8": {
     "filteredDate": "2025-12-08T08:39:49.262Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -23520,6 +24639,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:49:26.576Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "c79b292b-158f-4bda-ac56-f2ba661eb3a2": {
+    "cleanedDate": "2026-01-24T17:51:39.230Z",
+    "filteredDate": "2026-01-24T17:52:06.595Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T17:52:13.941Z",
+    "blackFrameCheckedDate": "2026-01-24T17:52:14.437Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T17:52:14.439Z",
+    "avcAnomalyDetected": false
   },
   "c7a9e4c0-46ef-4b40-a83e-8616f1849cca": {
     "cleanedDate": "2025-12-16T22:19:00.146Z",
@@ -23774,6 +24904,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "c9b42d65-274f-4477-a861-bd09a287cc7c": {
+    "cleanedDate": "2026-01-24T04:51:26.858Z",
+    "filteredDate": "2026-01-24T04:53:47.073Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:49.570Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:50.045Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:50.047Z",
+    "avcAnomalyDetected": false
+  },
   "c9d80300-5ea6-4150-a635-6bf049516da6": {
     "filteredDate": "2025-12-08T08:40:42.951Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -23916,6 +25057,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:39:41.466Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "cb569394-b99b-4972-97f7-827019409ff8": {
+    "cleanedDate": "2026-01-24T04:51:26.907Z",
+    "filteredDate": "2026-01-24T04:53:44.431Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:50.337Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:50.736Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:50.737Z",
+    "avcAnomalyDetected": false
   },
   "cb69162e-7dc5-4352-92d4-e615d9c44fe7": {
     "filteredDate": "2025-12-08T08:40:54.407Z",
@@ -24103,6 +25255,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": [],
     "avcAnomalyCheckedDate": "2026-01-19T20:30:42.496Z",
+    "avcAnomalyDetected": false
+  },
+  "ccd99911-cf28-4a6f-b76d-019ae0b8be91": {
+    "cleanedDate": "2026-01-24T04:51:26.960Z",
+    "filteredDate": "2026-01-24T04:53:46.810Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:51.030Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:51.421Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:51.423Z",
     "avcAnomalyDetected": false
   },
   "cceb56e6-aaeb-43ae-b5ec-13367141fbae": {
@@ -24325,6 +25488,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "cf7627a7-bde6-4289-9817-bc2bcdbc1eeb": {
+    "cleanedDate": "2026-01-24T04:51:27.008Z",
+    "filteredDate": "2026-01-24T04:53:50.843Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:51.786Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:52.440Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:52.442Z",
+    "avcAnomalyDetected": false
+  },
   "cf858c30-b522-4839-8851-0b52e70d6c48": {
     "filteredDate": "2025-12-12T06:51:49.514Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -24532,6 +25706,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "d10b4245-daa2-409e-835f-237ba4284971": {
+    "cleanedDate": "2026-01-24T04:51:28.384Z",
+    "filteredDate": "2026-01-24T04:54:50.237Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:14.137Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:14.382Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:14.383Z",
+    "avcAnomalyDetected": false
+  },
   "d10eca2a-4c5c-454f-917f-0d32cd601350": {
     "filteredDate": "2025-12-08T08:42:07.035Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -24609,6 +25794,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "d1a220a6-eb27-46b3-9bab-917512de68ed": {
+    "cleanedDate": "2026-01-24T04:51:24.835Z",
+    "filteredDate": "2026-01-24T04:52:06.247Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:56:43.297Z",
+    "blackFrameCheckedDate": "2026-01-24T04:56:43.708Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:56:43.709Z",
+    "avcAnomalyDetected": false
+  },
   "d1dfc3dd-362b-4d93-8014-cb4cfeef1c88": {
     "filteredDate": "2025-12-08T08:42:05.722Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -24675,6 +25871,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "d299259f-df3c-43bd-bfb4-24deae7505fa": {
+    "cleanedDate": "2026-01-24T04:51:27.059Z",
+    "filteredDate": "2026-01-24T04:53:48.738Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:52.715Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:53.065Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:53.066Z",
+    "avcAnomalyDetected": false
+  },
   "d2b88272-6b3b-45e1-b63e-68d33cfab7ff": {
     "filteredDate": "2025-12-08T08:42:26.433Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -24685,6 +25892,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:50:08.470Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "d2b9d682-fd29-45c6-be8f-6178f0e94ed3": {
+    "cleanedDate": "2026-01-24T04:51:28.434Z",
+    "filteredDate": "2026-01-24T04:54:54.918Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:14.667Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:15.070Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:15.072Z",
+    "avcAnomalyDetected": false
   },
   "d2c48d02-0bca-406e-9ff5-be5e1b28feac": {
     "filteredDate": "2025-12-12T06:51:14.175Z",
@@ -24710,6 +25928,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:39:43.961Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "d30dd5ec-629d-4cb3-a936-29fab026d97e": {
+    "cleanedDate": "2026-01-24T04:51:24.884Z",
+    "filteredDate": "2026-01-24T04:52:07.785Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:56:50.507Z",
+    "blackFrameCheckedDate": "2026-01-24T04:56:51.113Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:56:51.115Z",
+    "avcAnomalyDetected": false
   },
   "d3132100-b535-472a-a733-6c7dd26dff54": {
     "cleanedDate": "2026-01-11T02:48:05.211Z",
@@ -24776,6 +26005,17 @@
     "blackFrameCheckedDate": "2026-01-04T08:07:20.737Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "d3d31415-aadc-4377-8939-f2af03554393": {
+    "cleanedDate": "2026-01-24T04:51:24.933Z",
+    "filteredDate": "2026-01-24T04:52:09.493Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:56:58.069Z",
+    "blackFrameCheckedDate": "2026-01-24T04:56:58.615Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:56:58.618Z",
+    "avcAnomalyDetected": false
   },
   "d3ff435f-76ae-4464-b465-08dd0afb686d": {
     "cleanedDate": "2026-01-03T01:52:24.782Z",
@@ -24997,6 +26237,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "d4ff46af-01bb-4f95-b48d-ce16f7790096": {
+    "cleanedDate": "2026-01-24T04:51:27.106Z",
+    "filteredDate": "2026-01-24T04:53:52.228Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:53.329Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:53.635Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:53.636Z",
+    "avcAnomalyDetected": false
+  },
   "d519472b-663d-4c8c-9ef1-fe899360f8fb": {
     "cleanedDate": "2026-01-12T02:05:09.934Z",
     "mismatchCheckedDate": "2026-01-12T02:05:25.692Z",
@@ -25038,6 +26289,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:50:14.647Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "d5422732-ce56-48b9-a953-7444a43fc3aa": {
+    "cleanedDate": "2026-01-24T04:51:27.155Z",
+    "filteredDate": "2026-01-24T04:53:56.004Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:53.906Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:54.321Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:54.322Z",
+    "avcAnomalyDetected": false
   },
   "d5522634-ff58-47dd-a81d-eb2e7f5a9af3": {
     "cleanedDate": "2026-01-11T02:48:05.098Z",
@@ -25114,6 +26376,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": [],
     "avcAnomalyCheckedDate": "2026-01-08T20:37:26.075Z",
+    "avcAnomalyDetected": false
+  },
+  "d5c0236c-47ba-414f-9e44-f03e9b062b5c": {
+    "cleanedDate": "2026-01-22T02:03:12.896Z",
+    "filteredDate": "2026-01-22T02:04:12.972Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:40.129Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:40.593Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:40.595Z",
     "avcAnomalyDetected": false
   },
   "d5c1e573-a229-457c-bb1e-63b3c54dd7f7": {
@@ -25831,6 +27104,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "db0d2e38-a54f-41b1-b408-47b6cb4f60c0": {
+    "cleanedDate": "2026-01-24T04:51:27.205Z",
+    "filteredDate": "2026-01-24T04:54:01.197Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:54.614Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:54.980Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:54.982Z",
+    "avcAnomalyDetected": false
+  },
   "db3980fb-dcb9-4518-875c-edcbef8517cc": {
     "filteredDate": "2025-12-08T07:41:37.482Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -26500,6 +27784,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "e034a3b4-7866-4ab6-897b-6404bbd65aa2": {
+    "cleanedDate": "2026-01-24T04:51:27.253Z",
+    "filteredDate": "2026-01-24T04:53:57.639Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:55.232Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:55.468Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:55.469Z",
+    "avcAnomalyDetected": false
+  },
   "e0527423-ea62-474a-bcca-9515d99e9b4a": {
     "filteredDate": "2025-12-08T08:46:07.793Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -26522,6 +27817,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "e0cc79d3-ddf7-4b21-bd66-1400abf35575": {
+    "cleanedDate": "2026-01-24T04:51:27.302Z",
+    "filteredDate": "2026-01-24T04:54:03.906Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:55.751Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:56.112Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:56.114Z",
+    "avcAnomalyDetected": false
+  },
   "e0f12002-05eb-4db9-9386-d163a9fcf7da": {
     "cleanedDate": "2025-12-27T04:45:39.584Z",
     "mismatchCheckedDate": "2025-12-29T19:29:46.273Z",
@@ -26541,6 +27847,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:50:49.553Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "e0f19602-7a08-4ef7-a1c4-3b47c9d3c9fc": {
+    "cleanedDate": "2026-01-24T04:51:28.484Z",
+    "filteredDate": "2026-01-24T04:54:56.725Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:15.369Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:15.814Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:15.816Z",
+    "avcAnomalyDetected": false
   },
   "e0f34f25-300f-475d-b7bf-24ef18d0a20e": {
     "filteredDate": "2025-12-12T06:51:36.657Z",
@@ -27343,6 +28660,26 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "e66aa91a-473a-41e5-bd41-6e4986c5dc8a": {
+    "cleanedDate": "2026-01-24T04:51:28.534Z",
+    "mismatchCheckedDate": "2026-01-24T04:58:32.773Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:33.112Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:33.114Z",
+    "avcAnomalyDetected": false
+  },
+  "e69a5fc2-de60-4adf-a2b6-c9653e7578eb": {
+    "cleanedDate": "2026-01-21T05:52:42.226Z",
+    "filteredDate": "2026-01-21T05:53:33.902Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:19.868Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:20.455Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:20.457Z",
+    "avcAnomalyDetected": false
+  },
   "e6caec8f-938e-4a31-bfdf-a8187eef8e55": {
     "filteredDate": "2025-12-08T07:41:49.183Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -27658,6 +28995,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "e91efa98-4d36-4c08-8a3e-08e18be4c87c": {
+    "cleanedDate": "2026-01-24T04:51:24.984Z",
+    "filteredDate": "2026-01-24T04:52:11.814Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:03.683Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:04.331Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:04.333Z",
+    "avcAnomalyDetected": false
+  },
   "e924d3ca-5379-48a5-935b-13111a7ae3a9": {
     "filteredDate": "2025-12-08T08:47:59.634Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -27715,6 +29063,15 @@
     "blackFrameCheckedDate": "2026-01-04T07:54:11.926Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "e9b0aeac-3137-4dc1-bf3a-793183811e5a": {
+    "cleanedDate": "2026-01-21T05:52:42.498Z",
+    "mismatchCheckedDate": "2026-01-21T05:54:25.636Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:26.141Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:26.143Z",
+    "avcAnomalyDetected": false
   },
   "e9cc5171-2857-44ef-9f3c-4bf812aa8ad5": {
     "filteredDate": "2025-12-08T08:50:53.729Z",
@@ -27859,6 +29216,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "eaf470d0-cfe8-4291-bd54-9508d3dd657b": {
+    "cleanedDate": "2026-01-24T04:51:28.585Z",
+    "filteredDate": "2026-01-24T04:55:01.893Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:16.093Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:16.528Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:16.529Z",
+    "avcAnomalyDetected": false
+  },
   "eb086a6d-971c-4856-825c-f0cdf38fadf8": {
     "filteredDate": "2025-12-08T07:41:52.838Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -28000,6 +29368,17 @@
     "avcAnomalyCheckedDate": "2026-01-10T01:21:48.620Z",
     "avcAnomalyDetected": false
   },
+  "ec873eae-d7f1-456f-8fb8-191716ee5723": {
+    "cleanedDate": "2026-01-21T05:52:42.563Z",
+    "filteredDate": "2026-01-21T05:53:48.343Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:24.363Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:25.253Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:25.256Z",
+    "avcAnomalyDetected": false
+  },
   "ecc4b60c-2419-4756-8e9d-abaae8047568": {
     "filteredDate": "2025-12-08T08:52:11.243Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -28107,6 +29486,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:54:13.921Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "ed682e34-34b8-44ee-b3ac-453e273d8719": {
+    "cleanedDate": "2026-01-24T04:51:28.634Z",
+    "filteredDate": "2026-01-24T04:55:02.874Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:16.901Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:17.620Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:17.623Z",
+    "avcAnomalyDetected": false
   },
   "eda6c75e-74d4-4655-9eaf-a4bee6f30bd3": {
     "filteredDate": "2025-12-08T07:41:52.205Z",
@@ -28262,6 +29652,28 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "ee9c4f63-49ed-4fb9-8c7d-fbfcaea52dc6": {
+    "cleanedDate": "2026-01-24T04:51:25.034Z",
+    "filteredDate": "2026-01-24T04:52:09.713Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:06.984Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:07.196Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:07.197Z",
+    "avcAnomalyDetected": false
+  },
+  "ee9e8f28-2481-4c49-af36-817323bf00c2": {
+    "cleanedDate": "2026-01-24T04:51:28.683Z",
+    "filteredDate": "2026-01-24T04:55:05.701Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:17.941Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:18.395Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:18.397Z",
+    "avcAnomalyDetected": false
+  },
   "eece62e1-2913-463e-a1d7-0ae8603a762a": {
     "filteredDate": "2025-12-13T01:25:19.950Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -28294,6 +29706,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:51:42.260Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "eefa702a-91e1-4bae-a7ea-7665bace67cb": {
+    "cleanedDate": "2026-01-24T04:51:27.351Z",
+    "filteredDate": "2026-01-24T04:54:05.933Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:56.450Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:57.118Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:57.121Z",
+    "avcAnomalyDetected": false
   },
   "ef001464-b0cd-4090-b137-bc9bb8ad50b6": {
     "filteredDate": "2025-12-08T07:42:01.161Z",
@@ -28403,6 +29826,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "ef63eb32-6d83-48e7-b939-ac6c57ad7d23": {
+    "cleanedDate": "2026-01-24T04:51:24.284Z",
+    "filteredDate": "2026-01-24T04:51:39.986Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:55:48.236Z",
+    "blackFrameCheckedDate": "2026-01-24T04:55:48.677Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:55:48.678Z",
+    "avcAnomalyDetected": false
+  },
   "ef6ce6df-599f-46f2-9d37-31e66aaf1437": {
     "filteredDate": "2025-12-08T08:50:20.505Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -28424,6 +29858,15 @@
     "blackFrameCheckedDate": "2026-01-04T07:51:43.528Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "ef865978-d71c-4eca-9779-5f12ae968ff7": {
+    "cleanedDate": "2026-01-22T02:03:12.955Z",
+    "mismatchCheckedDate": "2026-01-22T02:04:42.305Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:42.723Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:42.725Z",
+    "avcAnomalyDetected": false
   },
   "efad86a6-c323-40f9-a0d0-a77382c891d5": {
     "filteredDate": "2025-12-08T08:50:20.763Z",
@@ -28477,6 +29920,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:56:23.074Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "f0748d32-c7a8-4cc8-a822-2809ae875825": {
+    "cleanedDate": "2026-01-22T02:03:13.011Z",
+    "filteredDate": "2026-01-22T02:04:20.198Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-22T02:04:40.927Z",
+    "blackFrameCheckedDate": "2026-01-22T02:04:41.466Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-22T02:04:41.469Z",
+    "avcAnomalyDetected": false
   },
   "f07742f6-9b56-4e3e-8455-4a4dcfda00bb": {
     "filteredDate": "2025-12-08T09:01:49.065Z",
@@ -28791,6 +30245,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "f324819c-8f3b-44f4-b4cc-028acf0f77fa": {
+    "cleanedDate": "2026-01-24T04:51:28.734Z",
+    "filteredDate": "2026-01-24T04:55:06.873Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:18.735Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:19.402Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:19.404Z",
+    "avcAnomalyDetected": false
+  },
   "f328b809-224f-4494-bce5-76e14a9d6ebc": {
     "filteredDate": "2025-12-08T08:51:25.265Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -28860,6 +30325,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "f36e8ec1-68d9-41a7-8ff4-13caf1e54f65": {
+    "cleanedDate": "2026-01-24T04:51:28.784Z",
+    "filteredDate": "2026-01-24T04:55:12.999Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:19.721Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:20.175Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:20.177Z",
+    "avcAnomalyDetected": false
+  },
   "f36f1f31-e41c-481e-81b5-c233f0eaee29": {
     "filteredDate": "2025-12-08T07:42:09.036Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -28915,6 +30391,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "f3e2398e-c16c-48fb-9f35-9d1c553fecc0": {
+    "cleanedDate": "2026-01-24T04:51:28.833Z",
+    "filteredDate": "2026-01-24T04:55:12.873Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:20.491Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:20.926Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:20.928Z",
+    "avcAnomalyDetected": false
+  },
   "f3e30eea-90ac-452c-8ccc-925c9e2bb74e": {
     "cleanedDate": "2025-12-17T22:18:56.684Z",
     "filteredDate": "2025-12-17T22:19:14.798Z",
@@ -28947,6 +30434,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:52:02.504Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "f4545603-86b9-47af-abfb-21891bc232ad": {
+    "cleanedDate": "2026-01-24T04:51:25.085Z",
+    "filteredDate": "2026-01-24T04:52:21.657Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:16.884Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:17.674Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:17.678Z",
+    "avcAnomalyDetected": false
   },
   "f45cee61-6dc8-4501-8041-6a388c39aa08": {
     "filteredDate": "2025-12-12T06:51:24.686Z",
@@ -29425,6 +30923,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "f90290bb-48af-4bd3-9786-6428dea6daec": {
+    "cleanedDate": "2026-01-24T04:51:28.882Z",
+    "filteredDate": "2026-01-24T04:55:14.867Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:21.306Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:22.264Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:22.268Z",
+    "avcAnomalyDetected": false
+  },
   "f90d3dcc-96f4-48c2-9acc-33d162763bcd": {
     "filteredDate": "2025-12-08T09:02:06.290Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -29639,6 +31148,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "fa72e5d4-f404-4497-9c2d-e5bfad576a6f": {
+    "cleanedDate": "2026-01-24T04:51:27.401Z",
+    "filteredDate": "2026-01-24T04:54:06.328Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:57.484Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:58.178Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:58.181Z",
+    "avcAnomalyDetected": false
+  },
   "fa824e87-5e60-4503-b194-b9c8c27924b6": {
     "filteredDate": "2025-12-08T08:53:01.294Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -29802,6 +31322,14 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "fbe1e7e4-79c3-416f-9ece-536b7eb46712": {
+    "mismatchCheckedDate": "2026-01-24T04:58:33.162Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:33.212Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:33.216Z",
+    "avcAnomalyDetected": false
+  },
   "fc0bb411-2d32-4b3f-b790-d749672eced8": {
     "filteredDate": "2025-12-08T08:54:56.702Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -29835,6 +31363,17 @@
     "blackFrameDetected": false,
     "blackFrameSegments": []
   },
+  "fc17b13a-5533-47e1-8556-68722a30b865": {
+    "cleanedDate": "2026-01-21T05:52:42.294Z",
+    "filteredDate": "2026-01-21T05:53:37.186Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-21T05:54:20.780Z",
+    "blackFrameCheckedDate": "2026-01-21T05:54:21.448Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-21T05:54:21.449Z",
+    "avcAnomalyDetected": false
+  },
   "fc338dab-a69f-4a68-b69c-25422c15c748": {
     "filteredDate": "2025-12-08T08:53:56.457Z",
     "filteredModel": "gemini-3-pro-preview",
@@ -29845,6 +31384,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:52:28.066Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "fc4f6584-068b-42c0-b682-7df2c3f14193": {
+    "cleanedDate": "2026-01-24T04:51:27.450Z",
+    "filteredDate": "2026-01-24T04:54:09.410Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:58.523Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:59.192Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:59.194Z",
+    "avcAnomalyDetected": false
   },
   "fc75f57a-e379-4e8c-9ef5-abbe91a56d50": {
     "filteredDate": "2025-12-08T08:56:27.581Z",
@@ -29878,6 +31428,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:52:28.375Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "fccca0d0-99aa-4d6c-a162-677d39bfd7df": {
+    "cleanedDate": "2026-01-24T04:51:27.499Z",
+    "filteredDate": "2026-01-24T04:54:12.613Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:57:59.536Z",
+    "blackFrameCheckedDate": "2026-01-24T04:57:59.793Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:57:59.794Z",
+    "avcAnomalyDetected": false
   },
   "fcd3a6e3-ab54-40cf-80bb-56af61797971": {
     "cleanedDate": "2026-01-08T15:43:02.937Z",
@@ -30204,6 +31765,17 @@
     "blackFrameCheckedDate": "2026-01-04T07:52:34.899Z",
     "blackFrameDetected": false,
     "blackFrameSegments": []
+  },
+  "ff28b02a-532f-4888-b93f-cc8a87fae68c": {
+    "cleanedDate": "2026-01-24T04:51:28.982Z",
+    "filteredDate": "2026-01-24T04:55:16.109Z",
+    "filteredModel": "gemini-3-pro-preview",
+    "mismatchCheckedDate": "2026-01-24T04:58:22.584Z",
+    "blackFrameCheckedDate": "2026-01-24T04:58:23.032Z",
+    "blackFrameDetected": false,
+    "blackFrameSegments": [],
+    "avcAnomalyCheckedDate": "2026-01-24T04:58:23.034Z",
+    "avcAnomalyDetected": false
   },
   "ff2a8442-4c34-4477-b30b-dd423bb73a88": {
     "filteredDate": "2025-12-08T08:54:00.405Z",

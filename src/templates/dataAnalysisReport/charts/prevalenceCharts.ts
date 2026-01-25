@@ -16,6 +16,7 @@ import {
   getArtifactsWithNarrowOpenings,
   getArtifactsWithShortDoors,
   getArtifactsWithSmallWalls,
+  getArtifactsWithWideSpanningOpenings,
   getUnexpectedVersionArtifactDirs
 } from "../../../utils/data/rawScanDimensionFilters";
 import { getObjectConfidenceCounts } from "../../../utils/data/rawScanObjectConfidence";
@@ -29,7 +30,8 @@ export type ChartDef =
   | { count: number; kind: "smallWalls"; label: string }
   | { count: number; kind: "narrowDoors"; label: string }
   | { count: number; kind: "narrowOpenings"; label: string }
-  | { count: number; kind: "shortDoors"; label: string };
+  | { count: number; kind: "shortDoors"; label: string }
+  | { count: number; kind: "wideSpanningOpenings"; label: string };
 
 export function buildErrorFeatureObjectCharts(
   metadataList: (ArtifactAnalysis | undefined)[],
@@ -57,6 +59,10 @@ export function buildErrorFeatureObjectCharts(
 
   // Get set of artifact directories with short doors (< 6.5 ft height)
   const shortDoorDirs = artifactDirs !== undefined ? getArtifactsWithShortDoors(artifactDirs) : new Set<string>();
+
+  // Get set of artifact directories with openings spanning >90% of wall
+  const wideSpanningOpeningDirs =
+    artifactDirs !== undefined ? getArtifactsWithWideSpanningOpenings(artifactDirs) : new Set<string>();
 
   // Capture Errors & Features
   const errorDefs: ChartDef[] = [
@@ -313,6 +319,11 @@ export function buildErrorFeatureObjectCharts(
       kind: "shortDoors",
       label: `Short Doors (< ${String(SHORT_DOOR_HEIGHT_FT)} ft)`
     });
+    featureDefs.push({
+      count: INITIAL_COUNT,
+      kind: "wideSpanningOpenings",
+      label: "Openings Spanning >90% of Wall"
+    });
   }
 
   for (let i = 0; i < metadataList.length; i++) {
@@ -346,6 +357,10 @@ export function buildErrorFeatureObjectCharts(
         }
       } else if (d.kind === "shortDoors") {
         if (currentDir !== undefined && shortDoorDirs.has(currentDir)) {
+          d.count++;
+        }
+      } else if (d.kind === "wideSpanningOpenings") {
+        if (currentDir !== undefined && wideSpanningOpeningDirs.has(currentDir)) {
           d.count++;
         }
       } else if (d.kind === "predicate" && d.check(m)) {

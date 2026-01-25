@@ -1,93 +1,105 @@
 import { ArtifactAnalysis } from "../models/artifactAnalysis";
+import { ChartConfiguration } from "../models/chart/chartConfiguration";
 import { ReportData, ReportSection } from "../models/report";
-import { buildAreaCharts } from "./dataAnalysisReport/charts/areaCharts";
-import { buildAttributePieCharts } from "./dataAnalysisReport/charts/attributePieCharts";
-import { buildDimensionCharts } from "./dataAnalysisReport/charts/dimensionCharts";
-import { buildErrorFeatureObjectCharts } from "./dataAnalysisReport/charts/prevalenceCharts";
-import { buildSurfaceShapeCharts } from "./dataAnalysisReport/charts/shapeOverlayCharts";
-import { buildVanityAttributesCharts } from "./dataAnalysisReport/charts/vanityAttributesCharts";
-import { buildWallEmbeddedPieCharts } from "./dataAnalysisReport/charts/wallEmbeddedPieCharts";
+import { getLineChartConfig } from "../utils/chart/configBuilders";
+import { buildDynamicKde } from "./dataAnalysisReport/kdeBounds";
 import { computeLayoutConstants } from "./dataAnalysisReport/layout";
-import { CaptureCharts } from "./dataAnalysisReport/types";
 import {
-  buildAreaKdeChart,
-  buildCeilingHeightDifferenceChart,
-  buildNotchedWallShapesChart,
-  buildSlantedWallShapesChart
-} from "./scanAnalysisReport/charts";
-import { buildCeilingSections } from "./scanAnalysisReport/sections/ceilingSection";
-import { buildFloorSections } from "./scanAnalysisReport/sections/floorSection";
-import { buildObjectSections } from "./scanAnalysisReport/sections/objectSection";
-import { buildSummarySections } from "./scanAnalysisReport/sections/summarySection";
-import {
-  buildDoorSections,
-  buildOpeningSections,
-  buildWallSections,
-  buildWindowSections
-} from "./scanAnalysisReport/sections/surfaceSection";
+  OBJECT_CATEGORY_DISPLAY_NAMES,
+  OBJECT_CATEGORY_KEYS,
+  collectAllObjectViewTimes
+} from "../utils/scan/objectViewTime";
 
-function buildScanCharts(metadataList: ArtifactAnalysis[], artifactDirs?: string[]): Partial<CaptureCharts> {
-  const layout = computeLayoutConstants();
-  const charts: Partial<CaptureCharts> = {};
-
-  charts.area = buildAreaKdeChart(metadataList);
-
-  Object.assign(charts, buildErrorFeatureObjectCharts(metadataList, artifactDirs, layout));
-
-  if (artifactDirs !== undefined) {
-    Object.assign(charts, buildDimensionCharts(artifactDirs, layout));
-    Object.assign(charts, buildAreaCharts(artifactDirs, layout));
-    Object.assign(charts, buildAttributePieCharts(artifactDirs, layout));
-    Object.assign(charts, buildWallEmbeddedPieCharts(artifactDirs, layout));
-    Object.assign(charts, buildVanityAttributesCharts(artifactDirs, layout));
-    Object.assign(charts, buildSurfaceShapeCharts(artifactDirs, layout));
-    charts.ceilingHeightDifference = buildCeilingHeightDifferenceChart(artifactDirs);
-    const slantedWallShapes = buildSlantedWallShapesChart(artifactDirs);
-    if (slantedWallShapes !== undefined) {
-      charts.slantedWallShapes = slantedWallShapes;
-    }
-    const notchedWallShapes = buildNotchedWallShapesChart(artifactDirs);
-    if (notchedWallShapes !== undefined) {
-      charts.notchedWallShapes = notchedWallShapes;
-    }
-  }
-
-  return charts;
+function buildObjectViewTimeChart(
+  displayName: string,
+  values: number[],
+  chartId: string,
+  layout: ReturnType<typeof computeLayoutConstants>
+): { chart: ChartConfiguration; title: string } {
+  const viewInitialMin = 0;
+  const viewInitialMax = 120;
+  const kdeResolution = 200;
+  const { kde } = buildDynamicKde(values, viewInitialMin, viewInitialMax, kdeResolution);
+  const initialSum = 0;
+  const sum = values.reduce((a, b) => a + b, initialSum);
+  const avgSeconds = sum / values.length;
+  const decimalPlacesAvg = 1;
+  const chartOptions: {
+    chartId: string;
+    height: number;
+    smooth: boolean;
+    title: string;
+    verticalReferenceLine: { label: string; value: number };
+    width: number;
+    xLabel: string;
+    yLabel: string;
+  } = {
+    chartId,
+    height: layout.DURATION_CHART_HEIGHT,
+    smooth: true,
+    title: "",
+    verticalReferenceLine: {
+      label: `Avg: ${avgSeconds.toFixed(decimalPlacesAvg)}s`,
+      value: avgSeconds
+    },
+    width: layout.DURATION_CHART_WIDTH,
+    xLabel: "Seconds",
+    yLabel: "Count"
+  };
+  const chart = getLineChartConfig(
+    kde.labels,
+    [
+      {
+        borderColor: "#06b6d4",
+        borderWidth: 2,
+        data: kde.values,
+        fill: true,
+        label: "Density"
+      }
+    ],
+    chartOptions
+  );
+  return {
+    chart,
+    title: `Time with ${displayName} in View`
+  };
 }
 
-function buildScanReportSections(
-  charts: Partial<CaptureCharts>,
-  artifactDirs: string[] | undefined,
-  videoCount: number
+/**
+ * Builds the Scan Analysis report.
+ * Combines rawScan.json and arData.json to analyze how users scan the room
+ * (e.g. path coverage, movement vs. geometry, scan behavior over time).
+ */
+export function buildScanAnalysisReport(
+  _metadataList: ArtifactAnalysis[],
+  videoCount: number,
+  artifactDirs?: string[]
 ): ReportData {
   const subtitle = `Artifacts: ${videoCount.toString()}`;
   const sections: ReportSection[] = [];
-  const hasArtifactDirs = artifactDirs !== undefined;
+  const emptyLength = 0;
 
-  sections.push(...buildSummarySections(charts));
-  sections.push(...buildObjectSections(charts, hasArtifactDirs));
-  sections.push(...buildFloorSections(charts, hasArtifactDirs));
-
-  if (hasArtifactDirs) {
-    sections.push(...buildWallSections(charts));
-    sections.push(...buildWindowSections(charts));
-    sections.push(...buildDoorSections(charts));
-    sections.push(...buildOpeningSections(charts));
-    sections.push(...buildCeilingSections(charts));
+  if (artifactDirs !== undefined && artifactDirs.length > emptyLength) {
+    const layout = computeLayoutConstants();
+    const allViewTimes = collectAllObjectViewTimes(artifactDirs);
+    for (const key of OBJECT_CATEGORY_KEYS) {
+      const values = allViewTimes[key];
+      if (values.length > emptyLength) {
+        const displayName = OBJECT_CATEGORY_DISPLAY_NAMES[key];
+        const chartId = `objectViewTime_${key}`;
+        const { chart, title } = buildObjectViewTimeChart(displayName, values, chartId, layout);
+        sections.push({
+          data: chart,
+          title,
+          type: "chart"
+        });
+      }
+    }
   }
 
   return {
     sections,
     subtitle,
-    title: "Scan Data Analysis"
+    title: "Scan Analysis"
   };
-}
-
-export function buildScanAnalysisReport(
-  metadataList: ArtifactAnalysis[],
-  videoCount: number,
-  artifactDirs?: string[]
-): ReportData {
-  const charts = buildScanCharts(metadataList, artifactDirs);
-  return buildScanReportSections(charts, artifactDirs, videoCount);
 }

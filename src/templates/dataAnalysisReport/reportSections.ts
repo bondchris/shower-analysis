@@ -110,11 +110,11 @@ export function buildReportSections(
     type: "chart"
   });
 
-  // Scan Data Analysis Section (H2)
+  // Room Data Analysis Section (H2)
   chartSections.push({
     data: "",
     level: 2,
-    title: "Scan Data Analysis",
+    title: "Room Data Analysis",
     type: "header"
   });
 

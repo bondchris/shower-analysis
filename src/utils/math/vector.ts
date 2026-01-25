@@ -111,3 +111,28 @@ export const angleBetween = (v: Point, w: Point): number => {
   const CLAMP_MIN = -1;
   return Math.acos(Math.max(CLAMP_MIN, Math.min(ONE, cosTheta)));
 };
+
+/**
+ * Calculates the angle of a vector relative to the positive X axis.
+ * Returns a value between -PI and PI radians.
+ * Uses atan2(y, x) for proper quadrant handling.
+ */
+export const angle = (v: Point): number => {
+  return Math.atan2(v.y, v.x);
+};
+
+/**
+ * Rotates a vector around the origin by the given angle in radians.
+ * Positive angles rotate counter-clockwise.
+ */
+export const rotate = (v: Point, angleRad: number): Point => {
+  const cos = Math.cos(angleRad);
+  const sin = Math.sin(angleRad);
+  const xCos = v.x * cos;
+  const ySin = v.y * sin;
+  const xSin = v.x * sin;
+  const yCos = v.y * cos;
+  const rotatedX = xCos - ySin;
+  const rotatedY = xSin + yCos;
+  return new Point(rotatedX, rotatedY);
+};

@@ -476,7 +476,8 @@ describe("Functional Pipeline Test", () => {
     await inspectMain();
     expect(fs.existsSync(path.join(tempDir, "reports", "3.1 - Video Analysis.pdf"))).toBe(true);
     expect(fs.existsSync(path.join(tempDir, "reports", "3.2 - AR Data Analysis.pdf"))).toBe(true);
-    expect(fs.existsSync(path.join(tempDir, "reports", "3.3 - Scan Analysis.pdf"))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, "reports", "3.3 - Room Analysis.pdf"))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, "reports", "3.4 - Scan Analysis.pdf"))).toBe(true);
 
     // 7b. Verify Cache Creation (Miss)
     // Check that metadata files were created

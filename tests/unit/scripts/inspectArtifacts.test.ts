@@ -3,6 +3,7 @@ import { analyzeArtifact, createInspectionReports, main } from "../../../src/scr
 import { ArtifactAnalysis } from "../../../src/models/artifactAnalysis";
 import { ReportData } from "../../../src/models/report";
 import { buildArDataAnalysisReport } from "../../../src/templates/arDataAnalysisReport";
+import { buildRoomAnalysisReport } from "../../../src/templates/roomAnalysisReport";
 import { buildScanAnalysisReport } from "../../../src/templates/scanAnalysisReport";
 import { buildVideoAnalysisReport } from "../../../src/templates/videoAnalysisReport";
 import { extractArDataMetadata } from "../../../src/utils/arData/metadata";
@@ -19,6 +20,7 @@ vi.mock("../../../src/utils/room/metadata");
 vi.mock("../../../src/utils/arData/metadata");
 vi.mock("../../../src/templates/videoAnalysisReport");
 vi.mock("../../../src/templates/arDataAnalysisReport");
+vi.mock("../../../src/templates/roomAnalysisReport");
 vi.mock("../../../src/templates/scanAnalysisReport");
 vi.mock("../../../src/utils/reportGenerator");
 vi.mock("../../../src/utils/logger");
@@ -107,14 +109,16 @@ describe("inspectArtifacts Script", () => {
   });
 
   describe("createInspectionReports", () => {
-    it("should build and generate all three reports, logging progress", async () => {
+    it("should build and generate all four reports, logging progress", async () => {
       const mockMeta = [new ArtifactAnalysis()];
       const mockVideoReportData = { sections: [], title: "Video Analysis" } as unknown as ReportData;
       const mockArDataReportData = { sections: [], title: "AR Data Analysis" } as unknown as ReportData;
+      const mockRoomReportData = { sections: [], title: "Room Analysis" } as unknown as ReportData;
       const mockScanReportData = { sections: [], title: "Scan Analysis" } as unknown as ReportData;
 
       (buildVideoAnalysisReport as Mock).mockReturnValue(mockVideoReportData);
       (buildArDataAnalysisReport as Mock).mockReturnValue(mockArDataReportData);
+      (buildRoomAnalysisReport as Mock).mockReturnValue(mockRoomReportData);
       (buildScanAnalysisReport as Mock).mockReturnValue(mockScanReportData);
 
       await createInspectionReports(mockMeta, 10, 1);
@@ -129,10 +133,15 @@ describe("inspectArtifacts Script", () => {
       expect(generatePdfReport).toHaveBeenCalledWith(mockArDataReportData, "3.2 - AR Data Analysis.pdf");
       expect(logger.info).toHaveBeenCalledWith("Report generated at: 3.2 - AR Data Analysis.pdf");
 
-      expect(logger.info).toHaveBeenCalledWith("Generating 3.3 - Scan Analysis PDF...");
+      expect(logger.info).toHaveBeenCalledWith("Generating 3.3 - Room Analysis PDF...");
+      expect(buildRoomAnalysisReport).toHaveBeenCalledWith(mockMeta, 1, undefined);
+      expect(generatePdfReport).toHaveBeenCalledWith(mockRoomReportData, "3.3 - Room Analysis.pdf");
+      expect(logger.info).toHaveBeenCalledWith("Report generated at: 3.3 - Room Analysis.pdf");
+
+      expect(logger.info).toHaveBeenCalledWith("Generating 3.4 - Scan Analysis PDF...");
       expect(buildScanAnalysisReport).toHaveBeenCalledWith(mockMeta, 1, undefined);
-      expect(generatePdfReport).toHaveBeenCalledWith(mockScanReportData, "3.3 - Scan Analysis.pdf");
-      expect(logger.info).toHaveBeenCalledWith("Report generated at: 3.3 - Scan Analysis.pdf");
+      expect(generatePdfReport).toHaveBeenCalledWith(mockScanReportData, "3.4 - Scan Analysis.pdf");
+      expect(logger.info).toHaveBeenCalledWith("Report generated at: 3.4 - Scan Analysis.pdf");
     });
 
     it("should bubble up errors from PDF generator", async () => {
@@ -174,7 +183,7 @@ describe("inspectArtifacts Script", () => {
       expect(generatePdfReport).not.toHaveBeenCalled();
     });
 
-    it("should process artifacts and generate all three reports", async () => {
+    it("should process artifacts and generate all four reports", async () => {
       const DIRS = ["/a", "/b"];
       (findArtifactDirectories as Mock).mockReturnValue(DIRS);
 
@@ -184,9 +193,11 @@ describe("inspectArtifacts Script", () => {
       // Mock report builders
       const mockVideoReportData = { sections: [], title: "Video" };
       const mockArDataReportData = { sections: [], title: "ArData" };
+      const mockRoomReportData = { sections: [], title: "Room" };
       const mockScanReportData = { sections: [], title: "Scan" };
       (buildVideoAnalysisReport as Mock).mockReturnValue(mockVideoReportData);
       (buildArDataAnalysisReport as Mock).mockReturnValue(mockArDataReportData);
+      (buildRoomAnalysisReport as Mock).mockReturnValue(mockRoomReportData);
       (buildScanAnalysisReport as Mock).mockReturnValue(mockScanReportData);
 
       await main();
@@ -201,12 +212,14 @@ describe("inspectArtifacts Script", () => {
       // Verify Average Logic (10 + 30) / 2 = 20
       expect(buildVideoAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 20, 2);
       expect(buildArDataAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 2);
+      expect(buildRoomAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 2, DIRS);
       expect(buildScanAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 2, DIRS);
 
-      // Verify all three PDFs are generated
+      // Verify all four PDFs are generated
       expect(generatePdfReport).toHaveBeenCalledWith(mockVideoReportData, "3.1 - Video Analysis.pdf");
       expect(generatePdfReport).toHaveBeenCalledWith(mockArDataReportData, "3.2 - AR Data Analysis.pdf");
-      expect(generatePdfReport).toHaveBeenCalledWith(mockScanReportData, "3.3 - Scan Analysis.pdf");
+      expect(generatePdfReport).toHaveBeenCalledWith(mockRoomReportData, "3.3 - Room Analysis.pdf");
+      expect(generatePdfReport).toHaveBeenCalledWith(mockScanReportData, "3.4 - Scan Analysis.pdf");
     });
 
     it("should handle undefined/NaN durations robustly", async () => {
@@ -220,6 +233,7 @@ describe("inspectArtifacts Script", () => {
       // Mock report builders
       (buildVideoAnalysisReport as Mock).mockReturnValue({ sections: [] });
       (buildArDataAnalysisReport as Mock).mockReturnValue({ sections: [] });
+      (buildRoomAnalysisReport as Mock).mockReturnValue({ sections: [] });
       (buildScanAnalysisReport as Mock).mockReturnValue({ sections: [] });
 
       await main();
@@ -228,6 +242,7 @@ describe("inspectArtifacts Script", () => {
       // Total artifact count passed to report is still 3
       expect(buildVideoAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 20, 3);
       expect(buildArDataAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 3);
+      expect(buildRoomAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 3, ["/a", "/b", "/c"]);
       expect(buildScanAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 3, ["/a", "/b", "/c"]);
     });
 
@@ -237,15 +252,18 @@ describe("inspectArtifacts Script", () => {
 
       const mockVideoReportData = { sections: [], title: "Video" };
       const mockArDataReportData = { sections: [], title: "AR" };
+      const mockRoomReportData = { sections: [], title: "Room" };
       const mockScanReportData = { sections: [], title: "Scan" };
       (buildVideoAnalysisReport as Mock).mockReturnValue(mockVideoReportData);
       (buildArDataAnalysisReport as Mock).mockReturnValue(mockArDataReportData);
+      (buildRoomAnalysisReport as Mock).mockReturnValue(mockRoomReportData);
       (buildScanAnalysisReport as Mock).mockReturnValue(mockScanReportData);
 
       await main();
 
       expect(buildVideoAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 0, 1);
       expect(buildArDataAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 1);
+      expect(buildRoomAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 1, ["/only"]);
       expect(buildScanAnalysisReport).toHaveBeenCalledWith(expect.any(Array), 1, ["/only"]);
     });
 

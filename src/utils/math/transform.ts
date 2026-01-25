@@ -304,6 +304,27 @@ export const getPhonePanAngle = (transform: number[], initialForwardX: number, i
 };
 
 /**
+ * Extracts the 3D forward direction from a camera transform matrix.
+ * Returns the normalized vector (indices 8, 9, 10) representing the camera's view direction.
+ */
+export const getForward3D = (transform: number[]): Position3D => {
+  const FORWARD_X_IDX = 8;
+  const FORWARD_Y_IDX = 9;
+  const FORWARD_Z_IDX = 10;
+  const DEFAULT_VALUE = 0;
+
+  if (transform.length !== TRANSFORM_SIZE) {
+    return { x: DEFAULT_VALUE, y: DEFAULT_VALUE, z: DEFAULT_VALUE };
+  }
+  const forward: Position3D = {
+    x: transform[FORWARD_X_IDX] ?? DEFAULT_VALUE,
+    y: transform[FORWARD_Y_IDX] ?? DEFAULT_VALUE,
+    z: transform[FORWARD_Z_IDX] ?? DEFAULT_VALUE
+  };
+  return normalize3D(forward);
+};
+
+/**
  * Extracts the horizontal forward direction from a camera transform.
  * Returns the X and Z components of the forward vector projected onto the XZ plane.
  * Used to establish the initial "forward" direction for pan angle calculations.

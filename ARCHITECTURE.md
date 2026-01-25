@@ -156,10 +156,12 @@ React-based PDF report generation:
     framerate, dropped-frame trends, scan efficiency with zoomed inset, movement speed curves,
     phone tilt/roll/pan protractor charts with fast-motion timing and 360° rotation coverage,
     lighting/exposure metrics
-- **`scanAnalysisReport.ts`**: Room scan data analysis report
+- **`roomAnalysisReport.ts`**: Room scan data analysis report
   - Uses modular chart builders from `dataAnalysisReport/charts/`
   - Includes: section types, feature prevalence, capture errors, object distribution,
     dimension charts, area charts, attribute pie charts, wall embedded charts
+- **`scanAnalysisReport.ts`**: Scan-behavior analysis report combining rawScan.json and arData.json
+  - Analyzes how users scan the room (path coverage, movement vs. geometry). Initially minimal.
 - **`dataAnalysisReport/`**: Shared chart building utilities
   - `charts/`: Modular chart builders (kdeCharts, deviceAndCameraCharts, prevalenceCharts, areaCharts, etc.)
   - `layout.ts`: Layout constants for consistent sizing
@@ -221,14 +223,16 @@ Room Analysis (room/ utilities)
     ↓
 Chart Generation (utils/chart/configBuilders)
     ↓
-Three Separate Report Templates:
+Four Separate Report Templates:
     ├─ videoAnalysisReport.ts → reports/3.1 - Video Analysis.pdf
     │    Duration, Framerate, Resolution charts
     ├─ arDataAnalysisReport.ts → reports/3.2 - AR Data Analysis.pdf
     │    Device models, camera settings, lighting/exposure charts
-    └─ scanAnalysisReport.ts → reports/3.3 - Scan Analysis.pdf
-         Room dimensions, features, objects, errors
-         Uses: dataAnalysisReport/charts/* helpers
+    ├─ roomAnalysisReport.ts → reports/3.3 - Room Analysis.pdf
+    │    Room dimensions, features, objects, errors
+    │    Uses: dataAnalysisReport/charts/* helpers
+    └─ scanAnalysisReport.ts → reports/3.4 - Scan Analysis.pdf
+         rawScan + arData scan-behavior analysis
     ↓
 PDF Generation (reportGenerator.ts)
 ```

@@ -11,6 +11,7 @@ import {
 import {
   getArtifactsWithNarrowDoors,
   getArtifactsWithSmallWalls,
+  getArtifactsWithWideSpanningOpenings,
   getUnexpectedVersionArtifactDirs
 } from "../../../../src/utils/data/rawScanDimensionFilters";
 import {
@@ -232,6 +233,83 @@ describe("rawScanExtractor", () => {
       );
 
       const result = getArtifactsWithNarrowDoors(["/test/dir1"]);
+
+      expect(result.has("/test/dir1")).toBe(true);
+    });
+  });
+
+  describe("getArtifactsWithWideSpanningOpenings", () => {
+    it("returns directories when opening spans more than 90% of wall", () => {
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) =>
+        filePath.endsWith("rawScan.json")
+      );
+      const wallId = "wall-1";
+      const wallWidth = 10; // 10 meters
+      const openingWidth = 9.1; // 91% of wall width
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+        JSON.stringify(
+          buildRawScan({
+            openings: [{ dimensions: [openingWidth, 2], parentIdentifier: wallId }],
+            walls: [{ dimensions: [wallWidth, 2.5], identifier: wallId }]
+          })
+        )
+      );
+
+      const result = getArtifactsWithWideSpanningOpenings(["/test/dir1"]);
+
+      expect(result.has("/test/dir1")).toBe(true);
+    });
+
+    it("returns empty set when opening spans less than 90% of wall", () => {
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) =>
+        filePath.endsWith("rawScan.json")
+      );
+      const wallId = "wall-1";
+      const wallWidth = 10; // 10 meters
+      const openingWidth = 8.9; // 89% of wall width
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+        JSON.stringify(
+          buildRawScan({
+            openings: [{ dimensions: [openingWidth, 2], parentIdentifier: wallId }],
+            walls: [{ dimensions: [wallWidth, 2.5], identifier: wallId }]
+          })
+        )
+      );
+
+      const result = getArtifactsWithWideSpanningOpenings(["/test/dir1"]);
+
+      expect(result.has("/test/dir1")).toBe(false);
+    });
+
+    it("handles walls with polygonCorners", () => {
+      (fs.existsSync as ReturnType<typeof vi.fn>).mockImplementation((filePath: string) =>
+        filePath.endsWith("rawScan.json")
+      );
+      const wallId = "wall-1";
+      // Polygon with perimeter of 10 (rectangle: 0,0 -> 5,0 -> 5,2 -> 0,2)
+      // Perimeter = 5 + 2 + 5 + 2 = 14
+      const openingWidth = 12.7; // >90% of 14
+      (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(
+        JSON.stringify(
+          buildRawScan({
+            openings: [{ dimensions: [openingWidth, 2], parentIdentifier: wallId }],
+            walls: [
+              {
+                dimensions: [5, 2.5],
+                identifier: wallId,
+                polygonCorners: [
+                  [0, 0, 0],
+                  [5, 0, 0],
+                  [5, 2, 0],
+                  [0, 2, 0]
+                ]
+              }
+            ]
+          })
+        )
+      );
+
+      const result = getArtifactsWithWideSpanningOpenings(["/test/dir1"]);
 
       expect(result.has("/test/dir1")).toBe(true);
     });

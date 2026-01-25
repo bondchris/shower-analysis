@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-01-24
+
+### [v0.70.0] Scan Analysis Report
+
+- Added **3.4 - Scan Analysis.pdf** to the inspect pipeline. The report combines rawScan.json and arData.json
+  to analyze how users scan the room.
+- **Time with X in View** charts: One chart per object category (toilet, bathtub, sink, storage, etc.) that
+  has data. Each shows a KDE of per-scan seconds with any object of that type in the camera view (60°
+  half-angle), with an average reference line. Logic in `src/utils/scan/objectViewTime.ts`.
+
+## 2026-01-21
+
+### [v0.69.0] Room Layout Visualization
+
+- Added automatic room layout PNG generation during artifact inspection. Each artifact now generates a top-down `layout.png` showing floors, walls, objects, doors, and windows.
+- Layout images are automatically rotated so the longest wall is aligned vertically for consistent orientation.
+- Centralized 2D vector math functions (`angle`, `rotate`) in `src/utils/math/vector.ts` for reuse across the codebase.
+- Layout generation is cached—existing `layout.png` files are skipped to avoid redundant processing.
+- New utilities in `src/utils/room/layout/`:
+  - `extractLayoutElements`: Extracts floor polygons, wall segments, object bounding boxes, and door/window positions from RawScan data.
+  - `generateRoomLayoutPng`: Renders layout elements to SVG and captures as PNG using Playwright.
+  - `RoomLayoutSvg`: React component for rendering the 2D room visualization.
+
 ## 2026-01-19
 
 ### [v0.68.3] Report and Utility Modularization (Maintenance)
@@ -11,7 +34,7 @@ All notable changes to this project will be documented in this file.
   - Video Analysis: Split into chart builders (color, duration, encoding, GOP, laplacian) and sections (encoding summary, laplacian examples).
   - Sync Report: Split into charts (artifact size, error history, video size) and sections (disk usage, failures, summary).
   - Discard Report: Split into charts, sections, and utils modules.
-  - Scan Analysis: Split into charts and sections (ceiling, floor, object, summary, surface).
+  - Room Analysis: Split into charts and sections (ceiling, floor, object, summary, surface).
 - Refactored AR data metadata extraction into smaller, focused modules (angular metrics, cache validation, EXIF extraction, framerate metrics, motion metrics, sensor metrics).
 - Extracted raw scan data utilities into dedicated modules (aggregators, dimension filters, iterators, metadata collectors, object confidence, wall analysis).
 - Extracted video analysis utilities into focused modules (entropy coding, ffprobe utils, GOP analysis, signal stats).
@@ -37,7 +60,7 @@ All notable changes to this project will be documented in this file.
 
 ### [v0.68.0] Ceiling Analysis and Wall Shape Classification
 
-- Added Ceiling Analysis section to the scan analysis report with "Maximum Difference in Ceiling Height" chart
+- Added Ceiling Analysis section to the room analysis report with "Maximum Difference in Ceiling Height" chart
   showing the distribution of ceiling height variations across artifacts (displayed in feet with a 2-inch
   minimum threshold).
 - Separated non-rectangular wall shapes into two distinct categories:
@@ -45,7 +68,7 @@ All notable changes to this project will be documented in this file.
   - **Notched Wall Shapes**: Non-rectangular walls with vertical steps/notches (re-entrant corners with
     interior angles > 180°)
 - Both wall shape charts are displayed side-by-side in the Ceiling Analysis section when both types are present.
-- Improved test coverage for `scanAnalysisReport.ts` (from 7 to 19 tests) and `rawScanExtractor.ts` (from 73%
+- Improved test coverage for `roomAnalysisReport.ts` (from 7 to 19 tests) and `rawScanExtractor.ts` (from 73%
   to 99% line coverage).
 - Added comprehensive tests for ceiling height difference calculations, wall shape classification, and edge
   cases.
@@ -63,13 +86,13 @@ All notable changes to this project will be documented in this file.
 
 - Aligned surface shape overlays with their corresponding aspect ratio charts, removing frames and guide lines while keeping a clean white canvas for stacked silhouettes.
 - Tweaked chart row offsets so shape overlays sit flush with scatter plot axes and titles, matching visual rhythm across paired charts.
-- Expanded scan analysis report tests to cover aspect-ratio-only rows, shapes-only rows, and attribute chart chunking to maintain high coverage.
+- Expanded room analysis report tests to cover aspect-ratio-only rows, shapes-only rows, and attribute chart chunking to maintain high coverage.
 
 ## 2026-01-11
 
 ### [v0.66.0] Surface Shape Overlay Charts
 
-- Added normalized shape overlay charts for floors, walls, windows, doors, and openings to the scan analysis reports so surface silhouettes are stacked at a common scale.
+- Added normalized shape overlay charts for floors, walls, windows, doors, and openings to the room analysis reports so surface silhouettes are stacked at a common scale.
 - Cached surface outlines (from polygons or dimensions) inside `rawScanMetadata.json`, exposed outline getters, and wired them into the new chart builder.
 - Introduced a dedicated Shape Overlay chart component and shared utilities plus documentation updates for the new visualization.
 
@@ -207,12 +230,12 @@ All notable changes to this project will be documented in this file.
   - `video-analysis.pdf` - Video metadata: duration, framerate, resolution distributions
   - `ardata-analysis.pdf` - AR data and camera analysis: device models, focal length, aperture,
     ambient intensity, color temperature, ISO speed, brightness value
-  - `scan-analysis.pdf` - Room scan data: section types, feature prevalence, capture errors,
+  - `room-analysis.pdf` - Room scan data: section types, feature prevalence, capture errors,
     object distribution with confidence levels, dimension/area charts, attribute pie charts
 - **New Report Templates**: Created `videoAnalysisReport.ts`, `arDataAnalysisReport.ts`, and
-  `scanAnalysisReport.ts` as dedicated report builders for each domain.
+  `roomAnalysisReport.ts` as dedicated report builders for each domain.
 - **Modular Architecture**: Retained shared chart utilities in `dataAnalysisReport/charts/` for
-  reuse by the scan analysis report.
+  reuse by the room analysis report.
 - **Documentation Updated**: README and ARCHITECTURE.md updated to reflect the new three-report
   output structure.
 

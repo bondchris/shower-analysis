@@ -3,8 +3,41 @@ import * as path from "path";
 
 import { RawScan } from "../../models/rawScan/rawScan";
 import { RawScanMetadata } from "../../models/rawScan/rawScanMetadata";
+import { generateRoomLayoutPng } from "./layout";
 import { computeRawScanMetadata } from "./metadata/computeRawScanMetadata";
 import { isValidCachedMetadata } from "./metadata/rawScanMetadataSchema";
+
+/**
+ * Generates a room layout PNG for the artifact if rawScan.json exists.
+ * Skips generation if the layout already exists.
+ */
+export async function generateLayoutForArtifact(dirPath: string): Promise<void> {
+  const layoutPath = path.join(dirPath, "layout.png");
+  const rawScanPath = path.join(dirPath, "rawScan.json");
+  const imageSize = 800;
+  const imagePadding = 60;
+
+  if (fs.existsSync(layoutPath)) {
+    return;
+  }
+
+  if (!fs.existsSync(rawScanPath)) {
+    return;
+  }
+
+  try {
+    const rawContent = fs.readFileSync(rawScanPath, "utf-8");
+    const rawScan = new RawScan(JSON.parse(rawContent));
+    await generateRoomLayoutPng(rawScan, layoutPath, {
+      height: imageSize,
+      padding: imagePadding,
+      showLabels: true,
+      width: imageSize
+    });
+  } catch {
+    // Silently skip layout generation on error
+  }
+}
 
 /**
  * Extracts metadata from a rawScan.json file in the given directory.

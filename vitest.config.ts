@@ -34,7 +34,9 @@ export default defineConfig({
         "src/models/report.ts",
         "src/models/shapeOutline.ts",
         "src/models/syncStats.ts",
-        "src/models/videoCharts.ts"
+        "src/models/videoCharts.ts",
+        // Re-export module with no runtime logic
+        "src/utils/room/layout/index.ts"
       ],
       include: ["src/**/*.{ts,tsx}"],
       provider: "v8",

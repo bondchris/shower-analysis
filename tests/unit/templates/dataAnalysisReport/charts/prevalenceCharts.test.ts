@@ -7,6 +7,7 @@ import {
   getArtifactsWithNarrowOpenings,
   getArtifactsWithShortDoors,
   getArtifactsWithSmallWalls,
+  getArtifactsWithWideSpanningOpenings,
   getUnexpectedVersionArtifactDirs
 } from "../../../../../src/utils/data/rawScanDimensionFilters";
 import { getObjectConfidenceCounts } from "../../../../../src/utils/data/rawScanObjectConfidence";
@@ -35,6 +36,7 @@ vi.mock("../../../../../src/utils/data/rawScanDimensionFilters", () => ({
   getArtifactsWithNarrowOpenings: vi.fn(),
   getArtifactsWithShortDoors: vi.fn(),
   getArtifactsWithSmallWalls: vi.fn(),
+  getArtifactsWithWideSpanningOpenings: vi.fn(),
   getUnexpectedVersionArtifactDirs: vi.fn()
 }));
 
@@ -80,6 +82,7 @@ describe("buildErrorFeatureObjectCharts", () => {
     (getArtifactsWithNarrowDoors as ReturnType<typeof vi.fn>).mockReturnValue(new Set<string>());
     (getArtifactsWithNarrowOpenings as ReturnType<typeof vi.fn>).mockReturnValue(new Set<string>());
     (getArtifactsWithShortDoors as ReturnType<typeof vi.fn>).mockReturnValue(new Set<string>());
+    (getArtifactsWithWideSpanningOpenings as ReturnType<typeof vi.fn>).mockReturnValue(new Set<string>());
     (getObjectConfidenceCounts as ReturnType<typeof vi.fn>).mockReturnValue(null);
   });
 
@@ -214,6 +217,7 @@ describe("buildErrorFeatureObjectCharts", () => {
     (getArtifactsWithNarrowDoors as ReturnType<typeof vi.fn>).mockReturnValue(new Set([artifactDirs[0]]));
     (getArtifactsWithNarrowOpenings as ReturnType<typeof vi.fn>).mockReturnValue(new Set([artifactDirs[1]]));
     (getArtifactsWithShortDoors as ReturnType<typeof vi.fn>).mockReturnValue(new Set([artifactDirs[2]]));
+    (getArtifactsWithWideSpanningOpenings as ReturnType<typeof vi.fn>).mockReturnValue(new Set<string>());
 
     const metadataWithDirs: ArtifactAnalysis[] = [
       Object.assign({}, mockMetadata[0]),

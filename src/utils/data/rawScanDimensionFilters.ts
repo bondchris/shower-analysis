@@ -88,3 +88,104 @@ export const getArtifactsWithShortDoors = (dirs: string[]) => {
     anyEntityHasDimBelow(rs.doors, dimensionIndexHeight, convert(SHORT_DOOR_HEIGHT_FT).from("ft").to("m"))
   );
 };
+
+/**
+ * Calculates the width of a wall from its dimensions or polygonCorners.
+ * Returns undefined if width cannot be determined.
+ */
+function getWallWidth(wall: { dimensions?: number[]; polygonCorners?: number[][] }): number | undefined {
+  const minPolygonCorners = 3;
+  const minDimensionsLength = 2;
+  const dimensionIndexLength = 0;
+  const pointIndexX = 0;
+  const pointIndexZ = 2;
+  const minValue = 0;
+  const initialCount = 0;
+  const nextOffset = 1;
+
+  const hasPolygonCorners =
+    wall.polygonCorners !== undefined &&
+    Array.isArray(wall.polygonCorners) &&
+    wall.polygonCorners.length >= minPolygonCorners;
+
+  if (hasPolygonCorners && wall.polygonCorners !== undefined) {
+    const corners = wall.polygonCorners;
+    let perimeter = initialCount;
+
+    for (let i = initialCount; i < corners.length; i++) {
+      const j = (i + nextOffset) % corners.length;
+      const p1 = corners[i];
+      const p2 = corners[j];
+
+      if (p1 !== undefined && p2 !== undefined && p1.length >= minPolygonCorners && p2.length >= minPolygonCorners) {
+        const x1 = p1[pointIndexX] ?? initialCount;
+        const z1 = p1[pointIndexZ] ?? initialCount;
+        const x2 = p2[pointIndexX] ?? initialCount;
+        const z2 = p2[pointIndexZ] ?? initialCount;
+
+        const dx = x2 - x1;
+        const dz = z2 - z1;
+        const dxSquared = dx * dx;
+        const dzSquared = dz * dz;
+        const segmentLength = Math.sqrt(dxSquared + dzSquared);
+        perimeter += segmentLength;
+      }
+    }
+
+    if (perimeter > minValue) {
+      return perimeter;
+    }
+  } else if (Array.isArray(wall.dimensions) && wall.dimensions.length >= minDimensionsLength) {
+    const width = wall.dimensions[dimensionIndexLength];
+    if (width !== undefined && width > minValue) {
+      return width;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Returns a set of artifact directories that have at least one opening that spans more than 90% of its parent wall.
+ */
+export const getArtifactsWithWideSpanningOpenings = (dirs: string[]) => {
+  const wideSpanningThreshold = 0.9;
+  const dimensionIndexWidth = 0;
+  const minDimensionsLength = 2;
+  const minDimensionValue = 0;
+
+  return getArtifactsWhere(dirs, (rawScan) => {
+    for (const opening of rawScan.openings) {
+      if (
+        opening.parentIdentifier === undefined ||
+        opening.parentIdentifier === null ||
+        !Array.isArray(opening.dimensions) ||
+        opening.dimensions.length < minDimensionsLength
+      ) {
+        continue;
+      }
+
+      const openingWidth = opening.dimensions[dimensionIndexWidth];
+      if (openingWidth === undefined || openingWidth <= minDimensionValue) {
+        continue;
+      }
+
+      const wall = rawScan.walls.find((w) => w.identifier === opening.parentIdentifier);
+      if (wall === undefined) {
+        continue;
+      }
+
+      const wallWidth = getWallWidth(wall);
+      if (wallWidth === undefined || wallWidth <= minDimensionValue) {
+        continue;
+      }
+
+      const spanRatio = openingWidth / wallWidth;
+      if (spanRatio > wideSpanningThreshold) {
+        return true;
+      }
+    }
+
+    return false;
+  });
+};
