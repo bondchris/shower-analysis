@@ -308,8 +308,8 @@ describe("arDataAnalysisReport", () => {
     expect(timezoneSection).toBeDefined();
     if (timezoneSection && "labels" in (timezoneSection.data as ChartConfiguration)) {
       const timezoneChart = timezoneSection.data as { labels: string[] };
-      // Should be sorted by offset with abbreviations on second line: -07:00\nMT, -05:00\nET, Unknown
-      expect(timezoneChart.labels).toEqual(["-07:00\nMT", "-05:00\nET", "Unknown"]);
+      // Should be sorted by offset with abbreviations kept on the same line for angled chart labels.
+      expect(timezoneChart.labels).toEqual(["-07:00 MT", "-05:00 ET", "Unknown"]);
     }
   });
 
@@ -347,7 +347,7 @@ describe("arDataAnalysisReport", () => {
     expect(timezoneSection).toBeDefined();
     if (timezoneSection && "labels" in (timezoneSection.data as ChartConfiguration)) {
       const timezoneChart = timezoneSection.data as { labels: string[] };
-      expect(timezoneChart.labels).toEqual(["-07:00\nMT", "invalid", "+07:00\nICT", "Unknown"]);
+      expect(timezoneChart.labels).toEqual(["-07:00 MT", "invalid", "+07:00 ICT", "Unknown"]);
     }
   });
 
@@ -702,7 +702,7 @@ describe("arDataAnalysisReport", () => {
       const labels = timezoneChart.labels;
       expect(labels[labels.length - 1]).toBe("Unknown");
       // Check proper ordering: -07:00, -05:00, +00:00, invalid-tz (sorted as 0), Unknown
-      expect(labels[0]).toBe("-07:00\nMT");
+      expect(labels[0]).toBe("-07:00 MT");
     }
   });
 

@@ -251,9 +251,10 @@ describe("videoAnalysisReport", () => {
     if (!bitrateChartEntry) {
       throw new Error("Bitrate chart missing");
     }
-    const bitrateChart = bitrateChartEntry.data as { options?: { width?: number } };
+    const bitrateChart = bitrateChartEntry.data as { height?: number; options?: { width?: number } };
     const expectedWidth = computeLayoutConstants().HALF_CHART_WIDTH;
     expect(bitrateChart.options?.width).toBe(expectedWidth);
+    expect(bitrateChart.height).toBe(computeLayoutConstants().HALF_CHART_HEIGHT);
   });
 
   it("should include tail notes for overflow buckets", () => {

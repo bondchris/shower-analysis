@@ -49,14 +49,19 @@ export function setupChartVisxMocks(): void {
 
   vi.mock("@visx/axis", () => ({
     AxisBottom: (props: AxisBottomProps) => {
+      const tickNodes: React.ReactNode[] = [];
       if (props.tickComponent !== undefined) {
-        const node = props.tickComponent({ formattedValue: "Line1\nLine2", x: 0, y: 0 });
-        expect(node).not.toBeUndefined();
+        const singleLineNode = props.tickComponent({ formattedValue: "SingleLabel", x: 0, y: 0 });
+        const multilineNode = props.tickComponent({ formattedValue: "Line1\nLine2", x: 0, y: 0 });
+        expect(singleLineNode).not.toBeUndefined();
+        expect(multilineNode).not.toBeUndefined();
+        tickNodes.push(<React.Fragment key="single">{singleLineNode}</React.Fragment>);
+        tickNodes.push(<React.Fragment key="multi">{multilineNode}</React.Fragment>);
       }
       if (props.tickLabelProps !== undefined) {
         props.tickLabelProps("test", 0, []);
       }
-      return <g data-testid="axis-bottom" />;
+      return <g data-testid="axis-bottom">{tickNodes}</g>;
     },
     AxisLeft: (props: AxisLeftProps) => {
       if (props.tickFormat !== undefined) {

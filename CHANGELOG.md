@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-05-22
+
+### [v0.70.1] Report Chart Readability Fixes
+
+- Fixed validation report warning charts so missing project ID trends render as cumulative environment lines and are
+  omitted when there are no warnings.
+- Improved bar chart readability across generated reports by rotating vertical x-axis labels and keeping timezone
+  labels on a single line.
+- Cleaned up discard report distribution charts by grouping dynamic bad scan reasons and preventing count/percentage
+  labels from overlapping.
+- Kept paired Video Analysis charts aligned by forcing the Bitrate chart to match the Level chart row height while
+  preserving the standard linear count axis.
+- Regenerated report PDFs and refreshed report documentation ahead of release.
+
 ## 2026-01-24
 
 ### [v0.70.0] Scan Analysis Report

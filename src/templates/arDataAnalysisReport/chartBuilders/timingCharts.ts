@@ -52,7 +52,7 @@ function getTimezoneLabel(offset: string): string {
   }
   const abbrev = timezoneAbbreviations[offset];
   if (abbrev !== undefined) {
-    return `${offset}\n${abbrev}`;
+    return `${offset} ${abbrev}`;
   }
   return offset;
 }
@@ -67,7 +67,7 @@ function parseTimezoneOffset(label: string): number {
   const hoursGroupIndex = 2;
   const minutesGroupIndex = 3;
 
-  // Extract the offset portion from labels like "-07:00 (MT)" or just "-07:00"
+  // Extract the offset portion from labels like "-07:00 MT" or just "-07:00"
   const match = /^([+-])(\d{2}):(\d{2})/.exec(label);
   if (match === null) {
     return sortEqual;

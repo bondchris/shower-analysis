@@ -72,8 +72,14 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
   const noLegendMargin = 0;
   const bottomMarginForLegend =
     isStacked && stackLabels !== undefined ? legendHeight + legendBottomPadding : noLegendMargin;
-  const bottomMargin = Math.max(bottomMarginMin, height * bottomMarginRatio) + bottomMarginForLegend;
   const longestLabelLength = labels.reduce((max, label) => Math.max(max, label.length), zeroValue);
+  const angledTickRotationSin = 0.707;
+  const verticalTickFontSize = 10;
+  const axisLineAndTickSpace = 20;
+  const rotatedTickLabelSpace = longestLabelLength * labelCharWidthEstimate * angledTickRotationSin;
+  const bottomMarginForVerticalLabels = axisLineAndTickSpace + rotatedTickLabelSpace + verticalTickFontSize;
+  const bottomMarginBase = horizontal ? bottomMarginMin : Math.max(bottomMarginMin, bottomMarginForVerticalLabels);
+  const bottomMargin = Math.max(bottomMarginBase, height * bottomMarginRatio) + bottomMarginForLegend;
   const labelWidthWithoutPadding = longestLabelLength * labelCharWidthEstimate;
   const estimatedLabelWidth = labelWidthWithoutPadding + labelPadding;
   const leftMarginHorizontal = Math.max(
@@ -339,7 +345,7 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
       padding: paddingValue,
       range: [zeroValue, xMax]
     });
-    const yScaleLinear = scaleLinear<number>({
+    const yScale = scaleLinear<number>({
       domain: [zeroValue, maxValue],
       nice: true,
       range: [yMax, zeroValue]
@@ -348,7 +354,7 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
     return (
       <svg height={height} width={width}>
         <Group left={margin.left} top={margin.top}>
-          <GridRows height={yMax} scale={yScaleLinear} stroke="#e5e7eb" width={xMax} />
+          <GridRows height={yMax} scale={yScale} stroke="#e5e7eb" width={xMax} />
 
           {normalizedData.map((stack, i) => {
             const label = labels[i];
@@ -358,7 +364,7 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
 
             const xBand = xScaleBand(label);
             const totalValue = stack.reduce((sum, val) => sum + val, initialSum);
-            const zeroY = yScaleLinear(zeroValue);
+            const zeroY = yScale(zeroValue);
             const barWidth = xScaleBand.bandwidth();
             const halfBarWidth = barWidth / halfDivisor;
             const labelX = (xBand ?? zeroValue) + halfBarWidth;
@@ -372,7 +378,7 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
                       const previousSum = stack
                         .slice(sliceStart, segmentIdx)
                         .reduce((sum: number, val: number) => sum + val, initialSum);
-                      const segmentY = yScaleLinear(previousSum + segmentValue);
+                      const segmentY = yScale(previousSum + segmentValue);
                       const segmentHeight = zeroY - segmentY;
                       const segmentColor = colors[segmentIdx % colors.length] ?? barColor;
 
@@ -391,7 +397,7 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
                     })
                   : // Render single bar
                     (() => {
-                      const yValue = yScaleLinear(totalValue);
+                      const yValue = yScale(totalValue);
                       const barHeight = zeroY - yValue;
 
                       return (
@@ -406,30 +412,38 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
                         />
                       );
                     })()}
-                {totalForPercentages !== undefined && totalForPercentages > zeroValue && (
-                  <text
-                    fill="#000"
-                    fontSize={10}
-                    fontWeight="bold"
-                    textAnchor="middle"
-                    x={labelX}
-                    y={yScaleLinear(totalValue) - textOffset}
-                  >
-                    {parseFloat(((totalValue / totalForPercentages) * percentageBase).toFixed(decimalPlaces))}%
-                  </text>
-                )}
-                {showCount === true && (
-                  <text
-                    fill="#000"
-                    fontSize={10}
-                    fontWeight="bold"
-                    textAnchor="middle"
-                    x={labelX}
-                    y={yScaleLinear(totalValue) - textOffset}
-                  >
-                    {totalValue}
-                  </text>
-                )}
+                {(() => {
+                  const hasPercentage = totalForPercentages !== undefined && totalForPercentages > zeroValue;
+                  const hasCount = showCount === true;
+                  if (!hasPercentage && !hasCount) {
+                    return null;
+                  }
+
+                  const percentageVal = hasPercentage
+                    ? parseFloat(((totalValue / totalForPercentages) * percentageBase).toFixed(decimalPlaces))
+                    : zeroValue;
+                  let labelText = "";
+                  if (hasCount && hasPercentage) {
+                    labelText = `${String(totalValue)} (${String(percentageVal)}%)`;
+                  } else if (hasPercentage) {
+                    labelText = `${String(percentageVal)}%`;
+                  } else {
+                    labelText = String(totalValue);
+                  }
+
+                  return (
+                    <text
+                      fill="#000"
+                      fontSize={10}
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      x={labelX}
+                      y={yScale(totalValue) - textOffset}
+                    >
+                      {labelText}
+                    </text>
+                  );
+                })()}
               </Group>
             );
           })}
@@ -438,21 +452,40 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
             scale={xScaleBand}
             tickValues={labels}
             tickComponent={({ formattedValue, ...tickProps }) => {
+              const tickRotationDegrees = -45;
+              const tickX = typeof tickProps.x === "number" ? tickProps.x : zeroValue;
+              const tickY = typeof tickProps.y === "number" ? tickProps.y : zeroValue;
               const lines = (formattedValue ?? "").split("\n");
               const lineHeight = 12;
               const firstLineIndex = 0;
               const singleLineThreshold = 1;
               if (lines.length <= singleLineThreshold) {
                 return (
-                  <text {...tickProps} dy="0.71em" fill="#374151" fontSize={10} textAnchor="middle">
+                  <text
+                    {...tickProps}
+                    dx="-0.5em"
+                    dy="0.25em"
+                    fill="#374151"
+                    fontSize={verticalTickFontSize}
+                    textAnchor="end"
+                    transform={`rotate(${String(tickRotationDegrees)}, ${String(tickX)}, ${String(tickY)})`}
+                  >
                     {formattedValue}
                   </text>
                 );
               }
               return (
-                <text {...tickProps} fill="#374151" fontSize={10} textAnchor="middle">
+                <text
+                  {...tickProps}
+                  dx="-0.5em"
+                  dy="0.25em"
+                  fill="#374151"
+                  fontSize={verticalTickFontSize}
+                  textAnchor="end"
+                  transform={`rotate(${String(tickRotationDegrees)}, ${String(tickX)}, ${String(tickY)})`}
+                >
                   {lines.map((line, idx) => (
-                    <tspan key={idx} x={tickProps.x} dy={idx === firstLineIndex ? "0.71em" : lineHeight}>
+                    <tspan key={idx} x={tickX} dy={idx === firstLineIndex ? "0" : lineHeight}>
                       {line}
                     </tspan>
                   ))}
@@ -468,7 +501,7 @@ export const BarChart: React.FC<BarChartProps> = ({ config }) => {
             top={yMax}
           />
           <AxisLeft
-            scale={yScaleLinear}
+            scale={yScale}
             tickFormat={(value) => String(Math.round(Number(value)))}
             tickLabelProps={() => ({
               dx: "-0.25em",

@@ -120,6 +120,8 @@ describe("buildDiscardReport", () => {
 
       expect(reasonChart?.labels).toEqual(["Not a bathroom", "Missing video.mp4"]);
       expect(environmentChart?.labels).toEqual(["staging", "production"]);
+      expect(reasonChart?.options.width).toBe(400);
+      expect(environmentChart?.options.width).toBe(290);
     }
 
     const detailSection = report.sections.find((s) => s.title === "New Bad Scans");
@@ -132,6 +134,52 @@ describe("buildDiscardReport", () => {
 
     const failedSection = report.sections.find((s) => s.title === "Failed Moves (Clean Stage)");
     expect(failedSection?.type).toBe("list");
+  });
+
+  it("groups dynamic bad scan reasons in the distribution chart", () => {
+    const input = createBaseInput({
+      newBadScans: [
+        { environment: "production", id: "short-1", reason: "Video too short (11.87s)", stage: "clean" },
+        { environment: "production", id: "short-2", reason: "Video too short (7.27s)", stage: "clean" },
+        {
+          environment: "staging",
+          id: "bathroom-1",
+          reason: "Not a bathroom (Gemini gemini-3-pro-preview)",
+          stage: "filter"
+        },
+        {
+          environment: "staging",
+          id: "bathroom-2",
+          reason: "Not a bathroom (Gemini gemini-2.5-flash)",
+          stage: "filter"
+        },
+        {
+          environment: "staging",
+          id: "duplicate-1",
+          reason: "Duplicate video (hash abc123)",
+          stage: "duplicates"
+        },
+        {
+          environment: "production",
+          id: "invalid-1",
+          reason: "Invalid video (ffmpeg probe failed)",
+          stage: "clean"
+        }
+      ]
+    });
+
+    const report = buildDiscardReport(input);
+    const distributionRow = report.sections.find((s) => s.type === "chart-row");
+
+    if (distributionRow?.type !== "chart-row") {
+      throw new Error("Expected distribution chart row");
+    }
+
+    const charts = distributionRow.data as { title?: string; data: ChartConfiguration }[];
+    const reasonChart = charts.find((c) => c.title === "Reasons")?.data as BarChartConfig | undefined;
+
+    expect(reasonChart?.labels).toEqual(["Video too short", "Not a bathroom", "Duplicate video", "Invalid video"]);
+    expect(reasonChart?.data).toEqual([2, 2, 1, 1]);
   });
 
   it("handles runs with no new bad scans", () => {

@@ -124,10 +124,10 @@ describe("buildValidationReport", () => {
 
     const report = buildValidationReport(stats);
 
-    // Should generate charts for errors and warnings due to Staging data
+    // Should generate activity charts, but omit the missing projectId trend when there are no warnings.
     const chartTitles = report.sections.map((s) => s.title);
     expect(chartTitles).toContain("Upload Failures Over Time");
-    expect(chartTitles).toContain("Missing Project IDs Over Time");
+    expect(chartTitles).not.toContain("Missing Project IDs Over Time");
   });
 
   it("should handle empty stats gracefully", () => {
@@ -416,6 +416,73 @@ describe("buildValidationReport", () => {
     expect(propertySection?.type).toBe("chart");
   });
 
+  it("should generate missing project ID chart as a cumulative trend", () => {
+    const stats: EnvStats[] = [
+      {
+        artifactsWithIssues: 0,
+        artifactsWithWarnings: 3,
+        cleanScansByDate: { "2024-01-01": 2, "2024-01-02": 1 },
+        errorsByDate: {},
+        invalidScanDateDetails: [],
+        missingCounts: {},
+        missingProjectIdIds: ["missing-1", "missing-2", "missing-3"],
+        missingRequiredArtifacts: [],
+        name: "EnvWithWarnings",
+        pageErrors: {},
+        processed: 3,
+        propertyCounts: {},
+        propertyCountsByDate: {},
+        totalArtifacts: 3,
+        totalScansByDate: { "2024-01-01": 2, "2024-01-02": 1 },
+        warningCounts: { projectId: 3 },
+        warningsByDate: { "2024-01-01": 2, "2024-01-02": 1 }
+      },
+      {
+        artifactsWithIssues: 0,
+        artifactsWithWarnings: 1,
+        cleanScansByDate: { "2024-01-02": 1 },
+        errorsByDate: {},
+        invalidScanDateDetails: [],
+        missingCounts: {},
+        missingProjectIdIds: ["missing-4"],
+        missingRequiredArtifacts: [],
+        name: "OtherEnv",
+        pageErrors: {},
+        processed: 1,
+        propertyCounts: {},
+        propertyCountsByDate: {},
+        totalArtifacts: 1,
+        totalScansByDate: { "2024-01-02": 1 },
+        warningCounts: { projectId: 1 },
+        warningsByDate: { "2024-01-02": 1 }
+      }
+    ];
+
+    const lineChartMock = vi.mocked(getLineChartConfig);
+    lineChartMock.mockClear();
+
+    buildValidationReport(stats);
+
+    const warningCall = lineChartMock.mock.calls.find(
+      ([, , options]) => options?.yLabel === "Cumulative Missing Project IDs"
+    );
+
+    expect(warningCall).toBeDefined();
+
+    const [labels, datasets, options] = warningCall ?? [];
+    expect(labels).toEqual(["2023-01-01", "2024-01-01", "2024-01-02"]);
+    expect(options?.verticalLines).toBeUndefined();
+
+    const envWithWarningsDataset = Array.isArray(datasets)
+      ? datasets.find((dataset) => dataset.label === "EnvWithWarnings")
+      : undefined;
+    const otherEnvDataset = Array.isArray(datasets)
+      ? datasets.find((dataset) => dataset.label === "OtherEnv")
+      : undefined;
+    expect(envWithWarningsDataset?.data).toEqual([0, 2, 3]);
+    expect(otherEnvDataset?.data).toEqual([0, 0, 1]);
+  });
+
   it("should log a warning chart error when chart building fails", () => {
     const warningStats: EnvStats[] = [
       {
@@ -445,7 +512,7 @@ describe("buildValidationReport", () => {
       throw new Error("Missing line chart implementation");
     }
     lineChartMock.mockImplementation((labels, datasets, options) => {
-      if (options?.yLabel === "Warning Count") {
+      if (options?.yLabel === "Cumulative Missing Project IDs") {
         throw new Error("Warning chart error");
       }
       return originalLineImplementation(labels, datasets, options);

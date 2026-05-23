@@ -48,7 +48,8 @@ npm run validate
 
 **Output**:
 
-- `reports/0 - Validation Report.pdf`: Summarizes artifact counts, missing properties, error trends, and lists IDs with invalid scanDate, missing projectId, or missing required artifacts.
+- `reports/0 - Validation Report.pdf`: Summarizes artifact counts, missing properties, error trends, cumulative missing
+  projectId trends, and lists IDs with invalid scanDate, missing projectId, or missing required artifacts.
 
 ### 1. Sync Artifacts
 
@@ -93,8 +94,9 @@ npm run discard
 
 **Output**:
 
-- `reports/2 - Discard Report.pdf`: Clean/filter/duplicate counts, bad scan deltas, trend charts (short videos, non-bathrooms, duplicates),
-  date mismatch, header anomaly, and black frame analysis, and new bad scans by environment.
+- `reports/2 - Discard Report.pdf`: Clean/filter/duplicate counts, bad scan deltas, trend charts (short videos,
+  non-bathrooms, duplicates), date mismatch, header anomaly, and black frame analysis, and grouped new bad scan
+  distributions.
 
 ### Prep: Format Data
 

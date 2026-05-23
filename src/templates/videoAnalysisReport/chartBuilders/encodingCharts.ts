@@ -141,6 +141,7 @@ export function buildEncodingCharts(metadataList: ArtifactAnalysis[]): EncodingC
     sharedBitrateValues.type === "bar"
       ? {
           ...sharedBitrateValues,
+          height: layout.HALF_CHART_HEIGHT,
           options: { ...sharedBitrateValues.options, width: layout.HALF_CHART_WIDTH }
         }
       : sharedBitrateValues;

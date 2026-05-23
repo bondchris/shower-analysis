@@ -12,17 +12,36 @@ import { isDuplicateEntry, isNotBathroomEntry, isTooShortEntry } from "./utils";
 export function buildDistributionSection(newBadScans: DiscardedArtifact[], total: number): ReportSection | null {
   const emptyCount = 0;
   const incrementCount = 1;
+  const reasonChartWidth = 400;
+  const environmentChartWidth = 290;
   if (newBadScans.length === emptyCount) {
     return null;
   }
+
+  const normalizeReason = (reason: string): string => {
+    if (reason.startsWith("Video too short")) {
+      return "Video too short";
+    }
+    if (reason.startsWith("Not a bathroom")) {
+      return "Not a bathroom";
+    }
+    if (reason.startsWith("Duplicate video")) {
+      return "Duplicate video";
+    }
+    if (reason.startsWith("Invalid video")) {
+      return "Invalid video";
+    }
+    return reason;
+  };
 
   const reasonCounts = new Map<string, number>();
   const environmentCounts = new Map<string, number>();
 
   newBadScans.forEach((entry) => {
-    const currentReasonCount = reasonCounts.get(entry.reason) ?? emptyCount;
+    const normalizedReason = normalizeReason(entry.reason);
+    const currentReasonCount = reasonCounts.get(normalizedReason) ?? emptyCount;
     const currentEnvironmentCount = environmentCounts.get(entry.environment) ?? emptyCount;
-    reasonCounts.set(entry.reason, currentReasonCount + incrementCount);
+    reasonCounts.set(normalizedReason, currentReasonCount + incrementCount);
     environmentCounts.set(entry.environment, currentEnvironmentCount + incrementCount);
   });
 
@@ -37,12 +56,14 @@ export function buildDistributionSection(newBadScans: DiscardedArtifact[], total
   const reasonChart = getBarChartConfig(reasonLabels, reasonData, {
     horizontal: true,
     showCount: true,
-    totalForPercentages: total
+    totalForPercentages: total,
+    width: reasonChartWidth
   });
 
   const environmentChart = getBarChartConfig(environmentLabels, environmentData, {
     showCount: true,
-    totalForPercentages: total
+    totalForPercentages: total,
+    width: environmentChartWidth
   });
 
   return {

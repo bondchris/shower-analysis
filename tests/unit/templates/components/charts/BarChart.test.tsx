@@ -57,6 +57,33 @@ describe("BarChart Component", () => {
     expect(screen.queryByText(/%/)).not.toBeInTheDocument();
   });
 
+  it("combines count and percentage labels in vertical mode", () => {
+    const config: BarChartConfig = makeConfig({
+      data: [10],
+      labels: ["Item"],
+      options: { showCount: true, totalForPercentages: 20 }
+    });
+    render(<BarChart config={config} />);
+    expect(screen.getByText("10 (50%)")).toBeInTheDocument();
+    expect(screen.queryByText("10")).not.toBeInTheDocument();
+    expect(screen.queryByText("50%")).not.toBeInTheDocument();
+  });
+
+  it("rotates single-line x-axis labels in vertical mode", () => {
+    render(<BarChart config={makeConfig({ labels: ["1280x960", "1920x1080"] })} />);
+    const tickLabel = screen.getByText("SingleLabel");
+    expect(tickLabel).toHaveAttribute("transform", "rotate(-45, 0, 0)");
+    expect(tickLabel).toHaveAttribute("text-anchor", "end");
+  });
+
+  it("rotates multi-line x-axis labels in vertical mode", () => {
+    render(<BarChart config={makeConfig({ labels: ["-05:00\nET", "+02:00\nEET"] })} />);
+    const firstLine = screen.getByText("Line1");
+    const tickLabel = firstLine.parentElement;
+    expect(tickLabel).toHaveAttribute("transform", "rotate(-45, 0, 0)");
+    expect(tickLabel).toHaveAttribute("text-anchor", "end");
+  });
+
   it("should exercise AxisLeft tickFormat via mock", () => {
     // This test relies on the mock implementation above calling the prop.
     // We trigger it by rendering a horizontal chart.

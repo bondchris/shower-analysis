@@ -299,32 +299,41 @@ export function generateValidationCharts(allStats: EnvStats[]): ValidationCharts
       logger.error(`Failed to generate code error chart: ${String(e)}`);
     }
 
-    // --- 4. Warning Chart ---
-    const warningDatasets = descStats.map((s) => {
-      const color = envColors[s.name] ?? DEFAULT_COLOR;
-      const data = sortedDates.map((d) => {
-        const total = s.totalScansByDate[d] ?? INITIAL_ERROR_COUNT;
-        if (total === INITIAL_ERROR_COUNT) {
-          return null;
+    // --- 4. Missing Project ID Chart ---
+    const warningTotalInRange = descStats.reduce((total, stats) => {
+      const statsTotal = Object.entries(stats.warningsByDate).reduce((statsSum, [date, count]) => {
+        if (date < CHART_DATE_RANGE.startDate) {
+          return statsSum;
         }
-        return s.warningsByDate[d] ?? INITIAL_ERROR_COUNT;
-      });
-      return {
-        borderColor: color,
-        borderWidth: 1.5,
-        data,
-        label: s.name
-      };
-    });
+        return statsSum + count;
+      }, INITIAL_ERROR_COUNT);
+      return total + statsTotal;
+    }, INITIAL_ERROR_COUNT);
 
-    try {
-      charts.warnings = getLineChartConfig(sortedDates, warningDatasets, {
-        title: "",
-        verticalLines: true,
-        yLabel: "Warning Count"
+    if (warningTotalInRange > INITIAL_ERROR_COUNT) {
+      const warningDatasets = descStats.map((s) => {
+        const color = envColors[s.name] ?? DEFAULT_COLOR;
+        let cumulativeWarnings = INITIAL_ERROR_COUNT;
+        const data = sortedDates.map((d) => {
+          cumulativeWarnings += s.warningsByDate[d] ?? INITIAL_ERROR_COUNT;
+          return cumulativeWarnings;
+        });
+        return {
+          borderColor: color,
+          borderWidth: 1.5,
+          data,
+          label: s.name
+        };
       });
-    } catch (e: unknown) {
-      logger.error(`Failed to generate warning chart: ${String(e)}`);
+
+      try {
+        charts.warnings = getLineChartConfig(sortedDates, warningDatasets, {
+          title: "",
+          yLabel: "Cumulative Missing Project IDs"
+        });
+      } catch (e: unknown) {
+        logger.error(`Failed to generate warning chart: ${String(e)}`);
+      }
     }
 
     // --- 5. Property Presence Over Time Chart (Cumulative) ---
